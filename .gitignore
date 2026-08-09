@@ -1,0 +1,44 @@
+# macOS and editors
+.DS_Store
+**/.DS_Store
+.idea/
+**/.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+
+# Java and Maven
+**/target/
+*.class
+*.jar
+*.war
+*.log
+.mvn/timing.properties
+
+# Node and frontend builds
+web/node_modules/
+web/dist/
+web/coverage/
+web/.vite/
+web/playwright-report/
+web/test-results/
+*.tsbuildinfo
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+!web/.env.development
+!web/.env.production
+*.pem
+*.key
+*.p12
+*.jks
+
+# Local runtime data
+.cache/
+.tmp/
+tmp/
+logs/
+data/

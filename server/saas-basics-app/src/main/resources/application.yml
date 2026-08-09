@@ -1,0 +1,37 @@
+spring:
+  application:
+    name: saas-basics-server
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+  profiles:
+    default: db
+
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+saas-basics:
+  security:
+    cors-allowed-origins:
+      - http://localhost:9527
+      - http://127.0.0.1:9527
+    auth:
+      session-ttl-minutes: 480

@@ -1,0 +1,218 @@
+.module-section-stack,
+.blueprint-stack,
+.signal-stack,
+.overview-grid,
+.matrix-grid,
+.policy-grid,
+.dual-grid,
+.dialog-grid,
+.governance-grid,
+.binding-grid,
+.policy-stack,
+.chip-row,
+.module-registry-shell {
+  display: grid;
+  gap: 18px;
+}
+
+.module-registry-shell {
+  gap: 16px;
+}
+
+.module-registry-shell__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+
+  h3 {
+    margin: 0;
+    font-size: 18px;
+  }
+
+  p {
+    margin: 8px 0 0;
+    color: var(--sb-text-secondary);
+    line-height: 1.7;
+    max-width: 760px;
+  }
+}
+
+.module-registry-shell__eyebrow {
+  display: inline-flex;
+  margin-bottom: 8px;
+  color: var(--sb-primary-strong);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+
+.header-stack {
+  h3 {
+    margin: 0;
+  }
+
+  p {
+    margin: 6px 0 0;
+    color: var(--sb-text-secondary);
+    line-height: 1.7;
+  }
+}
+
+.governance-grid,
+.binding-grid {
+  grid-template-columns: 1.2fr 0.8fr;
+}
+
+.policy-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--sb-border-color);
+
+  &:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  strong {
+    display: block;
+  }
+
+  p {
+    margin: 6px 0 0;
+    color: var(--sb-text-secondary);
+    line-height: 1.7;
+  }
+}
+
+.policy-meta {
+  text-align: right;
+
+  span,
+  code {
+    display: block;
+  }
+
+  span {
+    color: var(--sb-text-secondary);
+  }
+
+  code {
+    margin-top: 6px;
+  }
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.chip {
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgb(17 93 163 / 0.08);
+  color: var(--sb-primary-color);
+  font-weight: 600;
+}
+
+.aside-copy {
+  margin: 18px 0 0;
+  color: var(--sb-text-secondary);
+  line-height: 1.7;
+}
+
+.signal-stack,
+.matrix-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.dual-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dialog-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.panel-header {
+  h3 {
+    margin: 0;
+  }
+
+  p {
+    margin: 6px 0 0;
+    color: var(--sb-text-secondary);
+    line-height: 1.7;
+  }
+}
+
+.blueprint-item {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--sb-border-color);
+
+  &:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  p {
+    margin: 8px 0 0;
+    color: var(--sb-text-secondary);
+    line-height: 1.7;
+  }
+}
+
+.signal-item,
+.matrix-item {
+  padding: 18px;
+  border-radius: 20px;
+  background: rgb(15 98 254 / 0.05);
+
+  span,
+  strong {
+    display: block;
+  }
+
+  strong {
+    margin-top: 8px;
+    color: var(--sb-text-primary);
+  }
+
+  p {
+    margin: 8px 0 0;
+    color: var(--sb-text-secondary);
+    line-height: 1.7;
+  }
+}
+
+.embedded-card {
+  height: 100%;
+}
+
+@media (max-width: 1080px) {
+  .signal-stack,
+  .matrix-grid,
+  .dual-grid,
+  .dialog-grid,
+  .governance-grid,
+  .binding-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .module-registry-shell__header {
+    flex-direction: column;
+  }
+
+  .policy-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .policy-meta {
+    text-align: left;
+  }
+}

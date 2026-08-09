@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.3.5</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.saasbasics</groupId>
+    <artifactId>saas-basics-server</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>saas-basics-server</name>
+    <description>Enterprise SaaS foundation multi-module backend</description>
+
+    <modules>
+        <module>saas-basics-app</module>
+        <module>saas-basics-common</module>
+        <module>saas-basics-framework</module>
+        <module>saas-basics-module-dashboard</module>
+        <module>saas-basics-module-tenant</module>
+        <module>saas-basics-module-iam</module>
+        <module>saas-basics-module-system</module>
+        <module>saas-basics-module-integration</module>
+        <module>saas-basics-module-file</module>
+        <module>saas-basics-module-scheduler</module>
+        <module>saas-basics-module-codegen</module>
+        <module>saas-basics-module-audit</module>
+    </modules>
+
+    <properties>
+        <java.version>17</java.version>
+        <mybatis-plus.version>3.5.7</mybatis-plus.version>
+        <springdoc.version>2.6.0</springdoc.version>
+        <flyway.version>10.10.0</flyway.version>
+        <mysql.connector.version>9.6.0</mysql.connector.version>
+    </properties>
+</project>
