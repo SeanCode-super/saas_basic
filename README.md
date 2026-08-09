@@ -5,7 +5,7 @@ SaaS Basics is an open-source-oriented, AI-native foundation for building enterp
 The project is not a vertical SaaS product or an admin dashboard template. It aims to provide the reusable platform capabilities that CRM, ERP, WMS, manufacturing, healthcare, education, government, and other enterprise applications repeatedly need:
 
 - tenant and platform operations
-- enterprise groups, legal entities, organizations, people, and assignments
+- domain-neutral organizations, relations, units, people, engagements, and assignments
 - identity, sessions, roles, menus, API permissions, and data permissions
 - applications, portals, configuration, feature flags, and audit
 - module scaffolding, metadata, migrations, and code generation
@@ -15,9 +15,10 @@ The project is not a vertical SaaS product or an admin dashboard template. It ai
 
 The repository is currently **pre-alpha** and is undergoing an architecture consolidation for `v0.1`.
 
-It is not production-ready. In particular, tenant isolation, authentication security, automated testing, and deployment workflows are being rebuilt before new platform features are expanded.
+It is not production-ready. Tenant isolation and the initial automated quality gate are in place; authentication security, standardized organization modeling, and deployment workflows are being rebuilt before new platform features are expanded.
 
 The current execution baseline is [docs/V0.1_EXECUTION_BLUEPRINT.md](docs/V0.1_EXECUTION_BLUEPRINT.md).
+All new capabilities must follow [docs/STANDARDIZATION_POLICY.md](docs/STANDARDIZATION_POLICY.md).
 
 ## Architecture
 

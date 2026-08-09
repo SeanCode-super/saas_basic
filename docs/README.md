@@ -7,7 +7,9 @@
 ## M0 评审基线
 
 - [`reviews/TENANT_ACCESS_PROTOCOL.md`](./reviews/TENANT_ACCESS_PROTOCOL.md)：租户上下文、持久层强制隔离和平台旁路协议。
-- [`reviews/ORGANIZATION_V25_DESIGN.md`](./reviews/ORGANIZATION_V25_DESIGN.md)：集团、法人、组织、人员、雇佣和任职的 V25 设计稿。
+- [`STANDARDIZATION_POLICY.md`](./STANDARDIZATION_POLICY.md)：全项目标准来源、核心与扩展边界、能力剖面和禁止项。
+- [`STANDARDIZATION_REMEDIATION.md`](./STANDARDIZATION_REMEDIATION.md)：现有代码偏差、目标状态、责任里程碑和发布阻断台账。
+- [`reviews/ORGANIZATION_STANDARD_MODEL.md`](./reviews/ORGANIZATION_STANDARD_MODEL.md)：组织主体、关系、组织单元、参与关系和任职的标准模型与 V25 设计。
 - [`reviews/SPRING_SECURITY_MIGRATION.md`](./reviews/SPRING_SECURITY_MIGRATION.md)：Spring Security、会话和存量密码升级方案。
 - [`reviews/AI_CORE_DESIGN.md`](./reviews/AI_CORE_DESIGN.md)：AI Gateway、数据模型、Provider SPI、MCP、工具和运行审计方案。
 
