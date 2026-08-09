@@ -19,7 +19,7 @@ public class AssignmentEntity extends AbstractOrganizationResourceEntity {
     private Long positionId;
 
     @TableField("is_primary")
-    private Boolean primary;
+    private Boolean primaryAssignment;
 
     public Long getEngagementId() {
         return engagementId;
@@ -53,11 +53,11 @@ public class AssignmentEntity extends AbstractOrganizationResourceEntity {
         this.positionId = positionId;
     }
 
-    public Boolean getPrimary() {
-        return primary;
+    public Boolean getPrimaryAssignment() {
+        return primaryAssignment;
     }
 
-    public void setPrimary(Boolean primary) {
-        this.primary = primary;
+    public void setPrimaryAssignment(Boolean primaryAssignment) {
+        this.primaryAssignment = primaryAssignment;
     }
 }

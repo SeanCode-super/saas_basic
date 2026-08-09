@@ -239,7 +239,7 @@ public class OrganizationWorkforceService {
         entity.setOrganizationId(engagement.getOrganizationId());
         entity.setOrgUnitId(unit.getId());
         entity.setPositionId(position.getId());
-        entity.setPrimary(Boolean.TRUE.equals(request.primary()));
+        entity.setPrimaryAssignment(Boolean.TRUE.equals(request.primary()));
         support.initialize(entity, request.validFrom(), request.validTo(), request.remark());
         insert(() -> mappers.assignments().insert(entity), "ORG_ASSIGNMENT_DUPLICATE");
         audit(entity, "CREATE", entity.getEngagementId().toString());
@@ -255,10 +255,10 @@ public class OrganizationWorkforceService {
         OrgUnitEntity unit = structure.unit(entity.getOrgUnitId());
         PositionEntity position = structure.position(entity.getPositionId());
         validateAssignmentPeriod(period, engagement, unit, position);
-        boolean identityChanged = !Objects.equals(entity.getPrimary(), request.primary())
+        boolean identityChanged = !Objects.equals(entity.getPrimaryAssignment(), request.primary())
                 || !support.period(entity).equals(period);
         support.requireDraftForIdentityChange(entity, identityChanged);
-        entity.setPrimary(Boolean.TRUE.equals(request.primary()));
+        entity.setPrimaryAssignment(Boolean.TRUE.equals(request.primary()));
         support.applyPeriod(entity, request.validFrom(), request.validTo());
         entity.setRemark(support.normalizeOptional(request.remark()));
         update(() -> support.update(mappers.assignments(), entity, request.expectedVersion()), "ORG_ASSIGNMENT_DUPLICATE");
@@ -365,7 +365,7 @@ public class OrganizationWorkforceService {
     }
 
     private void requireNoOverlappingPrimary(AssignmentEntity candidate) {
-        if (!Boolean.TRUE.equals(candidate.getPrimary())) {
+        if (!Boolean.TRUE.equals(candidate.getPrimaryAssignment())) {
             return;
         }
         EffectivePeriod candidatePeriod = support.period(candidate);
@@ -432,7 +432,7 @@ public class OrganizationWorkforceService {
                 support.toUuid(organization.getPublicId()),
                 support.toUuid(unit.getPublicId()),
                 support.toUuid(position.getPublicId()),
-                Boolean.TRUE.equals(entity.getPrimary()),
+                Boolean.TRUE.equals(entity.getPrimaryAssignment()),
                 LifecycleStatus.valueOf(entity.getStatus()),
                 support.toInstant(entity.getValidFrom()),
                 support.toInstant(entity.getValidTo()),
