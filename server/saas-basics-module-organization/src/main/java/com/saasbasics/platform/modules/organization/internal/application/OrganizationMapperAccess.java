@@ -10,7 +10,7 @@ import com.saasbasics.platform.modules.organization.internal.persistence.mapper.
 import com.saasbasics.platform.modules.organization.internal.persistence.mapper.OrganizationMapper;
 import com.saasbasics.platform.modules.organization.internal.persistence.mapper.OrganizationRelationMapper;
 import com.saasbasics.platform.modules.organization.internal.persistence.mapper.PersonMapper;
-import com.saasbasics.platform.modules.organization.internal.persistence.mapper.PositionMapper;
+import com.saasbasics.platform.modules.organization.internal.persistence.mapper.OrgPositionMapper;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
@@ -25,7 +25,7 @@ public class OrganizationMapperAccess {
     private final ObjectProvider<OrgUnitRelationMapper> unitRelations;
     private final ObjectProvider<PersonMapper> persons;
     private final ObjectProvider<EngagementMapper> engagements;
-    private final ObjectProvider<PositionMapper> positions;
+    private final ObjectProvider<OrgPositionMapper> positions;
     private final ObjectProvider<AssignmentMapper> assignments;
 
     public OrganizationMapperAccess(ObjectProvider<OrganizationMapper> organizations,
@@ -36,7 +36,7 @@ public class OrganizationMapperAccess {
                                     ObjectProvider<OrgUnitRelationMapper> unitRelations,
                                     ObjectProvider<PersonMapper> persons,
                                     ObjectProvider<EngagementMapper> engagements,
-                                    ObjectProvider<PositionMapper> positions,
+                                    ObjectProvider<OrgPositionMapper> positions,
                                     ObjectProvider<AssignmentMapper> assignments) {
         this.organizations = organizations;
         this.classifications = classifications;
@@ -82,7 +82,7 @@ public class OrganizationMapperAccess {
         return required(engagements);
     }
 
-    public PositionMapper positions() {
+    public OrgPositionMapper positions() {
         return required(positions);
     }
 
