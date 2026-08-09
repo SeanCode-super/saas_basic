@@ -4,6 +4,13 @@
 
 - [`V0.1_EXECUTION_BLUEPRINT.md`](./V0.1_EXECUTION_BLUEPRINT.md)：产品边界、企业模型、AI 架构、架构决策、迁移顺序、里程碑和验收标准。
 
+## M0 评审基线
+
+- [`reviews/TENANT_ACCESS_PROTOCOL.md`](./reviews/TENANT_ACCESS_PROTOCOL.md)：租户上下文、持久层强制隔离和平台旁路协议。
+- [`reviews/ORGANIZATION_V25_DESIGN.md`](./reviews/ORGANIZATION_V25_DESIGN.md)：集团、法人、组织、人员、雇佣和任职的 V25 设计稿。
+- [`reviews/SPRING_SECURITY_MIGRATION.md`](./reviews/SPRING_SECURITY_MIGRATION.md)：Spring Security、会话和存量密码升级方案。
+- [`reviews/AI_CORE_DESIGN.md`](./reviews/AI_CORE_DESIGN.md)：AI Gateway、数据模型、Provider SPI、MCP、工具和运行审计方案。
+
 ## 历史设计输入
 
 以下文档保留用于理解早期设计，不再作为当前实施顺序和完成状态的依据：

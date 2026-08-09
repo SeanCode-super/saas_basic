@@ -257,7 +257,7 @@ Pinia 只管理真正跨页面共享的状态：
 
 - `auth` store 负责登录、退出、当前用户、登录态恢复
 - `accessToken` 持久化到本地存储，刷新后自动恢复
-- `http` 拦截器统一注入 `Authorization` 与 `X-Tenant-Code`
+- `http` 拦截器只注入 `Authorization`；租户来自服务端会话，不接受客户端请求头覆盖
 - 遇到 `401` 或 `AUTH_UNAUTHORIZED` 自动清理本地状态并跳转 `/login`
 - 路由 `meta.permissionCode` 必须和后端 `@RequirePermission` 采用同一套权限码
 

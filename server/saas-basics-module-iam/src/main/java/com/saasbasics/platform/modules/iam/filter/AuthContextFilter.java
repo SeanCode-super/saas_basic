@@ -3,7 +3,7 @@ package com.saasbasics.platform.modules.iam.filter;
 import com.saasbasics.platform.common.api.ApiResponse;
 import com.saasbasics.platform.common.auth.AuthContext;
 import com.saasbasics.platform.common.auth.AuthPrincipal;
-import com.saasbasics.platform.common.tenant.TenantContext;
+import com.saasbasics.platform.common.tenant.TenantAccessContextHolder;
 import com.saasbasics.platform.modules.iam.service.AuthService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -52,10 +52,12 @@ public class AuthContextFilter extends OncePerRequestFilter {
                 return;
             }
             AuthContext.set(principal);
-            TenantContext.setTenantCode(principal.tenantCode());
-            filterChain.doFilter(request, response);
+            try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openAuthenticated(principal)) {
+                filterChain.doFilter(request, response);
+            }
         } finally {
             AuthContext.clear();
+            TenantAccessContextHolder.clear();
         }
     }
 

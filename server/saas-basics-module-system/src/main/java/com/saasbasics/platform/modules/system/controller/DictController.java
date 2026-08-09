@@ -1,7 +1,6 @@
 package com.saasbasics.platform.modules.system.controller;
 
 import com.saasbasics.platform.common.api.ApiResponse;
-import com.saasbasics.platform.common.auth.AuthContext;
 import com.saasbasics.platform.common.auth.RequirePermission;
 import com.saasbasics.platform.modules.system.dto.DictItemResponse;
 import com.saasbasics.platform.modules.system.dto.DictItemSaveRequest;
@@ -87,18 +86,7 @@ public class DictController {
 
     @GetMapping("/options/{dictCode}")
     @RequirePermission("system:config:query")
-    public ApiResponse<List<DictOptionResponse>> listOptions(@PathVariable String dictCode,
-                                                             @RequestParam(required = false) Long tenantId) {
-        return ApiResponse.success(dictService.listOptions(dictCode, resolveTenantId(tenantId)));
-    }
-
-    private Long resolveTenantId(Long tenantId) {
-        if (tenantId != null) {
-            return tenantId;
-        }
-        if (AuthContext.get() != null && AuthContext.get().tenantId() != null) {
-            return AuthContext.get().tenantId();
-        }
-        return 1L;
+    public ApiResponse<List<DictOptionResponse>> listOptions(@PathVariable String dictCode) {
+        return ApiResponse.success(dictService.listOptions(dictCode));
     }
 }
