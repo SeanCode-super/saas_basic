@@ -17,7 +17,7 @@ class ModuleBoundaryTest {
 
     @ArchTest
     static final ArchRule CONTROLLERS_MUST_NOT_ACCESS_PERSISTENCE = noClasses()
-            .that().resideInAPackage("..controller..")
+            .that().resideInAnyPackage("..controller..", "..web..")
             .should().dependOnClassesThat()
             .resideInAnyPackage("..entity..", "..mapper..");
 }

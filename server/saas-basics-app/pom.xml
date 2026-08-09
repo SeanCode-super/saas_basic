@@ -36,6 +36,11 @@
         </dependency>
         <dependency>
             <groupId>com.saasbasics</groupId>
+            <artifactId>saas-basics-module-organization</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.saasbasics</groupId>
             <artifactId>saas-basics-module-iam</artifactId>
             <version>${project.version}</version>
         </dependency>

@@ -4,6 +4,8 @@
 
 目标里程碑：`M1`
 
+实施状态见 [`../M1_ORGANIZATION_IMPLEMENTATION_STATUS.md`](../M1_ORGANIZATION_IMPLEMENTATION_STATUS.md)。设计被接受不表示 M1 能力已经完成或发布。
+
 ## 1. 决策
 
 organization 核心只表达跨行业稳定存在的组织语义，不预设集团、公司、法人、医院、学校、政府机构等类型链路。

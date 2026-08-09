@@ -55,6 +55,31 @@ public class GlobalExceptionHandler {
         if (exception.getCode() != null && exception.getCode().startsWith("AUTH_")) {
             return HttpStatus.UNAUTHORIZED;
         }
+        if (exception.getCode() != null && exception.getCode().endsWith("_NOT_FOUND")) {
+            return HttpStatus.NOT_FOUND;
+        }
+        if (isConflict(exception.getCode())) {
+            return HttpStatus.CONFLICT;
+        }
         return HttpStatus.BAD_REQUEST;
+    }
+
+    private boolean isConflict(String code) {
+        if (code == null) {
+            return false;
+        }
+        return code.endsWith("_DUPLICATE")
+                || code.endsWith("_CONFLICT")
+                || code.endsWith("_REFERENCED")
+                || code.endsWith("_REFERENCES_EXIST")
+                || code.endsWith("_ACTIVE_DEPENDENTS")
+                || code.endsWith("_ACTIVE_ASSIGNMENTS")
+                || code.endsWith("_ACTIVE_ENGAGEMENTS")
+                || code.endsWith("_DEPENDENTS")
+                || code.contains("_UNARCHIVED_")
+                || code.endsWith("_TRANSITION_INVALID")
+                || code.endsWith("_IMMUTABLE")
+                || code.endsWith("_REQUIRES_ARCHIVED")
+                || code.endsWith("_TERMINATION_REQUIRED");
     }
 }

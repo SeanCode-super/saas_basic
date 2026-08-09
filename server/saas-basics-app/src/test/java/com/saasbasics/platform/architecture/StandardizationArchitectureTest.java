@@ -79,6 +79,46 @@ class StandardizationArchitectureTest {
     }
 
     @Test
+    void organizationPublicContractsDoNotDependOnInternalImplementation() {
+        JavaClasses classes = new ClassFileImporter().importPackages("com.saasbasics.platform.modules.organization");
+
+        noClasses()
+                .that().resideInAnyPackage(
+                        "..modules.organization.api..",
+                        "..modules.organization.domain.."
+                )
+                .should().dependOnClassesThat().resideInAPackage("..modules.organization.internal..")
+                .allowEmptyShould(false)
+                .check(classes);
+    }
+
+    @Test
+    void organizationWebLayerDoesNotAccessPersistence() {
+        JavaClasses classes = new ClassFileImporter().importPackages("com.saasbasics.platform.modules.organization");
+
+        noClasses()
+                .that().resideInAPackage("..modules.organization.internal.web..")
+                .should().dependOnClassesThat().resideInAPackage("..modules.organization.internal.persistence..")
+                .allowEmptyShould(false)
+                .check(classes);
+    }
+
+    @Test
+    void organizationModuleUsesOnlyTheAuditPublicContract() {
+        JavaClasses classes = new ClassFileImporter().importPackages("com.saasbasics.platform.modules");
+
+        noClasses()
+                .that().resideInAPackage("..modules.organization..")
+                .should().dependOnClassesThat().resideInAnyPackage(
+                        "..modules.audit.service..",
+                        "..modules.audit.entity..",
+                        "..modules.audit.mapper.."
+                )
+                .allowEmptyShould(false)
+                .check(classes);
+    }
+
+    @Test
     void newMigrationsDoNotIntroduceRegionalOrDemoDefaults() throws IOException {
         Resource[] migrations = new PathMatchingResourcePatternResolver().getResources(
                 "classpath*:db/migration/V*.sql"

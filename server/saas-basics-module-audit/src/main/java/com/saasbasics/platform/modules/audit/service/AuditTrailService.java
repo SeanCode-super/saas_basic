@@ -2,6 +2,7 @@ package com.saasbasics.platform.modules.audit.service;
 
 import com.saasbasics.platform.common.auth.AuthContext;
 import com.saasbasics.platform.common.auth.AuthPrincipal;
+import com.saasbasics.platform.modules.audit.api.AuditRecorder;
 import com.saasbasics.platform.modules.audit.entity.OperationLogEntity;
 import com.saasbasics.platform.modules.audit.mapper.OperationLogMapper;
 import java.util.Map;
@@ -12,7 +13,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 @Service
-public class AuditTrailService {
+public class AuditTrailService implements AuditRecorder {
 
     private final ObjectProvider<OperationLogMapper> operationLogMapperProvider;
     private final ObjectMapper objectMapper;
@@ -23,6 +24,7 @@ public class AuditTrailService {
         this.objectMapper = objectMapper;
     }
 
+    @Override
     public void record(String bizModule,
                        String bizType,
                        String bizId,

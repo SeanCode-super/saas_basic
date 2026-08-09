@@ -29,7 +29,7 @@ class MapperTenantContractTest {
     @Test
     void everyTenantMapperEntityExposesTenantId() throws Exception {
         Resource[] mapperResources = new PathMatchingResourcePatternResolver().getResources(
-                "classpath*:com/saasbasics/platform/modules/**/mapper/*Mapper.class"
+                "classpath*:com/saasbasics/platform/modules/**/*Mapper.class"
         );
         CachingMetadataReaderFactory metadata = new CachingMetadataReaderFactory();
         Set<String> checkedTables = new HashSet<>();

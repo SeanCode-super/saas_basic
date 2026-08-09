@@ -15,7 +15,7 @@ The project is not a vertical SaaS product or an admin dashboard template. It ai
 
 The repository is currently **pre-alpha** and is undergoing an architecture consolidation for `v0.1`.
 
-It is not production-ready. Tenant isolation and the initial automated quality gate are in place; authentication security, standardized organization modeling, and deployment workflows are being rebuilt before new platform features are expanded.
+It is not production-ready. Tenant isolation and the initial automated quality gate are in place. The standard organization core is under implementation; identity security, legacy migration, organization-scoped authorization, interoperability, and deployment workflows remain release blockers.
 
 The current execution baseline is [docs/V0.1_EXECUTION_BLUEPRINT.md](docs/V0.1_EXECUTION_BLUEPRINT.md).
 All new capabilities must follow [docs/STANDARDIZATION_POLICY.md](docs/STANDARDIZATION_POLICY.md).
