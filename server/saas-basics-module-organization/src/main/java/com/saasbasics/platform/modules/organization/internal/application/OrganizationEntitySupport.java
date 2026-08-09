@@ -30,6 +30,8 @@ public class OrganizationEntitySupport {
                                                                            String remark) {
         entity.setPublicId(uuidGenerator.generate().toString());
         entity.setStatus(LifecycleStatus.DRAFT.name());
+        entity.setVersion(0);
+        entity.setDeleted(0);
         applyPeriod(entity, validFrom, validTo);
         entity.setRemark(normalizeOptional(remark));
     }
