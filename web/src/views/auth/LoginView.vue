@@ -255,6 +255,7 @@ onMounted(() => {
   --portal-accent-start: #2e7dff;
   --portal-accent-end: #8caeff;
   --portal-accent-soft: rgb(46 125 255 / 0.1);
+
   min-height: 100vh;
   display: grid;
   grid-template-columns: 1.2fr minmax(360px, 480px);

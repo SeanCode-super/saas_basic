@@ -3,7 +3,7 @@ import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import NavigationAtlas from "@/components/platform/NavigationAtlas.vue";
 import TenantSwitcher from "@/components/platform/TenantSwitcher.vue";
-import { APP_CLUSTER_LABELS, resolveAppMeta, resolveSectionMeta } from "@/config/app-taxonomy";
+import { resolveAppMeta, resolveSectionMeta } from "@/config/app-taxonomy";
 import { useAuthStore } from "@/stores/modules/auth";
 import { useLocaleStore } from "@/stores/modules/locale";
 import { useMenuStore, type MenuNavItem } from "@/stores/modules/menu";
@@ -500,9 +500,6 @@ async function handleRefreshNavigation() {
 
   strong {
     display: block;
-  }
-
-  strong {
     font-size: 14px;
     color: var(--sb-shell-rail-text);
   }

@@ -19,8 +19,6 @@ import BaseStatusTag from "@/components/base/BaseStatusTag.vue";
 import NavigationAtlas from "@/components/platform/NavigationAtlas.vue";
 import ProTable from "@/components/pro/ProTable.vue";
 import type { ProTableColumn } from "@/components/pro/ProTable.vue";
-import { localizeSubjectType } from "../iam-meta";
-
 interface AtlasItem {
   id: number | string;
   code: string;

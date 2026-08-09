@@ -39,5 +39,6 @@
         <springdoc.version>2.6.0</springdoc.version>
         <flyway.version>10.10.0</flyway.version>
         <mysql.connector.version>9.6.0</mysql.connector.version>
+        <archunit.version>1.3.0</archunit.version>
     </properties>
 </project>

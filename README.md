@@ -39,6 +39,34 @@ sql/      MySQL migration source files
 docs/     product, domain, architecture, and delivery documentation
 ```
 
+## Local development
+
+Prerequisites:
+
+- Java 17
+- Maven 3.9+
+- Node.js 20+
+- Docker with Compose support
+
+Start MySQL:
+
+```bash
+make dev-db-up
+```
+
+The development database listens on port `3307` by default so it does not collide with a local MySQL installation.
+
+Start the backend and frontend in separate terminals:
+
+```bash
+make dev-backend
+make dev-frontend
+```
+
+Backend: `http://127.0.0.1:8080`
+
+Frontend: `http://127.0.0.1:9527`
+
 ## Build
 
 Backend compile and package:
@@ -56,7 +84,13 @@ npm ci
 npm run build
 ```
 
-The current backend requires a MySQL database when running. A repeatable Docker Compose and Testcontainers development environment is part of the M0 work in progress.
+Run the current quality gate:
+
+```bash
+make verify
+```
+
+Flyway migration tests use Testcontainers when Docker is available and skip with an explicit reason when Docker is not installed.
 
 ## Documentation
 

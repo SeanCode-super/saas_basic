@@ -8,8 +8,10 @@
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest",
+    "test:run": "vitest --run",
     "lint": "eslint . --ext .ts,.tsx,.vue",
-    "lint:style": "stylelint \"src/**/*.{css,scss,vue}\""
+    "lint:style": "stylelint \"src/**/*.{css,scss,vue}\"",
+    "check": "npm run build && npm run lint && npm run lint:style && npm run test:run"
   },
   "dependencies": {
     "@vue/compiler-dom": "^3.5.29",
