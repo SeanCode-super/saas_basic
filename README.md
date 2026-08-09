@@ -109,4 +109,4 @@ Security issues must not be reported in public issues. Follow [SECURITY.md](SECU
 
 ## License
 
-An open-source license has not been selected yet. Apache-2.0, AGPL-3.0, and a dual-license model are under evaluation. Until a license is published, the repository is source-available for review but no redistribution rights are granted.
+SaaS Basics is licensed under the [Apache License 2.0](LICENSE). Attribution information is provided in [NOTICE](NOTICE).

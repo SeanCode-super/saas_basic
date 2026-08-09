@@ -18,6 +18,14 @@
     <name>saas-basics-server</name>
     <description>Enterprise SaaS foundation multi-module backend</description>
 
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
     <modules>
         <module>saas-basics-app</module>
         <module>saas-basics-common</module>
