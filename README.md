@@ -96,6 +96,7 @@ Flyway migration tests use Testcontainers when Docker is available and skip with
 ## Documentation
 
 - [Documentation index](docs/README.md)
+- [Roadmap](docs/ROADMAP.md)
 - [v0.1 execution blueprint](docs/V0.1_EXECUTION_BLUEPRINT.md)
 - [Backend architecture history](docs/backend-enterprise-architecture.md)
 - [Frontend architecture history](docs/frontend-vue-architecture.md)

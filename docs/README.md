@@ -3,6 +3,7 @@
 ## 当前执行基线
 
 - [`V0.1_EXECUTION_BLUEPRINT.md`](./V0.1_EXECUTION_BLUEPRINT.md)：产品边界、企业模型、AI 架构、架构决策、迁移顺序、里程碑和验收标准。
+- [`ROADMAP.md`](./ROADMAP.md)：公开里程碑、发布门槛、能力范围和后续平台建设方向。
 - [`adr/ADR-013_OPEN_SOURCE_LICENSE.md`](./adr/ADR-013_OPEN_SOURCE_LICENSE.md)：Apache-2.0 许可证决策、适用范围和后续约束。
 
 ## M0 评审基线
