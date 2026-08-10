@@ -350,7 +350,7 @@ public class OrganizationWorkforceService {
                                               PositionEntity position) {
         OrganizationRules.requireSameOrganization(engagement.getOrganizationId(), unit.getOrganizationId(), "Assignment unit");
         OrganizationRules.requireSameOrganization(engagement.getOrganizationId(), position.getOrganizationId(), "Assignment position");
-        if (position.getOrgUnitId() != null && !Objects.equals(position.getOrgUnitId(), unit.getId())) {
+        if (!Objects.equals(position.getOrgUnitId(), unit.getId())) {
             throw new BizException("ORG_ASSIGNMENT_POSITION_UNIT_MISMATCH", "The position is owned by a different organization unit");
         }
     }

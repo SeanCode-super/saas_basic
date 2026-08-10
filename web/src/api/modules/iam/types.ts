@@ -134,6 +134,7 @@ export interface IamEmployeeTransferPayload {
 
 export interface IamUserRow {
   id: number;
+  publicId: string;
   tenantId: number;
   userCode: string;
   username: string;

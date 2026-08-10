@@ -8,6 +8,7 @@ import com.saasbasics.platform.modules.iam.dto.DepartmentTreeNodeResponse;
 import com.saasbasics.platform.modules.iam.dto.EmployeeResponse;
 import com.saasbasics.platform.modules.iam.dto.EmployeeTransferRequest;
 import com.saasbasics.platform.modules.iam.dto.PositionResponse;
+import com.saasbasics.platform.modules.iam.service.DepartmentService;
 import com.saasbasics.platform.modules.iam.service.EmployeeService;
 import com.saasbasics.platform.modules.iam.service.IamService;
 import java.time.LocalDateTime;
@@ -48,6 +49,9 @@ class OrganizationArchitectureTest {
     @Autowired
     private EmployeeService employeeService;
 
+    @Autowired
+    private DepartmentService departmentService;
+
     private TenantAccessContextHolder.Scope tenantScope;
 
     @BeforeEach
@@ -83,6 +87,10 @@ class OrganizationArchitectureTest {
         Assertions.assertNotNull(departments.get(0).treeLevel());
         Assertions.assertNotNull(departments.get(0).employeeCount());
         Assertions.assertNotNull(departments.get(0).childCount());
+        Assertions.assertEquals(
+                departments.get(0).id(),
+                departmentService.getDepartment(departments.get(0).id()).id()
+        );
         Assertions.assertNotNull(positions.get(0).employeeCount());
         Assertions.assertNotNull(employees.get(0).deptFullName());
         Assertions.assertNotNull(employees.get(0).boundUserCount());

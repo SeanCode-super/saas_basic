@@ -102,6 +102,7 @@ public class OrganizationDirectoryService implements OrganizationDirectory {
         OrgUnitEntity unit = structure.unit(assignment.getOrgUnitId());
         PositionEntity position = structure.position(assignment.getPositionId());
         OrganizationEntity organization = catalog.organization(assignment.getOrganizationId());
+        requireConsistentAssignment(assignment, engagement, unit, position);
 
         boolean identifiersMatch = Objects.equals(selection.organizationPublicId(), support.toUuid(organization.getPublicId()))
                 && Objects.equals(selection.engagementPublicId(), support.toUuid(engagement.getPublicId()))
@@ -128,6 +129,7 @@ public class OrganizationDirectoryService implements OrganizationDirectory {
         OrgUnitEntity unit = structure.unit(assignment.getOrgUnitId());
         PositionEntity position = structure.position(assignment.getPositionId());
         OrganizationEntity organization = catalog.organization(assignment.getOrganizationId());
+        requireConsistentAssignment(assignment, engagement, unit, position);
         if (!isEffective(person, effectiveAt) || !isEffective(engagement, effectiveAt)
                 || !isEffective(assignment, effectiveAt) || !isEffective(unit, effectiveAt)
                 || !isEffective(position, effectiveAt) || !isEffective(organization, effectiveAt)) {
@@ -179,6 +181,7 @@ public class OrganizationDirectoryService implements OrganizationDirectory {
         OrganizationEntity organization = catalog.organization(entity.getOrganizationId());
         OrgUnitEntity unit = structure.unit(entity.getOrgUnitId());
         PositionEntity position = structure.position(entity.getPositionId());
+        requireConsistentAssignment(entity, engagement, unit, position);
         return new AssignmentSummary(
                 support.toUuid(entity.getPublicId()),
                 support.toUuid(engagement.getPublicId()),
@@ -200,6 +203,22 @@ public class OrganizationDirectoryService implements OrganizationDirectory {
                 support.toInstant(entity.getValidFrom()),
                 support.toInstant(entity.getValidTo())
         );
+    }
+
+    private void requireConsistentAssignment(AssignmentEntity assignment,
+                                             EngagementEntity engagement,
+                                             OrgUnitEntity unit,
+                                             PositionEntity position) {
+        boolean consistent = Objects.equals(assignment.getOrganizationId(), engagement.getOrganizationId())
+                && Objects.equals(assignment.getOrganizationId(), unit.getOrganizationId())
+                && Objects.equals(assignment.getOrganizationId(), position.getOrganizationId())
+                && Objects.equals(assignment.getOrgUnitId(), position.getOrgUnitId());
+        if (!consistent) {
+            throw new BizException(
+                    "ORG_ASSIGNMENT_CONTEXT_INCONSISTENT",
+                    "The assignment references resources from different organization contexts"
+            );
+        }
     }
 
     private boolean isEffective(com.saasbasics.platform.modules.organization.internal.persistence.entity.AbstractOrganizationResourceEntity entity,

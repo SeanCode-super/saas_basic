@@ -142,7 +142,7 @@ public class UserPersonBindingService implements UserPersonDirectory {
             return response(entity);
         }
         if (target == UserPersonBindingModels.Status.ACTIVE) {
-            organizationDirectory.requireEffectivePerson(UUID.fromString(entity.getPersonPublicId()), clock.instant());
+            assertBindingWithinPersonPeriod(entity);
             assertNoOverlappingBinding(entity);
         }
         entity.setStatus(target.name());
@@ -202,6 +202,22 @@ public class UserPersonBindingService implements UserPersonDirectory {
                 .and(query -> query.isNull("valid_to").or().gt("valid_to", candidate.getValidFrom())));
         if (count > 0) {
             throw new BizException("IAM_USER_PERSON_PERIOD_CONFLICT", "Active person binding periods cannot overlap");
+        }
+    }
+
+    private void assertBindingWithinPersonPeriod(UserPersonBindingEntity binding) {
+        OrganizationDirectory.PersonSummary person = organizationDirectory.getPerson(
+                UUID.fromString(binding.getPersonPublicId()));
+        Instant bindingFrom = toInstant(binding.getValidFrom());
+        Instant bindingTo = toInstant(binding.getValidTo());
+        boolean startsWithinPersonPeriod = !bindingFrom.isBefore(person.validFrom());
+        boolean endsWithinPersonPeriod = person.validTo() == null
+                || bindingTo != null && !bindingTo.isAfter(person.validTo());
+        if (!"ACTIVE".equals(person.status()) || !startsWithinPersonPeriod || !endsWithinPersonPeriod) {
+            throw new BizException(
+                    "IAM_USER_PERSON_PERIOD_OUTSIDE_PERSON",
+                    "The binding effective period must be contained within the active person period"
+            );
         }
     }
 

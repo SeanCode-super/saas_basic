@@ -306,6 +306,46 @@ class UserPersonBindingIntegrationTest {
         }
     }
 
+    @Test
+    void requiresBindingPeriodToBeContainedWithinPersonPeriod() {
+        try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openTenant(
+                TENANT_BINDINGS, "bindings", 41L)) {
+            Instant personFrom = Instant.parse("2025-01-01T00:00:00Z");
+            Instant personTo = Instant.parse("2030-01-01T00:00:00Z");
+            PersonModels.Response person = activePerson("bounded-person", personFrom, personTo);
+            UserEntity user = createUser("bounded-user", "STAFF");
+
+            UserPersonBindingModels.Response startsTooEarly = bindings.create(
+                    new UserPersonBindingModels.CreateRequest(
+                            UUID.fromString(user.getPublicId()), person.publicId(),
+                            Instant.parse("2024-01-01T00:00:00Z"),
+                            Instant.parse("2026-01-01T00:00:00Z"), null));
+            assertBizCode(
+                    () -> bindings.transition(
+                            startsTooEarly.publicId(),
+                            new UserPersonBindingModels.TransitionRequest(
+                                    UserPersonBindingModels.Status.ACTIVE, startsTooEarly.version())),
+                    "IAM_USER_PERSON_PERIOD_OUTSIDE_PERSON");
+
+            UserPersonBindingModels.Response unbounded = bindings.create(
+                    new UserPersonBindingModels.CreateRequest(
+                            UUID.fromString(user.getPublicId()), person.publicId(),
+                            Instant.parse("2026-01-01T00:00:00Z"), null, null));
+            assertBizCode(
+                    () -> bindings.transition(
+                            unbounded.publicId(),
+                            new UserPersonBindingModels.TransitionRequest(
+                                    UserPersonBindingModels.Status.ACTIVE, unbounded.version())),
+                    "IAM_USER_PERSON_PERIOD_OUTSIDE_PERSON");
+
+            UserPersonBindingModels.Response contained = activateBinding(
+                    user, person,
+                    Instant.parse("2026-01-01T00:00:00Z"),
+                    Instant.parse("2029-01-01T00:00:00Z"));
+            assertThat(contained.status()).isEqualTo(UserPersonBindingModels.Status.ACTIVE);
+        }
+    }
+
     private UserEntity createUser(String code, String userType) {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
         UserEntity user = new UserEntity();
@@ -325,8 +365,12 @@ class UserPersonBindingIntegrationTest {
     }
 
     private PersonModels.Response activePerson(String code) {
+        return activePerson(code, START, null);
+    }
+
+    private PersonModels.Response activePerson(String code, Instant validFrom, Instant validTo) {
         PersonModels.Response person = workforce.createPerson(
-                new PersonModels.CreateRequest(code, code, START, null, null));
+                new PersonModels.CreateRequest(code, code, validFrom, validTo, null));
         return workforce.transitionPerson(
                 person.publicId(), new LifecycleTransitionRequest(LifecycleStatus.ACTIVE, person.version()));
     }

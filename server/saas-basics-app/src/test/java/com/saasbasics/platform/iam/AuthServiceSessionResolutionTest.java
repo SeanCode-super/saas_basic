@@ -15,8 +15,12 @@ import com.saasbasics.platform.common.auth.AuthPrincipal;
 import com.saasbasics.platform.common.exception.BizException;
 import com.saasbasics.platform.common.id.UuidV7Generator;
 import com.saasbasics.platform.config.SecurityProperties;
+import com.saasbasics.platform.modules.audit.entity.LoginLogEntity;
 import com.saasbasics.platform.modules.audit.mapper.LoginLogMapper;
+import com.saasbasics.platform.modules.iam.dto.AuthLoginRequest;
 import com.saasbasics.platform.modules.iam.entity.AuthSessionEntity;
+import com.saasbasics.platform.modules.iam.entity.LoginPolicyEntity;
+import com.saasbasics.platform.modules.iam.entity.PasswordPolicyEntity;
 import com.saasbasics.platform.modules.iam.entity.UserEntity;
 import com.saasbasics.platform.modules.iam.entity.UserPersonBindingEntity;
 import com.saasbasics.platform.modules.iam.mapper.AuthSessionMapper;
@@ -159,6 +163,25 @@ class AuthServiceSessionResolutionTest {
     }
 
     @Test
+    void clearsInternallyInconsistentAssignmentContextWithoutRevokingSession() {
+        UUID selectedAssignment = UUID.fromString(session.getSelectedAssignmentPublicId());
+        when(organizationDirectory.requireEffectiveAssignmentForPerson(
+                eq(UUID.fromString(binding.getPersonPublicId())), eq(selectedAssignment), any()))
+                .thenThrow(new BizException(
+                        "ORG_ASSIGNMENT_CONTEXT_INCONSISTENT",
+                        "The assignment context contains inconsistent ownership references"));
+
+        AuthPrincipal principal = authService.resolvePrincipal("inconsistent-assignment-token");
+
+        assertThat(principal).isNotNull();
+        assertThat(principal.organizationContext()).isNull();
+        assertThat(session.getSelectedAssignmentPublicId()).isNull();
+        assertThat(session.getStatus()).isEqualTo("ONLINE");
+        verify(sessionMapper).update(
+                isNull(), org.mockito.ArgumentMatchers.<Wrapper<AuthSessionEntity>>any());
+    }
+
+    @Test
     void revokesSessionWhenPersonBecomesInvalidDuringAssignmentResolution() {
         String selectedAssignment = session.getSelectedAssignmentPublicId();
         when(organizationDirectory.requireEffectiveAssignmentForPerson(any(), any(), any()))
@@ -187,6 +210,68 @@ class AuthServiceSessionResolutionTest {
         assertThat(session.getStatus()).isEqualTo("ONLINE");
         assertThat(session.getLogoutAt()).isNull();
         verify(sessionMapper, never()).updateById(session);
+    }
+
+    @Test
+    void invalidBoundPersonDoesNotCreateOnlineSessionOrSuccessAudit() {
+        UserMapper userMapper = mock(UserMapper.class);
+        TenantMapper tenantMapper = mock(TenantMapper.class);
+        AuthSessionMapper loginSessionMapper = mock(AuthSessionMapper.class);
+        LoginPolicyMapper loginPolicyMapper = mock(LoginPolicyMapper.class);
+        PasswordPolicyMapper passwordPolicyMapper = mock(PasswordPolicyMapper.class);
+        LoginLogMapper loginLogMapper = mock(LoginLogMapper.class);
+        UserPersonBindingMapper loginBindingMapper = mock(UserPersonBindingMapper.class);
+        PasswordSecurityService passwordSecurityService = mock(PasswordSecurityService.class);
+        TenantEntity tenant = activeTenant();
+        UserEntity user = activeUser();
+        user.setUsername("session-user");
+        user.setPasswordHash("password-hash");
+        UserPersonBindingEntity loginBinding = activeBinding(UUIDS.generate().toString());
+        LoginPolicyEntity loginPolicy = new LoginPolicyEntity();
+        loginPolicy.setAllowPasswordLogin(true);
+        loginPolicy.setSessionTimeoutMinutes(60);
+        PasswordPolicyEntity passwordPolicy = new PasswordPolicyEntity();
+
+        when(tenantMapper.selectOne(any())).thenReturn(tenant);
+        when(userMapper.selectByTenantAndUsername(TENANT_ID, "session-user")).thenReturn(user);
+        when(loginPolicyMapper.selectActivePolicy(TENANT_ID)).thenReturn(loginPolicy);
+        when(passwordPolicyMapper.selectActivePolicy(TENANT_ID)).thenReturn(passwordPolicy);
+        when(passwordSecurityService.matches("valid-password", "password-hash")).thenReturn(true);
+        when(loginBindingMapper.selectEffectiveByUser(eq(TENANT_ID), eq(USER_ID), any()))
+                .thenReturn(loginBinding);
+        when(organizationDirectory.requireEffectivePerson(
+                eq(UUID.fromString(loginBinding.getPersonPublicId())), any()))
+                .thenThrow(new BizException("ORG_PERSON_NOT_EFFECTIVE", "The person is not effective"));
+
+        AuthService loginService = new AuthService(
+                mock(SecurityProperties.class),
+                passwordSecurityService,
+                provider(userMapper),
+                provider(tenantMapper),
+                provider(loginSessionMapper),
+                provider(loginPolicyMapper),
+                provider(passwordPolicyMapper),
+                emptyProvider(LoginFailStatMapper.class),
+                emptyProvider(PasswordHistoryMapper.class),
+                provider(loginLogMapper),
+                emptyProvider(UserRoleMapper.class),
+                emptyProvider(RoleApiMapper.class),
+                provider(loginBindingMapper),
+                mock(PortalEntryService.class),
+                mock(MenuPermissionService.class),
+                organizationDirectory
+        );
+
+        assertThatThrownBy(() -> loginService.login(
+                new AuthLoginRequest("tenant-42", null, null, null, "session-user", "valid-password"),
+                "127.0.0.1", "test-agent"))
+                .isInstanceOf(BizException.class)
+                .extracting(exception -> ((BizException) exception).getCode())
+                .isEqualTo("AUTH_SUBJECT_BINDING_INVALID");
+
+        verify(loginSessionMapper, never()).insert(any(AuthSessionEntity.class));
+        verify(loginLogMapper, never()).insert(any(LoginLogEntity.class));
+        verify(userMapper, never()).updateById(any(UserEntity.class));
     }
 
     private AuthSessionEntity activeSession() {

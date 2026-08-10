@@ -21,7 +21,10 @@
 - ArchUnit、UUIDv7、领域规则、Flyway Schema、租户隔离、跨组织引用、树防环和主任职冲突测试。
 - V26 提供显式迁移范围、串行运行、幂等资源映射和脱敏差异问题控制结构，不自动创建默认组织主体。
 - V27-V30 提供 User/Session UUIDv7、历史回填、User-Person 完整生命周期绑定和绑定权限注册。
-- 认证会话固化绑定 UUID，任职上下文必须显式选择，并校验 Assignment 确实属于当前绑定 Person。
+- 认证会话固化绑定 UUID，任职上下文必须显式选择，并校验 Assignment 属于当前绑定 Person 且 Engagement、Organization、OrgUnit、Position 内部归属一致。
+- ACTIVE User-Person binding 的完整有效期必须包含在 ACTIVE Person 有效期内；登录必须先完成绑定 Person 校验，再创建 ONLINE 会话并记录成功审计。
+- V30 为升级前全部既有租户安装绑定 API 资源，并按标准超级管理员角色约定完成授权；未来租户继续从平台源租户克隆。
+- MyBatis 全局注册规范 UUID 字符串映射，User DTO 与前端 `IamUserRow` 均公开 `publicId`。
 - IAM 只依赖 organization 的公开 API；同租户内借用其他 Person 任职的上下文被拒绝。
 
 ## M1 发布阻断项

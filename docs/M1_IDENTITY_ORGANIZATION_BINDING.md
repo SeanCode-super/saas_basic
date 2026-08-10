@@ -25,7 +25,7 @@ On each authenticated request:
 1. The current ACTIVE binding is compared with the binding captured by the session.
 2. A changed, inactive, expired, or missing captured binding, or a bound Person that is no longer effective, invalidates the session.
 3. A selected Assignment is resolved through `OrganizationDirectory.requireEffectiveAssignmentForPerson`.
-4. The resolver proves that the Assignment belongs to the bound Person and that every referenced organization resource is effective.
+4. The resolver proves that the Assignment belongs to the bound Person, that its Engagement, Organization, OrgUnit, and Position ownership references are internally consistent, and that every referenced organization resource is effective.
 5. A missing, terminated, or otherwise stale Assignment clears the session selection and yields no organization context; it does not revoke an otherwise valid account session.
 6. Infrastructure and storage failures propagate as errors and do not mutate the binding or Assignment selection.
 7. No primary Assignment is selected implicitly.
@@ -48,6 +48,8 @@ The administrative binding resource exposes the complete governed lifecycle:
 
 The endpoint catalog assigns independent `query`, `write` (create), `update`, `lifecycle`, and `delete` permission codes. This keeps HTTP method metadata exact and prevents lifecycle or deletion authority from being implied by general write access.
 
+An ACTIVE binding period must be fully contained within the referenced ACTIVE Person period. A bounded Person cannot be referenced by an open-ended binding, and a future binding can be activated without requiring the Person to be effective at the time the administrative command is issued.
+
 ## Authentication response compatibility
 
 The standard identity fields returned by login, `/api/auth/me`, and context selection are `sessionPublicId`, `userPublicId`, `subjectBindingPublicId`, `personPublicId`, and `organizationContext`. The organization context contains only Organization, Engagement, OrgUnit, Position, and Assignment public UUIDs.
@@ -60,7 +62,9 @@ The existing `sessionId`, `tenantId`, `userId`, and `roleIds` bigint fields rema
 - V27 adds nullable User and Session public identifiers, session binding/context references, the versioned User-Person binding table, and compatibility triggers for writers that do not yet supply public identifiers.
 - V28 uses the Java `UuidV7Generator` to backfill historical User and Session rows with RFC 9562 UUIDv7 identifiers.
 - V29 requires every non-null identifier to have the RFC 9562 UUIDv7 text form. The columns deliberately remain nullable during the rolling-upgrade and binary-rollback window.
-- V30 registers the binding lifecycle permissions for the platform administration role and tenant bootstrap source.
+- V30 installs the binding lifecycle permissions for every existing tenant, assigns them to each standard tenant administrator role, and updates the platform tenant that future tenant bootstrap clones.
+
+Login resolves and validates the effective Person binding before it records a successful login or creates an ONLINE session. A concurrent binding or Person change during final principal construction compensates by taking the new session OFFLINE; no successful login audit is written until principal construction succeeds.
 
 V1-V25 remain unchanged. The legacy `iam_user.employee_id`, department, employee, and position paths remain available only as a migration compatibility surface. The standard binding path never writes `employee_id`.
 

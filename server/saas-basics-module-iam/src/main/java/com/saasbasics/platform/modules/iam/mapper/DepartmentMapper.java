@@ -15,49 +15,52 @@ public interface DepartmentMapper extends BaseMapper<DepartmentEntity> {
     @Select("""
             <script>
             SELECT
-              iam_department.id,
-              iam_department.tenant_id AS tenantId,
-              iam_department.parent_id AS parentId,
-              iam_department.dept_code AS deptCode,
-              iam_department.dept_name AS deptName,
-              iam_department.dept_full_name AS deptFullName,
-              iam_department.tree_path AS treePath,
+              department_record.id,
+              department_record.tenant_id AS tenantId,
+              department_record.parent_id AS parentId,
+              department_record.dept_code AS deptCode,
+              department_record.dept_name AS deptName,
+              department_record.dept_full_name AS deptFullName,
+              department_record.tree_path AS treePath,
               GREATEST(
                 1,
-                LENGTH(COALESCE(iam_department.tree_path, CONCAT('/', iam_department.id, '/')))
-                - LENGTH(REPLACE(COALESCE(iam_department.tree_path, CONCAT('/', iam_department.id, '/')), '/', ''))
+                LENGTH(COALESCE(department_record.tree_path, CONCAT('/', department_record.id, '/')))
+                - LENGTH(REPLACE(COALESCE(department_record.tree_path, CONCAT('/', department_record.id, '/')), '/', ''))
                 - 1
               ) AS treeLevel,
-              iam_department.leader_user_id AS leaderUserId,
+              department_record.leader_user_id AS leaderUserId,
               COALESCE(leader.nickname, leader.username, '') AS leaderName,
               (
                 SELECT COUNT(*)
                 FROM iam_department child
-                WHERE child.parent_id = iam_department.id
+                WHERE child.parent_id = department_record.id
                   AND child.deleted = 0
-                  AND child.tenant_id = iam_department.tenant_id
+                  AND child.tenant_id = department_record.tenant_id
               ) AS childCount,
               (
                 SELECT COUNT(*)
                 FROM iam_employee employee
-                WHERE employee.dept_id = iam_department.id
+                WHERE employee.dept_id = department_record.id
                   AND employee.deleted = 0
-                  AND employee.tenant_id = iam_department.tenant_id
+                  AND employee.tenant_id = department_record.tenant_id
               ) AS employeeCount,
-              iam_department.status,
-              iam_department.sort_no AS sortNo,
-              iam_department.remark
-            FROM iam_department
-            LEFT JOIN iam_user leader ON leader.id = iam_department.leader_user_id AND leader.deleted = 0
-            WHERE iam_department.deleted = 0
-              AND iam_department.tenant_id = #{spec.tenantId}
+              department_record.status,
+              department_record.sort_no AS sortNo,
+              department_record.remark
+            FROM iam_department department_record
+            LEFT JOIN iam_user leader
+              ON leader.id = department_record.leader_user_id
+             AND leader.tenant_id = department_record.tenant_id
+             AND leader.deleted = 0
+            WHERE department_record.deleted = 0
+              AND department_record.tenant_id = #{spec.tenantId}
             <if test="spec.denyAll">
               AND 1 = 0
             </if>
             <if test="!spec.allowAll and !spec.denyAll">
               <trim prefix="AND (" suffix=")" prefixOverrides="OR ">
                 <if test="spec.departmentIds != null and spec.departmentIds.size() > 0">
-                  OR id IN
+                  OR department_record.id IN
                   <foreach collection="spec.departmentIds" item="departmentId" open="(" separator="," close=")">
                     #{departmentId}
                   </foreach>
@@ -65,13 +68,19 @@ public interface DepartmentMapper extends BaseMapper<DepartmentEntity> {
                 <if test="spec.roleIds != null and spec.roleIds.size() > 0">
                   OR EXISTS (
                     SELECT 1
-                    FROM iam_employee e
-                    INNER JOIN iam_user u ON u.employee_id = e.id AND u.deleted = 0
-                    INNER JOIN iam_user_role ur ON ur.user_id = u.id AND ur.deleted = 0
-                    WHERE e.dept_id = iam_department.id
-                      AND e.deleted = 0
-                      AND e.tenant_id = iam_department.tenant_id
-                      AND ur.role_id IN
+                    FROM iam_employee role_employee
+                    INNER JOIN iam_user role_user
+                      ON role_user.employee_id = role_employee.id
+                     AND role_user.tenant_id = role_employee.tenant_id
+                     AND role_user.deleted = 0
+                    INNER JOIN iam_user_role role_assignment
+                      ON role_assignment.user_id = role_user.id
+                     AND role_assignment.tenant_id = role_user.tenant_id
+                     AND role_assignment.deleted = 0
+                    WHERE role_employee.dept_id = department_record.id
+                      AND role_employee.deleted = 0
+                      AND role_employee.tenant_id = department_record.tenant_id
+                      AND role_assignment.role_id IN
                       <foreach collection="spec.roleIds" item="roleId" open="(" separator="," close=")">
                         #{roleId}
                       </foreach>
@@ -82,49 +91,52 @@ public interface DepartmentMapper extends BaseMapper<DepartmentEntity> {
                 AND 1 = 0
               </if>
             </if>
-            ORDER BY iam_department.sort_no ASC, iam_department.id ASC
+            ORDER BY department_record.sort_no ASC, department_record.id ASC
             </script>
             """)
     List<DepartmentResponse> selectDepartmentList(@Param("spec") DataPermissionSqlSpec spec);
 
     @Select("""
             SELECT
-              iam_department.id,
-              iam_department.tenant_id AS tenantId,
-              iam_department.parent_id AS parentId,
-              iam_department.dept_code AS deptCode,
-              iam_department.dept_name AS deptName,
-              iam_department.dept_full_name AS deptFullName,
-              iam_department.tree_path AS treePath,
+              department_record.id,
+              department_record.tenant_id AS tenantId,
+              department_record.parent_id AS parentId,
+              department_record.dept_code AS deptCode,
+              department_record.dept_name AS deptName,
+              department_record.dept_full_name AS deptFullName,
+              department_record.tree_path AS treePath,
               GREATEST(
                 1,
-                LENGTH(COALESCE(iam_department.tree_path, CONCAT('/', iam_department.id, '/')))
-                - LENGTH(REPLACE(COALESCE(iam_department.tree_path, CONCAT('/', iam_department.id, '/')), '/', ''))
+                LENGTH(COALESCE(department_record.tree_path, CONCAT('/', department_record.id, '/')))
+                - LENGTH(REPLACE(COALESCE(department_record.tree_path, CONCAT('/', department_record.id, '/')), '/', ''))
                 - 1
               ) AS treeLevel,
-              iam_department.leader_user_id AS leaderUserId,
+              department_record.leader_user_id AS leaderUserId,
               COALESCE(leader.nickname, leader.username, '') AS leaderName,
               (
                 SELECT COUNT(*)
                 FROM iam_department child
-                WHERE child.parent_id = iam_department.id
+                WHERE child.parent_id = department_record.id
                   AND child.deleted = 0
-                  AND child.tenant_id = iam_department.tenant_id
+                  AND child.tenant_id = department_record.tenant_id
               ) AS childCount,
               (
                 SELECT COUNT(*)
                 FROM iam_employee employee
-                WHERE employee.dept_id = iam_department.id
+                WHERE employee.dept_id = department_record.id
                   AND employee.deleted = 0
-                  AND employee.tenant_id = iam_department.tenant_id
+                  AND employee.tenant_id = department_record.tenant_id
               ) AS employeeCount,
-              iam_department.status,
-              iam_department.sort_no AS sortNo,
-              iam_department.remark
-            FROM iam_department
-            LEFT JOIN iam_user leader ON leader.id = iam_department.leader_user_id AND leader.deleted = 0
-            WHERE iam_department.id = #{id}
-              AND iam_department.deleted = 0
+              department_record.status,
+              department_record.sort_no AS sortNo,
+              department_record.remark
+            FROM iam_department department_record
+            LEFT JOIN iam_user leader
+              ON leader.id = department_record.leader_user_id
+             AND leader.tenant_id = department_record.tenant_id
+             AND leader.deleted = 0
+            WHERE department_record.id = #{id}
+              AND department_record.deleted = 0
             """)
     DepartmentResponse selectDepartmentById(@Param("id") Long id);
 }

@@ -63,6 +63,7 @@ public class AuthService {
             "ORG_ASSIGNMENT_NOT_FOUND",
             "ORG_ASSIGNMENT_PERSON_MISMATCH",
             "ORG_ASSIGNMENT_NOT_EFFECTIVE",
+            "ORG_ASSIGNMENT_CONTEXT_INCONSISTENT",
             "ORG_ENGAGEMENT_NOT_FOUND",
             "ORG_UNIT_NOT_FOUND",
             "ORG_POSITION_NOT_FOUND",
@@ -183,8 +184,22 @@ public class AuthService {
         }
         validatePasswordExpiry(passwordPolicy, user);
 
+        java.time.Instant authenticatedAt = java.time.Instant.now();
+        LocalDateTime authenticatedAtLocal = LocalDateTime.ofInstant(authenticatedAt, java.time.ZoneOffset.UTC);
+        UserPersonBindingEntity subjectBinding = effectiveBinding(user.getTenantId(), user.getId(), authenticatedAtLocal);
+        if (subjectBinding != null) {
+            requireEffectiveBoundPerson(
+                    requiredUuid(
+                            subjectBinding.getPersonPublicId(),
+                            "AUTH_SUBJECT_BINDING_INVALID",
+                            "The bound person identifier is invalid"
+                    ),
+                    authenticatedAt
+            );
+        }
+
         clearFailStat(failStat);
-        user.setLastLoginAt(LocalDateTime.now());
+        user.setLastLoginAt(authenticatedAtLocal);
         user.setLastLoginIp(loginIp);
         userMapper.updateById(user);
         persistPasswordHistoryIfNeeded(user, passwordPolicy);
@@ -199,7 +214,6 @@ public class AuthService {
         session.setTenantCode(tenant.getTenantCode());
         session.setSessionNo("SESS-" + UUID.randomUUID().toString().replace("-", "").substring(0, 20).toUpperCase());
         session.setUserId(user.getId());
-        UserPersonBindingEntity subjectBinding = effectiveBinding(user.getTenantId(), user.getId(), LocalDateTime.now());
         session.setSubjectBindingPublicId(subjectBinding == null ? null : subjectBinding.getPublicId());
         session.setUsername(user.getUsername());
         session.setNickname(user.getNickname());
@@ -211,10 +225,18 @@ public class AuthService {
         session.setExpireAt(expireAt);
         session.setLastAccessAt(LocalDateTime.now());
         session.setStatus("ONLINE");
-        requiredSessionMapper().insert(session);
+        AuthSessionMapper sessionMapper = requiredSessionMapper();
+        sessionMapper.insert(session);
 
+        AuthPrincipal principal;
+        try {
+            principal = toPrincipal(session);
+        } catch (RuntimeException exception) {
+            invalidateSession(session, sessionMapper);
+            throw exception;
+        }
         logLogin(tenant.getId(), user.getId(), user.getUsername(), loginIp, userAgent, true, null);
-        return new AuthLoginResponse(accessToken, "Bearer", expireAt, toCurrentUserResponse(toPrincipal(session)));
+        return new AuthLoginResponse(accessToken, "Bearer", expireAt, toCurrentUserResponse(principal));
     }
 
     public AuthCurrentUserResponse currentUser() {

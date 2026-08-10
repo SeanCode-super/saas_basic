@@ -9,6 +9,7 @@ import java.sql.SQLException;
 import java.util.HashSet;
 import java.util.Set;
 import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.MigrationVersion;
 import org.flywaydb.core.api.output.MigrateResult;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.MySQLContainer;
@@ -26,6 +27,17 @@ class FlywayMigrationTest {
 
     @Test
     void migratesAnEmptyDatabaseAndIsRepeatable() {
+        Flyway beforeBindingPermissions = Flyway.configure()
+                .dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
+                .locations("classpath:db/migration")
+                .target(MigrationVersion.fromVersion("29"))
+                .load();
+        MigrateResult expansionRun = beforeBindingPermissions.migrate();
+        assertThat(expansionRun.success).isTrue();
+        assertThat(expansionRun.migrationsExecuted).isEqualTo(29);
+
+        seedExistingTenantBeforeBindingPermissions();
+
         Flyway flyway = Flyway.configure()
                 .dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
                 .locations("classpath:db/migration")
@@ -35,13 +47,71 @@ class FlywayMigrationTest {
         MigrateResult secondRun = flyway.migrate();
 
         assertThat(firstRun.success).isTrue();
-        assertThat(firstRun.migrationsExecuted).isEqualTo(30);
+        assertThat(firstRun.migrationsExecuted).isOne();
         assertThat(secondRun.success).isTrue();
         assertThat(secondRun.migrationsExecuted).isZero();
         assertThat(flyway.info().pending()).isEmpty();
         assertOrganizationSchema();
         assertOrganizationMigrationSchema();
         assertIdentityBindingSchema();
+        assertExistingTenantBindingPermissions();
+    }
+
+    private void seedExistingTenantBeforeBindingPermissions() {
+        try (Connection connection = MYSQL.createConnection("");
+             PreparedStatement tenantInsert = connection.prepareStatement("""
+                     INSERT INTO plat_tenant (id, tenant_code, tenant_name, status)
+                     VALUES (99002, 'existing', 'Existing Tenant', 'ENABLED')
+                     """);
+             PreparedStatement roleInsert = connection.prepareStatement("""
+                     INSERT INTO iam_role (
+                       tenant_id, role_group_id, role_code, role_name, role_type,
+                       data_scope_type, status, is_system
+                     ) VALUES (99002, 0, 'existing_super_admin', 'Existing Tenant Administrator',
+                               'SYSTEM', 'ALL', 'ENABLED', 1)
+                     """)) {
+            assertThat(tenantInsert.executeUpdate()).isEqualTo(1);
+            assertThat(roleInsert.executeUpdate()).isEqualTo(1);
+        } catch (SQLException exception) {
+            throw new AssertionError("Unable to seed an existing tenant before V30", exception);
+        }
+    }
+
+    private void assertExistingTenantBindingPermissions() {
+        try (Connection connection = MYSQL.createConnection("");
+             PreparedStatement resources = connection.prepareStatement("""
+                     SELECT COUNT(*)
+                     FROM iam_api_resource
+                     WHERE tenant_id = 99002
+                       AND resource_code LIKE 'iam:user-person-binding:%'
+                       AND deleted = 0
+                     """);
+             PreparedStatement assignments = connection.prepareStatement("""
+                     SELECT COUNT(*)
+                     FROM iam_role_api role_api
+                     INNER JOIN iam_role role_record
+                       ON role_record.id = role_api.role_id
+                      AND role_record.tenant_id = role_api.tenant_id
+                     INNER JOIN iam_api_resource resource
+                       ON resource.id = role_api.api_resource_id
+                      AND resource.tenant_id = role_api.tenant_id
+                     WHERE role_api.tenant_id = 99002
+                       AND role_record.role_code = 'existing_super_admin'
+                       AND resource.resource_code LIKE 'iam:user-person-binding:%'
+                       AND role_api.deleted = 0
+                     """)) {
+            assertThat(singleCount(resources)).isEqualTo(5);
+            assertThat(singleCount(assignments)).isEqualTo(5);
+        } catch (SQLException exception) {
+            throw new AssertionError("Unable to verify existing tenant permissions installed by V30", exception);
+        }
+    }
+
+    private long singleCount(PreparedStatement statement) throws SQLException {
+        try (ResultSet resultSet = statement.executeQuery()) {
+            assertThat(resultSet.next()).isTrue();
+            return resultSet.getLong(1);
+        }
     }
 
     private void assertOrganizationSchema() {
@@ -140,7 +210,7 @@ class FlywayMigrationTest {
     private Set<String> indexNames(Connection connection, String table) throws SQLException {
         Set<String> indexes = new HashSet<>();
         try (ResultSet resultSet = connection.getMetaData().getIndexInfo(
-                connection.getCatalog(), null, table, true, false)) {
+                connection.getCatalog(), null, table, false, false)) {
             while (resultSet.next()) {
                 indexes.add(resultSet.getString("INDEX_NAME"));
             }
