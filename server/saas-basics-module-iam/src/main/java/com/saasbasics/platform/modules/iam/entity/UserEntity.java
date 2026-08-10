@@ -8,6 +8,9 @@ import java.time.LocalDateTime;
 @TableName("iam_user")
 public class UserEntity extends BaseTenantEntity {
 
+    @TableField("public_id")
+    private String publicId;
+
     @TableField("user_code")
     private String userCode;
 
@@ -46,6 +49,14 @@ public class UserEntity extends BaseTenantEntity {
 
     @TableField("need_reset_password")
     private Boolean needResetPassword;
+
+    public String getPublicId() {
+        return publicId;
+    }
+
+    public void setPublicId(String publicId) {
+        this.publicId = publicId;
+    }
 
     public String getUserCode() {
         return userCode;

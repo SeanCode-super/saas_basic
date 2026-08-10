@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.saasbasics.platform.SaasBasicsApplication;
 import com.saasbasics.platform.common.exception.BizException;
+import com.saasbasics.platform.common.id.UuidV7Generator;
 import com.saasbasics.platform.common.tenant.TenantAccessContextHolder;
 import com.saasbasics.platform.modules.iam.entity.UserEntity;
 import com.saasbasics.platform.modules.iam.mapper.UserMapper;
@@ -27,6 +28,7 @@ class TenantIsolationTest {
 
     private static final long TENANT_ALPHA = 101L;
     private static final long TENANT_BETA = 202L;
+    private static final UuidV7Generator UUID_GENERATOR = new UuidV7Generator();
 
     @Container
     static final MySQLContainer<?> MYSQL = new MySQLContainer<>("mysql:8.3.0")
@@ -93,6 +95,7 @@ class TenantIsolationTest {
     private UserEntity newUser(String prefix) {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 12);
         UserEntity user = new UserEntity();
+        user.setPublicId(UUID_GENERATOR.generate().toString());
         user.setUserCode(prefix + "_" + suffix);
         user.setUsername(prefix + "." + suffix);
         user.setNickname(prefix + " user");

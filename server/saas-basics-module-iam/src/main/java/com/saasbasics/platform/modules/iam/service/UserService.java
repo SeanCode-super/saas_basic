@@ -2,6 +2,7 @@ package com.saasbasics.platform.modules.iam.service;
 
 import com.saasbasics.platform.common.exception.BizException;
 import com.saasbasics.platform.common.auth.DataPermissionSqlSpec;
+import com.saasbasics.platform.common.id.UuidV7Generator;
 import com.saasbasics.platform.modules.iam.dto.UserResponse;
 import com.saasbasics.platform.modules.iam.dto.UserSaveRequest;
 import com.saasbasics.platform.modules.iam.dto.UserStatusUpdateRequest;
@@ -18,6 +19,7 @@ public class UserService {
     private final ObjectProvider<UserMapper> userMapperProvider;
     private final PasswordSecurityService passwordSecurityService;
     private final DataPermissionRuleService dataPermissionRuleService;
+    private final UuidV7Generator uuidGenerator = new UuidV7Generator();
 
     public UserService(ObjectProvider<UserMapper> userMapperProvider,
                        PasswordSecurityService passwordSecurityService,
@@ -43,6 +45,7 @@ public class UserService {
 
     public UserResponse createUser(UserSaveRequest request) {
         UserEntity entity = new UserEntity();
+        entity.setPublicId(uuidGenerator.generate().toString());
         apply(entity, request);
         requiredMapper().insert(entity);
         return getUser(entity.getId());

@@ -13,6 +13,7 @@
 - [`STANDARDIZATION_REMEDIATION.md`](./STANDARDIZATION_REMEDIATION.md)：现有代码偏差、目标状态、责任里程碑和发布阻断台账。
 - [`reviews/ORGANIZATION_STANDARD_MODEL.md`](./reviews/ORGANIZATION_STANDARD_MODEL.md)：组织主体、关系、组织单元、参与关系和任职的标准模型与 V25 设计。
 - [`M1_ORGANIZATION_IMPLEMENTATION_STATUS.md`](./M1_ORGANIZATION_IMPLEMENTATION_STATUS.md)：M1 已实现范围、验证证据和未完成发布阻断项。
+- [`M1_IDENTITY_ORGANIZATION_BINDING.md`](./M1_IDENTITY_ORGANIZATION_BINDING.md)：User-Person 绑定、显式任职上下文、迁移控制和切换约束。
 - [`reviews/SPRING_SECURITY_MIGRATION.md`](./reviews/SPRING_SECURITY_MIGRATION.md)：Spring Security、会话和存量密码升级方案。
 - [`reviews/AI_CORE_DESIGN.md`](./reviews/AI_CORE_DESIGN.md)：AI Gateway、数据模型、Provider SPI、MCP、工具和运行审计方案。
 

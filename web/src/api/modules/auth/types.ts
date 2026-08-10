@@ -1,3 +1,11 @@
+export interface OrganizationAccessContext {
+  organizationPublicId: string;
+  engagementPublicId: string;
+  orgUnitPublicId: string;
+  positionPublicId: string;
+  assignmentPublicId: string;
+}
+
 export interface AuthCurrentUser {
   sessionId: number;
   tenantId: number;
@@ -12,6 +20,11 @@ export interface AuthCurrentUser {
   featureFlags: string[];
   roleIds?: number[];
   buttonPermissions?: string[];
+  sessionPublicId: string;
+  userPublicId: string;
+  subjectBindingPublicId?: string | null;
+  personPublicId?: string | null;
+  organizationContext?: OrganizationAccessContext | null;
 }
 
 export interface AuthLoginRequest {

@@ -2,6 +2,7 @@ package com.saasbasics.platform.modules.iam.dto;
 
 public record UserResponse(
         Long id,
+        java.util.UUID publicId,
         Long tenantId,
         String userCode,
         String username,

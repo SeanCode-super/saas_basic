@@ -119,6 +119,20 @@ class StandardizationArchitectureTest {
     }
 
     @Test
+    void iamUsesOnlyOrganizationPublicContracts() {
+        JavaClasses classes = new ClassFileImporter().importPackages("com.saasbasics.platform.modules");
+
+        noClasses()
+                .that().resideInAPackage("..modules.iam..")
+                .should().dependOnClassesThat().resideInAnyPackage(
+                        "..modules.organization.internal..",
+                        "..modules.organization.domain.."
+                )
+                .allowEmptyShould(false)
+                .check(classes);
+    }
+
+    @Test
     void newMigrationsDoNotIntroduceRegionalOrDemoDefaults() throws IOException {
         Resource[] migrations = new PathMatchingResourcePatternResolver().getResources(
                 "classpath*:db/migration/V*.sql"

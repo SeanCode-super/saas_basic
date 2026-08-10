@@ -12,10 +12,14 @@ import org.apache.ibatis.annotations.Select;
 @Mapper
 public interface UserMapper extends BaseMapper<UserEntity> {
 
+    @Select("SELECT * FROM iam_user WHERE tenant_id = #{tenantId} AND public_id = #{publicId} AND deleted = 0 LIMIT 1")
+    UserEntity selectByTenantAndPublicId(@Param("tenantId") Long tenantId, @Param("publicId") String publicId);
+
     @Select("""
             <script>
             SELECT
               u.id,
+              u.public_id AS publicId,
               u.tenant_id AS tenantId,
               u.user_code AS userCode,
               u.username,
@@ -76,6 +80,7 @@ public interface UserMapper extends BaseMapper<UserEntity> {
     @Select("""
             SELECT
               id,
+              public_id AS publicId,
               tenant_id AS tenantId,
               user_code AS userCode,
               username,

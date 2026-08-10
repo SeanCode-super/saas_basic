@@ -8,6 +8,9 @@ import java.time.LocalDateTime;
 @TableName("iam_session")
 public class AuthSessionEntity extends BaseTenantEntity {
 
+    @TableField("public_id")
+    private String publicId;
+
     @TableField("session_no")
     private String sessionNo;
 
@@ -16,6 +19,12 @@ public class AuthSessionEntity extends BaseTenantEntity {
 
     @TableField("user_id")
     private Long userId;
+
+    @TableField("subject_binding_public_id")
+    private String subjectBindingPublicId;
+
+    @TableField("selected_assignment_public_id")
+    private String selectedAssignmentPublicId;
 
     @TableField("username")
     private String username;
@@ -49,6 +58,30 @@ public class AuthSessionEntity extends BaseTenantEntity {
 
     @TableField("status")
     private String status;
+
+    public String getPublicId() {
+        return publicId;
+    }
+
+    public void setPublicId(String publicId) {
+        this.publicId = publicId;
+    }
+
+    public String getSubjectBindingPublicId() {
+        return subjectBindingPublicId;
+    }
+
+    public void setSubjectBindingPublicId(String subjectBindingPublicId) {
+        this.subjectBindingPublicId = subjectBindingPublicId;
+    }
+
+    public String getSelectedAssignmentPublicId() {
+        return selectedAssignmentPublicId;
+    }
+
+    public void setSelectedAssignmentPublicId(String selectedAssignmentPublicId) {
+        this.selectedAssignmentPublicId = selectedAssignmentPublicId;
+    }
 
     public String getSessionNo() {
         return sessionNo;
