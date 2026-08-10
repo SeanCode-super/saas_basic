@@ -1,6 +1,5 @@
 import axios from "axios";
 import { useAuthStore } from "@/stores/modules/auth";
-import { useTenantStore } from "@/stores/modules/tenant";
 
 export const http = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
@@ -9,15 +8,9 @@ export const http = axios.create({
 
 http.interceptors.request.use((config) => {
   const authStore = useAuthStore();
-  const tenantStore = useTenantStore();
-  const tenantCode = tenantStore.currentTenant?.code;
 
   if (authStore.token) {
     config.headers.Authorization = `Bearer ${authStore.token}`;
-  }
-
-  if (tenantCode) {
-    config.headers["X-Tenant-Code"] = tenantCode;
   }
 
   return config;

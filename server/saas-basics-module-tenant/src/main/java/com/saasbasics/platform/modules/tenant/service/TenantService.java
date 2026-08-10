@@ -2,6 +2,8 @@ package com.saasbasics.platform.modules.tenant.service;
 
 import com.saasbasics.platform.common.api.PageResponse;
 import com.saasbasics.platform.common.exception.BizException;
+import com.saasbasics.platform.common.tenant.TenantAccessContext;
+import com.saasbasics.platform.common.tenant.TenantAccessContextHolder;
 import com.saasbasics.platform.modules.audit.service.AuditTrailService;
 import com.saasbasics.platform.modules.tenant.dto.TenantResponse;
 import com.saasbasics.platform.modules.tenant.dto.TenantSaveRequest;
@@ -53,7 +55,12 @@ public class TenantService {
         TenantEntity entity = new TenantEntity();
         apply(entity, request);
         tenantMapper.insert(entity);
-        tenantBootstrapService.initializeTenant(entity.getId(), entity.getTenantCode(), entity.getTenantName());
+        try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openPlatformBypass(
+                "tenant:write",
+                TenantAccessContext.BypassOperation.TENANT_BOOTSTRAP,
+                "Initialize required records for tenant " + entity.getTenantCode())) {
+            tenantBootstrapService.initializeTenant(entity.getId(), entity.getTenantCode(), entity.getTenantName());
+        }
         TenantResponse response = getTenant(entity.getId());
         auditTrailService.record("tenant", "tenant", String.valueOf(response.id()), "CREATE", request.tenantCode(), response.tenantCode(), true);
         return response;

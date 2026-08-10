@@ -1,0 +1,21 @@
+services:
+  mysql:
+    image: mysql:8.3.0
+    environment:
+      MYSQL_DATABASE: saas_basics
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: saas
+      MYSQL_PASSWORD: saas
+    ports:
+      - "${SAAS_MYSQL_PORT:-3307}:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 20s
+    volumes:
+      - saas-mysql-data:/var/lib/mysql
+
+volumes:
+  saas-mysql-data:

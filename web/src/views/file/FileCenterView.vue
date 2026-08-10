@@ -344,10 +344,6 @@ async function completeUpload(session: FileUploadSessionRow) {
   }
 }
 
-function savePolicy(message: string) {
-  ElMessage.success(message);
-}
-
 async function createAccessAudit() {
   if (!accessLogForm.fileId) {
     ElMessage.warning("当前没有可记录的文件对象");

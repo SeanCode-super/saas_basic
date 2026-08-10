@@ -1,6 +1,8 @@
 package com.saasbasics.platform.modules.iam.service;
 
 import com.saasbasics.platform.common.exception.BizException;
+import com.saasbasics.platform.common.tenant.TenantAccessContext;
+import com.saasbasics.platform.common.tenant.TenantAccessContextHolder;
 import com.saasbasics.platform.modules.iam.dto.PortalClientSaveRequest;
 import com.saasbasics.platform.modules.iam.dto.PortalEntryResponse;
 import com.saasbasics.platform.modules.iam.dto.PortalClientResponse;
@@ -42,14 +44,25 @@ public class PortalEntryService {
 
     public PortalEntryResponse resolveEntry(String clientId, String terminalCode) {
         PortalClientMapper clientMapper = requiredClientMapper();
-        PortalTerminalMapper terminalMapper = requiredTerminalMapper();
-
         String normalizedClientId = normalizeClientId(clientId);
-        PortalClientEntity client = clientMapper.selectByClientId(normalizedClientId);
+        PortalClientEntity client;
+        try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openSystemBypass(
+                TenantAccessContext.BypassOperation.PUBLIC_PORTAL_RESOLUTION,
+                "Resolve the tenant that owns a globally unique portal client")) {
+            client = clientMapper.selectByClientId(normalizedClientId);
+        }
         if (client == null || !"ENABLED".equalsIgnoreCase(client.getStatus())) {
             throw new BizException("PORTAL_CLIENT_NOT_FOUND", "Portal client is not available");
         }
 
+        try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openTenant(
+                client.getTenantId(), client.getTenantCode(), null)) {
+            return resolveEntryWithinTenant(client, terminalCode);
+        }
+    }
+
+    private PortalEntryResponse resolveEntryWithinTenant(PortalClientEntity client, String terminalCode) {
+        PortalTerminalMapper terminalMapper = requiredTerminalMapper();
         PortalTerminalEntity terminal = resolveTerminal(terminalMapper, client.getId(), terminalCode);
         if (terminal == null || !"ENABLED".equalsIgnoreCase(terminal.getStatus())) {
             throw new BizException("PORTAL_TERMINAL_NOT_FOUND", "Portal terminal is not available");

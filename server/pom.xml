@@ -18,12 +18,21 @@
     <name>saas-basics-server</name>
     <description>Enterprise SaaS foundation multi-module backend</description>
 
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
     <modules>
         <module>saas-basics-app</module>
         <module>saas-basics-common</module>
         <module>saas-basics-framework</module>
         <module>saas-basics-module-dashboard</module>
         <module>saas-basics-module-tenant</module>
+        <module>saas-basics-module-organization</module>
         <module>saas-basics-module-iam</module>
         <module>saas-basics-module-system</module>
         <module>saas-basics-module-integration</module>
@@ -39,5 +48,6 @@
         <springdoc.version>2.6.0</springdoc.version>
         <flyway.version>10.10.0</flyway.version>
         <mysql.connector.version>9.6.0</mysql.connector.version>
+        <archunit.version>1.3.0</archunit.version>
     </properties>
 </project>

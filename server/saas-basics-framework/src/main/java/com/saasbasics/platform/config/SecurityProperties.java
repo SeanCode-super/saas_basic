@@ -29,9 +29,6 @@ public class SecurityProperties {
     public static class AuthProperties {
 
         private long sessionTtlMinutes = 480;
-        private String mockTenantCode = "platform";
-        private String mockUsername = "platform.admin";
-        private String mockPassword = "Admin@123456";
 
         public long getSessionTtlMinutes() {
             return sessionTtlMinutes;
@@ -39,30 +36,6 @@ public class SecurityProperties {
 
         public void setSessionTtlMinutes(long sessionTtlMinutes) {
             this.sessionTtlMinutes = sessionTtlMinutes;
-        }
-
-        public String getMockTenantCode() {
-            return mockTenantCode;
-        }
-
-        public void setMockTenantCode(String mockTenantCode) {
-            this.mockTenantCode = mockTenantCode;
-        }
-
-        public String getMockUsername() {
-            return mockUsername;
-        }
-
-        public void setMockUsername(String mockUsername) {
-            this.mockUsername = mockUsername;
-        }
-
-        public String getMockPassword() {
-            return mockPassword;
-        }
-
-        public void setMockPassword(String mockPassword) {
-            this.mockPassword = mockPassword;
         }
     }
 }

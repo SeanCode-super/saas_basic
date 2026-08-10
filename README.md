@@ -5,7 +5,7 @@ SaaS Basics is an open-source-oriented, AI-native foundation for building enterp
 The project is not a vertical SaaS product or an admin dashboard template. It aims to provide the reusable platform capabilities that CRM, ERP, WMS, manufacturing, healthcare, education, government, and other enterprise applications repeatedly need:
 
 - tenant and platform operations
-- enterprise groups, legal entities, organizations, people, and assignments
+- domain-neutral organizations, relations, units, people, engagements, and assignments
 - identity, sessions, roles, menus, API permissions, and data permissions
 - applications, portals, configuration, feature flags, and audit
 - module scaffolding, metadata, migrations, and code generation
@@ -15,9 +15,10 @@ The project is not a vertical SaaS product or an admin dashboard template. It ai
 
 The repository is currently **pre-alpha** and is undergoing an architecture consolidation for `v0.1`.
 
-It is not production-ready. In particular, tenant isolation, authentication security, automated testing, and deployment workflows are being rebuilt before new platform features are expanded.
+It is not production-ready. Tenant isolation and the initial automated quality gate are in place. The standard organization core is under implementation; identity security, legacy migration, organization-scoped authorization, interoperability, and deployment workflows remain release blockers.
 
 The current execution baseline is [docs/V0.1_EXECUTION_BLUEPRINT.md](docs/V0.1_EXECUTION_BLUEPRINT.md).
+All new capabilities must follow [docs/STANDARDIZATION_POLICY.md](docs/STANDARDIZATION_POLICY.md).
 
 ## Architecture
 
@@ -39,6 +40,34 @@ sql/      MySQL migration source files
 docs/     product, domain, architecture, and delivery documentation
 ```
 
+## Local development
+
+Prerequisites:
+
+- Java 17
+- Maven 3.9+
+- Node.js 20+
+- Docker with Compose support
+
+Start MySQL:
+
+```bash
+make dev-db-up
+```
+
+The development database listens on port `3307` by default so it does not collide with a local MySQL installation.
+
+Start the backend and frontend in separate terminals:
+
+```bash
+make dev-backend
+make dev-frontend
+```
+
+Backend: `http://127.0.0.1:8080`
+
+Frontend: `http://127.0.0.1:9527`
+
 ## Build
 
 Backend compile and package:
@@ -56,11 +85,18 @@ npm ci
 npm run build
 ```
 
-The current backend requires a MySQL database when running. A repeatable Docker Compose and Testcontainers development environment is part of the M0 work in progress.
+Run the current quality gate:
+
+```bash
+make verify
+```
+
+Flyway migration tests use Testcontainers when Docker is available and skip with an explicit reason when Docker is not installed.
 
 ## Documentation
 
 - [Documentation index](docs/README.md)
+- [Roadmap](docs/ROADMAP.md)
 - [v0.1 execution blueprint](docs/V0.1_EXECUTION_BLUEPRINT.md)
 - [Backend architecture history](docs/backend-enterprise-architecture.md)
 - [Frontend architecture history](docs/frontend-vue-architecture.md)
@@ -74,4 +110,4 @@ Security issues must not be reported in public issues. Follow [SECURITY.md](SECU
 
 ## License
 
-An open-source license has not been selected yet. Apache-2.0, AGPL-3.0, and a dual-license model are under evaluation. Until a license is published, the repository is source-available for review but no redistribution rights are granted.
+SaaS Basics is licensed under the [Apache License 2.0](LICENSE). Attribution information is provided in [NOTICE](NOTICE).

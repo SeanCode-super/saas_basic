@@ -72,14 +72,15 @@ server/
 
 ### 租户上下文
 
-- `TenantContext`
-- `TenantContextFilter`
+- `TenantAccessContext`
+- `TenantAccessContextHolder`
+- MyBatis-Plus `TenantLineInnerInterceptor`
 
 说明：
 
-- 所有请求默认都可带 `X-Tenant-Code`
-- 不传时回落到 `platform`
-- 这为后续租户隔离、数据权限、审计扩展预留入口
+- 受保护请求只能从认证会话恢复 `tenantId`，不接受请求头、查询参数或请求体覆盖
+- 租户表查询和写入由 MyBatis 拦截器强制追加 `tenant_id`
+- 令牌定位、公共门户定位和平台租户初始化使用带操作类型与原因的显式旁路作用域
 
 ### Web 配置
 
@@ -138,7 +139,7 @@ server/
 认证头约定：
 
 - 受保护接口统一使用 `Authorization: Bearer <accessToken>`
-- 租户头继续使用 `X-Tenant-Code`
+- 登录时提交租户编码；登录后租户由服务端会话绑定
 - `POST /api/auth/login` 与 `GET /api/health/ready` 是默认公开接口
 
 ### system

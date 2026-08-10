@@ -1,6 +1,6 @@
-@use "./tokens.scss";
-@use "./reset.scss";
-@use "./workbench-sections.scss";
+@use "./tokens";
+@use "./reset";
+@use "./workbench-sections";
 
 body {
   color: var(--sb-text-primary);

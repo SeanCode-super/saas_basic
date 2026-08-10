@@ -61,9 +61,7 @@ export async function updateSystemDictItemStatus(id: number, payload: SystemDict
   return response.data.data;
 }
 
-export async function fetchSystemDictOptions(dictCode: string, tenantId?: number): Promise<SystemDictOption[]> {
-  const response = await http.get<ApiResponse<SystemDictOption[]>>(`/system/dicts/options/${dictCode}`, {
-    params: tenantId ? { tenantId } : undefined
-  });
+export async function fetchSystemDictOptions(dictCode: string): Promise<SystemDictOption[]> {
+  const response = await http.get<ApiResponse<SystemDictOption[]>>(`/system/dicts/options/${dictCode}`);
   return response.data.data;
 }

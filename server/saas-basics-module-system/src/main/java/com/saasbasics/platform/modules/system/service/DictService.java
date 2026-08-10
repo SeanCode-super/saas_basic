@@ -2,6 +2,7 @@ package com.saasbasics.platform.modules.system.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.saasbasics.platform.common.exception.BizException;
+import com.saasbasics.platform.common.tenant.TenantAccessContextHolder;
 import com.saasbasics.platform.modules.audit.service.AuditTrailService;
 import com.saasbasics.platform.modules.system.dto.DictItemResponse;
 import com.saasbasics.platform.modules.system.dto.DictItemSaveRequest;
@@ -137,7 +138,8 @@ public class DictService {
         return response;
     }
 
-    public List<DictOptionResponse> listOptions(String dictCode, Long tenantId) {
+    public List<DictOptionResponse> listOptions(String dictCode) {
+        Long tenantId = TenantAccessContextHolder.requiredTenantId();
         DictTypeMapper typeMapper = requiredTypeMapper();
         DictTypeEntity type = typeMapper.selectOne(new LambdaQueryWrapper<DictTypeEntity>()
                 .eq(DictTypeEntity::getDeleted, 0)

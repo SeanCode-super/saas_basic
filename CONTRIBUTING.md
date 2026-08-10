@@ -24,13 +24,14 @@ Frontend:
 ```bash
 cd web
 npm ci
-npm run build
-npm run lint
-npm run lint:style
-npm run test -- --run
+npm run check
 ```
 
-Some checks are still being repaired during M0. A change must not hide a failing check; document any known failure and its tracking issue.
+All current checks must pass before a pull request is ready for review. Do not hide a failing check; document any temporary exception and its tracking issue.
+
+## Contribution license
+
+The project is licensed under the [Apache License 2.0](LICENSE). Unless you explicitly state otherwise, a contribution intentionally submitted for inclusion in this repository is provided under Apache-2.0, in accordance with section 5 of the license. You must have the right to submit the contribution and any included third-party material.
 
 ## Commit and pull request scope
 

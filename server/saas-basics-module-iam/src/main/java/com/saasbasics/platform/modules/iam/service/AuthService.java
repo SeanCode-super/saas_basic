@@ -4,7 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.saasbasics.platform.common.auth.AuthContext;
 import com.saasbasics.platform.common.auth.AuthPrincipal;
 import com.saasbasics.platform.common.exception.BizException;
-import com.saasbasics.platform.common.tenant.TenantContext;
+import com.saasbasics.platform.common.tenant.TenantAccessContext;
+import com.saasbasics.platform.common.tenant.TenantAccessContextHolder;
 import com.saasbasics.platform.config.SecurityProperties;
 import com.saasbasics.platform.modules.audit.entity.LoginLogEntity;
 import com.saasbasics.platform.modules.audit.mapper.LoginLogMapper;
@@ -95,11 +96,7 @@ public class AuthService {
     }
 
     public AuthLoginResponse login(AuthLoginRequest request, String loginIp, String userAgent) {
-        TenantContext.setTenantCode(request.tenantCode());
-
-        UserMapper userMapper = requiredUserMapper();
         TenantMapper tenantMapper = requiredTenantMapper();
-
         TenantEntity tenant = tenantMapper.selectOne(new LambdaQueryWrapper<TenantEntity>()
                 .eq(TenantEntity::getTenantCode, request.tenantCode())
                 .eq(TenantEntity::getDeleted, 0)
@@ -110,6 +107,18 @@ public class AuthService {
         if (!"ENABLED".equalsIgnoreCase(tenant.getStatus())) {
             throw new BizException("TENANT_DISABLED", "租户已停用");
         }
+
+        try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openTenant(
+                tenant.getId(), tenant.getTenantCode(), null)) {
+            return loginWithinTenant(request, loginIp, userAgent, tenant);
+        }
+    }
+
+    private AuthLoginResponse loginWithinTenant(AuthLoginRequest request,
+                                                String loginIp,
+                                                String userAgent,
+                                                TenantEntity tenant) {
+        UserMapper userMapper = requiredUserMapper();
 
         PortalLoginContext portalLoginContext = resolvePortalLoginContext(request, tenant);
         LoginPolicyEntity loginPolicy = currentLoginPolicy(tenant.getId(), portalLoginContext.loginPolicyId());
@@ -195,33 +204,42 @@ public class AuthService {
         }
 
         AuthSessionMapper sessionMapper = requiredSessionMapper();
-
-        AuthSessionEntity session = sessionMapper.selectOnlineByTokenHash(tokenHash(accessToken), LocalDateTime.now());
+        AuthSessionEntity session;
+        try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openSystemBypass(
+                TenantAccessContext.BypassOperation.AUTHENTICATION_TOKEN_RESOLUTION,
+                "Resolve the tenant that owns an opaque access token")) {
+            session = sessionMapper.selectOnlineByTokenHash(tokenHash(accessToken), LocalDateTime.now());
+        }
         if (session == null) {
             return null;
         }
 
-        TenantEntity tenant = requiredTenantMapper().selectById(session.getTenantId());
-        if (tenant == null || tenant.getDeleted() != null && tenant.getDeleted() == 1 || !"ENABLED".equalsIgnoreCase(tenant.getStatus())) {
-            session.setStatus("OFFLINE");
-            session.setLogoutAt(LocalDateTime.now());
+        try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openTenant(
+                session.getTenantId(), session.getTenantCode(), session.getUserId())) {
+            TenantEntity tenant = requiredTenantMapper().selectById(session.getTenantId());
+            if (tenant == null || tenant.getDeleted() != null && tenant.getDeleted() == 1
+                    || !"ENABLED".equalsIgnoreCase(tenant.getStatus())) {
+                session.setStatus("OFFLINE");
+                session.setLogoutAt(LocalDateTime.now());
+                session.setLastAccessAt(LocalDateTime.now());
+                sessionMapper.updateById(session);
+                return null;
+            }
+
+            UserEntity user = requiredUserMapper().selectById(session.getUserId());
+            if (user == null || user.getDeleted() != null && user.getDeleted() == 1
+                    || !"ENABLED".equalsIgnoreCase(user.getStatus())) {
+                session.setStatus("OFFLINE");
+                session.setLogoutAt(LocalDateTime.now());
+                session.setLastAccessAt(LocalDateTime.now());
+                sessionMapper.updateById(session);
+                return null;
+            }
+
             session.setLastAccessAt(LocalDateTime.now());
             sessionMapper.updateById(session);
-            return null;
+            return toPrincipal(session);
         }
-
-        UserEntity user = requiredUserMapper().selectById(session.getUserId());
-        if (user == null || user.getDeleted() != null && user.getDeleted() == 1 || !"ENABLED".equalsIgnoreCase(user.getStatus())) {
-            session.setStatus("OFFLINE");
-            session.setLogoutAt(LocalDateTime.now());
-            session.setLastAccessAt(LocalDateTime.now());
-            sessionMapper.updateById(session);
-            return null;
-        }
-
-        session.setLastAccessAt(LocalDateTime.now());
-        sessionMapper.updateById(session);
-        return toPrincipal(session);
     }
 
     private LoginPolicyEntity currentLoginPolicy(Long tenantId, Long policyId) {

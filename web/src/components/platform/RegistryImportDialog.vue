@@ -137,7 +137,7 @@ function fillSample(sample: string) {
   border-radius: 18px;
   box-shadow: 0 0 0 1px rgb(15 27 45 / 0.08) inset;
   padding: 16px 18px;
-  font-family: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, monospace;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   font-size: 13px;
   line-height: 1.7;
 }
