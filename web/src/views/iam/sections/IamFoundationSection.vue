@@ -75,7 +75,7 @@ defineProps<{
         </div>
       </div>
       <div class="capability-grid">
-        <div v-for="capability in overview?.capabilities ?? []" :key="capability" class="capability-chip">
+        <div v-for="capability in overview?.capabilities ?? []" :key="capability" class="capability-item">
           {{ capability }}
         </div>
       </div>
@@ -109,15 +109,18 @@ defineProps<{
 .runtime-band {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 12px;
+  border: 1px solid var(--sb-border-color);
+  border-radius: var(--sb-radius-md);
   margin-bottom: 18px;
 }
 
 .runtime-metric {
-  padding: 14px 16px;
-  border: 1px solid var(--sb-border-color);
-  border-radius: 16px;
-  background: var(--sb-card-soft-bg);
+  padding: 12px 14px;
+  border-right: 1px solid var(--sb-border-color);
+
+  &:last-child {
+    border-right: 0;
+  }
 
   span {
     display: block;
@@ -128,7 +131,7 @@ defineProps<{
   strong {
     display: block;
     margin-top: 8px;
-    font-size: 26px;
+    font-size: 21px;
     line-height: 1;
   }
 }
@@ -176,32 +179,43 @@ defineProps<{
 .relationship-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  border: 1px solid var(--sb-border-color);
+  border-radius: var(--sb-radius-md);
+  overflow: hidden;
 }
 
 .relationship-node {
-  padding: 18px;
-  border-radius: 18px;
-  border: 1px solid var(--sb-border-color);
-  background: linear-gradient(180deg, rgb(17 93 163 / 0.06), rgb(255 255 255 / 0.92));
+  padding: 12px 14px;
+  border-right: 1px solid var(--sb-border-color);
+  border-bottom: 1px solid var(--sb-border-color);
+  background: #fafbfc;
   font-weight: 600;
-  line-height: 1.6;
+  line-height: 1.4;
   text-transform: capitalize;
+
+  &:nth-child(2n) {
+    border-right: 0;
+  }
+
+  &:nth-last-child(-n + 2) {
+    border-bottom: 0;
+  }
 }
 
 .capability-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-top: 16px;
+  border-top: 1px solid var(--sb-border-color);
+  border-left: 1px solid var(--sb-border-color);
 }
 
-.capability-chip {
-  padding: 10px 14px;
-  border-radius: 999px;
-  border: 1px solid var(--sb-border-color);
-  background: var(--sb-card-soft-bg);
+.capability-item {
+  padding: 9px 12px;
+  border-right: 1px solid var(--sb-border-color);
+  border-bottom: 1px solid var(--sb-border-color);
   color: var(--sb-text-secondary);
+  font-size: 13px;
 }
 
 @media (max-width: 1280px) {

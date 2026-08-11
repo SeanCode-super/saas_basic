@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, useSlots } from "vue";
+import { useSlots } from "vue";
 
 export interface SchemaField {
   field: string;
@@ -22,32 +22,15 @@ const emit = defineEmits<{
 
 const slots = useSlots();
 
-const filterSummary = computed(() => `共 ${props.schema.length} 项筛选条件`);
-
 function updateField(field: string, value: string | number | undefined) {
-  emit("update:modelValue", {
-    ...props.modelValue,
-    [field]: value
-  });
-}
-
-function handleInput(field: string, value: string) {
-  updateField(field, value);
-}
-
-function handleSelect(field: string, value: string | number) {
-  updateField(field, value);
+  emit("update:modelValue", { ...props.modelValue, [field]: value });
 }
 </script>
 
 <template>
   <section class="schema-form-shell">
     <header class="schema-form-shell__header">
-      <div class="schema-form-shell__copy">
-        <span class="schema-form-shell__eyebrow">QUERY STUDIO</span>
-        <strong>查询条件</strong>
-        <p>{{ filterSummary }}</p>
-      </div>
+      <strong>筛选</strong>
       <div class="schema-form-shell__actions">
         <slot
           v-if="slots.actions"
@@ -62,22 +45,22 @@ function handleSelect(field: string, value: string | number) {
       </div>
     </header>
 
-    <el-form label-width="110px" class="schema-form">
-      <el-row :gutter="16">
+    <el-form label-position="top" class="schema-form">
+      <el-row :gutter="12">
         <el-col v-for="item in schema" :key="item.field" :xs="24" :sm="12" :lg="8">
           <el-form-item :label="item.label">
             <el-input
               v-if="item.component === 'input'"
               :model-value="modelValue[item.field]"
               :placeholder="item.placeholder"
-              @update:model-value="(value: string) => handleInput(item.field, value)"
+              @update:model-value="(value: string) => updateField(item.field, value)"
             />
             <el-select
               v-else
               :model-value="modelValue[item.field]"
               :placeholder="item.placeholder"
               style="width: 100%"
-              @update:model-value="(value: string | number) => handleSelect(item.field, value)"
+              @update:model-value="(value: string | number) => updateField(item.field, value)"
             >
               <el-option
                 v-for="option in item.options ?? []"
@@ -95,80 +78,47 @@ function handleSelect(field: string, value: string | number) {
 
 <style scoped lang="scss">
 .schema-form-shell {
-  padding: 18px 20px 20px;
-  border: 1px solid rgb(15 23 42 / 0.08);
-  border-radius: 20px;
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 0.98), rgb(248 251 255 / 0.96)),
-    var(--sb-surface-strong);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.82);
+  padding: 13px 14px 2px;
+  border: 1px solid var(--sb-border-color);
+  border-radius: var(--sb-radius-md);
+  background: #fafbfc;
 }
 
 .schema-form-shell__header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 18px;
-}
-
-.schema-form-shell__copy {
-  strong,
-  span {
-    display: block;
-  }
+  gap: 12px;
+  margin-bottom: 10px;
 
   strong {
-    font-size: 16px;
-    color: var(--sb-text-primary);
+    font-size: 14px;
   }
-
-  p {
-    margin: 8px 0 0;
-    color: var(--sb-text-secondary);
-    font-size: 13px;
-  }
-}
-
-.schema-form-shell__eyebrow {
-  margin-bottom: 8px;
-  color: var(--sb-primary-strong);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
 }
 
 .schema-form-shell__actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
 }
 
 .schema-form :deep(.el-form-item) {
-  margin-bottom: 18px;
+  margin-bottom: 12px;
 }
 
 .schema-form :deep(.el-form-item__label) {
+  height: auto;
+  margin-bottom: 4px;
   color: var(--sb-text-secondary);
+  font-size: 12px;
   font-weight: 600;
+  line-height: 1.4;
 }
 
 .schema-form :deep(.el-input__wrapper),
 .schema-form :deep(.el-select__wrapper) {
-  min-height: 40px;
-  border-radius: 12px;
-  box-shadow: 0 0 0 1px rgb(15 23 42 / 0.06) inset;
-}
-
-@media (max-width: 960px) {
-  .schema-form-shell__header {
-    flex-direction: column;
-  }
-
-  .schema-form-shell__actions {
-    width: 100%;
-    justify-content: flex-start;
-  }
+  min-height: 34px;
+  border-radius: 5px;
 }
 </style>

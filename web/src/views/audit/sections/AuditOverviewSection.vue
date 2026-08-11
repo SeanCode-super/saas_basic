@@ -14,15 +14,12 @@ import BaseCard from "@/components/base/BaseCard.vue";
       <div class="risk-grid">
         <article class="risk-item">
           <strong>留痕</strong>
-          <p>登录、配置、权限、数据导出、文件下载和任务执行。</p>
         </article>
         <article class="risk-item">
           <strong>预警</strong>
-          <p>异常登录、权限提升、批量导出、异常回调和高危下载。</p>
         </article>
         <article class="risk-item">
           <strong>处置</strong>
-          <p>账号封禁、设备封禁、IP 拉黑、租户隔离和人工复核。</p>
         </article>
       </div>
     </BaseCard>
@@ -33,19 +30,14 @@ import BaseCard from "@/components/base/BaseCard.vue";
 .risk-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
+  gap: 10px;
 }
 
 .risk-item {
-  padding: 18px;
-  border-radius: 20px;
-  background: rgb(209 67 67 / 0.06);
-
-  p {
-    margin: 10px 0 0;
-    color: var(--sb-text-secondary);
-    line-height: 1.7;
-  }
+  padding: 13px 14px;
+  border: 1px solid var(--sb-border-color);
+  border-radius: var(--sb-radius-md);
+  background: #fafbfc;
 }
 
 @media (max-width: 1080px) {

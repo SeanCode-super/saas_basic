@@ -5,11 +5,7 @@
 body {
   color: var(--sb-text-primary);
   font-family: var(--sb-font-family);
-  background:
-    radial-gradient(circle at top left, rgb(30 94 255 / 0.08), transparent 20%),
-    radial-gradient(circle at top right, rgb(199 134 47 / 0.1), transparent 18%),
-    linear-gradient(180deg, #f7faff 0%, var(--sb-page-shell) 100%);
-  background-attachment: fixed;
+  background: var(--sb-page-shell);
 }
 
 a {
@@ -25,18 +21,18 @@ a {
 }
 
 .el-card {
-  box-shadow: var(--sb-shadow-lg);
-  background: var(--sb-surface-color);
+  background: #fff;
+  box-shadow: none;
 }
 
 .el-button {
-  border-radius: 12px;
+  border-radius: 5px;
 }
 
 .el-input__wrapper,
 .el-select__wrapper,
 .el-textarea__inner {
-  border-radius: 12px;
+  border-radius: 5px;
 }
 
 #app {
@@ -45,4 +41,10 @@ a {
 
 ::selection {
   background: rgb(30 94 255 / 0.16);
+}
+
+*,
+*::before,
+*::after {
+  letter-spacing: 0;
 }

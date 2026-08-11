@@ -43,27 +43,29 @@ function update(value: string) {
 .module-section-nav__grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 20px;
+  border-bottom: 1px solid var(--sb-border-color);
 }
 
 .module-section-nav__item {
   display: inline-flex;
   align-items: center;
-  border: 1px solid var(--sb-border-color);
-  border-radius: 999px;
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 0.98), rgb(247 250 255 / 0.94)),
-    var(--sb-surface-strong);
-  padding: 10px 14px;
+  margin-bottom: -1px;
+  padding: 9px 2px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
   text-align: left;
   cursor: pointer;
-  transition: 180ms ease;
+  transition: 140ms ease;
 
-  &:hover,
+  &:hover {
+    color: var(--sb-primary-color);
+  }
+
   &.is-active {
-    border-color: rgb(15 98 254 / 0.2);
-    background: linear-gradient(180deg, rgb(15 98 254 / 0.08), rgb(255 255 255 / 0.98));
-    box-shadow: var(--sb-shadow-sm);
+    border-bottom-color: var(--sb-primary-color);
+    color: var(--sb-primary-color);
   }
 
   strong {
