@@ -10,6 +10,7 @@ declare module 'vue' {
   export interface GlobalComponents {
     BaseCard: typeof import('./../components/base/BaseCard.vue')['default']
     BasePage: typeof import('./../components/base/BasePage.vue')['default']
+    BaseRefreshButton: typeof import('./../components/base/BaseRefreshButton.vue')['default']
     BaseStatusTag: typeof import('./../components/base/BaseStatusTag.vue')['default']
     ControlSurface: typeof import('./../components/platform/ControlSurface.vue')['default']
     ElAlert: typeof import('element-plus/es')['ElAlert']

@@ -57,7 +57,7 @@ class OrganizationArchitectureTest {
     @BeforeEach
     void setUpAuth() {
         AuthContext.set(new AuthPrincipal(
-                1L, 1L, "platform", 1L, "platform.admin", "Platform Administrator", "PLATFORM", "ONLINE",
+                1L, 1L, "platform", 1L, "admin", "Platform Administrator", "PLATFORM", "ONLINE",
                 LocalDateTime.now().plusHours(8), List.of("iam:user:query", "iam:user:write"), List.of(),
                 List.of(1L), List.of("iam_employee:transfer")
         ));

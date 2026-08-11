@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { Grid, Search, User } from "@element-plus/icons-vue";
+import { Expand, Fold, Grid, Search } from "@element-plus/icons-vue";
 import { useRoute, useRouter } from "vue-router";
 import NavigationAtlas from "@/components/platform/NavigationAtlas.vue";
 import TenantSwitcher from "@/components/platform/TenantSwitcher.vue";
+import { resolveAppIcon } from "@/config/app-icons";
 import { resolveAppMeta, resolveSectionMeta } from "@/config/app-taxonomy";
 import { useAuthStore } from "@/stores/modules/auth";
 import { useLocaleStore } from "@/stores/modules/locale";
@@ -28,6 +29,7 @@ const localeStore = useLocaleStore();
 const menuStore = useMenuStore();
 const tenantStore = useTenantStore();
 const directoryVisible = ref(false);
+const railCollapsed = ref(false);
 
 if (!tenantStore.currentTenant) {
   tenantStore.bootstrap();
@@ -98,6 +100,10 @@ const quickEntries = computed<QuickEntry[]>(() => {
   return entries;
 });
 
+const userInitial = computed(() =>
+  (authStore.currentUser?.nickname || authStore.currentUser?.username || "U").trim().slice(0, 1).toUpperCase()
+);
+
 function go(item: MenuNavItem) {
   router.push({ path: item.path, query: item.query });
 }
@@ -152,10 +158,10 @@ async function handleRefreshNavigation() {
 </script>
 
 <template>
-  <div class="console-shell">
+  <div class="console-shell" :class="{ 'console-shell--collapsed': railCollapsed }">
     <aside class="console-shell__rail">
       <div class="console-shell__brand">
-        <span class="console-shell__brand-mark">SB</span>
+        <span class="console-shell__brand-mark"><Grid /></span>
         <strong>{{ localeStore.t("shell.brandTitle") }}</strong>
       </div>
 
@@ -169,7 +175,9 @@ async function handleRefreshNavigation() {
               :title="app.title"
               @click="switchApp(app)"
             >
-              <span class="console-shell__rail-badge">{{ resolveAppMeta(app.code, app.title).badge }}</span>
+              <span class="console-shell__rail-icon">
+                <component :is="resolveAppIcon(app.code)" />
+              </span>
               <strong>{{ app.title }}</strong>
             </button>
 
@@ -193,10 +201,20 @@ async function handleRefreshNavigation() {
         <el-button link :loading="menuStore.loading" @click="handleRefreshNavigation">重试</el-button>
       </div>
 
-      <button class="console-shell__directory-trigger" @click="directoryVisible = true">
-        <Grid class="console-shell__directory-icon" />
-        <span>{{ localeStore.t("shell.directory") }}</span>
-      </button>
+      <footer class="console-shell__rail-footer">
+        <button class="console-shell__directory-trigger" title="功能索引" @click="directoryVisible = true">
+          <Grid class="console-shell__directory-icon" />
+          <span>{{ localeStore.t("shell.directory") }}</span>
+        </button>
+        <button
+          class="console-shell__collapse-trigger"
+          :title="railCollapsed ? '展开导航' : '收起导航'"
+          :aria-label="railCollapsed ? '展开导航' : '收起导航'"
+          @click="railCollapsed = !railCollapsed"
+        >
+          <component :is="railCollapsed ? Expand : Fold" />
+        </button>
+      </footer>
     </aside>
 
     <div class="console-shell__main">
@@ -207,6 +225,8 @@ async function handleRefreshNavigation() {
         </div>
 
         <div class="console-shell__topbar-actions">
+          <div id="console-context-actions" class="console-shell__context-actions" />
+
           <div class="console-shell__quick-jump">
             <el-autocomplete
               popper-class="console-shell__quick-popper"
@@ -241,7 +261,7 @@ async function handleRefreshNavigation() {
 
           <el-dropdown trigger="click">
             <button class="console-shell__user-trigger" aria-label="用户菜单">
-              <User class="console-shell__user-icon" />
+              <span class="console-shell__user-avatar">{{ userInitial }}</span>
               <span class="console-shell__user-name">
                 {{ authStore.currentUser?.nickname || authStore.currentUser?.username || "用户" }}
               </span>
@@ -270,17 +290,54 @@ async function handleRefreshNavigation() {
 .console-shell {
   height: 100vh;
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
+  grid-template-columns: 224px minmax(0, 1fr);
   overflow: hidden;
   background: var(--sb-shell-main);
+  transition: grid-template-columns 160ms ease;
+}
+
+.console-shell--collapsed {
+  grid-template-columns: 64px minmax(0, 1fr);
+
+  .console-shell__brand {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .console-shell__brand strong,
+  .console-shell__rail-label,
+  .console-shell__rail-app strong,
+  .console-shell__submenu,
+  .console-shell__directory-trigger,
+  .console-shell__nav-state span {
+    display: none;
+  }
+
+  .console-shell__navigation {
+    padding: 10px 7px;
+  }
+
+  .console-shell__rail-app {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    padding: 4px;
+  }
+
+  .console-shell__collapse-trigger {
+    width: 100%;
+    flex-basis: 100%;
+    justify-content: center;
+    padding: 0;
+    border-left: 0;
+  }
 }
 
 .console-shell__rail {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-right: 1px solid #303942;
-  background: #20262d;
+  border-right: 1px solid #2d3640;
+  background: #1c232b;
   color: #f7f9fb;
 }
 
@@ -288,49 +345,55 @@ async function handleRefreshNavigation() {
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 56px;
-  padding: 0 14px;
-  border-bottom: 1px solid #303942;
+  height: 58px;
+  padding: 0 16px;
+  border-bottom: 1px solid #2d3640;
 
   strong {
     min-width: 0;
     overflow: hidden;
-    font-size: 15px;
+    font-size: 14px;
+    font-weight: 650;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 }
 
 .console-shell__brand-mark {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   display: grid;
-  flex: 0 0 28px;
+  flex: 0 0 26px;
   place-items: center;
   border-radius: 4px;
-  background: #3478f6;
+  background: #2f6bd8;
   color: #fff;
   font-size: 12px;
   font-weight: 700;
+
+  svg {
+    width: 15px;
+    height: 15px;
+  }
 }
 
 .console-shell__navigation {
   flex: 1;
   min-height: 0;
-  padding: 12px 10px;
+  padding: 14px 10px 18px;
   overflow: auto;
 }
 
 .console-shell__rail-group {
   display: grid;
   gap: 3px;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .console-shell__rail-label {
   padding: 0 8px 5px;
-  color: #929da8;
-  font-size: 11px;
+  color: #83909d;
+  font-size: 10px;
 }
 
 .console-shell__app-group {
@@ -351,22 +414,22 @@ async function handleRefreshNavigation() {
   width: 100%;
   min-height: 38px;
   display: grid;
-  grid-template-columns: 30px minmax(0, 1fr);
+  grid-template-columns: 22px minmax(0, 1fr);
   align-items: center;
-  gap: 7px;
-  padding: 4px 8px;
+  gap: 9px;
+  padding: 4px 10px;
   border-radius: 5px;
   background: transparent;
   color: #ced5dc;
   text-align: left;
 
   &:hover {
-    background: #2b333c;
+    background: #252e37;
     color: #fff;
   }
 
   &.is-active {
-    background: #313b46;
+    background: #303a45;
     color: #fff;
   }
 
@@ -380,25 +443,29 @@ async function handleRefreshNavigation() {
   }
 }
 
-.console-shell__rail-badge {
-  width: 28px;
-  height: 24px;
+.console-shell__rail-icon {
+  width: 18px;
+  height: 18px;
   display: grid;
   place-items: center;
-  border-radius: 4px;
-  background: #39434d;
-  color: #b9d2ff;
-  font-size: 9px;
-  font-weight: 700;
-  overflow: hidden;
+  color: #aeb8c3;
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .is-active & {
+    color: #79a6ff;
+  }
 }
 
 .console-shell__submenu {
   display: grid;
   gap: 1px;
-  margin: 1px 0 5px 37px;
+  margin: 2px 0 5px 31px;
   padding-left: 8px;
-  border-left: 1px solid #414b55;
+  border-left: 1px solid #37414c;
 }
 
 .console-shell__submenu-item {
@@ -415,12 +482,12 @@ async function handleRefreshNavigation() {
 
   &:hover,
   &.is-active {
-    background: #2b333c;
+    background: #252e37;
     color: #fff;
   }
 
   &.is-active {
-    box-shadow: inset 2px 0 #4e8cff;
+    box-shadow: inset 2px 0 #5d8fe8;
   }
 }
 
@@ -430,26 +497,56 @@ async function handleRefreshNavigation() {
   justify-content: space-between;
   gap: 8px;
   padding: 8px 14px;
-  border-top: 1px solid #303942;
+  border-top: 1px solid #2d3640;
   color: #f0b35a;
   font-size: 12px;
 }
 
 .console-shell__directory-trigger {
-  height: 44px;
+  min-width: 0;
+  height: 43px;
+  flex: 1;
   display: flex;
   align-items: center;
   gap: 9px;
   padding: 0 17px;
-  border-top: 1px solid #303942;
-  background: #20262d;
+  background: #1c232b;
   color: #cbd2d9;
   font-size: 13px;
   text-align: left;
 
   &:hover {
-    background: #2b333c;
+    background: #252e37;
     color: #fff;
+  }
+}
+
+.console-shell__rail-footer {
+  display: flex;
+  align-items: center;
+  border-top: 1px solid #2d3640;
+}
+
+.console-shell__collapse-trigger {
+  width: 43px;
+  height: 43px;
+  display: grid;
+  flex: 0 0 43px;
+  place-items: center;
+  border: 0;
+  border-left: 1px solid #2d3640;
+  background: #1c232b;
+  color: #9fa9b4;
+  cursor: pointer;
+
+  &:hover {
+    background: #252e37;
+    color: #fff;
+  }
+
+  svg {
+    width: 16px;
+    height: 16px;
   }
 }
 
@@ -461,7 +558,7 @@ async function handleRefreshNavigation() {
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-rows: 56px minmax(0, 1fr);
+  grid-template-rows: 58px minmax(0, 1fr);
   overflow: hidden;
 }
 
@@ -470,7 +567,7 @@ async function handleRefreshNavigation() {
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  padding: 0 20px;
+  padding: 0 18px 0 20px;
   border-bottom: 1px solid var(--sb-border-color);
   background: #fff;
 }
@@ -480,15 +577,15 @@ async function handleRefreshNavigation() {
 
   span {
     display: block;
-    color: var(--sb-text-tertiary);
-    font-size: 11px;
+    color: #778396;
+    font-size: 10px;
     line-height: 1.2;
   }
 
   h1 {
     margin: 2px 0 0;
     overflow: hidden;
-    font-size: 17px;
+    font-size: 16px;
     line-height: 1.2;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -502,6 +599,11 @@ async function handleRefreshNavigation() {
   gap: 8px;
 }
 
+.console-shell__context-actions {
+  display: flex;
+  align-items: center;
+}
+
 .console-shell__quick-jump {
   flex: 0 1 260px;
   width: min(260px, 22vw);
@@ -513,6 +615,8 @@ async function handleRefreshNavigation() {
 
 .console-shell__quick-jump :deep(.el-input__wrapper) {
   border-radius: 5px;
+  background: #f5f6f8;
+  box-shadow: 0 0 0 1px #e2e6eb inset;
 }
 
 .console-shell__quick-option {
@@ -534,10 +638,11 @@ async function handleRefreshNavigation() {
 
 .console-shell__user-trigger {
   min-height: 32px;
-  max-width: 120px;
+  max-width: 150px;
   display: flex;
   align-items: center;
-  padding: 0 10px;
+  gap: 8px;
+  padding: 0 8px 0 10px;
   border-left: 1px solid var(--sb-border-color);
   background: transparent;
   color: var(--sb-text-primary);
@@ -547,15 +652,26 @@ async function handleRefreshNavigation() {
   white-space: nowrap;
 }
 
-.console-shell__user-icon {
-  width: 16px;
-  display: none;
+.console-shell__user-avatar {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  flex: 0 0 26px;
+  place-items: center;
+  border-radius: 50%;
+  background: #e9edf3;
+  color: #445264;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .console-shell__workspace {
   min-width: 0;
   min-height: 0;
-  padding: 16px 18px 24px;
+
+  --sb-workspace-x: 20px;
+
+  padding: 16px var(--sb-workspace-x) 28px;
   overflow: auto;
 }
 
@@ -592,6 +708,10 @@ async function handleRefreshNavigation() {
   .console-shell__submenu,
   .console-shell__directory-trigger span,
   .console-shell__nav-state span {
+    display: none;
+  }
+
+  .console-shell__collapse-trigger {
     display: none;
   }
 
@@ -645,7 +765,13 @@ async function handleRefreshNavigation() {
     display: none !important;
   }
 
+  .console-shell__context-actions {
+    order: 1;
+  }
+
   .console-shell__workspace {
+    --sb-workspace-x: 12px;
+
     padding: 12px;
   }
 
@@ -654,10 +780,6 @@ async function handleRefreshNavigation() {
     justify-content: center;
     padding: 0;
     border-left: 0;
-  }
-
-  .console-shell__user-icon {
-    display: block;
   }
 
   .console-shell__user-name {

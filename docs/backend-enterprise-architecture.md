@@ -200,7 +200,7 @@ server/
 当前开发态 mock 登录账号：
 
 - `tenantCode`: `platform`
-- `username`: `platform.admin`
+- `username`: `admin`
 - `password`: `Admin@123456`
 
 ## 6. 为什么保留模块内 mock 回退

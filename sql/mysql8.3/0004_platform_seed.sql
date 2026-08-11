@@ -76,13 +76,13 @@ INSERT INTO `iam_user` (
   `need_reset_password`, `remark`, `created_by`, `updated_by`
 )
 SELECT
-  1, 1, 'PLATFORM_ADMIN', 'platform.admin', '平台管理员', 0,
+  1, 1, 'PLATFORM_ADMIN', 'admin', '平台管理员', 0,
   'PLATFORM', 'ENABLED', '13800000000', 'admin@saasbasics.local',
   'ad89b64d66caa8e30e5d5ce4a9763f4ecc205814c412175f3e2c50027471426d', NOW(3),
   0, '默认平台管理员账号', 0, 0
 FROM dual
 WHERE NOT EXISTS (
-  SELECT 1 FROM `iam_user` WHERE `id` = 1 OR (`tenant_id` = 1 AND `username` = 'platform.admin' AND `deleted` = 0)
+  SELECT 1 FROM `iam_user` WHERE `id` = 1 OR (`tenant_id` = 1 AND `username` = 'admin' AND `deleted` = 0)
 );
 
 INSERT INTO `iam_role_group` (

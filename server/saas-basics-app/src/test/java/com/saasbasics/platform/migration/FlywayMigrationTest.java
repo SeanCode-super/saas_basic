@@ -47,7 +47,7 @@ class FlywayMigrationTest {
         MigrateResult secondRun = flyway.migrate();
 
         assertThat(firstRun.success).isTrue();
-        assertThat(firstRun.migrationsExecuted).isEqualTo(2);
+        assertThat(firstRun.migrationsExecuted).isEqualTo(3);
         assertThat(secondRun.success).isTrue();
         assertThat(secondRun.migrationsExecuted).isZero();
         assertThat(flyway.info().pending()).isEmpty();
@@ -55,6 +55,7 @@ class FlywayMigrationTest {
         assertOrganizationMigrationSchema();
         assertIdentityBindingSchema();
         assertDefaultPortalSchema();
+        assertPlatformAdministratorUsername();
         assertExistingTenantBindingPermissions();
     }
 
@@ -267,6 +268,24 @@ class FlywayMigrationTest {
             assertThat(singleCount(activeDefaults)).isOne();
         } catch (SQLException exception) {
             throw new AssertionError("Unable to inspect the default portal client schema", exception);
+        }
+    }
+
+    private void assertPlatformAdministratorUsername() {
+        try (Connection connection = MYSQL.createConnection("");
+             PreparedStatement platformAdministrator = connection.prepareStatement("""
+                     SELECT username
+                     FROM iam_user
+                     WHERE tenant_id = 1
+                       AND user_code = 'PLATFORM_ADMIN'
+                       AND deleted = 0
+                     """)) {
+            try (ResultSet resultSet = platformAdministrator.executeQuery()) {
+                assertThat(resultSet.next()).isTrue();
+                assertThat(resultSet.getString("username")).isEqualTo("admin");
+            }
+        } catch (SQLException exception) {
+            throw new AssertionError("Unable to verify the platform administrator username", exception);
         }
     }
 

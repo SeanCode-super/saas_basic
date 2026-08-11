@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import ControlSurface from "@/components/platform/ControlSurface.vue";
+import BaseRefreshButton from "@/components/base/BaseRefreshButton.vue";
 import { useAuthStore } from "@/stores/modules/auth";
 import IamEditorDialogs from "./IamEditorDialogs.vue";
 import {
@@ -314,7 +315,7 @@ onMounted(async () => {
     :description="activeControlCopy.description"
   >
     <template #actions>
-      <el-button @click="refreshData">刷新底座数据</el-button>
+      <BaseRefreshButton :loading="loading" @click="refreshData" />
     </template>
     <IamFoundationSection v-if="activeTab === 'foundation'" :overview="overview" :policy-rows="policyRows" />
 

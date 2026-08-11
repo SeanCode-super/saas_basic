@@ -29,6 +29,15 @@ a {
   border-radius: 5px;
 }
 
+.el-button--primary {
+  --el-button-bg-color: var(--sb-primary-color);
+  --el-button-border-color: var(--sb-primary-color);
+  --el-button-hover-bg-color: #3c76df;
+  --el-button-hover-border-color: #3c76df;
+  --el-button-active-bg-color: var(--sb-primary-strong);
+  --el-button-active-border-color: var(--sb-primary-strong);
+}
+
 .el-input__wrapper,
 .el-select__wrapper,
 .el-textarea__inner {

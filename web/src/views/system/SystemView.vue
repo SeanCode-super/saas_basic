@@ -38,6 +38,7 @@ import { fetchIamLoginPolicies, fetchIamPasswordPolicies } from "@/api/modules/i
 import type { IamLoginPolicyRow, IamPasswordPolicyRow } from "@/api/modules/iam";
 import BaseCard from "@/components/base/BaseCard.vue";
 import ControlSurface from "@/components/platform/ControlSurface.vue";
+import BaseRefreshButton from "@/components/base/BaseRefreshButton.vue";
 import ModuleSectionNav from "@/components/platform/ModuleSectionNav.vue";
 import RegistryImportDialog from "@/components/platform/RegistryImportDialog.vue";
 import ModuleWorkbench from "@/components/platform/ModuleWorkbench.vue";
@@ -792,7 +793,7 @@ onMounted(loadData);
     :summary="summary"
   >
     <template #actions>
-      <el-button @click="loadData">刷新配置</el-button>
+      <BaseRefreshButton :loading="loading" @click="loadData" />
       <el-button type="primary" @click="openCreateDialog">新增配置</el-button>
     </template>
 
@@ -905,7 +906,7 @@ onMounted(loadData);
     :description="activeSectionMeta.description"
   >
     <template #actions>
-      <el-button @click="loadData">刷新配置</el-button>
+      <BaseRefreshButton :loading="loading" @click="loadData" />
     </template>
 
     <component

@@ -3,6 +3,7 @@ import { computed, reactive } from "vue";
 import { ElMessage } from "element-plus";
 import BaseCard from "@/components/base/BaseCard.vue";
 import ControlSurface from "@/components/platform/ControlSurface.vue";
+import BaseRefreshButton from "@/components/base/BaseRefreshButton.vue";
 import ModuleSectionNav from "@/components/platform/ModuleSectionNav.vue";
 import ModuleWorkbench from "@/components/platform/ModuleWorkbench.vue";
 import { useModuleSection } from "@/hooks/useModuleSection";
@@ -120,7 +121,7 @@ function savePolicy(message: string) {
     :summary="summary"
   >
     <template #actions>
-      <el-button @click="savePolicy('已刷新代码生成策略视图')">刷新策略视图</el-button>
+      <BaseRefreshButton @click="savePolicy('已刷新代码生成策略视图')" />
       <el-button type="primary" @click="savePolicy('代码生成模板策略已保存')">保存工程策略</el-button>
     </template>
 
@@ -180,7 +181,7 @@ function savePolicy(message: string) {
     :description="activeSectionMeta.description"
   >
     <template #actions>
-      <el-button @click="savePolicy('已刷新代码生成策略视图')">刷新视图</el-button>
+      <BaseRefreshButton @click="savePolicy('已刷新代码生成策略视图')" />
     </template>
 
     <component

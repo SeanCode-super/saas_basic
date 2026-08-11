@@ -4,7 +4,7 @@ type MessageTree = Record<string, string>;
 
 const messages: Record<AppLocale, MessageTree> = {
   "zh-CN": {
-    "shell.brandTitle": "SaaS 基础底座",
+    "shell.brandTitle": "SaaS Basic",
     "shell.directory": "功能索引",
     "cluster.overview": "平台总览",
     "cluster.foundation": "基础治理",
@@ -13,7 +13,7 @@ const messages: Record<AppLocale, MessageTree> = {
     "cluster.assurance": "审计风控"
   },
   "en-US": {
-    "shell.brandTitle": "SaaS Foundation",
+    "shell.brandTitle": "SaaS Basic",
     "shell.directory": "Functions",
     "cluster.overview": "Overview",
     "cluster.foundation": "Foundation",

@@ -5,6 +5,7 @@ import { createDatasource, fetchDatasources } from "@/api/modules/integration";
 import type { DatasourceRow } from "@/api/modules/integration";
 import BaseCard from "@/components/base/BaseCard.vue";
 import ControlSurface from "@/components/platform/ControlSurface.vue";
+import BaseRefreshButton from "@/components/base/BaseRefreshButton.vue";
 import ModuleSectionNav from "@/components/platform/ModuleSectionNav.vue";
 import RegistryImportDialog from "@/components/platform/RegistryImportDialog.vue";
 import ModuleWorkbench from "@/components/platform/ModuleWorkbench.vue";
@@ -317,7 +318,7 @@ onMounted(loadData);
     :summary="summary"
   >
     <template #actions>
-      <el-button @click="loadData">刷新数据源</el-button>
+      <BaseRefreshButton :loading="loading" @click="loadData" />
       <el-button type="primary" @click="openCreateDialog">新增数据源</el-button>
     </template>
 
@@ -407,7 +408,7 @@ onMounted(loadData);
     :description="activeSectionMeta.description"
   >
     <template #actions>
-      <el-button @click="loadData">刷新数据源</el-button>
+      <BaseRefreshButton :loading="loading" @click="loadData" />
     </template>
 
     <component

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import type { TableInstance } from "element-plus";
+import { Download } from "@element-plus/icons-vue";
 import BaseCard from "@/components/base/BaseCard.vue";
 
 export interface ProTableColumn {
@@ -103,7 +104,9 @@ function exportRows(rows: object[], mode: "selected" | "current") {
           <span>{{ total }} 条</span>
         </div>
         <div class="pro-table__actions">
-          <el-button v-if="data.length" plain @click="exportRows(data, 'current')">导出</el-button>
+          <el-tooltip v-if="data.length" content="导出当前数据" placement="top">
+            <el-button :icon="Download" aria-label="导出当前数据" @click="exportRows(data, 'current')" />
+          </el-tooltip>
           <slot name="toolbar" />
         </div>
       </div>
@@ -129,7 +132,6 @@ function exportRows(rows: object[], mode: "selected" | "current") {
       :data="data"
       :loading="loading"
       :row-key="resolveRowKey"
-      stripe
       class="pro-table__grid"
       @selection-change="handleSelectionChange"
       @row-click="handleRowClick"
@@ -170,6 +172,10 @@ function exportRows(rows: object[], mode: "selected" | "current") {
   gap: 12px;
 }
 
+.pro-table :deep(.el-card__body) {
+  padding: 0;
+}
+
 .pro-table--compact .pro-table__header h3 {
   font-size: 14px;
 }
@@ -192,7 +198,9 @@ function exportRows(rows: object[], mode: "selected" | "current") {
 }
 
 .pro-table__search {
-  margin-bottom: 12px;
+  margin: 0;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--sb-border-color);
 }
 
 .pro-table__bulkbar {
@@ -200,7 +208,7 @@ function exportRows(rows: object[], mode: "selected" | "current") {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 12px;
+  margin: 12px 14px;
   padding: 9px 12px;
   border: 1px solid rgb(30 94 255 / 0.12);
   border-radius: 5px;
@@ -229,6 +237,8 @@ function exportRows(rows: object[], mode: "selected" | "current") {
 }
 
 .pro-table__grid :deep(.el-table__header th) {
+  height: 40px;
+  background: #f5f7f9;
   color: var(--sb-text-secondary);
   font-size: 12px;
   font-weight: 700;
@@ -236,7 +246,11 @@ function exportRows(rows: object[], mode: "selected" | "current") {
 
 .pro-table__grid :deep(.el-table td),
 .pro-table__grid :deep(.el-table th.el-table__cell) {
-  padding: 10px 0;
+  padding: 9px 0;
+}
+
+.pro-table__grid :deep(.el-table__row:hover > td.el-table__cell) {
+  background: #f4f7fb;
 }
 
 .pro-table__empty {
