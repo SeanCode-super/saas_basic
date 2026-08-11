@@ -52,6 +52,9 @@ public class PortalClientEntity extends BaseTenantEntity {
     @TableField("slider_reserved")
     private Boolean sliderReserved;
 
+    @TableField("is_default")
+    private Boolean isDefault;
+
     @TableField("status")
     private String status;
 
@@ -173,6 +176,14 @@ public class PortalClientEntity extends BaseTenantEntity {
 
     public void setSliderReserved(Boolean sliderReserved) {
         this.sliderReserved = sliderReserved;
+    }
+
+    public Boolean getIsDefault() {
+        return isDefault;
+    }
+
+    public void setIsDefault(Boolean isDefault) {
+        this.isDefault = isDefault;
     }
 
     public String getStatus() {

@@ -115,6 +115,7 @@ const portalClientForm = reactive<PortalClientSavePayload>({
   passwordPolicyId: 1,
   captchaMode: "IMAGE",
   sliderReserved: true,
+  isDefault: false,
   status: "ENABLED",
   remark: ""
 });
@@ -250,6 +251,7 @@ const portalClientColumns: ProTableColumn[] = [
   { prop: "tenantCode", label: "租户编码", minWidth: 120 },
   { prop: "themeCode", label: "主题", minWidth: 120 },
   { prop: "captchaMode", label: "验证码", minWidth: 100 },
+  { prop: "isDefault", label: "默认门户", minWidth: 100, slot: "defaultClient" },
   { prop: "status", label: "状态", minWidth: 100, slot: "status" }
 ];
 
@@ -409,6 +411,7 @@ function resetPortalClientForm() {
   portalClientForm.passwordPolicyId = passwordPolicies.value[0]?.id ?? 1;
   portalClientForm.captchaMode = "IMAGE";
   portalClientForm.sliderReserved = true;
+  portalClientForm.isDefault = portalClients.value.length === 0;
   portalClientForm.status = "ENABLED";
   portalClientForm.remark = "";
 }
@@ -462,6 +465,7 @@ function editPortalClient(row: PortalClientRow) {
   portalClientForm.passwordPolicyId = row.passwordPolicyId;
   portalClientForm.captchaMode = row.captchaMode;
   portalClientForm.sliderReserved = row.sliderReserved;
+  portalClientForm.isDefault = row.isDefault;
   portalClientForm.status = row.status;
   portalClientForm.remark = row.remark || "";
   portalClientVisible.value = true;
@@ -1075,6 +1079,7 @@ onMounted(loadData);
         </el-select>
       </el-form-item>
       <el-form-item><el-switch v-model="portalClientForm.sliderReserved" active-text="预留滑块验证位" /></el-form-item>
+      <el-form-item><el-switch v-model="portalClientForm.isDefault" active-text="设为默认门户" /></el-form-item>
       <el-form-item label="状态">
         <el-select v-model="portalClientForm.status">
           <el-option label="启用" value="ENABLED" />

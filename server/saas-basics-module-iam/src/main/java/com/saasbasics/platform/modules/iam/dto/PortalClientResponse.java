@@ -18,6 +18,7 @@ public record PortalClientResponse(
         Long passwordPolicyId,
         String captchaMode,
         Boolean sliderReserved,
+        Boolean isDefault,
         String status,
         String remark
 ) {

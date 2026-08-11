@@ -21,6 +21,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class PortalEntryService {
@@ -44,14 +45,18 @@ public class PortalEntryService {
 
     public PortalEntryResponse resolveEntry(String clientId, String terminalCode) {
         PortalClientMapper clientMapper = requiredClientMapper();
-        String normalizedClientId = normalizeClientId(clientId);
         PortalClientEntity client;
         try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openSystemBypass(
                 TenantAccessContext.BypassOperation.PUBLIC_PORTAL_RESOLUTION,
                 "Resolve the tenant that owns a globally unique portal client")) {
-            client = clientMapper.selectByClientId(normalizedClientId);
+            client = clientId == null || clientId.isBlank()
+                    ? clientMapper.selectDefaultClient()
+                    : clientMapper.selectByClientId(clientId.trim());
         }
         if (client == null || !"ENABLED".equalsIgnoreCase(client.getStatus())) {
+            if (clientId == null || clientId.isBlank()) {
+                throw new BizException("PORTAL_DEFAULT_CLIENT_NOT_FOUND", "未配置可用的默认门户");
+            }
             throw new BizException("PORTAL_CLIENT_NOT_FOUND", "Portal client is not available");
         }
 
@@ -124,13 +129,16 @@ public class PortalEntryService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional
     public PortalClientResponse createClient(PortalClientSaveRequest request) {
         PortalClientEntity entity = new PortalClientEntity();
         apply(entity, request);
+        normalizeDefaultClient(null, entity.getIsDefault());
         requiredClientMapper().insert(entity);
         return getClient(entity.getId());
     }
 
+    @Transactional
     public PortalClientResponse updateClient(Long id, PortalClientSaveRequest request) {
         PortalClientMapper mapper = requiredClientMapper();
         PortalClientEntity entity = mapper.selectById(id);
@@ -138,6 +146,7 @@ public class PortalEntryService {
             throw new BizException("PORTAL_CLIENT_NOT_FOUND", "Portal client is not available");
         }
         apply(entity, request);
+        normalizeDefaultClient(id, entity.getIsDefault());
         mapper.updateById(entity);
         return getClient(id);
     }
@@ -289,6 +298,7 @@ public class PortalEntryService {
                 entity.getPasswordPolicyId(),
                 entity.getCaptchaMode(),
                 entity.getSliderReserved(),
+                entity.getIsDefault(),
                 entity.getStatus(),
                 entity.getRemark()
         );
@@ -362,6 +372,7 @@ public class PortalEntryService {
         entity.setPasswordPolicyId(request.passwordPolicyId());
         entity.setCaptchaMode(request.captchaMode());
         entity.setSliderReserved(request.sliderReserved());
+        entity.setIsDefault(request.isDefault());
         entity.setStatus(request.status());
         entity.setRemark(request.remark());
     }
@@ -432,5 +443,11 @@ public class PortalEntryService {
                     item.setIsDefault(false);
                     mapper.updateById(item);
                 });
+    }
+
+    private void normalizeDefaultClient(Long currentClientId, Boolean isDefault) {
+        if (Boolean.TRUE.equals(isDefault)) {
+            requiredClientMapper().clearDefaultClients(currentClientId);
+        }
     }
 }

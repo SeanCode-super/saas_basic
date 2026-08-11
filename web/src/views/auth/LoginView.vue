@@ -4,6 +4,7 @@ import { ElMessage } from "element-plus";
 import { useRoute, useRouter } from "vue-router";
 import { fetchPortalEntry, type PortalEntry } from "@/api/modules/portal";
 import { useAuthStore } from "@/stores/modules/auth";
+import { rememberPortalContext, resolvePortalContext } from "@/utils/portal-context";
 
 const form = reactive({
   tenantCode: "platform",
@@ -51,9 +52,8 @@ function refreshCaptcha() {
 async function bootstrapPortal() {
   booting.value = true;
   try {
-    const clientId = typeof route.query.clientId === "string" ? route.query.clientId : undefined;
-    const terminalCode = typeof route.query.terminalCode === "string" ? route.query.terminalCode : "web";
-    const entry = await fetchPortalEntry({ clientId, terminalCode });
+    const context = resolvePortalContext(route.query);
+    const entry = await fetchPortalEntry(context);
     portal.value = entry;
     form.clientId = entry.clientId;
     form.terminalCode = entry.terminal.terminalCode;
@@ -61,6 +61,17 @@ async function bootstrapPortal() {
     document.title = `${entry.portalTitle} | 登录`;
     loginError.value = "";
     refreshCaptcha();
+    rememberPortalContext({ clientId: entry.clientId, terminalCode: entry.terminal.terminalCode });
+    if (route.query.clientId !== entry.clientId || route.query.terminalCode !== entry.terminal.terminalCode) {
+      await router.replace({
+        path: route.path,
+        query: {
+          ...route.query,
+          clientId: entry.clientId,
+          terminalCode: entry.terminal.terminalCode
+        }
+      });
+    }
   } catch (error: any) {
     loginError.value = error?.response?.data?.message ?? "门户入口配置加载失败";
     ElMessage.error(loginError.value);

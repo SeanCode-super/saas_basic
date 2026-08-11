@@ -9,6 +9,7 @@ import { useAuthStore } from "@/stores/modules/auth";
 import { useLocaleStore } from "@/stores/modules/locale";
 import { useMenuStore, type MenuNavItem } from "@/stores/modules/menu";
 import { useTenantStore } from "@/stores/modules/tenant";
+import { buildPortalLoginQuery } from "@/utils/portal-context";
 
 type QuickEntry = {
   value: string;
@@ -139,7 +140,7 @@ function handleAtlasSelect(item: NavigableTarget) {
 
 async function handleLogout() {
   await authStore.logout();
-  router.push("/login");
+  router.push({ path: "/login", query: buildPortalLoginQuery() });
 }
 
 async function handleRefreshNavigation() {

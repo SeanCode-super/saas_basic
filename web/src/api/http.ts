@@ -1,5 +1,6 @@
 import axios from "axios";
 import { useAuthStore } from "@/stores/modules/auth";
+import { buildPortalLoginUrl } from "@/utils/portal-context";
 
 export const http = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
@@ -25,7 +26,7 @@ http.interceptors.response.use(
       localStorage.removeItem("sb-current-user");
       if (window.location.pathname !== "/login") {
         const redirect = `${window.location.pathname}${window.location.search}`;
-        window.location.href = `/login?redirect=${encodeURIComponent(redirect)}`;
+        window.location.href = buildPortalLoginUrl(redirect);
       }
     }
     return Promise.reject(error);

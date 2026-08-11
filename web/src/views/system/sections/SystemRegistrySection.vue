@@ -86,6 +86,9 @@ const queryModel = computed({
       <template #status="{ row }">
         <BaseStatusTag :status="row.status" />
       </template>
+      <template #defaultClient="{ row }">
+        {{ row.isDefault ? "是" : "否" }}
+      </template>
       <template #actions="{ row }">
         <el-button link @click="editPortalClient(row)">编辑</el-button>
         <el-button link type="primary" @click="previewPortalClient(row)">预览登录页</el-button>

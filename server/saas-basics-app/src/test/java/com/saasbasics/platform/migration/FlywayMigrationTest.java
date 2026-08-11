@@ -47,13 +47,14 @@ class FlywayMigrationTest {
         MigrateResult secondRun = flyway.migrate();
 
         assertThat(firstRun.success).isTrue();
-        assertThat(firstRun.migrationsExecuted).isOne();
+        assertThat(firstRun.migrationsExecuted).isEqualTo(2);
         assertThat(secondRun.success).isTrue();
         assertThat(secondRun.migrationsExecuted).isZero();
         assertThat(flyway.info().pending()).isEmpty();
         assertOrganizationSchema();
         assertOrganizationMigrationSchema();
         assertIdentityBindingSchema();
+        assertDefaultPortalSchema();
         assertExistingTenantBindingPermissions();
     }
 
@@ -247,6 +248,25 @@ class FlywayMigrationTest {
             assertLegacyWriterCompatibility(connection);
         } catch (SQLException exception) {
             throw new AssertionError("Unable to inspect the IAM subject binding schema", exception);
+        }
+    }
+
+    private void assertDefaultPortalSchema() {
+        try (Connection connection = MYSQL.createConnection("");
+             PreparedStatement activeDefaults = connection.prepareStatement("""
+                     SELECT COUNT(*)
+                     FROM iam_portal_client
+                     WHERE is_default = 1
+                       AND status = 'ENABLED'
+                       AND deleted = 0
+                     """)) {
+            assertThat(columnNames(connection, "iam_portal_client"))
+                    .contains("is_default", "active_default_key");
+            assertThat(indexNames(connection, "iam_portal_client"))
+                    .contains("uk_portal_client_active_default");
+            assertThat(singleCount(activeDefaults)).isOne();
+        } catch (SQLException exception) {
+            throw new AssertionError("Unable to inspect the default portal client schema", exception);
         }
     }
 
