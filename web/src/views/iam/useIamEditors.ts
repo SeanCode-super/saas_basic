@@ -485,10 +485,20 @@ export function useIamEditors(params: UseIamEditorsParams) {
     apiDialog.visible = true;
   }
 
-  function openMenuCreate() {
+  function openMenuCreate(defaults?: { parentId?: number; menuType?: string }) {
     menuDialog.mode = "create";
     menuDialog.id = 0;
     resetMenuForm();
+    menuForm.parentId = defaults?.parentId ?? 0;
+    menuForm.menuType = defaults?.menuType ?? "MENU";
+    const parent = params.menus.value.find((item) => item.id === menuForm.parentId);
+    const suffix = Date.now().toString(36);
+    menuForm.menuCode =
+      menuForm.menuType === "BUTTON"
+        ? `${parent?.menuCode ?? "action"}:action_${suffix}`
+        : `${menuForm.menuType === "DIRECTORY" ? "group" : "page"}_${suffix}`;
+    menuForm.visible = menuForm.menuType !== "BUTTON";
+    menuForm.keepAlive = menuForm.menuType === "MENU";
     menuDialog.visible = true;
   }
 

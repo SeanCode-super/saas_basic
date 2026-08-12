@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { IamDepartmentRow, IamPositionRow } from "@/api/modules/iam";
+import { computed, watch } from "vue";
+import type { IamDepartmentRow, IamMenuRow, IamPositionRow } from "@/api/modules/iam";
 import type {
   ApiFormState,
   DataScopeFormState,
@@ -15,7 +16,7 @@ import type {
   UserFormState
 } from "./iam-dialog-types";
 
-defineProps<{
+const props = defineProps<{
   submitting: boolean;
   departmentDialog: IamDialogState;
   positionDialog: IamDialogState;
@@ -43,6 +44,7 @@ defineProps<{
   employeeOptions: SelectOption[];
   menuParentOptions: SelectOption[];
   departments: IamDepartmentRow[];
+  menus: IamMenuRow[];
   positions: IamPositionRow[];
   submitDepartment: () => Promise<void> | void;
   submitPosition: () => Promise<void> | void;
@@ -55,6 +57,27 @@ defineProps<{
   submitLoginPolicy: () => Promise<void> | void;
   submitPasswordPolicy: () => Promise<void> | void;
 }>();
+
+const validMenuParentOptions = computed(() => {
+  const allowedParentTypes = props.menuForm.menuType === "BUTTON" ? ["MENU"] : ["DIRECTORY"];
+  const sourceMenus = props.menuParentOptions.filter((item) => {
+    if (item.value === 0) {
+      return props.menuForm.menuType !== "BUTTON";
+    }
+    const menu = props.menus.find((candidate) => candidate.id === item.value);
+    return Boolean(menu && allowedParentTypes.includes(menu.menuType) && item.value !== props.menuDialog.id);
+  });
+  return sourceMenus;
+});
+
+watch(
+  () => props.menuForm.menuType,
+  () => {
+    if (!validMenuParentOptions.value.some((item) => item.value === props.menuForm.parentId)) {
+      props.menuForm.parentId = validMenuParentOptions.value[0]?.value ?? 0;
+    }
+  }
+);
 </script>
 
 <template>
@@ -342,39 +365,31 @@ defineProps<{
     </template>
   </el-dialog>
 
-  <el-dialog v-model="menuDialog.visible" :title="menuDialog.mode === 'create' ? '新增菜单' : '编辑菜单'" width="720px">
+  <el-dialog
+    v-model="menuDialog.visible"
+    :title="menuDialog.mode === 'create' ? '新增权限资源' : '编辑权限资源'"
+    width="680px"
+  >
     <el-form label-position="top">
+      <el-form-item label="资源类型">
+        <el-radio-group v-model="menuForm.menuType">
+          <el-radio-button label="目录" value="DIRECTORY" />
+          <el-radio-button label="页面" value="MENU" />
+          <el-radio-button label="页面操作" value="BUTTON" />
+          <el-radio-button label="外部链接" value="LINK" />
+        </el-radio-group>
+      </el-form-item>
       <div class="form-grid">
-        <el-form-item label="上级菜单">
+        <el-form-item label="上级资源">
           <el-select v-model="menuForm.parentId" style="width: 100%">
-            <el-option v-for="item in menuParentOptions" :key="item.value" :label="item.label" :value="item.value" />
+            <el-option v-for="item in validMenuParentOptions" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
         </el-form-item>
-        <el-form-item label="菜单类型">
-          <el-select v-model="menuForm.menuType" style="width: 100%">
-            <el-option label="目录" value="DIRECTORY" />
-            <el-option label="菜单" value="MENU" />
-            <el-option label="按钮" value="BUTTON" />
-            <el-option label="外链" value="LINK" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="菜单编码">
-          <el-input v-model="menuForm.menuCode" />
-        </el-form-item>
-        <el-form-item label="菜单名称">
-          <el-input v-model="menuForm.menuName" />
-        </el-form-item>
-        <el-form-item label="路由路径">
-          <el-input v-model="menuForm.routePath" placeholder="例如 /iam/menu" />
-        </el-form-item>
-        <el-form-item label="组件路径">
-          <el-input v-model="menuForm.componentPath" placeholder="例如 iam/MenuView" />
-        </el-form-item>
-        <el-form-item label="权限码">
-          <el-input v-model="menuForm.permissionCode" placeholder="例如 iam:menu:query" />
-        </el-form-item>
-        <el-form-item label="图标">
-          <el-input v-model="menuForm.icon" placeholder="例如 Setting" />
+        <el-form-item :label="menuForm.menuType === 'BUTTON' ? '操作名称' : '资源名称'">
+          <el-input
+            v-model="menuForm.menuName"
+            :placeholder="menuForm.menuType === 'BUTTON' ? '例如：新增用户' : '例如：用户管理'"
+          />
         </el-form-item>
         <el-form-item label="排序">
           <el-input-number v-model="menuForm.sortNo" :min="0" style="width: 100%" />
@@ -386,20 +401,42 @@ defineProps<{
           </el-select>
         </el-form-item>
       </div>
-      <div class="switch-grid">
+      <div v-if="menuForm.menuType !== 'BUTTON'" class="switch-grid">
         <el-switch v-model="menuForm.visible" active-text="导航可见" />
-        <el-switch v-model="menuForm.keepAlive" active-text="页面缓存" />
+        <el-switch v-if="menuForm.menuType === 'MENU'" v-model="menuForm.keepAlive" active-text="页面缓存" />
       </div>
-      <el-form-item label="元数据 JSON">
-        <el-input v-model="menuForm.metaJson" type="textarea" :rows="4" placeholder='例如 {"badge":"beta"}' />
-      </el-form-item>
       <el-form-item label="备注">
-        <el-input v-model="menuForm.remark" type="textarea" :rows="3" />
+        <el-input v-model="menuForm.remark" type="textarea" :rows="2" />
       </el-form-item>
+
+      <el-collapse class="menu-advanced-settings">
+        <el-collapse-item title="开发配置" name="advanced">
+          <div class="form-grid">
+            <el-form-item label="资源标识">
+              <el-input v-model="menuForm.menuCode" placeholder="系统唯一标识" />
+            </el-form-item>
+            <el-form-item v-if="menuForm.menuType !== 'BUTTON'" label="访问权限">
+              <el-input v-model="menuForm.permissionCode" placeholder="例如 iam:menu:query" />
+            </el-form-item>
+            <el-form-item v-if="menuForm.menuType === 'MENU' || menuForm.menuType === 'LINK'" label="访问路径">
+              <el-input v-model="menuForm.routePath" placeholder="例如 /iam/menu" />
+            </el-form-item>
+            <el-form-item v-if="menuForm.menuType === 'MENU'" label="页面组件">
+              <el-input v-model="menuForm.componentPath" placeholder="例如 @/views/iam/IamMenuView.vue" />
+            </el-form-item>
+            <el-form-item label="图标">
+              <el-input v-model="menuForm.icon" placeholder="图标组件名称" />
+            </el-form-item>
+          </div>
+          <el-form-item label="扩展元数据">
+            <el-input v-model="menuForm.metaJson" type="textarea" :rows="3" placeholder='例如 {"section":"menu"}' />
+          </el-form-item>
+        </el-collapse-item>
+      </el-collapse>
     </el-form>
     <template #footer>
       <el-button @click="menuDialog.visible = false">取消</el-button>
-      <el-button type="primary" :loading="submitting" @click="submitMenu">保存</el-button>
+      <el-button type="primary" :loading="submitting" @click="submitMenu">保存资源</el-button>
     </template>
   </el-dialog>
 
@@ -554,6 +591,11 @@ defineProps<{
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px 16px;
   margin-bottom: 18px;
+}
+
+.menu-advanced-settings {
+  margin-top: 10px;
+  border-top: 1px solid var(--sb-border-color);
 }
 
 .switch-grid--wide {

@@ -7,9 +7,20 @@ import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Delete;
 
 @Mapper
 public interface MenuPermissionMapper extends BaseMapper<MenuPermissionEntity> {
+
+    @Delete("""
+            DELETE FROM iam_menu_permission
+            WHERE tenant_id = #{tenantId}
+              AND subject_type = #{subjectType}
+              AND subject_value = #{subjectValue}
+            """)
+    int deleteSubjectGrants(@Param("tenantId") Long tenantId,
+                            @Param("subjectType") String subjectType,
+                            @Param("subjectValue") String subjectValue);
 
     @Select("""
             SELECT

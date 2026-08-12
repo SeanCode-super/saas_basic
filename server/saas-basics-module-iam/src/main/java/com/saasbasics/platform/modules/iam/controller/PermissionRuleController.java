@@ -6,6 +6,7 @@ import com.saasbasics.platform.modules.iam.dto.DataPermissionRuleResponse;
 import com.saasbasics.platform.modules.iam.dto.DataPermissionRuleSaveRequest;
 import com.saasbasics.platform.modules.iam.dto.MenuPermissionResponse;
 import com.saasbasics.platform.modules.iam.dto.MenuPermissionSaveRequest;
+import com.saasbasics.platform.modules.iam.dto.MenuSubjectGrantSaveRequest;
 import com.saasbasics.platform.modules.iam.dto.StatusUpdateRequest;
 import com.saasbasics.platform.modules.iam.service.DataPermissionRuleService;
 import com.saasbasics.platform.modules.iam.service.MenuPermissionService;
@@ -57,6 +58,13 @@ public class PermissionRuleController {
     public ApiResponse<MenuPermissionResponse> updateMenuPermissionStatus(@PathVariable Long id,
                                                                           @Valid @RequestBody StatusUpdateRequest request) {
         return ApiResponse.success(menuPermissionService.updateStatus(id, request));
+    }
+
+    @PutMapping("/menu-permissions/subject-grants")
+    @RequirePermission("iam:menu:write")
+    public ApiResponse<List<MenuPermissionResponse>> replaceSubjectMenuGrants(
+            @Valid @RequestBody MenuSubjectGrantSaveRequest request) {
+        return ApiResponse.success(menuPermissionService.replaceSubjectGrants(request));
     }
 
     @GetMapping("/data-permission-rules")

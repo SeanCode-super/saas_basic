@@ -10,6 +10,8 @@ import com.saasbasics.platform.modules.audit.service.AuditTrailService;
 import com.saasbasics.platform.modules.iam.dto.AccessSubjectProfile;
 import com.saasbasics.platform.modules.iam.dto.MenuPermissionResponse;
 import com.saasbasics.platform.modules.iam.dto.MenuPermissionSaveRequest;
+import com.saasbasics.platform.modules.iam.dto.MenuGrantItemRequest;
+import com.saasbasics.platform.modules.iam.dto.MenuSubjectGrantSaveRequest;
 import com.saasbasics.platform.modules.iam.dto.MenuResponse;
 import com.saasbasics.platform.modules.iam.dto.StatusUpdateRequest;
 import com.saasbasics.platform.modules.iam.entity.MenuPermissionEntity;
@@ -23,6 +25,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class MenuPermissionService {
@@ -83,6 +86,57 @@ public class MenuPermissionService {
         requiredMapper().updateById(entity);
         auditTrailService.record("iam", "menu_permission", String.valueOf(id), "STATUS", null, request.status(), true);
         return getPermission(id);
+    }
+
+    @Transactional
+    public List<MenuPermissionResponse> replaceSubjectGrants(MenuSubjectGrantSaveRequest request) {
+        Long tenantId = requiredTenantId();
+        String subjectType = normalizeSubjectType(request.subjectType());
+        String subjectValue = request.subjectValue().trim();
+        Map<Long, MenuResponse> menus = requiredMenuMapper().selectMenuList()
+                .stream()
+                .filter(menu -> tenantId.equals(menu.tenantId()))
+                .collect(Collectors.toMap(MenuResponse::id, item -> item));
+
+        requiredMapper().deleteSubjectGrants(tenantId, subjectType, subjectValue);
+        LinkedHashSet<Long> processedMenus = new LinkedHashSet<>();
+        for (MenuGrantItemRequest grant : request.grants()) {
+            if (!processedMenus.add(grant.menuId())) {
+                throw new BizException("IAM_MENU_GRANT_DUPLICATE", "同一菜单不能重复授权");
+            }
+            MenuResponse menu = menus.get(grant.menuId());
+            if (menu == null || !isGrantableMenu(menu)) {
+                throw new BizException("IAM_MENU_GRANT_INVALID", "授权菜单不存在或不是可访问页面");
+            }
+
+            List<String> actionCodes = normalizeActionCodes(grant.actionCodes());
+            validateActionCodes(menus.values(), tenantId, grant.menuId(), actionCodes);
+
+            MenuPermissionEntity entity = new MenuPermissionEntity();
+            entity.setTenantId(tenantId);
+            entity.setMenuId(menu.id());
+            entity.setMenuCode(menu.menuCode());
+            entity.setSubjectType(subjectType);
+            entity.setSubjectValue(subjectValue);
+            entity.setButtonCodesJson(writeActionCodes(actionCodes));
+            entity.setStatus("ENABLED");
+            entity.setRemark("权限配置保存");
+            requiredMapper().insert(entity);
+        }
+
+        auditTrailService.record(
+                "iam",
+                "menu_permission",
+                subjectType + ":" + subjectValue,
+                "REPLACE",
+                null,
+                String.valueOf(processedMenus.size()),
+                true
+        );
+        return listPermissions().stream()
+                .filter(permission -> subjectType.equals(permission.subjectType()))
+                .filter(permission -> subjectValue.equals(permission.subjectValue()))
+                .toList();
     }
 
     public List<MenuResponse> listCurrentMenus(AuthPrincipal principal) {
@@ -157,14 +211,44 @@ public class MenuPermissionService {
         }
     }
 
+    private String normalizeSubjectType(String value) {
+        String normalized = value.trim().toUpperCase();
+        if (!Set.of("ROLE", "USER", "DEPARTMENT", "POSITION", "COMPANY", "TENANT").contains(normalized)) {
+            throw new BizException("IAM_MENU_SUBJECT_INVALID", "不支持的授权对象类型");
+        }
+        return normalized;
+    }
+
+    private List<String> normalizeActionCodes(List<String> source) {
+        if (source == null) {
+            return List.of();
+        }
+        return source.stream()
+                .filter(code -> code != null && !code.isBlank())
+                .map(String::trim)
+                .distinct()
+                .toList();
+    }
+
+    private String writeActionCodes(List<String> actionCodes) {
+        try {
+            return objectMapper.writeValueAsString(actionCodes);
+        } catch (Exception exception) {
+            throw new BizException("IAM_MENU_ACTION_SERIALIZATION_FAILED", "页面动作保存失败");
+        }
+    }
+
     private void apply(MenuPermissionEntity entity, MenuPermissionSaveRequest request) {
         Long tenantId = requiredTenantId();
+        MenuResponse menu = requiredGrantableMenu(tenantId, request.menuId());
+        List<String> actionCodes = parseRequestedActionCodes(request.buttonCodesJson());
+        validateActionCodes(requiredMenuMapper().selectMenuList(), tenantId, menu.id(), actionCodes);
         entity.setTenantId(tenantId);
-        entity.setMenuId(request.menuId());
-        entity.setMenuCode(resolveMenuCode(tenantId, request.menuId()));
-        entity.setSubjectType(request.subjectType());
-        entity.setSubjectValue(request.subjectValue());
-        entity.setButtonCodesJson(request.buttonCodesJson());
+        entity.setMenuId(menu.id());
+        entity.setMenuCode(menu.menuCode());
+        entity.setSubjectType(normalizeSubjectType(request.subjectType()));
+        entity.setSubjectValue(request.subjectValue().trim());
+        entity.setButtonCodesJson(writeActionCodes(actionCodes));
         entity.setStatus(request.status());
         entity.setRemark(request.remark());
     }
@@ -180,12 +264,48 @@ public class MenuPermissionService {
         return entity;
     }
 
-    private String resolveMenuCode(Long tenantId, Long menuId) {
+    private MenuResponse requiredGrantableMenu(Long tenantId, Long menuId) {
         MenuResponse menu = requiredMenuMapper().selectMenuById(menuId);
-        if (menu == null || !tenantId.equals(menu.tenantId())) {
-            throw new BizException("IAM_MENU_NOT_FOUND", "菜单不存在");
+        if (menu == null || !tenantId.equals(menu.tenantId()) || !isGrantableMenu(menu)) {
+            throw new BizException("IAM_MENU_GRANT_INVALID", "授权菜单不存在或不是可访问页面");
         }
-        return menu.menuCode();
+        return menu;
+    }
+
+    private boolean isGrantableMenu(MenuResponse menu) {
+        return Set.of("MENU", "LINK").contains(menu.menuType().toUpperCase())
+                && "ENABLED".equalsIgnoreCase(menu.status());
+    }
+
+    private List<String> parseRequestedActionCodes(String source) {
+        if (source == null || source.isBlank()) {
+            return List.of();
+        }
+        try {
+            List<String> values = objectMapper.readValue(source, new TypeReference<List<String>>() {
+            });
+            return normalizeActionCodes(values);
+        } catch (Exception exception) {
+            throw new BizException("IAM_MENU_ACTION_FORMAT_INVALID", "页面操作格式无效");
+        }
+    }
+
+    private void validateActionCodes(Iterable<MenuResponse> menus,
+                                     Long tenantId,
+                                     Long menuId,
+                                     List<String> actionCodes) {
+        Set<String> availableActionCodes = new LinkedHashSet<>();
+        for (MenuResponse candidate : menus) {
+            if (tenantId.equals(candidate.tenantId())
+                    && menuId.equals(candidate.parentId())
+                    && "BUTTON".equalsIgnoreCase(candidate.menuType())
+                    && "ENABLED".equalsIgnoreCase(candidate.status())) {
+                availableActionCodes.add(candidate.menuCode());
+            }
+        }
+        if (!availableActionCodes.containsAll(actionCodes)) {
+            throw new BizException("IAM_MENU_ACTION_INVALID", "所选页面动作不属于当前页面");
+        }
     }
 
     private MenuPermissionMapper requiredMapper() {

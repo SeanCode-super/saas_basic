@@ -246,6 +246,17 @@ export interface IamMenuPermissionSavePayload {
   remark?: string;
 }
 
+export interface IamMenuGrantItemPayload {
+  menuId: number;
+  actionCodes: string[];
+}
+
+export interface IamMenuSubjectGrantSavePayload {
+  subjectType: string;
+  subjectValue: string;
+  grants: IamMenuGrantItemPayload[];
+}
+
 export interface IamDataPermissionRuleRow {
   id: number;
   tenantId: number;

@@ -47,7 +47,7 @@ class FlywayMigrationTest {
         MigrateResult secondRun = flyway.migrate();
 
         assertThat(firstRun.success).isTrue();
-        assertThat(firstRun.migrationsExecuted).isEqualTo(3);
+        assertThat(firstRun.migrationsExecuted).isEqualTo(5);
         assertThat(secondRun.success).isTrue();
         assertThat(secondRun.migrationsExecuted).isZero();
         assertThat(flyway.info().pending()).isEmpty();
@@ -56,6 +56,8 @@ class FlywayMigrationTest {
         assertIdentityBindingSchema();
         assertDefaultPortalSchema();
         assertPlatformAdministratorUsername();
+        assertStandardMenuActionCatalog();
+        assertStandardMenuResourceHierarchy();
         assertExistingTenantBindingPermissions();
     }
 
@@ -286,6 +288,54 @@ class FlywayMigrationTest {
             }
         } catch (SQLException exception) {
             throw new AssertionError("Unable to verify the platform administrator username", exception);
+        }
+    }
+
+    private void assertStandardMenuActionCatalog() {
+        try (Connection connection = MYSQL.createConnection("");
+             PreparedStatement actions = connection.prepareStatement("""
+                     SELECT COUNT(*)
+                     FROM iam_menu
+                     WHERE tenant_id = 1
+                       AND menu_type = 'BUTTON'
+                       AND parent_id > 0
+                       AND visible = 0
+                       AND deleted = 0
+                     """)) {
+            assertThat(singleCount(actions)).isGreaterThanOrEqualTo(30);
+        } catch (SQLException exception) {
+            throw new AssertionError("Unable to verify the standard menu action catalog", exception);
+        }
+    }
+
+    private void assertStandardMenuResourceHierarchy() {
+        try (Connection connection = MYSQL.createConnection("");
+             PreparedStatement invalidParents = connection.prepareStatement("""
+                     SELECT COUNT(*)
+                     FROM iam_menu parent_menu
+                     WHERE parent_menu.deleted = 0
+                       AND parent_menu.menu_type IN ('MENU', 'LINK')
+                       AND EXISTS (
+                         SELECT 1
+                         FROM iam_menu child_menu
+                         WHERE child_menu.tenant_id = parent_menu.tenant_id
+                           AND child_menu.parent_id = parent_menu.id
+                           AND child_menu.menu_type <> 'BUTTON'
+                           AND child_menu.deleted = 0
+                       )
+                     """);
+             PreparedStatement directoryGrants = connection.prepareStatement("""
+                     SELECT COUNT(*)
+                     FROM iam_menu_permission permission_record
+                     INNER JOIN iam_menu menu_record ON menu_record.id = permission_record.menu_id
+                     WHERE permission_record.deleted = 0
+                       AND menu_record.menu_type = 'DIRECTORY'
+                       AND menu_record.deleted = 0
+                     """)) {
+            assertThat(singleCount(invalidParents)).isZero();
+            assertThat(singleCount(directoryGrants)).isZero();
+        } catch (SQLException exception) {
+            throw new AssertionError("Unable to verify the standard menu resource hierarchy", exception);
         }
     }
 

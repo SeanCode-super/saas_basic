@@ -12,15 +12,12 @@ import {
   departmentColumns,
   employeeColumns,
   loginPolicyColumns,
-  menuColumns,
-  menuPermissionColumns,
   passwordPolicyColumns,
   positionColumns,
   roleColumns,
   userColumns
 } from "./iam-columns";
 import {
-  buildMenuAtlas,
   IAM_POLICY_ROWS,
   localizeEmployeeStatus,
   normalizeIamSection,
@@ -106,13 +103,12 @@ const departmentOptions = computed(() => [
 
 const menuParentOptions = computed(() => [
   { label: "顶级菜单", value: 0 },
-  ...menus.value.map((item) => ({
+  ...menus.value.filter((item) => item.menuType !== "BUTTON").map((item) => ({
     label: `${item.menuName} (${item.menuCode})`,
     value: item.id
   }))
 ]);
 
-const menuAtlasApps = computed(() => buildMenuAtlas(menus.value));
 const currentTenantId = computed(() => authStore.currentUser?.tenantId ?? 0);
 
 const userOptions = computed(() => [
@@ -212,8 +208,6 @@ const {
   batchDisableRoles,
   batchEnableApiResources,
   batchDisableApiResources,
-  batchEnableMenus,
-  batchDisableMenus,
   batchEnableDataScopes,
   batchDisableDataScopes,
   batchEnableLoginPolicies,
@@ -242,13 +236,6 @@ async function refreshData() {
   });
 }
 
-function handleMenuAtlasSelect(item: { id: number | string }) {
-  const target = menus.value.find((menu) => menu.id === Number(item.id));
-  if (!target) {
-    return;
-  }
-  openMenuEdit(target);
-}
 
 watch(selectedUserId, () => {
   void loadUserRoles();
@@ -382,10 +369,7 @@ onMounted(async () => {
 
     <IamMenuSection
       v-else-if="activeTab === 'menu'"
-      :menu-atlas-apps="menuAtlasApps"
-      :menu-columns="menuColumns"
       :menus="menus"
-      :menu-permission-columns="menuPermissionColumns"
       :menu-permissions="menuPermissions"
       :loading="loading"
       :can-write="authStore.hasPermission('iam:menu:write')"
@@ -394,12 +378,9 @@ onMounted(async () => {
       :roles="roles"
       :departments="departments"
       :positions="positions"
-      :handle-menu-atlas-select="handleMenuAtlasSelect"
       :open-menu-create="openMenuCreate"
       :open-menu-edit="openMenuEdit"
       :toggle-menu="toggleMenu"
-      :batch-enable-menus="batchEnableMenus"
-      :batch-disable-menus="batchDisableMenus"
       :refresh-data="refreshData"
     />
 
@@ -513,6 +494,7 @@ onMounted(async () => {
       :employee-options="employeeOptions"
       :menu-parent-options="menuParentOptions"
       :departments="departments"
+      :menus="menus"
       :positions="positions"
       :submit-department="submitDepartment"
       :submit-position="submitPosition"
