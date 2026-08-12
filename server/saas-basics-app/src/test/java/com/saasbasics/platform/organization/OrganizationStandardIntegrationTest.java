@@ -25,6 +25,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.MySQLContainer;
@@ -63,6 +64,9 @@ class OrganizationStandardIntegrationTest {
 
     @Autowired
     private OrganizationDirectory directory;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @AfterEach
     void clearTenantContext() {
@@ -203,6 +207,54 @@ class OrganizationStandardIntegrationTest {
         }
     }
 
+    @Test
+    void rejectsInternallyInconsistentAssignmentContextsFromImportedData() {
+        try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openTenant(
+                TENANT_ALPHA, "alpha", 11L)) {
+            String suffix = UUID.randomUUID().toString().substring(0, 8);
+            StructureFixture alpha = activeStructure("consistent-alpha-" + suffix);
+            StructureFixture beta = activeStructure("consistent-beta-" + suffix);
+            PersonModels.Response person = activePerson("consistent-person-" + suffix);
+            EngagementModels.Response engagement = activeEngagement(
+                    "consistent-engagement-" + suffix, person, alpha.organization());
+            AssignmentModels.Response assignment = workforce.createAssignment(
+                    new AssignmentModels.CreateRequest(
+                            engagement.publicId(), alpha.unit().publicId(), alpha.position().publicId(), true,
+                            START, null, null));
+            assignment = workforce.transitionAssignment(
+                    assignment.publicId(), new LifecycleTransitionRequest(LifecycleStatus.ACTIVE, assignment.version()));
+
+            assertThat(jdbcTemplate.update("""
+                    UPDATE org_assignment assignment_record
+                    INNER JOIN org_organization target_organization
+                      ON target_organization.tenant_id = assignment_record.tenant_id
+                     AND target_organization.public_id = ?
+                     AND target_organization.deleted = 0
+                    SET assignment_record.organization_id = target_organization.id
+                    WHERE assignment_record.tenant_id = ?
+                      AND assignment_record.public_id = ?
+                      AND assignment_record.deleted = 0
+                    """, beta.organization().publicId().toString(), TENANT_ALPHA,
+                    assignment.publicId().toString())).isEqualTo(1);
+
+            UUID assignmentPublicId = assignment.publicId();
+            assertBizCode(
+                    () -> directory.requireEffectiveAssignmentForPerson(
+                            person.publicId(), assignmentPublicId, START.plusSeconds(1)),
+                    "ORG_ASSIGNMENT_CONTEXT_INCONSISTENT");
+            assertBizCode(
+                    () -> directory.findEffectiveAssignments(person.publicId(), START.plusSeconds(1)),
+                    "ORG_ASSIGNMENT_CONTEXT_INCONSISTENT");
+            assertBizCode(
+                    () -> directory.validateContext(
+                            new OrganizationDirectory.ContextSelection(
+                                    beta.organization().publicId(), engagement.publicId(), alpha.unit().publicId(),
+                                    alpha.position().publicId(), assignmentPublicId),
+                            START.plusSeconds(1)),
+                    "ORG_ASSIGNMENT_CONTEXT_INCONSISTENT");
+        }
+    }
+
     private StructureFixture activeStructure(String code) {
         OrganizationModels.Response organization = catalog.createOrganization(
                 new OrganizationModels.CreateRequest(code, code, null, START, null, null));
@@ -242,6 +294,13 @@ class OrganizationStandardIntegrationTest {
                         null));
         return workforce.transitionEngagement(
                 engagement.publicId(), new LifecycleTransitionRequest(LifecycleStatus.ACTIVE, engagement.version()));
+    }
+
+    private void assertBizCode(Runnable operation, String expectedCode) {
+        assertThatThrownBy(operation::run)
+                .isInstanceOf(BizException.class)
+                .extracting(exception -> ((BizException) exception).getCode())
+                .isEqualTo(expectedCode);
     }
 
     private record StructureFixture(

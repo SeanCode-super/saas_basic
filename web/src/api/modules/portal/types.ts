@@ -73,6 +73,7 @@ export interface PortalClientRow {
   passwordPolicyId: number;
   captchaMode: string;
   sliderReserved: boolean;
+  isDefault: boolean;
   status: string;
   remark?: string;
 }
@@ -94,6 +95,7 @@ export interface PortalClientSavePayload {
   passwordPolicyId: number;
   captchaMode: string;
   sliderReserved: boolean;
+  isDefault: boolean;
   status: string;
   remark?: string;
 }

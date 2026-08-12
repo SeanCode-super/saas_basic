@@ -16,6 +16,7 @@ import {
 import type { SchedulerJobAlarmRow, SchedulerJobLogRow, SchedulerJobRow } from "@/api/modules/scheduler";
 import BaseCard from "@/components/base/BaseCard.vue";
 import ControlSurface from "@/components/platform/ControlSurface.vue";
+import BaseRefreshButton from "@/components/base/BaseRefreshButton.vue";
 import ModuleSectionNav from "@/components/platform/ModuleSectionNav.vue";
 import ModuleWorkbench from "@/components/platform/ModuleWorkbench.vue";
 import { useModuleSection } from "@/hooks/useModuleSection";
@@ -314,7 +315,7 @@ onMounted(() => {
     :summary="summary"
   >
     <template #actions>
-      <el-button @click="loadData">刷新视图</el-button>
+      <BaseRefreshButton :loading="loading" @click="loadData" />
       <el-button type="primary" @click="saveJob">保存任务</el-button>
     </template>
 
@@ -383,7 +384,7 @@ onMounted(() => {
     :description="activeSectionMeta.description"
   >
     <template #actions>
-      <el-button @click="loadData">刷新视图</el-button>
+      <BaseRefreshButton :loading="loading" @click="loadData" />
     </template>
 
     <component

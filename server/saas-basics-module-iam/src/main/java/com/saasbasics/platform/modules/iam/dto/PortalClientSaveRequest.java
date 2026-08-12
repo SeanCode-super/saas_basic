@@ -20,6 +20,7 @@ public record PortalClientSaveRequest(
         @NotNull Long passwordPolicyId,
         @NotBlank String captchaMode,
         @NotNull Boolean sliderReserved,
+        @NotNull Boolean isDefault,
         @NotBlank String status,
         String remark
 ) {

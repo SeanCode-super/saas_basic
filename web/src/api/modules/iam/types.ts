@@ -134,6 +134,7 @@ export interface IamEmployeeTransferPayload {
 
 export interface IamUserRow {
   id: number;
+  publicId: string;
   tenantId: number;
   userCode: string;
   username: string;
@@ -243,6 +244,17 @@ export interface IamMenuPermissionSavePayload {
   buttonCodesJson?: string;
   status: string;
   remark?: string;
+}
+
+export interface IamMenuGrantItemPayload {
+  menuId: number;
+  actionCodes: string[];
+}
+
+export interface IamMenuSubjectGrantSavePayload {
+  subjectType: string;
+  subjectValue: string;
+  grants: IamMenuGrantItemPayload[];
 }
 
 export interface IamDataPermissionRuleRow {

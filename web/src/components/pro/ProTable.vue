@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import type { TableInstance } from "element-plus";
+import { Download } from "@element-plus/icons-vue";
 import BaseCard from "@/components/base/BaseCard.vue";
 
 export interface ProTableColumn {
@@ -29,7 +30,7 @@ const props = withDefaults(
     selectable: false,
     rowKey: "id",
     emptyTitle: "当前暂无记录",
-    emptyDescription: "先完善筛选条件或新增主数据，统一台账会在这里持续沉淀。",
+    emptyDescription: "调整筛选条件或新增记录。",
     compact: false
   }
 );
@@ -99,32 +100,21 @@ function exportRows(rows: object[], mode: "selected" | "current") {
     <template #header>
       <div class="pro-table__header">
         <div class="pro-table__headline">
-          <span class="pro-table__eyebrow">台账表格</span>
           <h3>{{ title }}</h3>
-          <p>{{ subtitle ?? "面向高密度企业控制台场景的统一表格基座。" }}</p>
+          <span>{{ total }} 条</span>
         </div>
         <div class="pro-table__actions">
-          <el-button v-if="data.length" plain @click="exportRows(data, 'current')">导出当前视图</el-button>
+          <el-tooltip v-if="data.length" content="导出当前数据" placement="top">
+            <el-button :icon="Download" aria-label="导出当前数据" @click="exportRows(data, 'current')" />
+          </el-tooltip>
           <slot name="toolbar" />
         </div>
       </div>
     </template>
 
-    <div v-if="!compact" class="pro-table__summary">
-      <div class="pro-table__signal">
-        <span>当前记录</span>
-        <strong>{{ total }}</strong>
-      </div>
-      <div class="pro-table__summary-copy">
-        <span>统一口径</span>
-        <p>所有主数据、策略和注册项必须进入同一控制台台账，不再散落到业务页面。</p>
-      </div>
-    </div>
-
     <div v-if="props.selectable && selectedRows.length" class="pro-table__bulkbar">
       <div class="pro-table__bulkcopy">
-        <span>批量选择</span>
-        <strong>已选 {{ selectedRows.length }} 条记录</strong>
+        <strong>已选 {{ selectedRows.length }} 条</strong>
       </div>
       <div class="pro-table__bulkactions">
         <el-button plain @click="exportRows(selectedRows, 'selected')">导出所选</el-button>
@@ -142,7 +132,6 @@ function exportRows(rows: object[], mode: "selected" | "current") {
       :data="data"
       :loading="loading"
       :row-key="resolveRowKey"
-      stripe
       class="pro-table__grid"
       @selection-change="handleSelectionChange"
       @row-click="handleRowClick"
@@ -165,7 +154,6 @@ function exportRows(rows: object[], mode: "selected" | "current") {
       <template #empty>
         <slot name="empty">
           <div class="pro-table__empty">
-            <span class="pro-table__empty-eyebrow">暂无数据</span>
             <strong>{{ emptyTitle }}</strong>
             <p>{{ emptyDescription }}</p>
           </div>
@@ -178,103 +166,41 @@ function exportRows(rows: object[], mode: "selected" | "current") {
 <style scoped lang="scss">
 .pro-table__header {
   display: flex;
-  align-items: flex-start;
+  min-height: 32px;
+  align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 18px;
+  gap: 12px;
 }
 
-.pro-table--compact .pro-table__header {
-  margin-bottom: 12px;
-}
-
-.pro-table--compact .pro-table__eyebrow {
-  margin-bottom: 4px;
+.pro-table :deep(.el-card__body) {
+  padding: 0;
 }
 
 .pro-table--compact .pro-table__header h3 {
-  font-size: 16px;
-}
-
-.pro-table--compact .pro-table__header p {
-  margin-top: 4px;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .pro-table__headline {
   min-width: 0;
-}
-
-.pro-table__eyebrow {
-  display: inline-flex;
-  margin-bottom: 8px;
-  color: var(--sb-primary-strong);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
 }
 
 .pro-table__header h3 {
   margin: 0;
-  font-size: 18px;
+  font-size: 15px;
 }
 
-.pro-table__header p {
-  margin: 6px 0 0;
-  color: var(--sb-text-secondary);
-  line-height: 1.7;
-}
-
-.pro-table__summary {
-  display: grid;
-  grid-template-columns: 180px minmax(0, 1fr);
-  gap: 14px;
-  margin-bottom: 16px;
-}
-
-.pro-table__signal,
-.pro-table__summary-copy {
-  padding: 16px 18px;
-  border-radius: 18px;
-  background: rgb(15 98 254 / 0.05);
-}
-
-.pro-table__signal {
-  span,
-  strong {
-    display: block;
-  }
-
-  span {
-    color: var(--sb-text-secondary);
-    font-size: 12px;
-  }
-
-  strong {
-    margin-top: 10px;
-    font-size: 28px;
-    line-height: 1;
-    color: var(--sb-text-primary);
-  }
-}
-
-.pro-table__summary-copy {
-  span {
-    display: block;
-    color: var(--sb-text-secondary);
-    font-size: 12px;
-    font-weight: 600;
-  }
-
-  p {
-    margin: 10px 0 0;
-    color: var(--sb-text-primary);
-    line-height: 1.7;
-  }
+.pro-table__headline > span {
+  color: var(--sb-text-tertiary);
+  font-size: 12px;
 }
 
 .pro-table__search {
-  margin-bottom: 16px;
+  margin: 0;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--sb-border-color);
 }
 
 .pro-table__bulkbar {
@@ -282,28 +208,17 @@ function exportRows(rows: object[], mode: "selected" | "current") {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 16px;
-  padding: 14px 16px;
+  margin: 12px 14px;
+  padding: 9px 12px;
   border: 1px solid rgb(30 94 255 / 0.12);
-  border-radius: 16px;
-  background: linear-gradient(180deg, rgb(245 249 255 / 0.96), rgb(239 246 255 / 0.9));
+  border-radius: 5px;
+  background: #f5f8ff;
 }
 
 .pro-table__bulkcopy {
-  span,
   strong {
-    display: block;
-  }
-
-  span {
-    color: var(--sb-text-secondary);
-    font-size: 12px;
-  }
-
-  strong {
-    margin-top: 4px;
     color: var(--sb-text-primary);
-    font-size: 14px;
+    font-size: 13px;
   }
 }
 
@@ -322,50 +237,45 @@ function exportRows(rows: object[], mode: "selected" | "current") {
 }
 
 .pro-table__grid :deep(.el-table__header th) {
+  height: 40px;
+  background: #f5f7f9;
   color: var(--sb-text-secondary);
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.04em;
 }
 
 .pro-table__grid :deep(.el-table td),
 .pro-table__grid :deep(.el-table th.el-table__cell) {
-  padding: 14px 0;
+  padding: 9px 0;
+}
+
+.pro-table__grid :deep(.el-table__row:hover > td.el-table__cell) {
+  background: #f4f7fb;
 }
 
 .pro-table__empty {
   display: grid;
   justify-items: center;
-  gap: 8px;
-  padding: 40px 16px;
+  gap: 6px;
+  padding: 32px 16px;
 
   strong {
-    font-size: 18px;
+    font-size: 15px;
   }
 
   p {
     margin: 0;
     max-width: 360px;
     color: var(--sb-text-secondary);
-    line-height: 1.7;
+    font-size: 12px;
+    line-height: 1.5;
     text-align: center;
   }
-}
-
-.pro-table__empty-eyebrow {
-  color: var(--sb-primary-strong);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
 }
 
 @media (max-width: 960px) {
   .pro-table__header {
     flex-direction: column;
-  }
-
-  .pro-table__summary {
-    grid-template-columns: 1fr;
   }
 
   .pro-table__actions {

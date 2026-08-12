@@ -12,11 +12,11 @@
 .chip-row,
 .module-registry-shell {
   display: grid;
-  gap: 18px;
+  gap: 14px;
 }
 
 .module-registry-shell {
-  gap: 16px;
+  gap: 12px;
 }
 
 .module-registry-shell__header {
@@ -31,20 +31,12 @@
   }
 
   p {
-    margin: 8px 0 0;
-    color: var(--sb-text-secondary);
-    line-height: 1.7;
-    max-width: 760px;
+    display: none;
   }
 }
 
 .module-registry-shell__eyebrow {
-  display: inline-flex;
-  margin-bottom: 8px;
-  color: var(--sb-primary-strong);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
+  display: none;
 }
 
 .header-stack {
@@ -53,9 +45,7 @@
   }
 
   p {
-    margin: 6px 0 0;
-    color: var(--sb-text-secondary);
-    line-height: 1.7;
+    display: none;
   }
 }
 
@@ -69,7 +59,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 16px 0;
+  padding: 12px 0;
   border-bottom: 1px solid var(--sb-border-color);
 
   &:last-child {
@@ -82,9 +72,7 @@
   }
 
   p {
-    margin: 6px 0 0;
-    color: var(--sb-text-secondary);
-    line-height: 1.7;
+    display: none;
   }
 }
 
@@ -112,17 +100,15 @@
 }
 
 .chip {
-  padding: 8px 14px;
-  border-radius: 999px;
+  padding: 6px 10px;
+  border-radius: 4px;
   background: rgb(17 93 163 / 0.08);
   color: var(--sb-primary-color);
   font-weight: 600;
 }
 
 .aside-copy {
-  margin: 18px 0 0;
-  color: var(--sb-text-secondary);
-  line-height: 1.7;
+  display: none;
 }
 
 .signal-stack,
@@ -144,14 +130,12 @@
   }
 
   p {
-    margin: 6px 0 0;
-    color: var(--sb-text-secondary);
-    line-height: 1.7;
+    display: none;
   }
 }
 
 .blueprint-item {
-  padding: 16px 0;
+  padding: 11px 0;
   border-bottom: 1px solid var(--sb-border-color);
 
   &:last-child {
@@ -160,17 +144,16 @@
   }
 
   p {
-    margin: 8px 0 0;
-    color: var(--sb-text-secondary);
-    line-height: 1.7;
+    display: none;
   }
 }
 
 .signal-item,
 .matrix-item {
-  padding: 18px;
-  border-radius: 20px;
-  background: rgb(15 98 254 / 0.05);
+  padding: 12px;
+  border: 1px solid var(--sb-border-color);
+  border-radius: var(--sb-radius-md);
+  background: #fafbfc;
 
   span,
   strong {
@@ -183,9 +166,7 @@
   }
 
   p {
-    margin: 8px 0 0;
-    color: var(--sb-text-secondary);
-    line-height: 1.7;
+    display: none;
   }
 }
 

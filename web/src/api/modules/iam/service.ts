@@ -18,6 +18,7 @@ import type {
   IamMenuSavePayload,
   IamMenuPermissionRow,
   IamMenuPermissionSavePayload,
+  IamMenuSubjectGrantSavePayload,
   IamOverview,
   IamPasswordPolicyRow,
   IamPasswordPolicySavePayload,
@@ -68,6 +69,16 @@ export async function updateIamMenu(id: number, payload: IamMenuSavePayload): Pr
 
 export async function updateIamMenuStatus(id: number, payload: StatusPayload): Promise<IamMenuRow> {
   const response = await http.patch<ApiResponse<IamMenuRow>>(`/iam/menus/${id}/status`, payload);
+  return response.data.data;
+}
+
+export async function replaceIamMenuSubjectGrants(
+  payload: IamMenuSubjectGrantSavePayload
+): Promise<IamMenuPermissionRow[]> {
+  const response = await http.put<ApiResponse<IamMenuPermissionRow[]>>(
+    "/iam/menu-permissions/subject-grants",
+    payload
+  );
   return response.data.data;
 }
 

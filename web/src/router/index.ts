@@ -6,6 +6,7 @@ import ConsoleLayout from "@/layouts/ConsoleLayout.vue";
 import { useAuthStore } from "@/stores/modules/auth";
 import { useMenuStore } from "@/stores/modules/menu";
 import { useTenantStore } from "@/stores/modules/tenant";
+import { buildPortalLoginQuery } from "@/utils/portal-context";
 import { buildMenuRoutes } from "./menu-registry";
 
 const LoginView = () => import("@/views/auth/LoginView.vue");
@@ -70,7 +71,7 @@ router.beforeEach(async (to) => {
 
   if (to.path !== "/login" && !authStore.isAuthenticated) {
     menuStore.clear();
-    return { path: "/login", query: { redirect: to.fullPath } };
+    return { path: "/login", query: buildPortalLoginQuery(to.fullPath, to.query) };
   }
 
   if (authStore.isAuthenticated && !menuStore.bootstrapped) {

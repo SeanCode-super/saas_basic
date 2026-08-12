@@ -19,6 +19,7 @@ It is not production-ready. Tenant isolation and the initial automated quality g
 
 The current execution baseline is [docs/V0.1_EXECUTION_BLUEPRINT.md](docs/V0.1_EXECUTION_BLUEPRINT.md).
 All new capabilities must follow [docs/STANDARDIZATION_POLICY.md](docs/STANDARDIZATION_POLICY.md).
+The M1 identity/organization boundary is documented in [docs/M1_IDENTITY_ORGANIZATION_BINDING.md](docs/M1_IDENTITY_ORGANIZATION_BINDING.md).
 
 ## Architecture
 

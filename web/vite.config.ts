@@ -1,4 +1,5 @@
 import { fileURLToPath, URL } from "node:url";
+import { env } from "node:process";
 import AutoImport from "unplugin-auto-import/vite";
 import Components from "unplugin-vue-components/vite";
 import { ElementPlusResolver } from "unplugin-vue-components/resolvers";
@@ -65,7 +66,7 @@ export default defineConfig({
     host: "0.0.0.0",
     proxy: {
       "/api": {
-        target: "http://127.0.0.1:8080",
+        target: env.VITE_API_PROXY_TARGET ?? "http://127.0.0.1:8080",
         changeOrigin: true
       }
     }

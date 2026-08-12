@@ -139,9 +139,9 @@ const SUBJECT_TYPE_LABELS: Record<string, string> = {
 
 const MENU_TYPE_LABELS: Record<string, string> = {
   DIRECTORY: "目录",
-  MENU: "菜单",
-  BUTTON: "按钮",
-  LINK: "外链"
+  MENU: "页面",
+  BUTTON: "页面操作",
+  LINK: "外部链接"
 };
 
 const USER_TYPE_LABELS: Record<string, string> = {

@@ -1,6 +1,7 @@
 package com.saasbasics.platform.modules.tenant.service;
 
 import com.saasbasics.platform.common.exception.BizException;
+import com.saasbasics.platform.common.id.UuidV7Generator;
 import com.saasbasics.platform.modules.audit.service.AuditTrailService;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -26,6 +27,7 @@ public class TenantBootstrapService {
 
     private final JdbcTemplate jdbcTemplate;
     private final AuditTrailService auditTrailService;
+    private final UuidV7Generator uuidGenerator = new UuidV7Generator();
 
     public TenantBootstrapService(JdbcTemplate jdbcTemplate, AuditTrailService auditTrailService) {
         this.jdbcTemplate = jdbcTemplate;
@@ -280,20 +282,21 @@ public class TenantBootstrapService {
         jdbcTemplate.update(connection -> {
             PreparedStatement statement = connection.prepareStatement("""
                     INSERT INTO iam_user (
-                      tenant_id, user_code, username, nickname, employee_id, user_type, status, mobile, email,
+                      tenant_id, public_id, user_code, username, nickname, employee_id, user_type, status, mobile, email,
                       last_login_at, last_login_ip, password_hash, password_changed_at, need_reset_password,
                       created_by, created_at, updated_by, updated_at, deleted, version, remark
-                    ) VALUES (?, 'TENANT_ADMIN', 'admin', ?, 0, 'STAFF', 'ENABLED', NULL, ?,
+                    ) VALUES (?, ?, 'TENANT_ADMIN', 'admin', ?, 0, 'STAFF', 'ENABLED', NULL, ?,
                               NULL, NULL, ?, ?, 1, 1, ?, 1, ?, 0, 0, ?)
                     """, Statement.RETURN_GENERATED_KEYS);
             statement.setLong(1, tenantId);
-            statement.setString(2, tenantName + "管理员");
-            statement.setString(3, "admin@" + tenantCode + ".local");
-            statement.setString(4, hash(DEFAULT_ADMIN_PASSWORD));
-            statement.setTimestamp(5, Timestamp.valueOf(LocalDateTime.now()));
+            statement.setString(2, uuidGenerator.generate().toString());
+            statement.setString(3, tenantName + "管理员");
+            statement.setString(4, "admin@" + tenantCode + ".local");
+            statement.setString(5, hash(DEFAULT_ADMIN_PASSWORD));
             statement.setTimestamp(6, Timestamp.valueOf(LocalDateTime.now()));
             statement.setTimestamp(7, Timestamp.valueOf(LocalDateTime.now()));
-            statement.setString(8, "tenant bootstrap");
+            statement.setTimestamp(8, Timestamp.valueOf(LocalDateTime.now()));
+            statement.setString(9, "tenant bootstrap");
             return statement;
         }, keyHolder);
         return generatedId(keyHolder, "TENANT_BOOTSTRAP_FAILED", "初始化管理员用户失败");

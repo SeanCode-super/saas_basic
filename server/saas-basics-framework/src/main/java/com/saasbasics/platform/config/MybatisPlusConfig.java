@@ -1,15 +1,17 @@
 package com.saasbasics.platform.config;
 
+import com.baomidou.mybatisplus.annotation.DbType;
+import com.baomidou.mybatisplus.autoconfigure.ConfigurationCustomizer;
 import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
-import com.baomidou.mybatisplus.extension.plugins.inner.TenantLineInnerInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.OptimisticLockerInnerInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
-import com.baomidou.mybatisplus.annotation.DbType;
+import com.baomidou.mybatisplus.extension.plugins.inner.TenantLineInnerInterceptor;
 import com.saasbasics.platform.common.auth.AuthContext;
 import com.saasbasics.platform.common.exception.BizException;
 import com.saasbasics.platform.common.tenant.TenantAccessContext;
 import com.saasbasics.platform.common.tenant.TenantAccessContextHolder;
+import com.saasbasics.platform.mybatis.UuidTypeHandler;
 import java.time.LocalDateTime;
 import java.util.Locale;
 import java.util.Set;
@@ -49,6 +51,11 @@ public class MybatisPlusConfig {
         interceptor.addInnerInterceptor(pagination);
         interceptor.addInnerInterceptor(new OptimisticLockerInnerInterceptor());
         return interceptor;
+    }
+
+    @Bean
+    public ConfigurationCustomizer uuidTypeHandlerCustomizer() {
+        return configuration -> configuration.getTypeHandlerRegistry().register(UuidTypeHandler.class);
     }
 
     @Bean

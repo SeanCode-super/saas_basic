@@ -15,6 +15,7 @@
     "check": "npm run build && npm run lint && npm run lint:style && npm run test:run"
   },
   "dependencies": {
+    "@element-plus/icons-vue": "^2.3.2",
     "@vue/compiler-dom": "^3.5.29",
     "@vue/compiler-sfc": "^3.5.29",
     "@vue/reactivity": "^3.5.29",

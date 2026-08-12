@@ -93,8 +93,7 @@ const columns: ProTableColumn[] = [
       </el-form>
 
       <div class="alarm-aside">
-        <strong>统一异常口径</strong>
-        <p>这里现在直接保存真实告警规则，并且能回查已经落库的告警台账。</p>
+        <strong>告警策略</strong>
         <el-button type="primary" @click="savePolicy">保存告警策略</el-button>
       </div>
     </div>
@@ -123,15 +122,14 @@ const columns: ProTableColumn[] = [
 }
 
 .alarm-aside {
-  padding: 18px;
-  border-radius: 20px;
-  background: rgb(15 98 254 / 0.05);
-
-  p {
-    margin: 10px 0 0;
-    color: var(--sb-text-secondary);
-    line-height: 1.7;
-  }
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--sb-border-color);
+  border-radius: var(--sb-radius-md);
+  background: #fafbfc;
 }
 
 @media (max-width: 1080px) {

@@ -118,7 +118,7 @@ export const useMenuStore = defineStore("menu", () => {
 
 function buildNavigationTree(menus: IamMenuRow[]): MenuNavItem[] {
   const visibleMenus = menus
-    .filter((item) => item.visible)
+    .filter((item) => item.visible && item.menuType !== "BUTTON")
     .sort((left, right) => {
       const sortDiff = left.sortNo - right.sortNo;
       return sortDiff !== 0 ? sortDiff : left.id - right.id;

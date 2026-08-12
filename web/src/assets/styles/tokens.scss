@@ -2,44 +2,38 @@
   --sb-font-family:
     "Avenir Next", "IBM Plex Sans", "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
     sans-serif;
-  --sb-primary-color: #1e5eff;
-  --sb-primary-strong: #173ea8;
-  --sb-primary-weak: rgb(30 94 255 / 0.12);
+  --sb-primary-color: #2f6bd8;
+  --sb-primary-strong: #234f9f;
+  --sb-primary-weak: rgb(47 107 216 / 0.12);
   --sb-accent-color: #c7862f;
   --sb-accent-weak: rgb(199 134 47 / 0.14);
-  --sb-text-primary: #0f1b2d;
-  --sb-text-secondary: #506176;
-  --sb-text-tertiary: #7e8ca0;
-  --sb-border-color: #d8e0ea;
-  --sb-border-strong: #c4cfdd;
+  --sb-text-primary: #17202b;
+  --sb-text-secondary: #536171;
+  --sb-text-tertiary: #7b8794;
+  --sb-border-color: #dfe3e8;
+  --sb-border-strong: #cbd2da;
   --sb-border-subtle: rgb(15 27 45 / 0.08);
   --sb-surface-color: rgb(255 255 255 / 0.86);
   --sb-surface-strong: rgb(255 255 255 / 0.96);
   --sb-surface-soft: rgb(248 250 255 / 0.94);
   --sb-surface-contrast: rgb(244 248 255 / 0.88);
-  --sb-page-shell: #e9eef5;
-  --sb-page-shell-strong: #f4f7fb;
-  --sb-shell-rail: #0f1726;
-  --sb-shell-rail-soft: #182235;
+  --sb-page-shell: #f1f3f5;
+  --sb-page-shell-strong: #f7f8fa;
+  --sb-shell-rail: #20262d;
+  --sb-shell-rail-soft: #2b333c;
   --sb-shell-rail-border: rgb(255 255 255 / 0.08);
   --sb-shell-rail-text: #f4f7fb;
   --sb-shell-rail-muted: rgb(219 228 241 / 0.62);
-  --sb-shell-main: #f4f7fb;
-  --sb-panel-muted: #f7fafe;
+  --sb-shell-main: #f4f5f7;
+  --sb-panel-muted: #f7f8fa;
   --sb-success-color: #1e8e5a;
   --sb-warning-color: #bd6a16;
   --sb-danger-color: #d14343;
   --sb-gridline: rgb(15 27 45 / 0.04);
-  --sb-shell-glow: radial-gradient(circle at top right, rgb(30 94 255 / 0.1), transparent 24%);
-  --sb-card-highlight: linear-gradient(90deg, var(--sb-primary-color), rgb(116 150 245 / 0.44) 45%, transparent 82%);
-  --sb-card-highlight-accent: linear-gradient(90deg, var(--sb-accent-color), rgb(207 157 86 / 0.5) 42%, transparent 82%);
-  --sb-card-overlay:
-    radial-gradient(circle at top right, rgb(30 94 255 / 0.08), transparent 28%),
-    linear-gradient(180deg, rgb(255 255 255 / 0.98), rgb(246 250 255 / 0.94));
-  --sb-shadow-sm: 0 10px 24px rgb(15 27 45 / 0.06);
-  --sb-shadow-md: 0 16px 36px rgb(15 27 45 / 0.08);
-  --sb-shadow-lg: 0 24px 56px rgb(15 27 45 / 0.1);
-  --sb-radius-lg: 22px;
-  --sb-radius-md: 16px;
+  --sb-shadow-sm: 0 1px 2px rgb(15 27 45 / 0.05);
+  --sb-shadow-md: 0 2px 8px rgb(15 27 45 / 0.07);
+  --sb-shadow-lg: 0 4px 14px rgb(15 27 45 / 0.08);
+  --sb-radius-lg: 8px;
+  --sb-radius-md: 6px;
   --sb-content-max: 1600px;
 }

@@ -2,10 +2,9 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
 import { useRoute, useRouter } from "vue-router";
-import BaseCard from "@/components/base/BaseCard.vue";
-import { fetchPortalEntry } from "@/api/modules/portal";
-import type { PortalEntry } from "@/api/modules/portal";
+import { fetchPortalEntry, type PortalEntry } from "@/api/modules/portal";
 import { useAuthStore } from "@/stores/modules/auth";
+import { rememberPortalContext, resolvePortalContext } from "@/utils/portal-context";
 
 const form = reactive({
   tenantCode: "platform",
@@ -26,53 +25,23 @@ const route = useRoute();
 const authStore = useAuthStore();
 
 const portalThemeStyle = computed(() => ({
-  "--portal-bg-color": portal.value?.backgroundColor || "#0f2740",
+  "--portal-bg-color": portal.value?.backgroundColor || "#20262d",
   "--portal-bg-image": portal.value?.backgroundImageUrl ? `url(${portal.value.backgroundImageUrl})` : "none",
-  "--portal-accent-start": resolveThemePalette(portal.value?.themeCode).start,
-  "--portal-accent-end": resolveThemePalette(portal.value?.themeCode).end,
-  "--portal-accent-soft": resolveThemePalette(portal.value?.themeCode).soft
+  "--portal-accent": resolveThemeColor(portal.value?.themeCode)
 }));
 
 const captchaEnabled = computed(() => portal.value?.captcha.mode === "IMAGE");
-const sliderReserved = computed(() => portal.value?.captcha.sliderReserved ?? false);
-const channelSummary = computed(() => {
-  if (!portal.value) {
-    return [];
-  }
-  const channels = [];
-  if (portal.value.loginPolicy.allowPasswordLogin) channels.push("密码登录");
-  if (portal.value.loginPolicy.allowSmsLogin) channels.push("短信登录");
-  if (portal.value.loginPolicy.allowEmailLogin) channels.push("邮箱登录");
-  if (portal.value.loginPolicy.allowSocialLogin) channels.push("社交登录");
-  return channels;
-});
 
-function resolveThemePalette(themeCode?: string) {
+function resolveThemeColor(themeCode?: string) {
   switch ((themeCode || "").toLowerCase()) {
     case "emerald":
-      return {
-        start: "#0f9d72",
-        end: "#7be0b3",
-        soft: "rgba(15, 157, 114, 0.08)"
-      };
+      return "#16805f";
     case "amber":
-      return {
-        start: "#d48614",
-        end: "#ffcb71",
-        soft: "rgba(212, 134, 20, 0.1)"
-      };
+      return "#ad690f";
     case "graphite":
-      return {
-        start: "#2c3f55",
-        end: "#8597ad",
-        soft: "rgba(44, 63, 85, 0.1)"
-      };
+      return "#3a4a5a";
     default:
-      return {
-        start: "#2e7dff",
-        end: "#8caeff",
-        soft: "rgba(46, 125, 255, 0.1)"
-      };
+      return "#2f6fd5";
   }
 }
 
@@ -83,9 +52,8 @@ function refreshCaptcha() {
 async function bootstrapPortal() {
   booting.value = true;
   try {
-    const clientId = typeof route.query.clientId === "string" ? route.query.clientId : undefined;
-    const terminalCode = typeof route.query.terminalCode === "string" ? route.query.terminalCode : "web";
-    const entry = await fetchPortalEntry({ clientId, terminalCode });
+    const context = resolvePortalContext(route.query);
+    const entry = await fetchPortalEntry(context);
     portal.value = entry;
     form.clientId = entry.clientId;
     form.terminalCode = entry.terminal.terminalCode;
@@ -93,6 +61,17 @@ async function bootstrapPortal() {
     document.title = `${entry.portalTitle} | 登录`;
     loginError.value = "";
     refreshCaptcha();
+    rememberPortalContext({ clientId: entry.clientId, terminalCode: entry.terminal.terminalCode });
+    if (route.query.clientId !== entry.clientId || route.query.terminalCode !== entry.terminal.terminalCode) {
+      await router.replace({
+        path: route.path,
+        query: {
+          ...route.query,
+          clientId: entry.clientId,
+          terminalCode: entry.terminal.terminalCode
+        }
+      });
+    }
   } catch (error: any) {
     loginError.value = error?.response?.data?.message ?? "门户入口配置加载失败";
     ElMessage.error(loginError.value);
@@ -165,270 +144,229 @@ onMounted(() => {
 
 <template>
   <div class="login-page" :style="portalThemeStyle">
-    <div class="login-page__hero">
-      <p class="login-page__eyebrow">{{ portal?.clientName || "门户入口" }}</p>
-      <h1>{{ portal?.welcomeTitle || "统一门户入口" }}</h1>
-      <p class="login-page__copy">{{ portal?.welcomeText || "客户端、终端、登录策略和密码策略统一在入口层编排。" }}</p>
-      <div class="login-page__signals" v-if="portal">
-        <span>{{ portal.terminal.terminalName }}</span>
-        <span>租户：{{ portal.tenantCode }}</span>
-        <span>会话：{{ portal.loginPolicy.sessionTimeoutMinutes }} 分钟</span>
-        <span>密码：{{ portal.passwordPolicy.minLength }}-{{ portal.passwordPolicy.maxLength }} 位</span>
+    <header class="login-page__header">
+      <div class="login-page__brand">
+        <div class="login-page__logo">
+          <img v-if="portal?.logoUrl" :src="portal.logoUrl" alt="" />
+          <span v-else>{{ (portal?.portalTitle || "SB").slice(0, 2) }}</span>
+        </div>
+        <strong>{{ portal?.portalTitle || "SaaS Basic" }}</strong>
       </div>
-    </div>
+      <span v-if="portal">{{ portal.terminal.terminalName }}</span>
+    </header>
 
-    <BaseCard class="login-page__panel">
-      <template #header>
-        <div class="login-panel__header">
-          <div class="login-panel__brand">
-            <div class="login-panel__logo">
-              <img v-if="portal?.logoUrl" :src="portal.logoUrl" alt="portal logo" />
-              <span v-else>{{ (portal?.portalTitle || "SB").slice(0, 2) }}</span>
-            </div>
-            <div>
-              <h2>{{ portal?.portalTitle || "登录系统" }}</h2>
-              <p>入口配置、终端类型、登录策略和密码策略都由服务端动态下发。</p>
-            </div>
-          </div>
-          <el-tag v-if="portal" type="info" round>{{ portal.clientId }}</el-tag>
-        </div>
-      </template>
+    <main class="login-page__main">
+      <section class="login-panel" aria-label="登录">
+        <header class="login-panel__header">
+          <h1>登录</h1>
+          <span v-if="portal">{{ portal.clientName }}</span>
+        </header>
 
-      <el-skeleton :loading="booting" animated>
-        <template #template>
-          <el-skeleton-item variant="rect" style="height: 360px; border-radius: 24px" />
-        </template>
-        <el-form label-position="top" @submit.prevent="handleLogin">
-          <div class="login-panel__badges" v-if="portal">
-            <el-tag v-for="item in channelSummary" :key="item" round>{{ item }}</el-tag>
-            <el-tag v-if="portal.loginPolicy.forceMfa" type="warning" round>强制 MFA</el-tag>
-            <el-tag type="success" round>策略：{{ portal.loginPolicy.policyName }}</el-tag>
-          </div>
+        <el-skeleton :loading="booting" animated>
+          <template #template>
+            <el-skeleton-item variant="rect" style="height: 320px; border-radius: 6px" />
+          </template>
 
-          <el-alert
-            v-if="loginError"
-            class="login-page__error"
-            type="error"
-            :closable="false"
-            :title="loginError"
-          />
+          <el-form label-position="top" @submit.prevent="handleLogin">
+            <el-alert
+              v-if="loginError"
+              class="login-page__error"
+              type="error"
+              :closable="false"
+              :title="loginError"
+            />
 
-        <el-form-item label="租户编码">
-          <el-input v-model="form.tenantCode" placeholder="请输入租户编码" />
-        </el-form-item>
-        <el-form-item label="用户名">
-          <el-input v-model="form.username" placeholder="请输入用户名" @keyup.enter="handleLogin" />
-        </el-form-item>
-        <el-form-item label="密码">
-          <el-input v-model="form.password" type="password" show-password placeholder="请输入密码" @keyup.enter="handleLogin" />
-        </el-form-item>
-        <el-form-item v-if="captchaEnabled" label="图形验证码">
-          <div class="login-page__captcha">
-            <el-input v-model="form.captchaCode" placeholder="请输入图形验证码" @keyup.enter="handleLogin" />
-            <button type="button" class="login-page__captcha-code" @click="refreshCaptcha">{{ captchaSeed }}</button>
-          </div>
-        </el-form-item>
-        <div v-if="sliderReserved" class="login-page__reserved">
-          <strong>滑块验证</strong>
-          <p>当前终端保留滑块校验接入位，第一版仍以图形验证码为准。</p>
-        </div>
-        <el-alert
-          type="info"
-          :closable="false"
-          title="使用真实门户账号登录"
-          description="账号、密码、权限和菜单都从服务端真实数据链路加载；如登录失败，请检查门户、租户、用户与策略配置。"
-        />
-        <el-button type="primary" class="login-page__submit" :loading="loading" @click="handleLogin">
-          进入控制台
-        </el-button>
-        <p v-if="portal?.filingInfo" class="login-page__filing">{{ portal.filingInfo }}</p>
-        </el-form>
-      </el-skeleton>
-    </BaseCard>
+            <el-form-item label="租户编码">
+              <el-input v-model="form.tenantCode" placeholder="租户编码" />
+            </el-form-item>
+            <el-form-item label="用户名">
+              <el-input v-model="form.username" placeholder="用户名" autocomplete="username" @keyup.enter="handleLogin" />
+            </el-form-item>
+            <el-form-item label="密码">
+              <el-input
+                v-model="form.password"
+                type="password"
+                show-password
+                placeholder="密码"
+                autocomplete="current-password"
+                @keyup.enter="handleLogin"
+              />
+            </el-form-item>
+            <el-form-item v-if="captchaEnabled" label="验证码">
+              <div class="login-page__captcha">
+                <el-input v-model="form.captchaCode" placeholder="验证码" @keyup.enter="handleLogin" />
+                <button type="button" class="login-page__captcha-code" title="刷新验证码" @click="refreshCaptcha">
+                  {{ captchaSeed }}
+                </button>
+              </div>
+            </el-form-item>
+
+            <el-button type="primary" native-type="submit" class="login-page__submit" :loading="loading">
+              登录
+            </el-button>
+          </el-form>
+        </el-skeleton>
+      </section>
+    </main>
+
+    <footer v-if="portal?.filingInfo" class="login-page__footer">{{ portal.filingInfo }}</footer>
   </div>
 </template>
 
 <style scoped lang="scss">
 .login-page {
-  --portal-bg-color: #0f2740;
+  --portal-bg-color: #20262d;
   --portal-bg-image: none;
-  --portal-accent-start: #2e7dff;
-  --portal-accent-end: #8caeff;
-  --portal-accent-soft: rgb(46 125 255 / 0.1);
+  --portal-accent: #2f6fd5;
 
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 1.2fr minmax(360px, 480px);
+  grid-template-rows: 60px minmax(0, 1fr) 42px;
   background:
-    radial-gradient(circle at top left, rgb(94 194 255 / 0.22), transparent 30%),
+    linear-gradient(rgb(245 247 250 / 0.93), rgb(245 247 250 / 0.93)),
     var(--portal-bg-image) center/cover no-repeat,
-    linear-gradient(135deg, color-mix(in srgb, var(--portal-bg-color) 92%, black) 0%, var(--portal-bg-color) 50%, #edf3f8 50%, #edf3f8 100%);
+    #f5f7fa;
 }
 
-.login-page__hero {
-  padding: 72px;
-  color: #eff7ff;
+.login-page__header {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 28px;
+  border-bottom: 1px solid #d9dfe7;
+  background: #fff;
 
-  h1 {
-    margin: 0;
-    font-size: clamp(42px, 6vw, 68px);
-    line-height: 0.95;
-    max-width: 720px;
-  }
-}
-
-.login-page__eyebrow {
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: #8df2d7;
-}
-
-.login-page__copy {
-  max-width: 560px;
-  margin-top: 20px;
-  color: rgb(239 247 255 / 0.82);
-  font-size: 18px;
-  line-height: 1.7;
-}
-
-.login-page__signals {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 20px;
-
-  span {
-    padding: 8px 12px;
-    border-radius: 999px;
-    background: rgb(255 255 255 / 0.08);
-    color: rgb(239 247 255 / 0.9);
+  > span {
+    color: var(--sb-text-secondary);
     font-size: 12px;
   }
 }
 
-.login-page__panel {
-  margin: 32px;
-  align-self: center;
-}
-
-.login-panel__header {
+.login-page__brand {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-}
+  align-items: center;
+  gap: 10px;
 
-.login-panel__brand {
-  display: flex;
-  gap: 14px;
-
-  h2 {
-    margin: 0;
-  }
-
-  p {
-    margin: 6px 0 0;
-    color: var(--sb-text-secondary);
+  strong {
+    font-size: 16px;
   }
 }
 
-.login-panel__logo {
+.login-page__logo {
+  width: 32px;
+  height: 32px;
   display: grid;
-  width: 48px;
-  height: 48px;
   place-items: center;
-  border-radius: 16px;
+  border-radius: 5px;
   overflow: hidden;
-  background: linear-gradient(135deg, var(--portal-accent-start), var(--portal-accent-end));
-  color: white;
+  background: var(--portal-accent);
+  color: #fff;
+  font-size: 12px;
   font-weight: 700;
 
   img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
+  }
+}
+
+.login-page__main {
+  display: grid;
+  place-items: center;
+  padding: 32px 20px;
+}
+
+.login-panel {
+  width: min(400px, 100%);
+  padding: 28px 30px 30px;
+  border: 1px solid #d7dee7;
+  border-radius: 7px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgb(31 42 55 / 0.08);
+}
+
+.login-panel__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 24px;
+
+  h1 {
+    margin: 0;
+    font-size: 21px;
   }
 
   span {
-    display: grid;
-    place-items: center;
-    width: 100%;
-    height: 100%;
+    max-width: 200px;
+    color: var(--sb-text-tertiary);
+    overflow: hidden;
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 
-.login-panel__badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 12px;
+.login-panel :deep(.el-form-item) {
+  margin-bottom: 18px;
+}
+
+.login-panel :deep(.el-form-item__label) {
+  margin-bottom: 5px;
+  color: var(--sb-text-secondary);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.login-panel :deep(.el-input__wrapper) {
+  min-height: 40px;
 }
 
 .login-page__error {
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .login-page__captcha {
-  display: grid;
-  grid-template-columns: 1fr 116px;
-  gap: 12px;
   width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px;
+  gap: 8px;
 }
 
 .login-page__captcha-code {
-  border: 1px solid var(--sb-border-color);
-  border-radius: 14px;
-  background: linear-gradient(135deg, var(--portal-accent-soft), rgb(255 255 255 / 0.96));
+  border: 1px solid #cfd7e1;
+  border-radius: 5px;
+  background: #f7f8fa;
+  color: var(--sb-text-primary);
   font-weight: 700;
-  letter-spacing: 0.18em;
   cursor: pointer;
-}
-
-.login-page__reserved {
-  padding: 12px 14px;
-  margin-bottom: 14px;
-  border-radius: 16px;
-  background: var(--portal-accent-soft);
-  color: var(--sb-text-secondary);
-
-  strong,
-  p {
-    margin: 0;
-  }
-
-  p {
-    margin-top: 6px;
-    font-size: 12px;
-    line-height: 1.6;
-  }
 }
 
 .login-page__submit {
   width: 100%;
-  margin-top: 8px;
+  min-height: 40px;
+  margin-top: 4px;
+
+  --el-button-bg-color: var(--portal-accent);
+  --el-button-border-color: var(--portal-accent);
 }
 
-.login-page__filing {
-  margin: 14px 0 0;
-  color: var(--sb-text-secondary);
-  text-align: center;
+.login-page__footer {
+  display: grid;
+  place-items: center;
+  color: var(--sb-text-tertiary);
   font-size: 12px;
 }
 
-@media (max-width: 1080px) {
-  .login-page {
-    grid-template-columns: 1fr;
+@media (max-width: 600px) {
+  .login-page__header {
+    padding: 0 16px;
   }
 
-  .login-page__hero {
-    padding: 32px 24px 12px;
-  }
-
-  .login-page__panel {
-    margin: 16px;
+  .login-panel {
+    padding: 24px 20px;
   }
 }
 </style>

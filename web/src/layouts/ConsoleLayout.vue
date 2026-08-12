@@ -1,18 +1,19 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { Expand, Fold, Grid, Search } from "@element-plus/icons-vue";
 import { useRoute, useRouter } from "vue-router";
 import NavigationAtlas from "@/components/platform/NavigationAtlas.vue";
 import TenantSwitcher from "@/components/platform/TenantSwitcher.vue";
+import { resolveAppIcon } from "@/config/app-icons";
 import { resolveAppMeta, resolveSectionMeta } from "@/config/app-taxonomy";
 import { useAuthStore } from "@/stores/modules/auth";
 import { useLocaleStore } from "@/stores/modules/locale";
 import { useMenuStore, type MenuNavItem } from "@/stores/modules/menu";
 import { useTenantStore } from "@/stores/modules/tenant";
+import { buildPortalLoginQuery } from "@/utils/portal-context";
 
 type QuickEntry = {
   value: string;
-  title: string;
-  hint: string;
   target: MenuNavItem;
 };
 
@@ -28,6 +29,7 @@ const localeStore = useLocaleStore();
 const menuStore = useMenuStore();
 const tenantStore = useTenantStore();
 const directoryVisible = ref(false);
+const railCollapsed = ref(false);
 
 if (!tenantStore.currentTenant) {
   tenantStore.bootstrap();
@@ -40,14 +42,13 @@ const appGroups = computed(() => {
 
   for (const app of apps.value) {
     const meta = resolveAppMeta(app.code, app.title);
-    const key = meta.cluster;
-    const current = groups.get(key) ?? {
-      key,
-      label: localeStore.t(`cluster.${key}`),
+    const current = groups.get(meta.cluster) ?? {
+      key: meta.cluster,
+      label: localeStore.t(`cluster.${meta.cluster}`),
       items: []
     };
     current.items.push(app);
-    groups.set(key, current);
+    groups.set(meta.cluster, current);
   }
 
   return Array.from(groups.values());
@@ -67,20 +68,8 @@ const currentSection = computed<MenuNavItem | null>(() => {
   if (!app) {
     return null;
   }
-  const children = app.children.filter((item) => item.path);
-  return children.find((item) => isExactActive(item)) ?? app;
+  return app.children.find((item) => item.path && isExactActive(item)) ?? app;
 });
-
-const currentSubmenu = computed(() => {
-  const app = currentApp.value;
-  if (!app) {
-    return [];
-  }
-  const children = app.children.filter((item) => item.path);
-  return children.length > 0 ? children : [app];
-});
-
-const currentAppMeta = computed(() => resolveAppMeta(currentApp.value?.code, currentApp.value?.title));
 
 const currentSectionMeta = computed(() =>
   resolveSectionMeta({
@@ -91,48 +80,18 @@ const currentSectionMeta = computed(() =>
   })
 );
 
-const breadcrumbItems = computed(() =>
-  [localeStore.t(`cluster.${currentAppMeta.value.cluster}`), currentApp.value?.title, currentSectionMeta.value.label].filter(Boolean)
-);
-
-const workspaceSignals = computed(() => [
-  { label: "当前租户", value: tenantStore.currentTenant?.name ?? "平台空间" },
-  { label: "租户套餐", value: tenantStore.currentTenant?.plan ?? "SUPREME" },
-  { label: "隔离模型", value: tenantStore.currentTenant?.isolationMode ?? "PLATFORM" },
-  { label: "权限数量", value: String(authStore.currentUser?.permissions.length ?? 0) }
-]);
-
-const navigationModeLabel = computed(() => {
-  if (menuStore.loading) {
-    return localeStore.t("shell.refreshing");
-  }
-  if (menuStore.lastError) {
-    return localeStore.t("shell.unavailable");
-  }
-  return localeStore.t("shell.realtime");
-});
-
 const quickEntries = computed<QuickEntry[]>(() => {
   const entries: QuickEntry[] = [];
 
   for (const app of apps.value) {
     entries.push({
       value: app.title,
-      title: app.title,
-      hint: resolveAppMeta(app.code, app.title).summary,
       target: app.children.find((item) => item.path) ?? app
     });
 
     for (const section of app.children) {
       entries.push({
         value: `${app.title} / ${section.title}`,
-        title: section.title,
-        hint: resolveSectionMeta({
-          appCode: app.code,
-          fallbackTitle: section.title,
-          query: section.query,
-          path: section.path
-        }).description,
         target: section
       });
     }
@@ -141,16 +100,16 @@ const quickEntries = computed<QuickEntry[]>(() => {
   return entries;
 });
 
+const userInitial = computed(() =>
+  (authStore.currentUser?.nickname || authStore.currentUser?.username || "U").trim().slice(0, 1).toUpperCase()
+);
+
 function go(item: MenuNavItem) {
-  router.push({
-    path: item.path,
-    query: item.query
-  });
+  router.push({ path: item.path, query: item.query });
 }
 
 function switchApp(app: MenuNavItem) {
-  const firstChild = app.children.find((item) => item.path);
-  go(firstChild ?? app);
+  go(app.children.find((item) => item.path) ?? app);
 }
 
 function isExactActive(item: MenuNavItem): boolean {
@@ -166,13 +125,9 @@ function isSectionActive(item: MenuNavItem): boolean {
 
 function querySearch(keyword: string, callback: (items: QuickEntry[]) => void) {
   const normalized = keyword.trim().toLowerCase();
-  if (!normalized) {
-    callback(quickEntries.value.slice(0, 8));
-    return;
-  }
   callback(
     quickEntries.value
-      .filter((item) => `${item.value} ${item.hint}`.toLowerCase().includes(normalized))
+      .filter((item) => !normalized || item.value.toLowerCase().includes(normalized))
       .slice(0, 10)
   );
 }
@@ -184,203 +139,148 @@ function handleQuickSelect(item: Record<string, unknown>) {
   }
 }
 
-function openDirectory() {
-  directoryVisible.value = true;
-}
-
 function handleAtlasSelect(item: NavigableTarget) {
   directoryVisible.value = false;
-  router.push({
-    path: item.path,
-    query: item.query
-  });
+  router.push({ path: item.path, query: item.query });
 }
 
 async function handleLogout() {
   await authStore.logout();
-  router.push("/login");
+  router.push({ path: "/login", query: buildPortalLoginQuery() });
 }
 
 async function handleRefreshNavigation() {
   await menuStore.refresh();
   if (!menuStore.routesReady) {
-    router.replace({
-      path: route.path,
-      query: route.query,
-      hash: route.hash
-    });
+    router.replace({ path: route.path, query: route.query, hash: route.hash });
   }
 }
 </script>
 
 <template>
-  <div class="console-shell">
+  <div class="console-shell" :class="{ 'console-shell--collapsed': railCollapsed }">
     <aside class="console-shell__rail">
       <div class="console-shell__brand">
-        <span class="console-shell__brand-mark">SB</span>
-        <div>
-          <span class="console-shell__brand-eyebrow">{{ localeStore.t("shell.brandEyebrow") }}</span>
-          <strong>{{ localeStore.t("shell.brandTitle") }}</strong>
-          <p>企业级开发底座</p>
-        </div>
+        <span class="console-shell__brand-mark"><Grid /></span>
+        <strong>{{ localeStore.t("shell.brandTitle") }}</strong>
       </div>
 
-      <div class="console-shell__rail-groups">
+      <nav class="console-shell__navigation" aria-label="主导航">
         <section v-for="group in appGroups" :key="group.key" class="console-shell__rail-group">
           <span class="console-shell__rail-label">{{ group.label }}</span>
-          <button
-            v-for="app in group.items"
-            :key="app.id"
-            class="console-shell__rail-app"
-            :class="{ 'is-active': currentApp?.id === app.id }"
-            @click="switchApp(app)"
-          >
-            <span class="console-shell__rail-badge">{{ resolveAppMeta(app.code, app.title).badge }}</span>
-            <div>
+          <div v-for="app in group.items" :key="app.id" class="console-shell__app-group">
+            <button
+              class="console-shell__rail-app"
+              :class="{ 'is-active': currentApp?.id === app.id }"
+              :title="app.title"
+              @click="switchApp(app)"
+            >
+              <span class="console-shell__rail-icon">
+                <component :is="resolveAppIcon(app.code)" />
+              </span>
               <strong>{{ app.title }}</strong>
+            </button>
+
+            <div v-if="currentApp?.id === app.id && app.children.length" class="console-shell__submenu">
+              <button
+                v-for="item in app.children.filter((child) => child.path)"
+                :key="item.id"
+                class="console-shell__submenu-item"
+                :class="{ 'is-active': isExactActive(item) }"
+                @click="go(item)"
+              >
+                {{ item.title }}
+              </button>
             </div>
-          </button>
+          </div>
         </section>
+      </nav>
+
+      <div v-if="menuStore.loading || menuStore.lastError" class="console-shell__nav-state">
+        <span>{{ menuStore.loading ? "导航加载中" : "导航加载失败" }}</span>
+        <el-button link :loading="menuStore.loading" @click="handleRefreshNavigation">重试</el-button>
       </div>
 
-      <button class="console-shell__directory-trigger" @click="openDirectory">
-        <span>{{ localeStore.t("shell.directory") }}</span>
-        <small>{{ localeStore.t("shell.directoryHint") }}</small>
-      </button>
-
-      <section class="console-shell__rail-status">
-        <article>
-          <span>{{ localeStore.t("shell.navMode") }}</span>
-          <strong>{{ navigationModeLabel }}</strong>
-        </article>
-        <article>
-          <span>{{ localeStore.t("shell.currentApp") }}</span>
-          <strong>{{ currentApp?.title ?? "平台总览" }}</strong>
-        </article>
-      </section>
+      <footer class="console-shell__rail-footer">
+        <button class="console-shell__directory-trigger" title="功能索引" @click="directoryVisible = true">
+          <Grid class="console-shell__directory-icon" />
+          <span>{{ localeStore.t("shell.directory") }}</span>
+        </button>
+        <button
+          class="console-shell__collapse-trigger"
+          :title="railCollapsed ? '展开导航' : '收起导航'"
+          :aria-label="railCollapsed ? '展开导航' : '收起导航'"
+          @click="railCollapsed = !railCollapsed"
+        >
+          <component :is="railCollapsed ? Expand : Fold" />
+        </button>
+      </footer>
     </aside>
 
     <div class="console-shell__main">
       <header class="console-shell__topbar">
-        <div class="console-shell__breadcrumbs">
-          <span
-            v-for="(crumb, index) in breadcrumbItems"
-            :key="`${crumb}-${index}`"
-            class="console-shell__crumb"
-          >
-            {{ crumb }}
-          </span>
+        <div class="console-shell__title-block">
+          <span>{{ currentApp?.title ?? "平台" }}</span>
+          <h1>{{ currentSectionMeta.label }}</h1>
         </div>
 
-        <div class="console-shell__topbar-row">
-          <div class="console-shell__title-block">
-            <div class="console-shell__surface-chips">
-              <span class="console-shell__surface-chip">{{ currentAppMeta.badge }}</span>
-            </div>
-            <h1>{{ currentSectionMeta.label }}</h1>
-            <p>{{ currentSectionMeta.description }}</p>
-          </div>
+        <div class="console-shell__topbar-actions">
+          <div id="console-context-actions" class="console-shell__context-actions" />
 
-          <div class="console-shell__topbar-actions">
+          <div class="console-shell__quick-jump">
             <el-autocomplete
-              class="console-shell__quick-jump"
               popper-class="console-shell__quick-popper"
               :fetch-suggestions="querySearch"
-              placeholder="搜索应用、控制面或策略"
+              placeholder="搜索功能"
               clearable
               @select="handleQuickSelect"
             >
+              <template #prefix>
+                <Search />
+              </template>
               <template #default="{ item }">
-                <div class="console-shell__quick-option">
-                  <strong>{{ item.value }}</strong>
-                  <span>{{ item.hint }}</span>
-                </div>
+                <span class="console-shell__quick-option">{{ item.value }}</span>
               </template>
             </el-autocomplete>
-
-            <el-button plain @click="openDirectory">{{ localeStore.t("shell.directory") }}</el-button>
-            <el-select :model-value="localeStore.locale" size="small" style="width: 110px" @change="(value) => localeStore.setLocale(String(value) as 'zh-CN' | 'en-US')">
-              <el-option label="中文" value="zh-CN" />
-              <el-option label="English" value="en-US" />
-            </el-select>
-            <TenantSwitcher />
-
-            <div class="console-shell__user">
-              <div>
-                <strong>{{ authStore.currentUser?.nickname }}</strong>
-                <p>{{ authStore.currentUser?.username }}</p>
-              </div>
-              <el-button text @click="handleLogout">退出登录</el-button>
-            </div>
           </div>
+
+          <el-tooltip :content="localeStore.t('shell.directory')" placement="bottom">
+            <el-button class="console-shell__directory-button" :icon="Grid" aria-label="功能索引" @click="directoryVisible = true" />
+          </el-tooltip>
+
+          <el-select
+            class="console-shell__locale"
+            :model-value="localeStore.locale"
+            @change="(value) => localeStore.setLocale(String(value) as 'zh-CN' | 'en-US')"
+          >
+            <el-option label="中文" value="zh-CN" />
+            <el-option label="English" value="en-US" />
+          </el-select>
+
+          <TenantSwitcher />
+
+          <el-dropdown trigger="click">
+            <button class="console-shell__user-trigger" aria-label="用户菜单">
+              <span class="console-shell__user-avatar">{{ userInitial }}</span>
+              <span class="console-shell__user-name">
+                {{ authStore.currentUser?.nickname || authStore.currentUser?.username || "用户" }}
+              </span>
+            </button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item @click="handleLogout">退出登录</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
       </header>
 
-      <div class="console-shell__content-shell">
-        <div class="console-shell__content">
-        <aside class="console-shell__sidebar">
-          <section class="console-shell__panel">
-            <span class="console-shell__eyebrow">{{ currentAppMeta.badge }}</span>
-            <strong>{{ currentApp?.title ?? "平台总览" }}</strong>
-            <p>{{ currentAppMeta.summary }}</p>
-          </section>
-
-          <section class="console-shell__panel">
-            <header class="console-shell__panel-header">
-              <strong>控制面目录</strong>
-              <span>{{ currentSubmenu.length }}</span>
-            </header>
-            <nav class="console-shell__section-list">
-              <button
-                v-for="item in currentSubmenu"
-                :key="item.id"
-                class="console-shell__section-item"
-                :class="{ 'is-active': isExactActive(item) }"
-                @click="go(item)"
-              >
-                <strong>{{ item.title }}</strong>
-              </button>
-            </nav>
-          </section>
-
-          <section v-if="menuStore.loading || menuStore.lastError" class="console-shell__panel console-shell__degraded-panel">
-            <header class="console-shell__panel-header">
-              <strong>导航状态</strong>
-              <el-button text :loading="menuStore.loading" @click="handleRefreshNavigation">重试加载</el-button>
-            </header>
-            <p>
-              {{
-                menuStore.loading
-                  ? "正在刷新实时导航。"
-                  : "导航加载失败，当前不会使用缓存或降级菜单。"
-              }}
-            </p>
-            <small v-if="menuStore.lastError">{{ menuStore.lastError }}</small>
-          </section>
-
-          <section class="console-shell__panel console-shell__signal-panel">
-            <header class="console-shell__panel-header">
-              <strong>工作上下文</strong>
-            </header>
-            <article v-for="signal in workspaceSignals" :key="signal.label" class="console-shell__signal">
-              <span>{{ signal.label }}</span>
-              <strong>{{ signal.value }}</strong>
-            </article>
-          </section>
-        </aside>
-
-        <main class="console-shell__workspace">
-          <router-view />
-        </main>
-      </div>
-      </div>
+      <main class="console-shell__workspace">
+        <router-view />
+      </main>
     </div>
 
-    <el-drawer v-model="directoryVisible" title="功能索引" size="560px">
-      <div class="console-shell__drawer-copy">
-        <strong>全部应用与控制面</strong>
-        <p>这里展示当前真实导航结构。点击任意应用或控制面，会直接进入对应页面。</p>
-      </div>
+    <el-drawer v-model="directoryVisible" title="功能索引" size="480px">
       <NavigationAtlas :apps="apps" :active-code="currentApp?.code" compact @select="handleAtlasSelect" />
     </el-drawer>
   </div>
@@ -389,603 +289,505 @@ async function handleRefreshNavigation() {
 <style scoped lang="scss">
 .console-shell {
   height: 100vh;
-  max-height: 100vh;
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-columns: 224px minmax(0, 1fr);
   overflow: hidden;
-  background:
-    radial-gradient(circle at top left, rgb(30 94 255 / 0.18), transparent 20%),
-    linear-gradient(180deg, #101828 0%, #0f1726 100%);
+  background: var(--sb-shell-main);
+  transition: grid-template-columns 160ms ease;
+}
+
+.console-shell--collapsed {
+  grid-template-columns: 64px minmax(0, 1fr);
+
+  .console-shell__brand {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .console-shell__brand strong,
+  .console-shell__rail-label,
+  .console-shell__rail-app strong,
+  .console-shell__submenu,
+  .console-shell__directory-trigger,
+  .console-shell__nav-state span {
+    display: none;
+  }
+
+  .console-shell__navigation {
+    padding: 10px 7px;
+  }
+
+  .console-shell__rail-app {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    padding: 4px;
+  }
+
+  .console-shell__collapse-trigger {
+    width: 100%;
+    flex-basis: 100%;
+    justify-content: center;
+    padding: 0;
+    border-left: 0;
+  }
 }
 
 .console-shell__rail {
   display: flex;
   flex-direction: column;
-  gap: 20px;
   min-height: 0;
-  padding: 18px 16px;
-  border-right: 1px solid var(--sb-shell-rail-border);
-  background:
-    radial-gradient(circle at top, rgb(116 150 245 / 0.16), transparent 28%),
-    linear-gradient(180deg, rgb(255 255 255 / 0.03), rgb(255 255 255 / 0)),
-    var(--sb-shell-rail);
+  border-right: 1px solid #2d3640;
+  background: #1c232b;
+  color: #f7f9fb;
 }
 
 .console-shell__brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  height: 58px;
+  padding: 0 16px;
+  border-bottom: 1px solid #2d3640;
 
   strong {
-    display: block;
-    font-size: 17px;
-    color: var(--sb-shell-rail-text);
+    min-width: 0;
+    overflow: hidden;
+    font-size: 14px;
+    font-weight: 650;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-
-  p {
-    margin: 4px 0 0;
-    color: var(--sb-shell-rail-muted);
-    font-size: 12px;
-  }
-}
-
-.console-shell__brand-eyebrow {
-  display: inline-flex;
-  margin-bottom: 4px;
-  color: #9ec0ff;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
 }
 
 .console-shell__brand-mark {
-  width: 42px;
-  height: 42px;
+  width: 26px;
+  height: 26px;
   display: grid;
+  flex: 0 0 26px;
   place-items: center;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #2e7dff 0%, #8caeff 100%);
-  color: white;
-  font-weight: 800;
+  border-radius: 4px;
+  background: #2f6bd8;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+
+  svg {
+    width: 15px;
+    height: 15px;
+  }
 }
 
-.console-shell__rail-groups {
-  display: grid;
-  gap: 18px;
+.console-shell__navigation {
+  flex: 1;
   min-height: 0;
+  padding: 14px 10px 18px;
   overflow: auto;
 }
 
 .console-shell__rail-group {
   display: grid;
-  gap: 10px;
+  gap: 3px;
+  margin-bottom: 16px;
 }
 
 .console-shell__rail-label {
-  color: var(--sb-shell-rail-muted);
-  font-size: 11px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  padding: 0 8px 5px;
+  color: #83909d;
+  font-size: 10px;
+}
+
+.console-shell__app-group {
+  display: grid;
+  gap: 2px;
+}
+
+.console-shell__rail-app,
+.console-shell__submenu-item,
+.console-shell__directory-trigger,
+.console-shell__user-trigger {
+  border: none;
+  font-family: inherit;
+  cursor: pointer;
 }
 
 .console-shell__rail-app {
+  width: 100%;
+  min-height: 38px;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 10px;
+  grid-template-columns: 22px minmax(0, 1fr);
   align-items: center;
-  padding: 10px 12px;
-  border: 1px solid rgb(255 255 255 / 0.04);
-  border-radius: 16px;
-  background: rgb(255 255 255 / 0.03);
-  cursor: pointer;
+  gap: 9px;
+  padding: 4px 10px;
+  border-radius: 5px;
+  background: transparent;
+  color: #ced5dc;
   text-align: left;
-  transition: 180ms ease;
-  position: relative;
+
+  &:hover {
+    background: #252e37;
+    color: #fff;
+  }
+
+  &.is-active {
+    background: #303a45;
+    color: #fff;
+  }
+
+  strong {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 13px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.console-shell__rail-icon {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  color: #aeb8c3;
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .is-active & {
+    color: #79a6ff;
+  }
+}
+
+.console-shell__submenu {
+  display: grid;
+  gap: 1px;
+  margin: 2px 0 5px 31px;
+  padding-left: 8px;
+  border-left: 1px solid #37414c;
+}
+
+.console-shell__submenu-item {
+  min-height: 30px;
+  padding: 5px 8px;
+  border-radius: 4px;
+  background: transparent;
+  color: #9fa9b4;
+  overflow: hidden;
+  font-size: 12px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 
   &:hover,
   &.is-active {
-    border-color: rgb(255 255 255 / 0.08);
-    background: linear-gradient(180deg, rgb(255 255 255 / 0.08), rgb(255 255 255 / 0.04));
-    box-shadow: inset 0 0 0 1px rgb(30 94 255 / 0.28);
+    background: #252e37;
+    color: #fff;
   }
 
-  &.is-active::before {
-    content: "";
-    position: absolute;
-    inset: 10px auto 10px 0;
-    width: 3px;
-    border-radius: 999px;
-    background: linear-gradient(180deg, #5d93ff, transparent 80%);
-  }
-
-  strong {
-    display: block;
-    font-size: 14px;
-    color: var(--sb-shell-rail-text);
+  &.is-active {
+    box-shadow: inset 2px 0 #5d8fe8;
   }
 }
 
-.console-shell__rail-badge {
-  display: inline-flex;
+.console-shell__nav-state {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  min-width: 54px;
-  padding: 7px 8px;
-  border-radius: 12px;
-  background: rgb(255 255 255 / 0.08);
-  color: #b7d2ff;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 14px;
+  border-top: 1px solid #2d3640;
+  color: #f0b35a;
+  font-size: 12px;
 }
 
 .console-shell__directory-trigger {
-  margin-top: auto;
-  padding: 14px 16px;
-  border: 1px dashed rgb(255 255 255 / 0.14);
-  border-radius: 18px;
-  background: rgb(255 255 255 / 0.04);
+  min-width: 0;
+  height: 43px;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 17px;
+  background: #1c232b;
+  color: #cbd2d9;
+  font-size: 13px;
   text-align: left;
-  cursor: pointer;
 
-  span,
-  small {
-    display: block;
-  }
-
-  span {
-    font-weight: 700;
-    color: var(--sb-shell-rail-text);
-  }
-
-  small {
-    margin-top: 4px;
-    color: var(--sb-shell-rail-muted);
-    line-height: 1.5;
+  &:hover {
+    background: #252e37;
+    color: #fff;
   }
 }
 
-.console-shell__rail-status {
+.console-shell__rail-footer {
+  display: flex;
+  align-items: center;
+  border-top: 1px solid #2d3640;
+}
+
+.console-shell__collapse-trigger {
+  width: 43px;
+  height: 43px;
   display: grid;
-  gap: 10px;
-  padding: 14px 16px;
-  border: 1px solid rgb(255 255 255 / 0.08);
-  border-radius: 18px;
-  background: rgb(255 255 255 / 0.04);
+  flex: 0 0 43px;
+  place-items: center;
+  border: 0;
+  border-left: 1px solid #2d3640;
+  background: #1c232b;
+  color: #9fa9b4;
+  cursor: pointer;
 
-  article {
-    display: grid;
-    gap: 4px;
+  &:hover {
+    background: #252e37;
+    color: #fff;
   }
 
-  span,
-  strong {
-    display: block;
+  svg {
+    width: 16px;
+    height: 16px;
   }
+}
 
-  span {
-    color: var(--sb-shell-rail-muted);
-    font-size: 11px;
-  }
-
-  strong {
-    color: var(--sb-shell-rail-text);
-    font-size: 13px;
-  }
+.console-shell__directory-icon {
+  width: 16px;
 }
 
 .console-shell__main {
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: 58px minmax(0, 1fr);
   overflow: hidden;
-  background: var(--sb-shell-main);
 }
 
 .console-shell__topbar {
-  flex-shrink: 0;
-  padding: 18px 24px 16px;
-  border-bottom: 1px solid var(--sb-border-color);
-  background:
-    radial-gradient(circle at top right, rgb(30 94 255 / 0.08), transparent 22%),
-    linear-gradient(180deg, rgb(255 255 255 / 0.86), rgb(250 252 255 / 0.84));
-  backdrop-filter: blur(12px);
-}
-
-.console-shell__breadcrumbs {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 12px;
-}
-
-.console-shell__crumb {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--sb-text-secondary);
-  font-size: 12px;
-
-  &::after {
-    content: "/";
-    color: var(--sb-text-tertiary);
-  }
-
-  &:last-child {
-    color: var(--sb-text-primary);
-    font-weight: 600;
-
-    &::after {
-      display: none;
-    }
-  }
-}
-
-.console-shell__topbar-row {
-  display: flex;
-  align-items: flex-start;
   justify-content: space-between;
   gap: 20px;
+  padding: 0 18px 0 20px;
+  border-bottom: 1px solid var(--sb-border-color);
+  background: #fff;
 }
 
 .console-shell__title-block {
-  min-width: 0;
+  min-width: 140px;
+
+  span {
+    display: block;
+    color: #778396;
+    font-size: 10px;
+    line-height: 1.2;
+  }
 
   h1 {
-    margin: 0;
-    font-size: 28px;
-    line-height: 1.1;
-  }
-
-  p {
-    margin: 8px 0 0;
-    max-width: 720px;
-    color: var(--sb-text-secondary);
-    line-height: 1.65;
+    margin: 2px 0 0;
+    overflow: hidden;
+    font-size: 16px;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 
-.console-shell__surface-chips {
+.console-shell__topbar-actions {
+  min-width: 0;
   display: flex;
+  align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 10px;
 }
 
-.console-shell__surface-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: rgb(15 27 45 / 0.05);
-  color: var(--sb-text-secondary);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-}
-
-.console-shell__topbar-actions,
-.console-shell__user {
+.console-shell__context-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
 }
 
 .console-shell__quick-jump {
-  width: 300px;
+  flex: 0 1 260px;
+  width: min(260px, 22vw);
+}
+
+.console-shell__quick-jump :deep(.el-autocomplete) {
+  width: 100%;
 }
 
 .console-shell__quick-jump :deep(.el-input__wrapper) {
-  border-radius: 14px;
-  box-shadow: 0 0 0 1px rgb(15 27 45 / 0.08) inset;
-}
-
-.console-shell__quick-jump :deep(.el-input__prefix) {
-  color: var(--sb-text-tertiary);
+  border-radius: 5px;
+  background: #f5f6f8;
+  box-shadow: 0 0 0 1px #e2e6eb inset;
 }
 
 .console-shell__quick-option {
-  display: grid;
-  gap: 4px;
-  padding: 2px 0;
-
-  strong,
-  span {
-    display: block;
-  }
-
-  strong {
-    font-size: 13px;
-  }
-
-  span {
-    color: var(--sb-text-secondary);
-    font-size: 12px;
-    line-height: 1.5;
-  }
-}
-
-.console-shell__user {
-  padding-left: 12px;
-  border-left: 1px solid var(--sb-border-color);
-
-  strong {
-    display: block;
-  }
-
-  p {
-    margin: 4px 0 0;
-    color: var(--sb-text-secondary);
-    font-size: 12px;
-  }
-}
-
-.console-shell__content {
-  min-width: 0;
-  min-height: 0;
-  height: 100%;
-  display: grid;
-  grid-template-columns: 320px minmax(0, 1fr);
-  gap: 20px;
-  padding: 20px;
-  max-width: var(--sb-content-max);
-  width: 100%;
-  margin: 0 auto;
-}
-
-.console-shell__content-shell {
-  min-width: 0;
-  min-height: 0;
+  display: block;
   overflow: hidden;
-  padding: 0 10px 24px;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.console-shell__sidebar {
-  display: grid;
-  min-height: 0;
-  align-content: start;
-  gap: 14px;
-  overflow: auto;
-  padding-right: 4px;
+.console-shell__directory-button {
+  width: 32px;
+  padding: 0;
 }
 
-.console-shell__panel {
-  display: grid;
-  gap: 12px;
-  padding: 18px;
-  border: 1px solid var(--sb-border-color);
-  border-radius: var(--sb-radius-lg);
-  background:
-    radial-gradient(circle at top right, rgb(30 94 255 / 0.06), transparent 28%),
-    linear-gradient(180deg, rgb(255 255 255 / 0.96), rgb(247 250 254 / 0.92)),
-    white;
-  box-shadow: var(--sb-shadow-sm);
-  position: relative;
-
-  strong {
-    display: block;
-  }
-
-  p {
-    margin: 0;
-    color: var(--sb-text-secondary);
-    line-height: 1.65;
-  }
-
-  &::before {
-    content: "";
-    position: absolute;
-    inset: 0 0 auto;
-    height: 3px;
-    background: var(--sb-card-highlight);
-    opacity: 0.5;
-  }
+.console-shell__locale {
+  width: 92px;
 }
 
-.console-shell__panel-header {
+.console-shell__user-trigger {
+  min-height: 32px;
+  max-width: 150px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-
-  span {
-    color: var(--sb-text-tertiary);
-    font-size: 12px;
-  }
+  gap: 8px;
+  padding: 0 8px 0 10px;
+  border-left: 1px solid var(--sb-border-color);
+  background: transparent;
+  color: var(--sb-text-primary);
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.console-shell__eyebrow {
-  display: inline-flex;
-  color: var(--sb-primary-color);
-  font-size: 11px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.console-shell__section-list {
+.console-shell__user-avatar {
+  width: 26px;
+  height: 26px;
   display: grid;
-  gap: 10px;
-}
-
-.console-shell__section-item {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid transparent;
-  border-radius: 14px;
-  background: var(--sb-panel-muted);
-  text-align: left;
-  cursor: pointer;
-  transition: 180ms ease;
-
-  &:hover,
-  &.is-active {
-    border-color: rgb(30 94 255 / 0.16);
-    background: rgb(255 255 255 / 0.98);
-    box-shadow: inset 0 0 0 1px rgb(30 94 255 / 0.08);
-  }
-
-  strong {
-    display: block;
-    font-size: 14px;
-  }
-}
-
-.console-shell__signal-panel {
-  gap: 0;
-}
-
-.console-shell__degraded-panel {
-  p,
-  small {
-    margin: 0;
-    line-height: 1.6;
-  }
-
-  p {
-    color: var(--sb-text-secondary);
-  }
-
-  small {
-    margin-top: 8px;
-    color: var(--sb-text-tertiary);
-    display: block;
-  }
-}
-
-.console-shell__signal {
-  padding: 12px 0;
-  border-bottom: 1px solid var(--sb-border-color);
-
-  &:last-child {
-    border-bottom: none;
-    padding-bottom: 0;
-  }
-
-  span,
-  strong {
-    display: block;
-  }
-
-  span {
-    color: var(--sb-text-secondary);
-    font-size: 12px;
-  }
-
-  strong {
-    margin-top: 6px;
-    font-size: 15px;
-  }
+  flex: 0 0 26px;
+  place-items: center;
+  border-radius: 50%;
+  background: #e9edf3;
+  color: #445264;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .console-shell__workspace {
   min-width: 0;
   min-height: 0;
+
+  --sb-workspace-x: 20px;
+
+  padding: 16px var(--sb-workspace-x) 28px;
   overflow: auto;
-  padding-bottom: 12px;
 }
 
-.console-shell__drawer-copy {
-  margin-bottom: 18px;
-
-  strong {
-    display: block;
-    font-size: 16px;
-  }
-
-  p {
-    margin: 8px 0 0;
-    color: var(--sb-text-secondary);
-    line-height: 1.65;
-  }
+.console-shell :deep(.el-drawer__header) {
+  margin-bottom: 0;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--sb-border-color);
 }
 
-:global(.console-shell__quick-popper) {
-  border-radius: 18px;
-  border: 1px solid var(--sb-border-subtle);
-  box-shadow: var(--sb-shadow-lg);
-  padding: 8px;
-  background:
-    radial-gradient(circle at top right, rgb(30 94 255 / 0.08), transparent 24%),
-    linear-gradient(180deg, rgb(255 255 255 / 0.98), rgb(246 250 255 / 0.95));
-  backdrop-filter: blur(12px);
+.console-shell :deep(.el-drawer__body) {
+  padding: 16px;
 }
 
-:global(.console-shell__quick-popper .el-autocomplete-suggestion__list) {
-  padding: 0;
-}
-
-:global(.console-shell__quick-popper li) {
-  margin: 0;
-  padding: 10px 12px;
-  border-radius: 14px;
-  transition: 160ms ease;
-}
-
-:global(.console-shell__quick-popper li:hover),
-:global(.console-shell__quick-popper li.highlighted) {
-  background: rgb(30 94 255 / 0.08);
-}
-
-@media (max-width: 1400px) {
+@media (max-width: 1120px) {
   .console-shell {
-    grid-template-columns: 220px minmax(0, 1fr);
+    grid-template-columns: 64px minmax(0, 1fr);
   }
 
-  .console-shell__content {
-    grid-template-columns: 280px minmax(0, 1fr);
-  }
-}
+  .console-shell__brand {
+    justify-content: center;
+    padding: 0;
 
-@media (max-width: 1180px) {
-  .console-shell {
-    height: auto;
-    max-height: none;
+    strong {
+      display: none;
+    }
+  }
+
+  .console-shell__navigation {
+    padding: 10px 7px;
+  }
+
+  .console-shell__rail-label,
+  .console-shell__rail-app strong,
+  .console-shell__submenu,
+  .console-shell__directory-trigger span,
+  .console-shell__nav-state span {
+    display: none;
+  }
+
+  .console-shell__collapse-trigger {
+    display: none;
+  }
+
+  .console-shell__rail-app {
+    display: grid;
     grid-template-columns: 1fr;
-    overflow: visible;
+    justify-items: center;
+    padding: 4px;
   }
 
-  .console-shell__rail {
-    border-right: none;
-    border-bottom: 1px solid var(--sb-shell-rail-border);
-  }
-
-  .console-shell__content {
-    height: auto;
-    grid-template-columns: 1fr;
-  }
-
-  .console-shell__content-shell {
-    overflow: visible;
-    padding: 0 0 20px;
-  }
-
-  .console-shell__sidebar {
-    overflow: visible;
-    padding-right: 0;
-  }
-
-  .console-shell__main {
-    min-height: auto;
-    overflow: visible;
-  }
-
-  .console-shell__workspace {
-    overflow: visible;
-  }
-
-  .console-shell__topbar-row {
-    flex-direction: column;
-  }
-
-  .console-shell__topbar-actions {
-    width: 100%;
-    flex-wrap: wrap;
+  .console-shell__directory-trigger {
+    justify-content: center;
+    padding: 0;
   }
 
   .console-shell__quick-jump {
-    width: 100%;
+    flex-basis: 220px;
+    width: min(220px, 24vw);
+  }
+}
+
+@media (max-width: 760px) {
+  .console-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .console-shell__rail {
+    display: none;
+  }
+
+  .console-shell__topbar {
+    gap: 12px;
+    padding: 0 12px;
+  }
+
+  .console-shell__title-block {
+    min-width: 0;
+    flex: 1;
+
+    h1 {
+      font-size: 15px;
+    }
+  }
+
+  .console-shell__topbar-actions {
+    flex: 0 0 auto;
+  }
+
+  .console-shell__quick-jump,
+  .console-shell__locale {
+    display: none !important;
+  }
+
+  .console-shell__context-actions {
+    order: 1;
+  }
+
+  .console-shell__workspace {
+    --sb-workspace-x: 12px;
+
+    padding: 12px;
+  }
+
+  .console-shell__user-trigger {
+    width: 32px;
+    justify-content: center;
+    padding: 0;
+    border-left: 0;
+  }
+
+  .console-shell__user-name {
+    display: none;
+  }
+
+  .console-shell :deep(.el-drawer) {
+    width: 92vw !important;
   }
 }
 </style>
