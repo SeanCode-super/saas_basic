@@ -1000,7 +1000,7 @@ onMounted(() => {
   align-items: flex-start;
   padding: 10px 12px;
   border-radius: var(--sb-radius-sm);
-  background: #ffffff;
+  background: #fff;
   border: 1px solid var(--sb-border-color);
   box-shadow: var(--sb-shadow-xs);
 }
@@ -1046,7 +1046,7 @@ onMounted(() => {
 .ep-health-item {
   padding: 8px 10px;
   border-radius: 4px;
-  background: #ffffff;
+  background: #fff;
   border: 1px solid var(--sb-border-color);
   box-shadow: var(--sb-shadow-xs);
 }
@@ -1119,6 +1119,7 @@ onMounted(() => {
 
     .icon-pass { color: #10b981; }
     .icon-run { color: #0284c7; }
+
     .dot-pending {
       display: inline-block;
       width: 10px;

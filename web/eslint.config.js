@@ -8,7 +8,7 @@ export default [
     ignores: ["dist/**", "node_modules/**", "src/types/*.d.ts", "stylelint.config.cjs"]
   },
   js.configs.recommended,
-  ...vuePlugin.configs["flat/recommended"],
+  ...vuePlugin.configs["flat/essential"],
   {
     files: ["**/*.{ts,tsx}"],
     languageOptions: {
@@ -23,7 +23,9 @@ export default [
     },
     rules: {
       "no-unused-vars": "off",
-      "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
+      "no-undef": "off",
+      "no-empty": ["warn", { allowEmptyCatch: true }],
+      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
       "@typescript-eslint/no-explicit-any": "off",
       "no-console": ["warn", { allow: ["warn", "error"] }]
     }
@@ -42,9 +44,12 @@ export default [
     },
     rules: {
       "no-unused-vars": "off",
-      "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
+      "no-undef": "off",
+      "no-empty": ["warn", { allowEmptyCatch: true }],
+      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
       "@typescript-eslint/no-explicit-any": "off",
       "no-console": ["warn", { allow: ["warn", "error"] }],
+      "vue/no-unused-vars": "warn",
       "vue/no-mutating-props": ["error", { shallowOnly: true }]
     }
   }

@@ -166,7 +166,7 @@ const queryModel = computed({
   border-radius: 8px;
   overflow: hidden;
   border: 1px solid var(--sb-border-color, #e2e8f0);
-  background: #ffffff;
+  background: #fff;
 }
 
 .tab-label {

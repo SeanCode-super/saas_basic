@@ -193,9 +193,9 @@ function closeAllTags() {
 .tags-view-container {
   height: 38px;
   width: 100%;
-  background: #ffffff;
+  background: #fff;
   border-bottom: 1px solid var(--sb-border-color, #cbd5e1);
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 1px 3px rgb(15 23 42 / 0.04);
   display: flex;
   align-items: center;
   position: relative;
@@ -223,7 +223,7 @@ function closeAllTags() {
   line-height: 26px;
   border: 1px solid var(--sb-border-color, #cbd5e1);
   color: #334155;
-  background: #ffffff;
+  background: #fff;
   padding: 0 10px;
   font-size: 12px;
   font-weight: 500;
@@ -276,9 +276,9 @@ function closeAllTags() {
 
 .context-menu {
   position: fixed;
-  background: #ffffff;
+  background: #fff;
   border-radius: 8px;
-  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 10px 25px rgb(15 23 42 / 0.12);
   border: 1px solid var(--sb-border-color, #cbd5e1);
   padding: 6px 0;
   margin: 0;

@@ -350,10 +350,10 @@ function runAstTest() {
   align-items: center;
   justify-content: space-between;
   padding: 8px 16px;
-  background: #ffffff;
+  background: #fff;
   border-radius: 8px;
   border: 1px solid var(--sb-border-color);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.03);
 
   .bar-left {
     display: flex;
@@ -580,6 +580,7 @@ function runAstTest() {
 
       .icon-passed { color: #10b981; }
       .icon-running { color: #0284c7; }
+
       .dot-pending {
         display: inline-block;
         width: 8px;

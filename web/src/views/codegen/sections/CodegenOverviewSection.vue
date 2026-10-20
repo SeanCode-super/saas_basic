@@ -309,10 +309,10 @@ onMounted(() => {
   padding: 0 12px;
   border: 1px solid var(--sb-border-color, #cbd5e1);
   border-radius: 7px;
-  background: #ffffff;
+  background: #fff;
   cursor: pointer;
   transition: all 120ms ease;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.03);
 
   &:hover {
     border-color: #3b82f6;

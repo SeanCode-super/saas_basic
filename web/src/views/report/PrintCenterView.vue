@@ -340,11 +340,11 @@ function handlePrint() {
 
 .print-paper {
   position: relative;
-  background: #ffffff;
+  background: #fff;
   color: #1e293b;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 10px 25px rgb(0 0 0 / 0.15);
   box-sizing: border-box;
-  font-family: "SimSun", "Songti SC", serif;
+  font-family: SimSun, "Songti SC", serif;
   overflow: hidden;
 }
 
@@ -372,7 +372,7 @@ function handlePrint() {
   left: 50%;
   transform: translate(-50%, -50%) rotate(-30deg);
   font-size: 42px;
-  color: rgba(203, 213, 225, 0.25);
+  color: rgb(203 213 225 / 0.25);
   font-weight: 900;
   letter-spacing: 6px;
   pointer-events: none;
@@ -621,13 +621,16 @@ function handlePrint() {
   .no-print {
     display: none !important;
   }
+
   .print-center-container {
     padding: 0 !important;
   }
+
   .print-sheet-wrapper {
     background: transparent !important;
     padding: 0 !important;
   }
+
   .print-paper {
     box-shadow: none !important;
     width: 100% !important;

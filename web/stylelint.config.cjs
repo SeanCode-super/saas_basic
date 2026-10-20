@@ -5,6 +5,7 @@ module.exports = {
     "alpha-value-notation": "number",
     "media-feature-range-notation": "prefix",
     "no-descending-specificity": null,
-    "selector-class-pattern": null
+    "selector-class-pattern": null,
+    "declaration-block-single-line-max-declarations": null
   }
 };

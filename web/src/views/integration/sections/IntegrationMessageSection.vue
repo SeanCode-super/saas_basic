@@ -489,7 +489,7 @@ onMounted(loadData);
   background: var(--el-bg-color);
   border-radius: 8px;
   border: 1px solid var(--el-border-color-lighter);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.03);
 
   .strip-left {
     display: flex;
@@ -667,12 +667,15 @@ onMounted(loadData);
 .mt-2 {
   margin-top: 8px;
 }
+
 .mt-4 {
   margin-top: 16px;
 }
+
 .font-semibold {
   font-weight: 600;
 }
+
 .text-primary {
   color: var(--el-color-primary);
 }

@@ -50,7 +50,7 @@ defineProps<{
   grid-template-columns: repeat(4, minmax(0, 1fr));
   border: 1px solid var(--sb-border-color);
   border-radius: var(--sb-radius-md);
-  background: #ffffff;
+  background: #fff;
   box-shadow: var(--sb-shadow-xs);
 }
 

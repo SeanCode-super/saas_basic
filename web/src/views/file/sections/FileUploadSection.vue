@@ -287,7 +287,7 @@ function handleDownload(row: any) {
         <img
           src="https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=1200&q=80"
           alt="预览图"
-          style="max-width: 100%; max-height: 380px; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1)"
+          style="max-width: 100%; max-height: 380px; border-radius: 6px; box-shadow: 0 4px 12px rgb(0 0 0 / 0.1)"
         />
       </div>
       <template #footer>
@@ -309,7 +309,7 @@ function handleDownload(row: any) {
   justify-content: space-between;
   align-items: center;
   padding: 8px 14px;
-  background: var(--el-bg-color, #ffffff);
+  background: var(--el-bg-color, #fff);
   border: 1px solid var(--sb-border-color, #e2e8f0);
   border-radius: 8px;
   flex-wrap: wrap;

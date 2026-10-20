@@ -355,10 +355,10 @@ onMounted(() => {
 }
 
 .profile-card {
-  background: #ffffff;
+  background: #fff;
   border-radius: 10px;
   padding: 24px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.05);
   border: 1px solid var(--sb-border-color, #e2e8f0);
 }
 
@@ -374,13 +374,13 @@ onMounted(() => {
   height: 76px;
   border-radius: 50%;
   background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  color: #ffffff;
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 28px;
   font-weight: 700;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+  box-shadow: 0 4px 12px rgb(37 99 235 / 0.25);
   margin-bottom: 12px;
 }
 
@@ -388,7 +388,7 @@ onMounted(() => {
   font-size: 18px;
   font-weight: 700;
   color: #1e293b;
-  margin: 0 0 4px 0;
+  margin: 0 0 4px;
 }
 
 .profile-card__username {
@@ -458,14 +458,14 @@ onMounted(() => {
 .security-desc {
   font-size: 11px;
   color: #94a3b8;
-  margin: 6px 0 0 0;
+  margin: 6px 0 0;
 }
 
 .profile-content {
-  background: #ffffff;
+  background: #fff;
   border-radius: 10px;
   padding: 20px 24px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.05);
   border: 1px solid var(--sb-border-color, #e2e8f0);
 }
 
@@ -484,13 +484,13 @@ onMounted(() => {
   font-size: 16px;
   font-weight: 700;
   color: #0f172a;
-  margin: 0 0 4px 0;
+  margin: 0 0 4px;
 }
 
 .pane-subtitle {
   font-size: 13px;
   color: #64748b;
-  margin: 0 0 20px 0;
+  margin: 0 0 20px;
 }
 
 .profile-form {

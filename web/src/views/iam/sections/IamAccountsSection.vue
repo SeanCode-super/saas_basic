@@ -733,7 +733,7 @@ async function handleRoleSaved() {
   align-items: center;
   justify-content: space-between;
   padding: 8px 16px;
-  background: var(--el-bg-color, #ffffff);
+  background: var(--el-bg-color, #fff);
   border: 1px solid var(--sb-border-color, #e2e8f0);
   border-radius: 8px;
   flex-wrap: wrap;
@@ -788,7 +788,7 @@ async function handleRoleSaved() {
 .user-table-card {
   border-radius: 12px;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.03);
 
   :deep(.el-card__header) {
     padding: 14px 18px;
@@ -870,14 +870,14 @@ async function handleRoleSaved() {
       width: 36px;
       height: 36px;
       border-radius: 50%;
-      color: #ffffff;
+      color: #fff;
       display: flex;
       align-items: center;
       justify-content: center;
       font-weight: 700;
       font-size: 15px;
       flex-shrink: 0;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 2px 5px rgb(0 0 0 / 0.1);
     }
 
     .user-info-text {
@@ -1051,7 +1051,7 @@ async function handleRoleSaved() {
     align-items: center;
     justify-content: space-between;
     padding: 10px 16px;
-    background: #ffffff;
+    background: #fff;
     border-radius: 10px;
     border: 1px solid #e2e8f0;
 

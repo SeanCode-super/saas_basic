@@ -809,10 +809,10 @@ function getCategoryBadge(category: string) {
   align-items: center;
   justify-content: space-between;
   padding: 8px 16px;
-  background: #ffffff;
+  background: #fff;
   border-radius: 8px;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.03);
 
   .strip-left {
     display: flex;
@@ -895,11 +895,11 @@ function getCategoryBadge(category: string) {
 
 /* Tabs & Main Container */
 .hub-tabs-container {
-  background: #ffffff;
+  background: #fff;
   border-radius: 12px;
   padding: 16px 20px;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05);
 }
 
 .tab-label {
@@ -971,7 +971,7 @@ function getCategoryBadge(category: string) {
 }
 
 .template-card {
-  background: #ffffff;
+  background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
   padding: 18px;
@@ -983,7 +983,7 @@ function getCategoryBadge(category: string) {
 
 .template-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.06);
   border-color: #3b82f6;
 }
 
@@ -998,7 +998,7 @@ function getCategoryBadge(category: string) {
   width: 44px;
   height: 44px;
   border-radius: 8px;
-  color: #ffffff;
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1010,7 +1010,7 @@ function getCategoryBadge(category: string) {
   font-size: 15px;
   font-weight: 700;
   color: #0f172a;
-  margin: 0 0 4px 0;
+  margin: 0 0 4px;
 }
 
 .template-tags {
@@ -1031,7 +1031,7 @@ function getCategoryBadge(category: string) {
   font-size: 13px;
   color: #64748b;
   line-height: 1.5;
-  margin: 0 0 16px 0;
+  margin: 0 0 16px;
   min-height: 38px;
 }
 

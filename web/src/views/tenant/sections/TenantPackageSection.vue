@@ -454,10 +454,10 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 8px 16px;
-  background: #ffffff;
+  background: #fff;
   border-radius: 8px;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.03);
 
   .strip-left {
     display: flex;
@@ -507,7 +507,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #ffffff;
+  background: #fff;
   padding: 12px 18px;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
@@ -525,30 +525,33 @@ onMounted(() => {
   gap: 20px;
 
   .plan-card {
-    background: #ffffff;
+    background: #fff;
     border: 1px solid #e2e8f0;
     border-radius: 14px;
     padding: 20px;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.04);
     transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 
     &:hover {
       transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+      box-shadow: 0 8px 24px rgb(0 0 0 / 0.08);
       border-color: #cbd5e1;
     }
 
     &.is-supreme {
       border-top: 4px solid #7c3aed;
     }
+
     &.is-enterprise {
       border-top: 4px solid #2563eb;
     }
+
     &.is-pro {
       border-top: 4px solid #059669;
     }
+
     &.is-basic {
       border-top: 4px solid #64748b;
     }

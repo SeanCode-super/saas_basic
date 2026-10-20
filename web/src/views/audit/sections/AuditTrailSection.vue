@@ -389,6 +389,7 @@ onMounted(() => {
     font-size: 16px;
     font-weight: 600;
   }
+
   p {
     margin: 0;
     font-size: 13px;
@@ -408,6 +409,7 @@ onMounted(() => {
     font-size: 14px;
     font-weight: 600;
   }
+
   pre {
     background: #0f172a;
     color: #38bdf8;

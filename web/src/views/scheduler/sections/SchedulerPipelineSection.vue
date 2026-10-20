@@ -332,6 +332,7 @@ function runPipelineTest() {
 
   @media (max-width: 1200px) {
     grid-template-columns: 1fr;
+
     .flow-arrow {
       transform: rotate(90deg);
       text-align: center;
@@ -415,6 +416,7 @@ function runPipelineTest() {
     color: #166534;
 
     .icon-pass { font-size: 18px; }
+
     .mono-time {
       margin-left: auto;
       font-size: 11px;

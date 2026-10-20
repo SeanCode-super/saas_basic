@@ -924,7 +924,7 @@ onUnmounted(() => {
 .panel-subtitle {
   font-size: 13px;
   color: var(--el-text-color-secondary);
-  margin: 6px 0 0 0;
+  margin: 6px 0 0;
 }
 
 .header-actions {
@@ -947,20 +947,22 @@ onUnmounted(() => {
   height: 8px;
   border-radius: 50%;
   background-color: #67c23a;
-  box-shadow: 0 0 0 rgba(103, 194, 58, 0.4);
+  box-shadow: 0 0 0 rgb(103 194 58 / 0.4);
   animation: pulse 2s infinite;
   margin-right: 4px;
 }
 
 @keyframes pulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(103, 194, 58, 0.7);
+    box-shadow: 0 0 0 0 rgb(103 194 58 / 0.7);
   }
+
   70% {
-    box-shadow: 0 0 0 8px rgba(103, 194, 58, 0);
+    box-shadow: 0 0 0 8px rgb(103 194 58 / 0);
   }
+
   100% {
-    box-shadow: 0 0 0 0 rgba(103, 194, 58, 0);
+    box-shadow: 0 0 0 0 rgb(103 194 58 / 0);
   }
 }
 
@@ -1000,7 +1002,7 @@ onUnmounted(() => {
 .inst-role {
   font-size: 12px;
   color: var(--el-text-color-secondary);
-  margin: 4px 0 10px 0;
+  margin: 4px 0 10px;
 }
 
 .inst-meta-grid {
@@ -1242,6 +1244,7 @@ onUnmounted(() => {
 .font-mono {
   font-family: monospace;
 }
+
 .text-break {
   word-break: break-all;
 }

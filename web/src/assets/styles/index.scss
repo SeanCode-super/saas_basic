@@ -50,9 +50,9 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 500;
   transition: all 150ms ease;
 
-  &:not(.el-button--primary):not(.el-button--success):not(.el-button--warning):not(.el-button--danger):not(.is-link):not(.is-text) {
+  &:not(.el-button--primary, .el-button--success, .el-button--warning, .el-button--danger, .is-link, .is-text) {
     border: 1px solid var(--sb-border-color);
-    background: #ffffff;
+    background: #fff;
     color: var(--sb-text-secondary);
 
     &:hover {
@@ -75,7 +75,8 @@ h1, h2, h3, h4, h5, h6 {
   --el-button-hover-border-color: var(--sb-primary-hover);
   --el-button-active-bg-color: var(--sb-primary-strong);
   --el-button-active-border-color: var(--sb-primary-strong);
-  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2);
+
+  box-shadow: 0 1px 2px rgb(37 99 235 / 0.2);
 }
 
 /* Form Controls with Crisp Slate-300 Outline and Focus Ring */
@@ -83,7 +84,7 @@ h1, h2, h3, h4, h5, h6 {
 .el-select__wrapper,
 .el-textarea__inner {
   border-radius: var(--sb-radius-md);
-  background: #ffffff;
+  background: #fff;
   box-shadow: 0 0 0 1px var(--sb-border-color) inset;
   transition: all 140ms ease;
 
@@ -93,16 +94,17 @@ h1, h2, h3, h4, h5, h6 {
 
   &.is-focus,
   &:focus-within {
-    box-shadow: 0 0 0 1.5px var(--sb-primary-color) inset, 0 0 0 3.5px rgba(37, 99, 235, 0.15) !important;
+    box-shadow: 0 0 0 1.5px var(--sb-primary-color) inset, 0 0 0 3.5px rgb(37 99 235 / 0.15) !important;
   }
 }
 
 /* Production-Grade High-Contrast Table Styling */
 .el-table {
   --el-table-border: 1px solid var(--sb-border-subtle);
+
   border: 1px solid var(--sb-border-color);
   border-radius: var(--sb-radius-md);
-  background: #ffffff;
+  background: #fff;
   color: var(--sb-text-secondary);
   font-size: 13px;
 

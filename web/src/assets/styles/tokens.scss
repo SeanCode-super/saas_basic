@@ -33,15 +33,15 @@
   --sb-border-subtle: #e2e8f0;
 
   /* Surfaces & Canvas - Slate Ground for High Card Pop */
-  --sb-surface-color: #ffffff;
-  --sb-surface-strong: #ffffff;
+  --sb-surface-color: #fff;
+  --sb-surface-strong: #fff;
   --sb-surface-soft: #f8fafc;
   --sb-surface-contrast: #f1f5f9;
   --sb-page-shell: #f1f5f9;
   --sb-page-shell-strong: #e2e8f0;
 
   /* Modern Clean Light Sidebar Navigation */
-  --sb-shell-rail: #ffffff;
+  --sb-shell-rail: #fff;
   --sb-shell-rail-soft: #f8fafc;
   --sb-shell-rail-border: #cbd5e1;
   --sb-shell-rail-text: #090d16;
@@ -52,10 +52,10 @@
   --sb-panel-muted: #f8fafc;
 
   /* Elevation Shadows (Layered Ambient + Contact Occlusion) */
-  --sb-shadow-xs: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
-  --sb-shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.08), 0 1px 2px -1px rgba(15, 23, 42, 0.08);
-  --sb-shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.09), 0 2px 4px -2px rgba(15, 23, 42, 0.06);
-  --sb-shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.10), 0 4px 6px -4px rgba(15, 23, 42, 0.06);
+  --sb-shadow-xs: 0 1px 2px 0 rgb(15 23 42 / 0.05);
+  --sb-shadow-sm: 0 1px 3px 0 rgb(15 23 42 / 0.08), 0 1px 2px -1px rgb(15 23 42 / 0.08);
+  --sb-shadow-md: 0 4px 6px -1px rgb(15 23 42 / 0.09), 0 2px 4px -2px rgb(15 23 42 / 0.06);
+  --sb-shadow-lg: 0 10px 15px -3px rgb(15 23 42 / 0.10), 0 4px 6px -4px rgb(15 23 42 / 0.06);
 
   /* Radius Scales */
   --sb-radius-sm: 6px;
@@ -72,38 +72,32 @@
   --el-color-primary-light-8: #dbeafe;
   --el-color-primary-light-9: #eff6ff;
   --el-color-primary-dark-2: #1e40af;
-
   --el-text-color-primary: #090d16;
   --el-text-color-regular: #1e293b;
   --el-text-color-secondary: #475569;
   --el-text-color-placeholder: #94a3b8;
   --el-text-color-disabled: #94a3b8;
-
   --el-border-color: #cbd5e1;
   --el-border-color-light: #e2e8f0;
   --el-border-color-lighter: #f1f5f9;
   --el-border-color-extra-light: #f8fafc;
   --el-border-color-dark: #94a3b8;
   --el-border-color-darker: #64748b;
-
   --el-fill-color: #f1f5f9;
   --el-fill-color-light: #f8fafc;
-  --el-fill-color-lighter: #ffffff;
+  --el-fill-color-lighter: #fff;
   --el-fill-color-extra-light: #fafafa;
   --el-fill-color-dark: #e2e8f0;
   --el-fill-color-darker: #cbd5e1;
-  --el-fill-color-blank: #ffffff;
-
-  --el-bg-color: #ffffff;
+  --el-fill-color-blank: #fff;
+  --el-bg-color: #fff;
   --el-bg-color-page: #f1f5f9;
-  --el-bg-color-overlay: #ffffff;
-
+  --el-bg-color-overlay: #fff;
   --el-table-header-bg-color: #f8fafc;
   --el-table-header-text-color: #090d16;
   --el-table-text-color: #1e293b;
   --el-table-border-color: #e2e8f0;
   --el-table-row-hover-bg-color: #eff6ff;
-
   --el-card-border-color: #cbd5e1;
-  --el-card-bg-color: #ffffff;
+  --el-card-bg-color: #fff;
 }

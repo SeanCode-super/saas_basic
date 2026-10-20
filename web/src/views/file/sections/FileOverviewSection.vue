@@ -212,7 +212,7 @@ function handleDownload(row: any) {
     <!-- 预览弹窗 -->
     <el-dialog v-model="previewDialogVisible" :title="previewTitle" width="600px" destroy-on-close>
       <div style="text-align: center; padding: 16px">
-        <img :src="previewUrl" alt="预览" style="max-width: 100%; max-height: 400px; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1)" />
+        <img :src="previewUrl" alt="预览" style="max-width: 100%; max-height: 400px; border-radius: 6px; box-shadow: 0 4px 12px rgb(0 0 0 / 0.1)" />
       </div>
       <template #footer>
         <el-button @click="previewDialogVisible = false">关闭</el-button>
@@ -233,10 +233,10 @@ function handleDownload(row: any) {
   align-items: center;
   justify-content: space-between;
   padding: 8px 16px;
-  background: #ffffff;
+  background: #fff;
   border-radius: 8px;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.03);
 
   .telemetry-left {
     display: flex;

@@ -266,7 +266,7 @@ function handleAutoFix() {
       display: flex;
       align-items: flex-start;
       gap: 8px;
-      background: #ffffff;
+      background: #fff;
       padding: 8px 10px;
       border-radius: 6px;
       border: 1px solid #e2e8f0;

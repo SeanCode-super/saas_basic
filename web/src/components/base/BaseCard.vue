@@ -26,7 +26,7 @@ const cardClass = computed(() => [`base-card--${props.tone}`]);
 .base-card {
   border: 1px solid var(--sb-border-color);
   border-radius: var(--sb-radius-md);
-  background: #ffffff;
+  background: #fff;
   box-shadow: var(--sb-shadow-xs);
   transition: box-shadow 160ms ease, border-color 160ms ease;
 }
@@ -44,11 +44,11 @@ const cardClass = computed(() => [`base-card--${props.tone}`]);
 
 .base-card--soft,
 .base-card--contrast {
-  background: #ffffff;
+  background: #fff;
 }
 
 .base-card--accent {
   border-color: #93c5fd;
-  background: #ffffff;
+  background: #fff;
 }
 </style>

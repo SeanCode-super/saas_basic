@@ -242,7 +242,7 @@ const activeTab = ref("baseline");
   align-items: center;
   justify-content: space-between;
   padding: 8px 16px;
-  background: var(--el-bg-color, #ffffff);
+  background: var(--el-bg-color, #fff);
   border: 1px solid var(--sb-border-color, #e2e8f0);
   border-radius: 8px;
   flex-wrap: wrap;
@@ -307,7 +307,7 @@ const activeTab = ref("baseline");
   border-radius: 8px;
   overflow: hidden;
   border: 1px solid var(--sb-border-color, #e2e8f0);
-  background: #ffffff;
+  background: #fff;
 }
 
 .tab-label {
@@ -344,7 +344,7 @@ const activeTab = ref("baseline");
   &:hover {
     border-color: #cbd5e1;
     transform: translateY(-1px);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 2px 6px rgb(0 0 0 / 0.04);
   }
 
   .counter-icon {
@@ -393,7 +393,7 @@ const activeTab = ref("baseline");
   margin-bottom: 12px;
 
   h4 {
-    margin: 0 0 4px 0;
+    margin: 0 0 4px;
     font-size: 15px;
     font-weight: 600;
     color: #1e293b;
@@ -411,7 +411,7 @@ const activeTab = ref("baseline");
   flex-direction: column;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
-  background: #ffffff;
+  background: #fff;
   overflow: hidden;
 }
 
@@ -505,7 +505,7 @@ const activeTab = ref("baseline");
   }
 
   h5 {
-    margin: 4px 0 0 0;
+    margin: 4px 0 0;
     font-size: 16px;
     color: #0f172a;
     font-weight: 700;
@@ -528,7 +528,7 @@ const activeTab = ref("baseline");
     .entity-pill {
       font-size: 11px;
       padding: 3px 8px;
-      background: #ffffff;
+      background: #fff;
       border: 1px solid #e2e8f0;
       border-radius: 4px;
       color: #334155;
@@ -547,7 +547,7 @@ const activeTab = ref("baseline");
   padding: 14px 18px;
   border-radius: 8px;
   border: 1px solid #e2e8f0;
-  background: #ffffff;
+  background: #fff;
 
   .cap-header {
     display: flex;
@@ -620,7 +620,7 @@ const activeTab = ref("baseline");
     }
 
     p {
-      margin: 0 0 10px 0;
+      margin: 0 0 10px;
       font-size: 13px;
       color: #64748b;
       line-height: 1.6;

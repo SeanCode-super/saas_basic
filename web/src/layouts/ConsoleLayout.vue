@@ -1364,7 +1364,7 @@ onMounted(() => {
   border-right: 1px solid var(--sb-shell-rail-border);
   background: var(--sb-shell-rail);
   color: var(--sb-shell-rail-text);
-  box-shadow: 1px 0 3px rgba(0, 0, 0, 0.02);
+  box-shadow: 1px 0 3px rgb(0 0 0 / 0.02);
 }
 
 .console-shell__brand {
@@ -1374,7 +1374,7 @@ onMounted(() => {
   height: 52px;
   padding: 0 14px;
   border-bottom: 1px solid var(--sb-shell-rail-border);
-  background: #ffffff;
+  background: #fff;
 
   &--top {
     height: 100%;
@@ -1396,8 +1396,8 @@ onMounted(() => {
   border-radius: 7px;
   background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
   color: #fff;
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 6px rgb(37 99 235 / 0.25);
+  border: 1px solid rgb(255 255 255 / 0.2);
 
   svg {
     width: 15px;
@@ -1791,7 +1791,7 @@ onMounted(() => {
 
     .console-shell__submenu-dot {
       background: #2563eb;
-      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+      box-shadow: 0 0 0 2px rgb(37 99 235 / 0.2);
     }
 
     .console-shell__submenu-icon {
@@ -1843,7 +1843,7 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   border-top: 1px solid var(--sb-border-color);
-  background: #ffffff;
+  background: #fff;
   padding: 0 6px;
   gap: 4px;
 }
@@ -1948,7 +1948,7 @@ onMounted(() => {
   gap: 16px;
   padding: 0 20px;
   border-bottom: 1px solid var(--sb-border-color);
-  background: rgba(255, 255, 255, 0.96);
+  background: rgb(255 255 255 / 0.96);
   backdrop-filter: blur(8px);
 }
 
@@ -2074,7 +2074,7 @@ onMounted(() => {
 
     .console-shell__domain-badge {
       background: #2563eb;
-      color: #ffffff;
+      color: #fff;
     }
   }
 }
@@ -2151,14 +2151,14 @@ onMounted(() => {
 
   &:hover {
     color: #0f172a;
-    background: rgba(255, 255, 255, 0.7);
+    background: rgb(255 255 255 / 0.7);
   }
 
   &.is-active {
-    background: #ffffff;
+    background: #fff;
     color: var(--el-color-primary, #0284c7);
     font-weight: 600;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
   }
 
   .pinned-pill-icon {
@@ -2431,8 +2431,8 @@ onMounted(() => {
   height: 34px;
   padding: 0 12px;
   border-radius: 8px;
-  border: 1px solid rgba(99, 102, 241, 0.3);
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(6, 182, 212, 0.08) 100%);
+  border: 1px solid rgb(99 102 241 / 0.3);
+  background: linear-gradient(135deg, rgb(99 102 241 / 0.08) 0%, rgb(6 182 212 / 0.08) 100%);
   color: #4f46e5;
   font-size: 13px;
   font-weight: 600;
@@ -2447,12 +2447,12 @@ onMounted(() => {
 
   &:hover {
     background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%);
-    color: #ffffff;
+    color: #fff;
     border-color: transparent;
-    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+    box-shadow: 0 4px 12px rgb(79 70 229 / 0.25);
 
     .ai-sparkle-icon {
-      color: #ffffff;
+      color: #fff;
       transform: scale(1.15) rotate(15deg);
     }
   }
@@ -2488,7 +2488,7 @@ onMounted(() => {
   color: #fff;
   font-size: 12px;
   font-weight: 700;
-  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 1px 3px rgb(37 99 235 / 0.3);
 }
 
 .console-shell__user-details {
@@ -2577,7 +2577,7 @@ onMounted(() => {
   padding: 12px 14px;
   border-radius: 10px;
   border: 2px solid #e2e8f0;
-  background: #ffffff;
+  background: #fff;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 
@@ -2585,13 +2585,13 @@ onMounted(() => {
     border-color: #cbd5e1;
     background: #f8fafc;
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 12px rgb(0 0 0 / 0.05);
   }
 
   &.is-active {
     border-color: #2563eb;
     background: #eff6ff;
-    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.12);
+    box-shadow: 0 4px 14px rgb(37 99 235 / 0.12);
 
     .layout-mode-card__title-row strong {
       color: #1d4ed8;
@@ -2649,7 +2649,7 @@ onMounted(() => {
 
     .preview__bar-sub {
       height: 10px;
-      background: #ffffff;
+      background: #fff;
       border-bottom: 1px solid #e2e8f0;
     }
 
@@ -2660,7 +2660,7 @@ onMounted(() => {
       .preview__card {
         height: 100%;
         border-radius: 3px;
-        background: #ffffff;
+        background: #fff;
         border: 1px solid #e2e8f0;
       }
     }
@@ -2700,7 +2700,7 @@ onMounted(() => {
     .preview__card {
       height: 100%;
       border-radius: 3px;
-      background: #ffffff;
+      background: #fff;
       border: 1px solid #e2e8f0;
     }
   }
@@ -2762,7 +2762,7 @@ onMounted(() => {
       .preview__card {
         height: 100%;
         border-radius: 3px;
-        background: #ffffff;
+        background: #fff;
         border: 1px solid #e2e8f0;
       }
     }
@@ -2855,7 +2855,7 @@ onMounted(() => {
   min-width: 200px;
   padding: 6px;
   border-radius: 10px;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.08);
 }
 
 :global(.console-shell__top-flyout-header) {

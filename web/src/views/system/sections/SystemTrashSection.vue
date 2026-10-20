@@ -326,7 +326,7 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 8px 16px;
-  background: var(--el-bg-color, #ffffff);
+  background: var(--el-bg-color, #fff);
   border: 1px solid var(--sb-border-color, #e2e8f0);
   border-radius: 8px;
   flex-wrap: wrap;
@@ -384,11 +384,11 @@ onMounted(() => {
     &.is-active {
       background: #2563eb;
       border-color: #2563eb;
-      color: #ffffff;
+      color: #fff;
 
       .pill-count {
-        background: rgba(255, 255, 255, 0.25);
-        color: #ffffff;
+        background: rgb(255 255 255 / 0.25);
+        color: #fff;
       }
     }
   }
@@ -401,7 +401,7 @@ onMounted(() => {
 
 /* 检索过滤工具条 */
 .trash-filter-toolbar {
-  background: #ffffff;
+  background: #fff;
   border: 1px solid var(--sb-border-color);
   border-radius: 9px;
   padding: 12px 16px;
@@ -519,7 +519,7 @@ onMounted(() => {
 }
 
 .trash-table-card {
-  background: #ffffff;
+  background: #fff;
   border: 1px solid var(--sb-border-color);
   border-radius: 10px;
   padding: 16px;

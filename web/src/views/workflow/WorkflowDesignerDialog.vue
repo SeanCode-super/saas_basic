@@ -856,7 +856,7 @@ async function handleSave() {
   font-size: 13px;
   color: #64748b;
   margin-bottom: 24px;
-  background: #ffffff;
+  background: #fff;
   padding: 10px 16px;
   border-radius: 6px;
   border: 1px dashed #cbd5e1;
@@ -884,9 +884,9 @@ async function handleSave() {
 
 .node-card {
   width: 320px;
-  background: #ffffff;
+  background: #fff;
   border-radius: 8px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
   border: 1px solid #e2e8f0;
   overflow: hidden;
   transition: all 0.2s ease;
@@ -898,7 +898,7 @@ async function handleSave() {
 
 .node-card.clickable:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
   border-color: #3b82f6;
 }
 
@@ -914,12 +914,15 @@ async function handleSave() {
 .node-card.start .card-header {
   background: #dbeafe;
 }
+
 .node-card.approver .card-header {
   background: #fef3c7;
 }
+
 .node-card.cc .card-header {
   background: #e0e7ff;
 }
+
 .node-card.end .card-header {
   background: #d1fae5;
 }
@@ -929,7 +932,7 @@ async function handleSave() {
   font-weight: 700;
   padding: 2px 6px;
   border-radius: 4px;
-  background: rgba(0, 0, 0, 0.06);
+  background: rgb(0 0 0 / 0.06);
 }
 
 .node-name {
@@ -993,7 +996,7 @@ async function handleSave() {
 .branch-column {
   flex: 1;
   min-width: 200px;
-  background: #ffffff;
+  background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 6px;
   padding: 10px;
@@ -1066,7 +1069,7 @@ async function handleSave() {
   height: 24px;
   border-radius: 50%;
   border: 2px solid #3b82f6;
-  background: #ffffff;
+  background: #fff;
   color: #3b82f6;
   font-size: 16px;
   line-height: 1;
@@ -1080,7 +1083,7 @@ async function handleSave() {
 
 .add-btn:hover {
   background: #3b82f6;
-  color: #ffffff;
+  color: #fff;
   transform: scale(1.15);
 }
 
@@ -1144,7 +1147,7 @@ async function handleSave() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #ffffff;
+  background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 6px;
   padding: 8px 12px;
@@ -1172,7 +1175,7 @@ async function handleSave() {
 }
 
 .field-editor-box {
-  background: #ffffff;
+  background: #fff;
   border: 1px solid #cbd5e1;
   border-radius: 6px;
   padding: 12px;
@@ -1186,7 +1189,7 @@ async function handleSave() {
 }
 
 .designer-right-pane {
-  background: #ffffff;
+  background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   padding: 20px;
@@ -1212,7 +1215,7 @@ async function handleSave() {
   font-size: 18px;
   font-weight: 700;
   color: #0f172a;
-  margin: 0 0 4px 0;
+  margin: 0 0 4px;
 }
 
 .preview-header .sub-text {

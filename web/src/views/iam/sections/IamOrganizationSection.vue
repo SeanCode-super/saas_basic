@@ -1391,9 +1391,9 @@ function getPositionEmployeeList(posId: number) {
     gap: 14px;
     padding: 16px 18px;
     border-radius: 8px;
-    background: #ffffff;
+    background: #fff;
     border: 1px solid #e2e8f0;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.02);
 
     .stat-icon-wrap {
       width: 44px;
@@ -1453,11 +1453,11 @@ function getPositionEmployeeList(posId: number) {
 }
 
 .emp-dept-sidebar {
-  background: #ffffff;
+  background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.02);
 
   .dept-sidebar-header {
     display: flex;
@@ -1555,7 +1555,7 @@ function getPositionEmployeeList(posId: number) {
   flex-wrap: wrap;
   gap: 12px;
   padding: 14px 16px;
-  background: #ffffff;
+  background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
 
@@ -1569,7 +1569,7 @@ function getPositionEmployeeList(posId: number) {
 
 .enterprise-employee-table,
 .enterprise-position-table {
-  background: #ffffff;
+  background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   overflow: hidden;
@@ -1584,7 +1584,7 @@ function getPositionEmployeeList(posId: number) {
       height: 32px;
       border-radius: 50%;
       background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-      color: #ffffff;
+      color: #fff;
       display: grid;
       place-items: center;
       font-weight: 600;
@@ -1742,13 +1742,13 @@ function getPositionEmployeeList(posId: number) {
       height: 52px;
       border-radius: 50%;
       background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
-      color: #ffffff;
+      color: #fff;
       display: grid;
       place-items: center;
       font-size: 20px;
       font-weight: 700;
       flex-shrink: 0;
-      box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
+      box-shadow: 0 4px 10px rgb(37 99 235 / 0.25);
     }
 
     .profile-hero-info {
@@ -1889,6 +1889,7 @@ function getPositionEmployeeList(posId: number) {
 
 .action-danger-text {
   color: #ef4444 !important;
+
   &:hover {
     color: #dc2626 !important;
     background-color: #fef2f2 !important;
@@ -1897,6 +1898,7 @@ function getPositionEmployeeList(posId: number) {
 
 .action-success-text {
   color: #10b981 !important;
+
   &:hover {
     color: #059669 !important;
     background-color: #f0fdf4 !important;

@@ -211,6 +211,7 @@ onMounted(() => {
   :deep(.el-card__header) {
     padding: 10px 16px;
   }
+
   :deep(.el-card__body) {
     padding: 12px 16px;
   }

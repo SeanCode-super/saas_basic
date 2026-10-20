@@ -427,10 +427,10 @@ function exportTelemetry() {
   align-items: center;
   justify-content: space-between;
   padding: 8px 16px;
-  background: #ffffff;
+  background: #fff;
   border-radius: 8px;
   border: 1px solid var(--sb-border-color);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.03);
 
   .telemetry-left {
     display: flex;
@@ -516,7 +516,7 @@ function exportTelemetry() {
   align-items: center;
   padding: 8px 10px;
   border-radius: 4px;
-  background: #ffffff;
+  background: #fff;
   border: 1px solid var(--sb-border-color);
   box-shadow: var(--sb-shadow-xs);
   font-size: 13px;
@@ -558,6 +558,7 @@ function exportTelemetry() {
       font-size: 13px;
       color: var(--sb-text-primary);
     }
+
     p {
       margin: 2px 0 0;
       font-size: 12px;

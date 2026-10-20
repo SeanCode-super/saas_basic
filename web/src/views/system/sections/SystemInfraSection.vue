@@ -706,7 +706,7 @@ onUnmounted(() => {
   padding: 12px 16px;
   border-radius: 8px;
   border: 1px solid var(--el-border-color-lighter);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.05);
 }
 
 .infra-subtabs {
@@ -767,7 +767,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 8px 16px;
-  background: var(--el-bg-color, #ffffff);
+  background: var(--el-bg-color, #fff);
   border: 1px solid var(--sb-border-color, #e2e8f0);
   border-radius: 8px;
   flex-wrap: wrap;
@@ -976,18 +976,23 @@ onUnmounted(() => {
 .mt-4 {
   margin-top: 16px;
 }
+
 .text-danger {
   color: var(--el-color-danger);
 }
+
 .text-warning {
   color: var(--el-color-warning);
 }
+
 .text-primary {
   color: var(--el-color-primary);
 }
+
 .text-secondary {
   color: var(--el-text-color-secondary);
 }
+
 .font-medium {
   font-weight: 500;
 }

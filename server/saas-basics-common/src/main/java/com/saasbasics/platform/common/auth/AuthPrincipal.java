@@ -44,7 +44,6 @@ public record AuthPrincipal(
     public boolean isSuperAdmin() {
         return Long.valueOf(1L).equals(userId)
                 || "admin".equalsIgnoreCase(username)
-                || "PLATFORM".equalsIgnoreCase(userType)
                 || (roleIds != null && roleIds.contains(1L))
                 || (permissions != null && (permissions.contains("*") || permissions.contains("*:*:*")));
     }

@@ -289,8 +289,8 @@ onUnmounted(() => {
   position: absolute;
   inset: 0;
   background-image: 
-    linear-gradient(rgba(0, 229, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 229, 255, 0.04) 1px, transparent 1px);
+    linear-gradient(rgb(0 229 255 / 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(0 229 255 / 0.04) 1px, transparent 1px);
   background-size: 40px 40px;
   pointer-events: none;
 }
@@ -302,7 +302,7 @@ onUnmounted(() => {
   transform: translateX(-50%);
   width: 800px;
   height: 350px;
-  background: radial-gradient(circle, rgba(0, 229, 255, 0.15) 0%, rgba(3, 10, 22, 0) 70%);
+  background: radial-gradient(circle, rgb(0 229 255 / 0.15) 0%, rgb(3 10 22 / 0) 70%);
   pointer-events: none;
 }
 
@@ -313,8 +313,8 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
-  background: linear-gradient(180deg, rgba(13, 27, 49, 0.8) 0%, rgba(3, 10, 22, 0.4) 100%);
-  border-bottom: 1px solid rgba(0, 229, 255, 0.2);
+  background: linear-gradient(180deg, rgb(13 27 49 / 0.8) 0%, rgb(3 10 22 / 0.4) 100%);
+  border-bottom: 1px solid rgb(0 229 255 / 0.2);
   z-index: 10;
 }
 
@@ -330,8 +330,8 @@ onUnmounted(() => {
 }
 
 .screen-back-btn {
-  background: rgba(0, 229, 255, 0.1) !important;
-  border-color: rgba(0, 229, 255, 0.4) !important;
+  background: rgb(0 229 255 / 0.1) !important;
+  border-color: rgb(0 229 255 / 0.4) !important;
   color: #00e5ff !important;
 }
 
@@ -359,8 +359,8 @@ onUnmounted(() => {
   font-size: 24px;
   font-weight: 700;
   letter-spacing: 2px;
-  background: linear-gradient(180deg, #ffffff 0%, #00e5ff 100%);
-  -webkit-background-clip: text;
+  background: linear-gradient(180deg, #fff 0%, #00e5ff 100%);
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   margin: 0;
 }
@@ -371,10 +371,10 @@ onUnmounted(() => {
   gap: 8px;
   font-size: 12px;
   color: #10b981;
-  background: rgba(16, 185, 129, 0.1);
+  background: rgb(16 185 129 / 0.1);
   padding: 4px 10px;
   border-radius: 9999px;
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  border: 1px solid rgb(16 185 129 / 0.3);
 }
 
 .status-dot-pulse {
@@ -401,19 +401,19 @@ onUnmounted(() => {
 }
 
 .screen-card {
-  background: rgba(13, 27, 49, 0.6);
-  border: 1px solid rgba(0, 229, 255, 0.2);
+  background: rgb(13 27 49 / 0.6);
+  border: 1px solid rgb(0 229 255 / 0.2);
   border-radius: 12px;
   padding: 16px;
   backdrop-filter: blur(10px);
-  box-shadow: inset 0 0 20px rgba(0, 229, 255, 0.05);
+  box-shadow: inset 0 0 20px rgb(0 229 255 / 0.05);
 }
 
 .card-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgb(255 255 255 / 0.08);
   padding-bottom: 10px;
   margin-bottom: 14px;
 }
@@ -444,7 +444,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgb(255 255 255 / 0.1);
   font-weight: bold;
   font-size: 11px;
 }
@@ -464,7 +464,7 @@ onUnmounted(() => {
 .rank-bar-bg {
   flex: 1;
   height: 6px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgb(255 255 255 / 0.1);
   border-radius: 3px;
   overflow: hidden;
 }
@@ -490,10 +490,10 @@ onUnmounted(() => {
 }
 
 .qps-cell {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgb(255 255 255 / 0.03);
   padding: 12px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgb(255 255 255 / 0.05);
 }
 
 .qps-label {
@@ -520,8 +520,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-around;
-  background: rgba(13, 27, 49, 0.7);
-  border: 1px solid rgba(0, 229, 255, 0.25);
+  background: rgb(13 27 49 / 0.7);
+  border: 1px solid rgb(0 229 255 / 0.25);
   border-radius: 12px;
   padding: 18px 24px;
   margin-bottom: 20px;
@@ -549,22 +549,22 @@ onUnmounted(() => {
   font-weight: normal;
 }
 
-.text-gold { color: #facc15; text-shadow: 0 0 12px rgba(250, 204, 21, 0.4); }
-.text-cyan { color: #00e5ff; text-shadow: 0 0 12px rgba(0, 229, 255, 0.4); }
+.text-gold { color: #facc15; text-shadow: 0 0 12px rgb(250 204 21 / 0.4); }
+.text-cyan { color: #00e5ff; text-shadow: 0 0 12px rgb(0 229 255 / 0.4); }
 .text-blue { color: #60a5fa; }
 .text-emerald { color: #34d399; }
 
 .kpi-divider {
   width: 1px;
   height: 36px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgb(255 255 255 / 0.1);
 }
 
 .screen-map-container {
   flex: 1;
   position: relative;
-  background: radial-gradient(circle at center, rgba(14, 165, 233, 0.1) 0%, rgba(3, 10, 22, 0) 70%);
-  border: 1px solid rgba(0, 229, 255, 0.15);
+  background: radial-gradient(circle at center, rgb(14 165 233 / 0.1) 0%, rgb(3 10 22 / 0) 70%);
+  border: 1px solid rgb(0 229 255 / 0.15);
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -575,7 +575,7 @@ onUnmounted(() => {
 .map-radar-circle {
   position: absolute;
   border-radius: 50%;
-  border: 1px dashed rgba(0, 229, 255, 0.2);
+  border: 1px dashed rgb(0 229 255 / 0.2);
   pointer-events: none;
 }
 
@@ -588,10 +588,10 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(3, 10, 22, 0.7);
+  background: rgb(3 10 22 / 0.7);
   padding: 6px 12px;
   border-radius: 20px;
-  border: 1px solid rgba(0, 229, 255, 0.4);
+  border: 1px solid rgb(0 229 255 / 0.4);
   font-size: 12px;
   color: #f8fafc;
 }
@@ -640,7 +640,7 @@ onUnmounted(() => {
   gap: 8px;
   font-size: 12px;
   padding: 8px 10px;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgb(255 255 255 / 0.02);
   border-radius: 6px;
   border-left: 3px solid #00e5ff;
 }
@@ -663,7 +663,7 @@ onUnmounted(() => {
 .log-status {
   color: #10b981;
   font-size: 10px;
-  background: rgba(16, 185, 129, 0.15);
+  background: rgb(16 185 129 / 0.15);
   padding: 2px 6px;
   border-radius: 4px;
 }

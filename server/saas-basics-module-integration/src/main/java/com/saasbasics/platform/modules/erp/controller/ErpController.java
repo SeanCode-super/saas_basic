@@ -1,12 +1,12 @@
 package com.saasbasics.platform.modules.erp.controller;
 
 import com.saasbasics.platform.common.api.ApiResponse;
+import com.saasbasics.platform.modules.erp.dto.ErpInventoryRecordResponse;
 import com.saasbasics.platform.modules.erp.dto.ErpInventoryResponse;
 import com.saasbasics.platform.modules.erp.dto.ErpProductResponse;
 import com.saasbasics.platform.modules.erp.dto.ErpProductSaveRequest;
 import com.saasbasics.platform.modules.erp.dto.ErpPurchaseOrderResponse;
 import com.saasbasics.platform.modules.erp.dto.ErpPurchaseOrderSaveRequest;
-import com.saasbasics.platform.modules.erp.entity.ErpInventoryRecordEntity;
 import com.saasbasics.platform.modules.erp.service.ErpService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -44,7 +44,7 @@ public class ErpController {
     }
 
     @GetMapping("/inventory/records")
-    public ApiResponse<List<ErpInventoryRecordEntity>> listInventoryRecords() {
+    public ApiResponse<List<ErpInventoryRecordResponse>> listInventoryRecords() {
         return ApiResponse.success(erpService.listInventoryRecords());
     }
 

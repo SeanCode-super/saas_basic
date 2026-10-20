@@ -282,7 +282,7 @@ function handleSaveRule() {
   align-items: center;
   justify-content: space-between;
   padding: 8px 16px;
-  background: var(--el-bg-color, #ffffff);
+  background: var(--el-bg-color, #fff);
   border: 1px solid var(--sb-border-color, #e2e8f0);
   border-radius: 8px;
   flex-wrap: wrap;

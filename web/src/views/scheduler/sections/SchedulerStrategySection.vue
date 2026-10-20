@@ -256,9 +256,9 @@ async function handleSavePolicy() {
   justify-content: space-between;
   padding: 16px 20px;
   border-radius: 8px;
-  background: #ffffff;
+  background: #fff;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.02);
 }
 
 .radar-metrics {

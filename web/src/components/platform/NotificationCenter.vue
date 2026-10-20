@@ -289,7 +289,7 @@ onMounted(() => {
 }
 
 .ws-status.is-live {
-  background: rgba(16, 185, 129, 0.12);
+  background: rgb(16 185 129 / 0.12);
   color: #10b981;
 }
 
@@ -297,7 +297,7 @@ onMounted(() => {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: currentColor;
+  background: currentcolor;
 }
 
 .ws-status.is-live .pulse-dot {
@@ -355,7 +355,7 @@ onMounted(() => {
 }
 
 .notif-item.is-unread {
-  background-color: rgba(37, 99, 235, 0.03);
+  background-color: rgb(37 99 235 / 0.03);
 }
 
 .item-icon-box {
@@ -371,17 +371,17 @@ onMounted(() => {
 }
 
 .category-workflow {
-  background: rgba(245, 158, 11, 0.12);
+  background: rgb(245 158 11 / 0.12);
   color: #f59e0b;
 }
 
 .category-audit {
-  background: rgba(239, 68, 68, 0.12);
+  background: rgb(239 68 68 / 0.12);
   color: #ef4444;
 }
 
 .category-system {
-  background: rgba(37, 99, 235, 0.12);
+  background: rgb(37 99 235 / 0.12);
   color: #2563eb;
 }
 
@@ -417,7 +417,7 @@ onMounted(() => {
 .item-desc {
   font-size: 12px;
   color: var(--el-text-color-regular);
-  margin: 4px 0 6px 0;
+  margin: 4px 0 6px;
   line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 2;

@@ -302,7 +302,7 @@ function handleClear(event: MouseEvent) {
 
   &.is-active {
     border-color: #2563eb;
-    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+    box-shadow: 0 0 0 2px rgb(37 99 235 / 0.15);
   }
 
   &.is-disabled {
@@ -419,6 +419,7 @@ function handleClear(event: MouseEvent) {
   &::-webkit-scrollbar {
     width: 4px;
   }
+
   &::-webkit-scrollbar-thumb {
     background: #e2e8f0;
     border-radius: 4px;
@@ -442,7 +443,7 @@ function handleClear(event: MouseEvent) {
   padding: 6px 2px;
   border-radius: 6px;
   border: 1px solid #f1f5f9;
-  background: #ffffff;
+  background: #fff;
   color: #334155;
   cursor: pointer;
   transition: all 0.15s;

@@ -1623,6 +1623,7 @@ function resolveMenuTypeTag(type: string) {
 }
 
 /* 顶部统计卡片 */
+
 /* 业务主域快速切换沉浸式分段标签 */
 .menu-domain-tabs-wrapper {
   margin-bottom: 14px;
@@ -1660,21 +1661,21 @@ function resolveMenuTypeTag(type: string) {
         font-weight: 600;
         padding: 0 6px;
         border-radius: 9999px;
-        background: rgba(148, 163, 184, 0.25);
+        background: rgb(148 163 184 / 0.25);
         color: #475569;
         line-height: 16px;
       }
 
       &:hover {
         color: #1e293b;
-        background: rgba(255, 255, 255, 0.6);
+        background: rgb(255 255 255 / 0.6);
       }
 
       &.is-active {
-        background: #ffffff;
+        background: #fff;
         color: #2563eb;
         font-weight: 600;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+        box-shadow: 0 1px 3px rgb(0 0 0 / 0.08), 0 1px 2px rgb(0 0 0 / 0.04);
 
         .seg-icon {
           opacity: 1;
@@ -1774,21 +1775,25 @@ function resolveMenuTypeTag(type: string) {
       color: #166534;
       border-color: #bbf7d0;
     }
+
     &.domain-subtle--foundation {
       background: #eff6ff;
       color: #1e40af;
       border-color: #bfdbfe;
     }
+
     &.domain-subtle--runtime {
       background: #f0f9ff;
       color: #0369a1;
       border-color: #bae6fd;
     }
+
     &.domain-subtle--engineering {
       background: #fffbeb;
       color: #92400e;
       border-color: #fde68a;
     }
+
     &.domain-subtle--assurance {
       background: #faf5ff;
       color: #6b21a8;
@@ -1992,13 +1997,13 @@ function resolveMenuTypeTag(type: string) {
 /* 企业级功能与权限矩阵卡片流 */
 .matrix-domain-stream {
   max-height: calc(100vh - 340px);
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden auto;
   padding-right: 6px;
 
   &::-webkit-scrollbar {
     width: 6px;
   }
+
   &::-webkit-scrollbar-thumb {
     background: #cbd5e1;
     border-radius: 4px;
@@ -2048,7 +2053,7 @@ function resolveMenuTypeTag(type: string) {
         font-size: 11px;
         padding: 2px 8px;
         border-radius: 10px;
-        background: #ffffff;
+        background: #fff;
         border: 1px solid #cbd5e1;
         color: #475569;
         font-weight: 500;
@@ -2074,9 +2079,9 @@ function resolveMenuTypeTag(type: string) {
   box-sizing: border-box;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
-  background: #ffffff;
+  background: #fff;
   overflow: hidden;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.02);
   transition: border-color 0.15s ease;
 
   &:hover {
@@ -2124,7 +2129,7 @@ function resolveMenuTypeTag(type: string) {
       .module-counter-pill {
         font-size: 12px;
         color: #64748b;
-        background: #ffffff;
+        background: #fff;
         padding: 2px 8px;
         border-radius: 12px;
         border: 1px solid #e2e8f0;
@@ -2212,7 +2217,7 @@ function resolveMenuTypeTag(type: string) {
           padding: 3px 8px;
           border-radius: 4px;
           border: 1px solid #cbd5e1;
-          background: #ffffff;
+          background: #fff;
           color: #475569;
           font-size: 11px;
           cursor: pointer;
@@ -2233,7 +2238,7 @@ function resolveMenuTypeTag(type: string) {
           padding: 4px 10px;
           border-radius: 6px;
           border: 1px solid #e2e8f0;
-          background: #ffffff;
+          background: #fff;
           color: #334155;
           font-size: 12px;
           cursor: pointer;
@@ -2320,6 +2325,7 @@ function resolveMenuTypeTag(type: string) {
     background: #f1f5f9;
     color: #475569;
     border: 1px solid #e2e8f0;
+
     &:hover {
       background: #e2e8f0;
       color: #1e293b;
@@ -2330,6 +2336,7 @@ function resolveMenuTypeTag(type: string) {
     background: #fffbeb;
     color: #b45309;
     border: 1px solid #fde68a;
+
     &:hover {
       background: #fef3c7;
       color: #92400e;
@@ -2340,6 +2347,7 @@ function resolveMenuTypeTag(type: string) {
     background: #eff6ff;
     color: #1d4ed8;
     border: 1px solid #bfdbfe;
+
     &:hover {
       background: #dbeafe;
       color: #1e40af;
@@ -2350,6 +2358,7 @@ function resolveMenuTypeTag(type: string) {
     background: #f0fdf4;
     color: #15803d;
     border: 1px solid #bbf7d0;
+
     &:hover {
       background: #dcfce7;
       color: #166534;
@@ -2431,6 +2440,7 @@ function resolveMenuTypeTag(type: string) {
 
 .action-danger-text {
   color: #ef4444 !important;
+
   &:hover {
     color: #dc2626 !important;
     background-color: #fef2f2 !important;
@@ -2439,6 +2449,7 @@ function resolveMenuTypeTag(type: string) {
 
 .action-success-text {
   color: #10b981 !important;
+
   &:hover {
     color: #059669 !important;
     background-color: #f0fdf4 !important;

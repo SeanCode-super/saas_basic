@@ -353,7 +353,7 @@ function getRoleDataScopeBadge(roleId: number) {
 <style scoped lang="scss">
 .iam-permission-matrix-card {
   margin-top: 16px;
-  background: #ffffff;
+  background: #fff;
   border-radius: 12px;
   border: 1px solid #e2e8f0;
 }
@@ -405,7 +405,7 @@ function getRoleDataScopeBadge(roleId: number) {
   overflow-x: auto;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
-  background: #ffffff;
+  background: #fff;
 }
 
 .matrix-table {
@@ -442,7 +442,7 @@ function getRoleDataScopeBadge(roleId: number) {
   .col-sticky-module {
     position: sticky;
     left: 0;
-    background: #ffffff;
+    background: #fff;
     z-index: 1;
     min-width: 140px;
     max-width: 160px;
@@ -574,6 +574,7 @@ function getRoleDataScopeBadge(roleId: number) {
     background: #ecfdf5;
     color: #059669;
     border: 1px solid #a7f3d0;
+
     .chip-dot {
       background: #10b981;
     }
@@ -583,6 +584,7 @@ function getRoleDataScopeBadge(roleId: number) {
     background: #eff6ff;
     color: #2563eb;
     border: 1px solid #bfdbfe;
+
     .chip-dot {
       background: #3b82f6;
     }
@@ -592,6 +594,7 @@ function getRoleDataScopeBadge(roleId: number) {
     background: #f0fdf4;
     color: #166534;
     border: 1px solid #bbf7d0;
+
     .chip-dot {
       background: #22c55e;
     }

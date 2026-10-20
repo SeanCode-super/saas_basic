@@ -5,13 +5,11 @@ import com.saasbasics.platform.common.api.ApiResponse;
 import com.saasbasics.platform.common.auth.AuthContext;
 import com.saasbasics.platform.common.auth.AuthPrincipal;
 import com.saasbasics.platform.common.excel.ExcelUtils;
-import com.saasbasics.platform.modules.file.entity.FileObjectEntity;
-import com.saasbasics.platform.modules.file.mapper.FileObjectMapper;
+import com.saasbasics.platform.modules.file.service.FileObjectService;
 import com.saasbasics.platform.modules.file.storage.FileClient;
 import com.saasbasics.platform.modules.file.storage.FileClientFactory;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -36,12 +34,12 @@ import java.util.UUID;
 public class FileStorageEngineController {
 
     private final FileClientFactory fileClientFactory;
-    private final ObjectProvider<FileObjectMapper> fileObjectMapperProvider;
+    private final FileObjectService fileObjectService;
 
     public FileStorageEngineController(FileClientFactory fileClientFactory,
-                                       ObjectProvider<FileObjectMapper> fileObjectMapperProvider) {
+                                       FileObjectService fileObjectService) {
         this.fileClientFactory = fileClientFactory;
-        this.fileObjectMapperProvider = fileObjectMapperProvider;
+        this.fileObjectService = fileObjectService;
     }
 
     @PostMapping("/raw-upload")
@@ -72,24 +70,10 @@ public class FileStorageEngineController {
         String publicUrl = client.upload(file.getBytes(), objectKey, file.getContentType());
 
         // Save file_object metadata
-        FileObjectMapper mapper = fileObjectMapperProvider.getIfAvailable();
-        if (mapper != null) {
-            AuthPrincipal principal = AuthContext.get();
-            FileObjectEntity entity = new FileObjectEntity();
-            entity.setTenantId(principal != null ? principal.tenantId() : 1L);
-            entity.setBucketId(1L);
-            entity.setObjectKey(objectKey);
-            entity.setFileName(originalFilename);
-            entity.setFileExt(ext);
-            entity.setContentType(file.getContentType());
-            entity.setFileSize(file.getSize());
-            entity.setStoragePath(objectKey);
-            entity.setVisibility("PUBLIC");
-            entity.setBizType(bizType);
-            entity.setVersionNo(1);
-            entity.setStatus("ACTIVE");
-            mapper.insert(entity);
-        }
+        AuthPrincipal principal = AuthContext.get();
+        Long tenantId = principal != null ? principal.tenantId() : 1L;
+        fileObjectService.recordUploadedFile(tenantId, objectKey, originalFilename, ext,
+                file.getContentType(), file.getSize(), bizType);
 
         return ApiResponse.success(Map.of(
                 "objectKey", objectKey,

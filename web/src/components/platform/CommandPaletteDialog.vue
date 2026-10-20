@@ -258,8 +258,8 @@ function executeCommand(cmd: CommandItem) {
   border-radius: 12px;
   overflow: hidden;
   padding: 0;
-  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.25);
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 20px 45px rgb(15 23 42 / 0.25);
+  border: 1px solid rgb(226 232 240 / 0.8);
 }
 
 :deep(.el-dialog__header) {
@@ -273,7 +273,7 @@ function executeCommand(cmd: CommandItem) {
 .palette-container {
   display: flex;
   flex-direction: column;
-  background: #ffffff;
+  background: #fff;
 }
 
 .palette-search-bar {
@@ -351,7 +351,7 @@ function executeCommand(cmd: CommandItem) {
 
 .palette-item.is-selected .item-icon-box {
   background: #2563eb;
-  color: #ffffff;
+  color: #fff;
   border-color: #2563eb;
 }
 
@@ -423,7 +423,7 @@ function executeCommand(cmd: CommandItem) {
 }
 
 .footer-tip kbd {
-  background: #ffffff;
+  background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 3px;
   padding: 1px 4px;

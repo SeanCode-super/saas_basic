@@ -420,7 +420,7 @@ const inspectedMenuGroups = computed(() => {
   :deep(.el-dialog__footer) {
     padding: 14px 24px;
     border-top: 1px solid var(--el-border-color-lighter);
-    background: #ffffff;
+    background: #fff;
   }
 }
 
@@ -451,7 +451,7 @@ const inspectedMenuGroups = computed(() => {
     display: flex;
     align-items: center;
     gap: 16px;
-    background: #ffffff;
+    background: #fff;
     border: 1px solid #e2e8f0;
     border-radius: 10px;
     padding: 14px 18px;
@@ -568,7 +568,7 @@ const inspectedMenuGroups = computed(() => {
 }
 
 .module-group-box {
-  background: #ffffff;
+  background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   padding: 12px 16px;
@@ -611,7 +611,7 @@ const inspectedMenuGroups = computed(() => {
 
 .button-permissions-section {
   margin-top: 16px;
-  background: #ffffff;
+  background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   padding: 14px 16px;
@@ -677,7 +677,7 @@ const inspectedMenuGroups = computed(() => {
   gap: 10px;
 
   .scope-rule-item {
-    background: #ffffff;
+    background: #fff;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
     padding: 12px 16px;
@@ -723,7 +723,7 @@ const inspectedMenuGroups = computed(() => {
 
 /* Simulator Tab */
 .simulator-config-box {
-  background: #ffffff;
+  background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
   padding: 16px 20px;
@@ -755,7 +755,7 @@ const inspectedMenuGroups = computed(() => {
 }
 
 .simulation-result-card {
-  background: #ffffff;
+  background: #fff;
   border-radius: 10px;
   overflow: hidden;
   border: 1px solid #e2e8f0;
@@ -842,7 +842,7 @@ const inspectedMenuGroups = computed(() => {
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       font-size: 12px;
       color: #2563eb;
-      background: #ffffff;
+      background: #fff;
       padding: 8px 12px;
       border-radius: 6px;
       border: 1px solid #e2e8f0;

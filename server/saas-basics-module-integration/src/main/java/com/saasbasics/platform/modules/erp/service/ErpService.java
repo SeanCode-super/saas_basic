@@ -178,12 +178,28 @@ public class ErpService {
         return result;
     }
 
-    public List<ErpInventoryRecordEntity> listInventoryRecords() {
+    public List<com.saasbasics.platform.modules.erp.dto.ErpInventoryRecordResponse> listInventoryRecords() {
         Long tenantId = getTenantId();
-        return recordMapper.selectList(new LambdaQueryWrapper<ErpInventoryRecordEntity>()
+        List<ErpInventoryRecordEntity> list = recordMapper.selectList(new LambdaQueryWrapper<ErpInventoryRecordEntity>()
                 .eq(ErpInventoryRecordEntity::getTenantId, tenantId)
                 .orderByDesc(ErpInventoryRecordEntity::getId)
                 .last("LIMIT 50"));
+        return list.stream().map(r -> new com.saasbasics.platform.modules.erp.dto.ErpInventoryRecordResponse(
+                r.getId(),
+                r.getTenantId(),
+                r.getRecordNo(),
+                r.getRecordType(),
+                r.getProductId(),
+                r.getProductName(),
+                r.getWarehouseId(),
+                r.getWarehouseName(),
+                r.getChangeQuantity(),
+                r.getBeforeQuantity(),
+                r.getAfterQuantity(),
+                r.getOperatorName(),
+                r.getRemark(),
+                r.getCreatedAt()
+        )).toList();
     }
 
     public List<ErpPurchaseOrderResponse> listPurchaseOrders() {

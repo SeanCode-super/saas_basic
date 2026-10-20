@@ -306,7 +306,7 @@ defineExpose({
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  background: var(--el-bg-color, #ffffff);
+  background: var(--el-bg-color, #fff);
   border-bottom: 1px solid var(--el-border-color-light, #e2e8f0);
 }
 
@@ -374,7 +374,7 @@ defineExpose({
 .prompt-chip {
   font-size: 11px;
   padding: 3px 10px;
-  background: #ffffff;
+  background: #fff;
   border: 1px solid var(--el-border-color, #cbd5e1);
   border-radius: 12px;
   cursor: pointer;
@@ -385,7 +385,7 @@ defineExpose({
 
 .prompt-chip:hover {
   background: #4f46e5;
-  color: #ffffff;
+  color: #fff;
   border-color: #4f46e5;
 }
 
@@ -455,15 +455,15 @@ defineExpose({
 }
 
 .chat-bubble-wrap.assistant .bubble-text {
-  background: var(--el-bg-color, #ffffff);
+  background: var(--el-bg-color, #fff);
   border: 1px solid var(--el-border-color-light, #e2e8f0);
   color: var(--el-text-color-primary, #1e293b);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.04);
 }
 
 .chat-bubble-wrap.user .bubble-text {
   background: #4f46e5;
-  color: #ffffff;
+  color: #fff;
 }
 
 .ai-typing-indicator {
@@ -477,7 +477,7 @@ defineExpose({
 
 .ai-footer {
   padding: 14px 16px;
-  background: var(--el-bg-color, #ffffff);
+  background: var(--el-bg-color, #fff);
   border-top: 1px solid var(--el-border-color-light, #e2e8f0);
 }
 

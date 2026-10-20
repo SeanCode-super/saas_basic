@@ -1138,7 +1138,7 @@ async function handleSaveAll() {
   :deep(.el-drawer__footer) {
     border-top: 1px solid var(--el-border-color-lighter);
     padding: 14px 24px;
-    background: #ffffff;
+    background: #fff;
   }
 }
 
@@ -1186,7 +1186,7 @@ async function handleSaveAll() {
 }
 
 .drawer-tabs-wrapper {
-  background: #ffffff;
+  background: #fff;
   padding: 12px 24px;
   border-bottom: 1px solid var(--el-border-color-lighter);
 
@@ -1269,7 +1269,7 @@ async function handleSaveAll() {
 }
 
 .empty-search-box {
-  background: #ffffff;
+  background: #fff;
   border-radius: 10px;
   border: 1px dashed #cbd5e1;
   padding: 32px 0;
@@ -1283,7 +1283,7 @@ async function handleSaveAll() {
 }
 
 .menu-group-card {
-  background: #ffffff;
+  background: #fff;
   border-radius: 10px;
   border: 1px solid #e2e8f0;
   overflow: hidden;
@@ -1431,7 +1431,7 @@ async function handleSaveAll() {
           padding: 3px 10px;
           border-radius: 12px;
           border: 1px solid #e2e8f0;
-          background: #ffffff;
+          background: #fff;
           font-size: 11px;
           color: #64748b;
           cursor: pointer;
@@ -1475,7 +1475,7 @@ async function handleSaveAll() {
       margin-left: 24px;
       padding: 10px 12px;
       border-radius: 6px;
-      background: #ffffff;
+      background: #fff;
       border: 1px dashed #cbd5e1;
       display: flex;
       flex-direction: column;
@@ -1583,6 +1583,7 @@ async function handleSaveAll() {
       color: #1e3a8a;
       margin-bottom: 2px;
     }
+
     p {
       margin: 0;
       font-size: 12px;
@@ -1599,7 +1600,7 @@ async function handleSaveAll() {
 }
 
 .scope-select-card {
-  background: #ffffff;
+  background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
   padding: 14px 16px;
@@ -1608,7 +1609,7 @@ async function handleSaveAll() {
 
   &:hover {
     border-color: #93c5fd;
-    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.05);
+    box-shadow: 0 2px 6px rgb(37 99 235 / 0.05);
   }
 
   &.selected {
@@ -1662,7 +1663,7 @@ async function handleSaveAll() {
 }
 
 .custom-scope-box {
-  background: #ffffff;
+  background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
   padding: 16px;
@@ -1677,7 +1678,7 @@ async function handleSaveAll() {
 }
 
 .preview-sql-box {
-  background: #ffffff;
+  background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   padding: 12px 16px;
@@ -1723,7 +1724,7 @@ async function handleSaveAll() {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: #ffffff;
+  background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   padding: 10px 14px;
@@ -1772,6 +1773,7 @@ async function handleSaveAll() {
 
   .remove-btn {
     opacity: 0.6;
+
     &:hover {
       opacity: 1;
     }
@@ -1812,11 +1814,11 @@ async function handleSaveAll() {
   padding: 8px 12px 24px 8px;
 
   .audit-log-card {
-    background: #ffffff;
+    background: #fff;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
     padding: 12px 16px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.04);
 
     .log-header {
       display: flex;

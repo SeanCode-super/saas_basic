@@ -840,7 +840,7 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 12px 16px;
-  background: var(--sb-surface, #ffffff);
+  background: var(--sb-surface, #fff);
   border-radius: var(--sb-border-radius-md, 8px);
   border: 1px solid var(--sb-border-color, #e2e8f0);
 
@@ -860,7 +860,7 @@ onMounted(() => {
 .assignment-rail {
   display: flex;
   flex-direction: column;
-  background: var(--sb-surface, #ffffff);
+  background: var(--sb-surface, #fff);
   border-radius: var(--sb-border-radius-md, 8px);
   border: 1px solid var(--sb-border-color, #e2e8f0);
   overflow: hidden;
@@ -1170,8 +1170,8 @@ onMounted(() => {
 
       &:hover {
         border-color: #cbd5e1;
-        background: #ffffff;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+        background: #fff;
+        box-shadow: 0 4px 12px rgb(0 0 0 / 0.04);
       }
 
       .card-top {

@@ -630,7 +630,7 @@ function handleGoToArtifacts() {
   .config-expanded-body {
     padding: 12px 14px;
     border-top: 1px solid #e2e8f0;
-    background: #ffffff;
+    background: #fff;
 
     :deep(.el-form-item) {
       margin-bottom: 0;

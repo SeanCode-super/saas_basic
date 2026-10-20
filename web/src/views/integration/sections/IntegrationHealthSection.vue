@@ -130,7 +130,7 @@ function handleExportHealthDossier() {
   background: #f0fdf4;
   border: 1px solid #bbf7d0;
   border-radius: 8px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.03);
 
   .action-bar-left {
     display: flex;

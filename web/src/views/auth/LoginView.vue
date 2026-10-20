@@ -427,7 +427,7 @@ onMounted(() => {
   display: grid;
   grid-template-rows: 64px minmax(0, 1fr) 48px;
   background:
-    linear-gradient(135deg, rgba(248, 250, 252, 0.88) 0%, rgba(241, 245, 249, 0.78) 50%, rgba(248, 250, 252, 0.92) 100%),
+    linear-gradient(135deg, rgb(248 250 252 / 0.88) 0%, rgb(241 245 249 / 0.78) 50%, rgb(248 250 252 / 0.92) 100%),
     var(--portal-bg-image) center/cover no-repeat,
     var(--portal-bg-color);
   overflow-x: hidden;
@@ -448,7 +448,7 @@ onMounted(() => {
     left: 8%;
     width: 520px;
     height: 520px;
-    background: radial-gradient(circle, rgba(14, 165, 233, 0.22) 0%, transparent 70%);
+    background: radial-gradient(circle, rgb(14 165 233 / 0.22) 0%, transparent 70%);
   }
 
   &--bottom {
@@ -456,7 +456,7 @@ onMounted(() => {
     right: 5%;
     width: 600px;
     height: 600px;
-    background: radial-gradient(circle, rgba(99, 102, 241, 0.18) 0%, transparent 70%);
+    background: radial-gradient(circle, rgb(99 102 241 / 0.18) 0%, transparent 70%);
   }
 }
 
@@ -469,10 +469,9 @@ onMounted(() => {
   justify-content: space-between;
   gap: 16px;
   padding: 0 36px;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
-  background: rgba(255, 255, 255, 0.75);
+  border-bottom: 1px solid rgb(226 232 240 / 0.8);
+  background: rgb(255 255 255 / 0.75);
   backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
 }
 
 .login-page__brand {
@@ -492,7 +491,7 @@ onMounted(() => {
   color: #fff;
   font-size: 14px;
   font-weight: 800;
-  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
+  box-shadow: 0 4px 12px rgb(2 132 199 / 0.3);
 
   img {
     width: 100%;
@@ -536,7 +535,7 @@ onMounted(() => {
   gap: 8px;
   font-size: 12px;
   color: #475569;
-  background: rgba(241, 245, 249, 0.85);
+  background: rgb(241 245 249 / 0.85);
   padding: 4px 12px;
   border-radius: 20px;
   border: 1px solid #e2e8f0;
@@ -609,13 +608,13 @@ onMounted(() => {
     font-size: 38px;
     font-weight: 800;
     line-height: 1.28;
-    margin: 0 0 16px 0;
+    margin: 0 0 16px;
     color: #0f172a;
     letter-spacing: -0.5px;
 
     &--gradient {
       background: linear-gradient(135deg, #0284c7 0%, #2563eb 50%, #4f46e5 100%);
-      -webkit-background-clip: text;
+      background-clip: text;
       -webkit-text-fill-color: transparent;
     }
   }
@@ -624,7 +623,7 @@ onMounted(() => {
     font-size: 15px;
     line-height: 1.65;
     color: #475569;
-    margin: 0 0 32px 0;
+    margin: 0 0 32px;
   }
 
   &__features {
@@ -640,18 +639,17 @@ onMounted(() => {
   gap: 16px;
   padding: 16px 20px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.85);
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  background: rgb(255 255 255 / 0.85);
+  border: 1px solid rgb(226 232 240 / 0.9);
   backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.03);
+  box-shadow: 0 4px 16px rgb(15 23 42 / 0.03);
   transition: all 0.25s ease;
 
   &:hover {
     border-color: #bae6fd;
-    background: #ffffff;
+    background: #fff;
     transform: translateX(4px);
-    box-shadow: 0 8px 24px rgba(2, 132, 199, 0.08);
+    box-shadow: 0 8px 24px rgb(2 132 199 / 0.08);
   }
 
   &__icon {
@@ -704,14 +702,13 @@ onMounted(() => {
   width: 100%;
   max-width: 440px;
   padding: 36px 36px 32px;
-  border: 1px solid rgba(226, 232, 240, 0.95);
+  border: 1px solid rgb(226 232 240 / 0.95);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.88);
+  background: rgb(255 255 255 / 0.88);
   backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
   box-shadow:
-    0 20px 40px -15px rgba(15, 23, 42, 0.08),
-    0 0 0 1px rgba(255, 255, 255, 0.8) inset;
+    0 20px 40px -15px rgb(15 23 42 / 0.08),
+    0 0 0 1px rgb(255 255 255 / 0.8) inset;
 
   &__header {
     display: flex;
@@ -721,7 +718,7 @@ onMounted(() => {
     margin-bottom: 26px;
 
     h2 {
-      margin: 0 0 6px 0;
+      margin: 0 0 6px;
       font-size: 24px;
       font-weight: 700;
       color: #0f172a;
@@ -768,12 +765,12 @@ onMounted(() => {
 
   &:hover {
     box-shadow: 0 0 0 1px #94a3b8 inset;
-    background: #ffffff;
+    background: #fff;
   }
 
   &.is-focus {
-    background: #ffffff;
-    box-shadow: 0 0 0 2px #0284c7 inset, 0 0 10px rgba(2, 132, 199, 0.15) !important;
+    background: #fff;
+    box-shadow: 0 0 0 2px #0284c7 inset, 0 0 10px rgb(2 132 199 / 0.15) !important;
   }
 }
 
@@ -823,7 +820,7 @@ onMounted(() => {
   &:hover {
     border-color: #0284c7;
     background: #e0f2fe;
-    box-shadow: 0 2px 8px rgba(2, 132, 199, 0.15);
+    box-shadow: 0 2px 8px rgb(2 132 199 / 0.15);
 
     .captcha-refresh-icon {
       transform: rotate(180deg);
@@ -845,16 +842,16 @@ onMounted(() => {
   border-radius: 8px;
   border: none;
   background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
-  color: #ffffff;
+  color: #fff;
   font-size: 15px;
   font-weight: 600;
   letter-spacing: 2px;
-  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+  box-shadow: 0 4px 14px rgb(2 132 199 / 0.35);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 
   &:hover {
     background: linear-gradient(135deg, #0369a1 0%, #1d4ed8 100%);
-    box-shadow: 0 6px 18px rgba(2, 132, 199, 0.45);
+    box-shadow: 0 6px 18px rgb(2 132 199 / 0.45);
     transform: translateY(-1px);
   }
 
@@ -924,7 +921,7 @@ onMounted(() => {
   padding: 9px 8px;
   border-radius: 8px;
   border: 1px solid #e2e8f0;
-  background: #ffffff;
+  background: #fff;
   color: #334155;
   font-size: 13px;
   font-weight: 500;
@@ -935,7 +932,7 @@ onMounted(() => {
     border-color: #cbd5e1;
     background: #f8fafc;
     transform: translateY(-1px);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 2px 6px rgb(0 0 0 / 0.04);
   }
 
   &--wecom:hover {
@@ -972,10 +969,9 @@ onMounted(() => {
   gap: 8px;
   color: #64748b;
   font-size: 12px;
-  border-top: 1px solid rgba(226, 232, 240, 0.8);
-  background: rgba(255, 255, 255, 0.7);
+  border-top: 1px solid rgb(226 232 240 / 0.8);
+  background: rgb(255 255 255 / 0.7);
   backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
 
   .footer-divider {
     color: #cbd5e1;

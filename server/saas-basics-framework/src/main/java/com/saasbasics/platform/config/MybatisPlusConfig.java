@@ -26,8 +26,7 @@ public class MybatisPlusConfig {
 
     static final Set<String> PLATFORM_TABLES = Set.of(
             "plat_tenant",
-            "plat_tenant_package",
-            "plat_tenant_quota"
+            "plat_tenant_package"
     );
 
     @Bean

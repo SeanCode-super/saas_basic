@@ -506,7 +506,7 @@ function resolveTagCustomStyle(color?: string) {
   border-radius: 10px;
   overflow: hidden;
   border: 1px solid var(--sb-border-color, #e2e8f0);
-  background: #ffffff;
+  background: #fff;
 }
 
 .tab-label {
@@ -542,7 +542,7 @@ function resolveTagCustomStyle(color?: string) {
     justify-content: space-between;
     padding: 12px 14px;
     border-bottom: 1px solid #e2e8f0;
-    background: #ffffff;
+    background: #fff;
 
     .sidebar-title {
       display: flex;
@@ -570,14 +570,14 @@ function resolveTagCustomStyle(color?: string) {
 
   .sidebar-search {
     padding: 10px 12px;
-    background: #ffffff;
+    background: #fff;
     border-bottom: 1px solid #e2e8f0;
   }
 
   .sidebar-list {
     flex: 1;
     overflow-y: auto;
-    padding: 10px 10px;
+    padding: 10px;
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -593,7 +593,7 @@ function resolveTagCustomStyle(color?: string) {
   position: relative;
   border-radius: 8px;
   border: 1px solid #e2e8f0;
-  background: #ffffff;
+  background: #fff;
   padding: 10px 12px;
   cursor: pointer;
   transition: all 0.18s ease;
@@ -602,7 +602,7 @@ function resolveTagCustomStyle(color?: string) {
     border-color: #cbd5e1;
     background: #fdfdfe;
     transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+    box-shadow: 0 2px 4px rgb(0 0 0 / 0.03);
 
     .card-more-btn {
       opacity: 1;
@@ -613,7 +613,7 @@ function resolveTagCustomStyle(color?: string) {
     background: #eff6ff;
     border-color: #93c5fd;
     border-left: 4px solid var(--el-color-primary, #0284c7);
-    box-shadow: 0 1px 3px rgba(2, 132, 199, 0.08);
+    box-shadow: 0 1px 3px rgb(2 132 199 / 0.08);
 
     .dict-type-card__name {
       color: var(--el-color-primary, #0284c7);
@@ -690,7 +690,7 @@ function resolveTagCustomStyle(color?: string) {
 
   &.is-enabled {
     background: #10b981;
-    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+    box-shadow: 0 0 0 2px rgb(16 185 129 / 0.2);
   }
 
   &.is-disabled {
@@ -720,7 +720,7 @@ function resolveTagCustomStyle(color?: string) {
 
 /* Right Detail Workspace */
 .dict-workspace {
-  background: #ffffff;
+  background: #fff;
   padding: 18px 24px;
   overflow-y: auto;
 }
@@ -793,6 +793,7 @@ function resolveTagCustomStyle(color?: string) {
 
   &:hover {
     background: #bae6fd;
+
     .copy-icon {
       opacity: 1;
     }
@@ -828,7 +829,7 @@ function resolveTagCustomStyle(color?: string) {
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   overflow: hidden;
-  background: #ffffff;
+  background: #fff;
 }
 
 .dict-item-table {
@@ -856,7 +857,7 @@ function resolveTagCustomStyle(color?: string) {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  background: #ffffff;
+  background: #fff;
   border-top: 1px solid #f1f5f9;
 
   .pagination-info {
@@ -876,7 +877,7 @@ function resolveTagCustomStyle(color?: string) {
     height: 10px;
     border-radius: 50%;
     display: inline-block;
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    border: 1px solid rgb(0 0 0 / 0.1);
   }
 
   .dict-color-text {
@@ -925,7 +926,7 @@ function resolveTagCustomStyle(color?: string) {
     border-bottom: 1px solid #e2e8f0;
 
     h4 {
-      margin: 0 0 6px 0;
+      margin: 0 0 6px;
       font-size: 16px;
       color: #0f172a;
     }
