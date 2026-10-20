@@ -47,7 +47,7 @@ class FlywayMigrationTest {
         MigrateResult secondRun = flyway.migrate();
 
         assertThat(firstRun.success).isTrue();
-        assertThat(firstRun.migrationsExecuted).isEqualTo(5);
+        assertThat(firstRun.migrationsExecuted).isEqualTo(21);
         assertThat(secondRun.success).isTrue();
         assertThat(secondRun.migrationsExecuted).isZero();
         assertThat(flyway.info().pending()).isEmpty();
