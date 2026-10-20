@@ -8,7 +8,9 @@ import type {
   SmsSendResult,
   MailSendPayload,
   MailSendResult,
-  MessageLogItem
+  MessageLogItem,
+  OpenAppRow,
+  OpenAppSavePayload
 } from "./types";
 
 export async function fetchDatasources(): Promise<DatasourceRow[]> {
@@ -46,4 +48,25 @@ export async function fetchMessageLogs(): Promise<MessageLogItem[]> {
 export async function clearMessageLogs(): Promise<boolean> {
   const response = await http.delete<ApiResponse<boolean>>("/message/logs");
   return response.data.data;
+}
+
+// ==================== 开放平台应用 (Open API Platform) ====================
+
+export async function fetchOpenApps(): Promise<OpenAppRow[]> {
+  const response = await http.get<ApiResponse<OpenAppRow[]>>("/integration/open-apps");
+  return response.data.data;
+}
+
+export async function saveOpenApp(payload: OpenAppSavePayload): Promise<OpenAppRow> {
+  const response = await http.post<ApiResponse<OpenAppRow>>("/integration/open-apps", payload);
+  return response.data.data;
+}
+
+export async function regenerateOpenAppSecret(id: number): Promise<OpenAppRow> {
+  const response = await http.post<ApiResponse<OpenAppRow>>(`/integration/open-apps/${id}/regenerate-secret`);
+  return response.data.data;
+}
+
+export async function deleteOpenApp(id: number): Promise<void> {
+  await http.delete(`/integration/open-apps/${id}`);
 }

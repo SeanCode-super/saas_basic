@@ -14,7 +14,7 @@ import java.lang.annotation.Target;
  * 敏感字段数据脱敏注解。
  * 作用于 DTO / VO 字段上，在 Jackson 序列化输出为 JSON 时自动打码（如手机号、身份证、邮箱等）。
  */
-@Target(ElementType.FIELD)
+@Target({ElementType.FIELD, ElementType.RECORD_COMPONENT, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 @JacksonAnnotationsInside

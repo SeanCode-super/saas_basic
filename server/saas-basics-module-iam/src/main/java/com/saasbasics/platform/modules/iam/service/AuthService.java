@@ -418,7 +418,7 @@ public class AuthService {
             session.setUsername(user.getUsername());
             session.setNickname(user.getNickname());
             session.setUserType(user.getUserType());
-            session.setLoginType("SSO_" + (request.channel() != null ? request.channel().toUpperCase() : "MOCK"));
+            session.setLoginType("SSO_" + (request.idpType() != null ? request.idpType().toUpperCase() : "MOCK"));
             session.setAccessTokenHash(tokenHash);
             session.setRefreshTokenHash(refreshTokenHash);
             session.setLoginIp(loginIp);

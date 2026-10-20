@@ -19,6 +19,7 @@ import IntegrationHealthSection from "./sections/IntegrationHealthSection.vue";
 import IntegrationOverviewSection from "./sections/IntegrationOverviewSection.vue";
 import IntegrationRegistrySection from "./sections/IntegrationRegistrySection.vue";
 import IntegrationMessageSection from "./sections/IntegrationMessageSection.vue";
+import IntegrationOpenAppSection from "./sections/IntegrationOpenAppSection.vue";
 
 const props = withDefaults(
   defineProps<{
@@ -75,7 +76,8 @@ const sectionItems = [
   { key: "callback", label: "回调策略", description: "统一签名、重试、去重和死信队列策略。" },
   { key: "health", label: "健康检测", description: "监控连接可达性、异常补偿和平台健康信号。" },
   { key: "registry", label: "接入台账", description: "查看并管理数据源与接入对象台账。" },
-  { key: "message", label: "消息网关", description: "多渠道短信网关 (Aliyun/Tencent/Mock) 与 SMTP 邮件分发调度及审计。" }
+  { key: "message", label: "消息网关", description: "多渠道短信网关 (Aliyun/Tencent/Mock) 与 SMTP 邮件分发调度及审计。" },
+  { key: "openapp", label: "开放平台", description: "企业 Open API 应用接入、凭据托管与 HMAC-SHA256 签名鉴权网关。" }
 ];
 
 const { activeSection, updateSection } = useModuleSection(sectionItems, {
@@ -165,7 +167,8 @@ const sectionComponentMap = {
   callback: IntegrationCallbackSection,
   health: IntegrationHealthSection,
   registry: IntegrationRegistrySection,
-  message: IntegrationMessageSection
+  message: IntegrationMessageSection,
+  openapp: IntegrationOpenAppSection
 } as const;
 
 const datasourceImportSample = formatJsonManifest([

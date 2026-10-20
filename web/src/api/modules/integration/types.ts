@@ -88,3 +88,25 @@ export interface MessageLogItem {
   costMillis: number;
   sentAt: string;
 }
+
+export interface OpenAppRow {
+  id: number;
+  tenantId: number;
+  appKey: string;
+  appSecret: string;
+  appName: string;
+  status: string;
+  rateLimit: number;
+  allowedPermissions?: string;
+  remark?: string;
+  createdAt: string;
+}
+
+export interface OpenAppSavePayload {
+  id?: number;
+  appName: string;
+  status?: string;
+  rateLimit?: number;
+  allowedPermissions?: string;
+  remark?: string;
+}

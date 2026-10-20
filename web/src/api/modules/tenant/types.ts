@@ -83,3 +83,40 @@ export interface TenantPlanUpdatePayload {
   expireAt?: string;
   remark?: string;
 }
+
+export interface TenantMeteringSummary {
+  tenantId: number;
+  tenantCode: string;
+  tenantName: string;
+  totalApiCalls: number;
+  storageMb: number;
+  activeUsers: number;
+  estimatedCost: number;
+  periodStart: string;
+  periodEnd: string;
+}
+
+export interface TenantBillRow {
+  id: number;
+  billNo: string;
+  tenantId: number;
+  tenantCode: string;
+  billingCycle: string;
+  apiCallsCount: number;
+  storageMb: number;
+  amount: number;
+  currency: string;
+  status: string;
+  paidAt?: string;
+  createdAt: string;
+}
+
+export interface TenantSnapshotExportResult {
+  snapshotId: string;
+  tenantId: number;
+  tenantCode: string;
+  fileSizeBytes: number;
+  downloadUrl: string;
+  checksum: string;
+  createdAt: string;
+}

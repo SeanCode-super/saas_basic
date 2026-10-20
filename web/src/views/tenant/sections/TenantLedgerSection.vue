@@ -3,34 +3,36 @@ import { computed, onMounted, reactive, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
   ArrowDown,
-  Calendar,
-  Check,
   CircleCheck,
-  Close,
   DataAnalysis,
   Edit,
   Files,
   Monitor,
   OfficeBuilding,
   Operation,
-  Plus,
-  Refresh,
   Switch,
   Timer,
   User,
-  Warning
+  Warning,
+  Download
 } from "@element-plus/icons-vue";
 import {
   fetchTenantPackages,
   fetchTenantQuotas,
   updateTenant,
   updateTenantPlan,
-  updateTenantStatus
+  updateTenantStatus,
+  fetchTenantMeteringSummary,
+  fetchTenantBills,
+  exportTenantSnapshot
 } from "@/api/modules/tenant";
 import type {
   TenantPackageRow,
   TenantQuotaOverview,
-  TenantRow
+  TenantRow,
+  TenantMeteringSummary,
+  TenantBillRow,
+  TenantSnapshotExportResult
 } from "@/api/modules/tenant";
 import ProTable, { type ProTableColumn } from "@/components/pro/ProTable.vue";
 import SchemaForm, { type SchemaField } from "@/components/pro/SchemaForm.vue";
@@ -131,8 +133,57 @@ function handleMoreCommand(cmd: string, row: TenantRow) {
     openPlanRenewDialog(row);
   } else if (cmd === "quota") {
     openQuotaDrawer(row);
+  } else if (cmd === "metering") {
+    openMeteringDrawer(row);
+  } else if (cmd === "snapshot") {
+    handleExportSnapshot(row);
   } else if (cmd === "toggleStatus") {
     handleToggleStatus(row);
+  }
+}
+
+// Metering & Billing Drawer
+const meteringDrawerVisible = ref(false);
+const meteringLoading = ref(false);
+const meteringData = ref<TenantMeteringSummary | null>(null);
+const billsData = ref<TenantBillRow[]>([]);
+
+async function openMeteringDrawer(row: TenantRow) {
+  activeTenant.value = row;
+  meteringDrawerVisible.value = true;
+  meteringLoading.value = true;
+  try {
+    const [summary, bills] = await Promise.all([
+      fetchTenantMeteringSummary(),
+      fetchTenantBills()
+    ]);
+    meteringData.value = summary;
+    billsData.value = bills;
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message || "加载租户计量与账单失败");
+  } finally {
+    meteringLoading.value = false;
+  }
+}
+
+// Snapshot Dialog
+const snapshotDialogVisible = ref(false);
+const snapshotSubmitting = ref(false);
+const snapshotResult = ref<TenantSnapshotExportResult | null>(null);
+
+async function handleExportSnapshot(row: TenantRow) {
+  activeTenant.value = row;
+  snapshotDialogVisible.value = true;
+  snapshotSubmitting.value = true;
+  snapshotResult.value = null;
+  try {
+    const res = await exportTenantSnapshot(row.id);
+    snapshotResult.value = res;
+    ElMessage.success(`租户「${row.tenantName}」全量数据快照导出成功！`);
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message || "导出租户数据快照失败");
+  } finally {
+    snapshotSubmitting.value = false;
   }
 }
 
@@ -352,6 +403,8 @@ onMounted(() => {
               <el-dropdown-menu>
                 <el-dropdown-item command="plan" :icon="Operation">变配与续期</el-dropdown-item>
                 <el-dropdown-item command="quota" :icon="DataAnalysis">配额与画像</el-dropdown-item>
+                <el-dropdown-item command="metering" :icon="Timer">计量与账单</el-dropdown-item>
+                <el-dropdown-item command="snapshot" :icon="Files">快照备份导出</el-dropdown-item>
                 <el-dropdown-item
                   divided
                   command="toggleStatus"
@@ -561,6 +614,110 @@ onMounted(() => {
         </div>
       </div>
     </el-drawer>
+
+    <!-- Metering & Billing Drawer -->
+    <el-drawer
+      v-model="meteringDrawerVisible"
+      title="租户计量与结算账单"
+      size="620px"
+      :destroy-on-close="true"
+    >
+      <div v-loading="meteringLoading" class="metering-drawer-content">
+        <!-- Tenant Identity Header -->
+        <div class="tenant-quota-header">
+          <div class="quota-tenant-title">
+            <span class="tenant-name">{{ activeTenant?.tenantName }}</span>
+            <el-tag size="small" effect="plain" class="code-tag">{{ activeTenant?.tenantCode }}</el-tag>
+          </div>
+          <div class="quota-tenant-sub">
+            <span>计费周期：{{ meteringData?.periodStart ? meteringData.periodStart.substring(0, 10) : "-" }} ~ {{ meteringData?.periodEnd ? meteringData.periodEnd.substring(0, 10) : "-" }}</span>
+          </div>
+        </div>
+
+        <!-- Metering Stats Cards -->
+        <el-row :gutter="12" style="margin-bottom: 20px;">
+          <el-col :span="8">
+            <el-card shadow="never" class="metering-stat-card">
+              <div class="stat-label">API 调用总量</div>
+              <div class="stat-value">{{ meteringData?.totalApiCalls?.toLocaleString() ?? 0 }} <span class="unit">次</span></div>
+            </el-card>
+          </el-col>
+          <el-col :span="8">
+            <el-card shadow="never" class="metering-stat-card">
+              <div class="stat-label">云存储占用</div>
+              <div class="stat-value">{{ meteringData?.storageMb?.toLocaleString() ?? 0 }} <span class="unit">MB</span></div>
+            </el-card>
+          </el-col>
+          <el-col :span="8">
+            <el-card shadow="never" class="metering-stat-card">
+              <div class="stat-label">本期预估结算</div>
+              <div class="stat-value stat-value--highlight">¥{{ meteringData?.estimatedCost?.toFixed(2) ?? "0.00" }}</div>
+            </el-card>
+          </el-col>
+        </el-row>
+
+        <!-- Historical Bills Table -->
+        <div class="bills-section">
+          <div class="section-title" style="font-size: 13px; font-weight: 600; margin-bottom: 10px;">历史履约结算账单</div>
+          <el-table :data="billsData" border stripe size="small" style="width: 100%;">
+            <el-table-column prop="billNo" label="账单编号" width="160" show-overflow-tooltip />
+            <el-table-column prop="billingCycle" label="账单周期" width="110" />
+            <el-table-column prop="apiCallsCount" label="调用量" align="right">
+              <template #default="{ row }">
+                {{ row.apiCallsCount?.toLocaleString() }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="amount" label="金额(¥)" width="90" align="right">
+              <template #default="{ row }">
+                <strong>¥{{ row.amount?.toFixed(2) }}</strong>
+              </template>
+            </el-table-column>
+            <el-table-column prop="status" label="状态" width="90" align="center">
+              <template #default="{ row }">
+                <el-tag :type="row.status === 'PAID' ? 'success' : 'warning'" size="small">
+                  {{ row.status === 'PAID' ? '已结算' : '待确认' }}
+                </el-tag>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </div>
+    </el-drawer>
+
+    <!-- Tenant Snapshot Export Dialog -->
+    <el-dialog
+      v-model="snapshotDialogVisible"
+      title="租户全量数据快照与灾备归档"
+      width="540px"
+      :close-on-click-modal="false"
+    >
+      <div v-loading="snapshotSubmitting" class="snapshot-dialog-body">
+        <el-alert
+          type="info"
+          :closable="false"
+          show-icon
+          title="数据安全快照说明"
+          description="快照将对租户业务数据、配置、IAM 账号与日志进行原子性锁定并导出为签名加密文件。"
+          style="margin-bottom: 16px;"
+        />
+        <div v-if="snapshotResult" class="snapshot-result-box">
+          <el-descriptions :column="1" border size="small">
+            <el-descriptions-item label="快照批次 ID">{{ snapshotResult.snapshotId }}</el-descriptions-item>
+            <el-descriptions-item label="所属租户">{{ snapshotResult.tenantCode }}</el-descriptions-item>
+            <el-descriptions-item label="归档数据大小">{{ (snapshotResult.fileSizeBytes / 1024).toFixed(2) }} KB</el-descriptions-item>
+            <el-descriptions-item label="SHA-256 校验和">
+              <span style="font-family: monospace; font-size: 11px;">{{ snapshotResult.checksum }}</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="生成时间">{{ snapshotResult.createdAt }}</el-descriptions-item>
+          </el-descriptions>
+          <div style="margin-top: 16px; text-align: right;">
+            <a :href="snapshotResult.downloadUrl" target="_blank" style="text-decoration: none;">
+              <el-button type="primary" :icon="Download">立即下载快照归档包</el-button>
+            </a>
+          </div>
+        </div>
+      </div>
+    </el-dialog>
   </section>
 </template>
 

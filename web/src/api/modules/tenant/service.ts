@@ -6,7 +6,10 @@ import type {
   TenantPlanUpdatePayload,
   TenantQuotaOverview,
   TenantRow,
-  TenantSavePayload
+  TenantSavePayload,
+  TenantMeteringSummary,
+  TenantBillRow,
+  TenantSnapshotExportResult
 } from "./types";
 
 export async function fetchTenantPage(): Promise<TenantRow[]> {
@@ -56,4 +59,21 @@ export async function updateTenantPackage(id: number, payload: TenantPackageSave
 
 export async function deleteTenantPackage(id: number): Promise<void> {
   await http.delete(`/tenant-packages/${id}`);
+}
+
+export async function fetchTenantMeteringSummary(): Promise<TenantMeteringSummary> {
+  const response = await http.get<ApiResponse<TenantMeteringSummary>>("/tenant/metering/summary");
+  return response.data.data;
+}
+
+export async function fetchTenantBills(): Promise<TenantBillRow[]> {
+  const response = await http.get<ApiResponse<TenantBillRow[]>>("/tenant/billing/bills");
+  return response.data.data;
+}
+
+export async function exportTenantSnapshot(tenantId?: number): Promise<TenantSnapshotExportResult> {
+  const response = await http.post<ApiResponse<TenantSnapshotExportResult>>("/tenant/snapshot/export", null, {
+    params: tenantId ? { tenantId } : {}
+  });
+  return response.data.data;
 }

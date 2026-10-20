@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { Check, Close, Right, Share } from "@element-plus/icons-vue";
+import { Check, Close, Back, UserFilled } from "@element-plus/icons-vue";
 import { cancelWorkflowInstance, getWorkflowInstanceDetail, handleWorkflowTask } from "@/api/modules/workflow";
 import type { FormFieldConfig, ProcessInstanceDetail, WorkflowTaskRow } from "@/api/modules/workflow";
 import { useAuthStore } from "@/stores/modules/auth";
@@ -119,6 +119,61 @@ async function doHandle(action: "AGREE" | "REJECT") {
   }
 }
 
+async function handleRollback() {
+  if (!myPendingTask.value) return;
+  if (!handleForm.value.comment.trim()) {
+    ElMessage.warning("退回上一步时，请务必在输入框中说明退回修改意见");
+    return;
+  }
+  try {
+    await ElMessageBox.confirm("确认将当前审批流退回至上一个审批节点吗？", "退回确认", {
+      confirmButtonText: "确认退回",
+      cancelButtonText: "取消",
+      type: "warning"
+    });
+    submitting.value = true;
+    await handleWorkflowTask(myPendingTask.value.id, {
+      action: "ROLLBACK_PREVIOUS",
+      comment: handleForm.value.comment.trim()
+    });
+    ElMessage.success("已退回上一个审批环节重新流转！");
+    handleForm.value.comment = "";
+    emit("refresh");
+    await loadDetail();
+  } catch {
+    // cancelled
+  } finally {
+    submitting.value = false;
+  }
+}
+
+async function handleAddSign() {
+  if (!myPendingTask.value) return;
+  try {
+    const { value: assigneeName } = await ElMessageBox.prompt("请输入加签协办人姓名或工号：", "审批加签协办", {
+      confirmButtonText: "确认加签",
+      cancelButtonText: "取消",
+      inputPlaceholder: "例如: 张专家 / 财务审核人",
+      inputValidator: (val) => Boolean(val && val.trim()) || "请填写加签协办人姓名"
+    });
+    submitting.value = true;
+    await handleWorkflowTask(myPendingTask.value.id, {
+      action: "ADD_SIGN",
+      addSignUserId: 2,
+      addSignUserName: assigneeName.trim(),
+      comment: handleForm.value.comment.trim() || `加签协办：邀请 ${assigneeName} 参与前置会签。`
+    });
+    ElMessage.success(`已成功邀请「${assigneeName}」进行加签会签！`);
+    handleForm.value.comment = "";
+    emit("refresh");
+    await loadDetail();
+  } catch {
+    // cancelled
+  } finally {
+    submitting.value = false;
+  }
+}
+
 async function handleCancel() {
   if (!detail.value) return;
   try {
@@ -180,6 +235,11 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
       return "danger";
     case "CANCEL":
       return "info";
+    case "ROLLBACK_PREVIOUS":
+    case "ROLLBACK_INITIATOR":
+      return "warning";
+    case "ADD_SIGN":
+      return "primary";
     default:
       return "primary";
   }
@@ -290,6 +350,24 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
           />
 
           <div class="panel-actions">
+            <el-button
+              type="warning"
+              plain
+              :icon="Back"
+              :loading="submitting"
+              @click="handleRollback"
+            >
+              退回上一步
+            </el-button>
+            <el-button
+              type="primary"
+              plain
+              :icon="UserFilled"
+              :loading="submitting"
+              @click="handleAddSign"
+            >
+              加签协办
+            </el-button>
             <el-button
               type="danger"
               plain

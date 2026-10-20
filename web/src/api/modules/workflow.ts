@@ -106,7 +106,7 @@ export interface TaskLogItem {
   nodeName: string;
   operatorId: number;
   operatorName: string;
-  action: "SUBMIT" | "AGREE" | "REJECT" | "TRANSFER" | "CANCEL" | "READ" | "END";
+  action: "SUBMIT" | "AGREE" | "REJECT" | "TRANSFER" | "CANCEL" | "READ" | "END" | "ADD_SIGN" | "ROLLBACK_PREVIOUS" | "ROLLBACK_INITIATOR";
   actionLabel: string;
   comment?: string;
   createdAt: string;
@@ -140,10 +140,12 @@ export interface ProcessStartPayload {
 }
 
 export interface TaskHandlePayload {
-  action: "AGREE" | "REJECT" | "TRANSFER" | "READ";
+  action: "AGREE" | "REJECT" | "TRANSFER" | "READ" | "ADD_SIGN" | "ROLLBACK_PREVIOUS" | "ROLLBACK_INITIATOR";
   comment?: string;
   transferToUserId?: number;
   transferToUserName?: string;
+  addSignUserId?: number;
+  addSignUserName?: string;
 }
 
 // ----------------------------------------------------------------------------

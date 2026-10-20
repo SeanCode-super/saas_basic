@@ -82,7 +82,7 @@ public class DataMaskJsonSerializer extends JsonSerializer<String> implements Co
         if (principal == null) {
             return false;
         }
-        if ("PLATFORM".equalsIgnoreCase(principal.userType())) {
+        if (principal.isSuperAdmin() || "PLATFORM".equalsIgnoreCase(principal.userType())) {
             return true;
         }
         if (unmaskPermission == null || unmaskPermission.isBlank()) {

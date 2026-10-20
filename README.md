@@ -87,6 +87,16 @@
 - **基础设施实时监控**：Redis 缓存键空间与命中率大屏、慢 SQL 智能拦截诊断、JVM 堆与 GC 运行时健康。
 - **等保三级安全合规**：密码复杂度矩阵、历史密码留存、会话无操作自动注销、三员分立审计日志防篡改。
 
+### 9. 🚀 企业级高级底座套件 (Tier-1 Enterprise Suite)
+- **全链路可观测追踪 (Distributed Tracing & MDC)**：基于 `TraceFilter` 与 `TraceContext`，在 HTTP 请求头与响应头自动注入并透传 `X-Trace-Id`，日志框架 MDC 上下文自动绑定 `trace_id`、`tenant_id`、`user_id`，实现无缝分布式排障。
+- **敏感数据动态脱敏 (Dynamic Data Masking)**：提供 `@DataMask` 注解，对手机号、身份证、邮箱、银行卡等个人隐私信息在 JSON 序列化阶段执行行级脱敏，并支持超级管理员穿透解密查看。
+- **租户级 API 熔断限流 (Tenant Rate Limiting)**：提供 `@RateLimit` 注解，支持基于 Redis 滑动窗口以租户、用户、IP 为维度的并发限流，彻底防护多租户系统中的“吵闹邻居 (Noisy Neighbor)”攻击。
+- **混合多租户架构与动态数据源路由 (Hybrid Multi-Tenant Routing)**：提供 `DynamicRoutingDataSource` 与 `TenantDataSourceRegistry`，支持“共享 Schema”租户与“独立专有物理库”租户混合部署与透明数据源路由。
+- **企业级单点登录 (SSO & Identity Federation)**：支持企业微信、飞书、钉钉移动端与 PC 扫码免登，以及标准 SAML 2.0 / OIDC 企业身份联邦协议。
+- **开发者开放平台 (Open API Gateway)**：提供企业级外部系统接入控制台，包含 AppKey/AppSecret 凭据管理、HMAC-SHA256 签名鉴权、防重放机制与在线签名调试沙箱。
+- **租户计量计费与数据快照归档 (Metering, Billing & Snapshot)**：精准计量各租户 API 调用与云存储消耗，生成结算账单，支持租户全量数据一键加密快照导出与校验和留痕。
+- **复杂工作流高级审批语义 (Advanced Workflow Semantics)**：扩展工作流引擎，原生支持加签协办（`ADD_SIGN`）、退回上一步（`ROLLBACK_PREVIOUS`）、退回发起人（`ROLLBACK_INITIATOR`）与委托转办（`TRANSFER`）。
+
 ---
 
 ## 🛠️ 技术栈清单

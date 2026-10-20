@@ -172,6 +172,98 @@ public class WorkflowTaskService {
 
             logAction(tenantId, instance.getId(), taskId, task.getNodeName(), userId, userName, "READ", "查阅抄送", "抄送知会人已查阅。");
 
+        } else if ("ADD_SIGN".equals(action)) {
+            // 4. 加签操作 (动态邀请协助审批)
+            if (request.addSignUserId() == null || request.addSignUserId() <= 0) {
+                throw new BizException("INVALID_PARAM", "加签操作必须指定被加签人用户ID");
+            }
+            String targetName = StringUtils.hasText(request.addSignUserName()) ? request.addSignUserName() : "加签协同人";
+
+            WorkflowTaskEntity addSignTask = new WorkflowTaskEntity();
+            addSignTask.setTenantId(tenantId);
+            addSignTask.setInstanceId(instance.getId());
+            addSignTask.setNodeId(task.getNodeId() + "_sign_" + System.currentTimeMillis());
+            addSignTask.setNodeName(task.getNodeName() + " (加签协同)");
+            addSignTask.setNodeType("APPROVER");
+            addSignTask.setAssigneeId(request.addSignUserId());
+            addSignTask.setAssigneeName(targetName);
+            addSignTask.setStatus("PENDING");
+            addSignTask.setCreatedBy(userId);
+            addSignTask.setUpdatedBy(userId);
+            taskMapper.insert(addSignTask);
+
+            logAction(tenantId, instance.getId(), taskId, task.getNodeName(), userId, userName, "ADD_SIGN", "加签协同",
+                    "邀请 " + targetName + " 协助审批。附言: " + (request.comment() != null ? request.comment() : "无"));
+
+        } else if ("ROLLBACK_PREVIOUS".equals(action)) {
+            // 5. 退回上一步
+            task.setStatus("ROLLBACK");
+            task.setAction("ROLLBACK_PREVIOUS");
+            task.setComment(request.comment());
+            task.setFinishTime(LocalDateTime.now());
+            task.setUpdatedBy(userId);
+            taskMapper.updateById(task);
+
+            WorkflowTaskEntity lastTask = taskMapper.selectOne(new LambdaQueryWrapper<WorkflowTaskEntity>()
+                    .eq(WorkflowTaskEntity::getInstanceId, instance.getId())
+                    .eq(WorkflowTaskEntity::getStatus, "COMPLETED")
+                    .eq(WorkflowTaskEntity::getNodeType, "APPROVER")
+                    .orderByDesc(WorkflowTaskEntity::getFinishTime)
+                    .last("LIMIT 1"));
+
+            Long prevUserId = (lastTask != null) ? lastTask.getAssigneeId() : instance.getInitiatorId();
+            String prevUserName = (lastTask != null) ? lastTask.getAssigneeName() : instance.getInitiatorName();
+            String prevNodeName = (lastTask != null) ? lastTask.getNodeName() : "申请人重新修改";
+
+            WorkflowTaskEntity rollbackTask = new WorkflowTaskEntity();
+            rollbackTask.setTenantId(tenantId);
+            rollbackTask.setInstanceId(instance.getId());
+            rollbackTask.setNodeId("rollback_" + System.currentTimeMillis());
+            rollbackTask.setNodeName(prevNodeName);
+            rollbackTask.setNodeType("APPROVER");
+            rollbackTask.setAssigneeId(prevUserId);
+            rollbackTask.setAssigneeName(prevUserName);
+            rollbackTask.setStatus("PENDING");
+            rollbackTask.setCreatedBy(userId);
+            rollbackTask.setUpdatedBy(userId);
+            taskMapper.insert(rollbackTask);
+
+            instance.setCurrentNodeName("退回: " + prevNodeName);
+            instance.setUpdatedBy(userId);
+            instanceMapper.updateById(instance);
+
+            logAction(tenantId, instance.getId(), taskId, task.getNodeName(), userId, userName, "ROLLBACK_PREVIOUS", "退回上一环节",
+                    "退回至 " + prevUserName + "。退回原因: " + (request.comment() != null ? request.comment() : "无"));
+
+        } else if ("ROLLBACK_INITIATOR".equals(action)) {
+            // 6. 退回发起人
+            task.setStatus("ROLLBACK");
+            task.setAction("ROLLBACK_INITIATOR");
+            task.setComment(request.comment());
+            task.setFinishTime(LocalDateTime.now());
+            task.setUpdatedBy(userId);
+            taskMapper.updateById(task);
+
+            WorkflowTaskEntity initTask = new WorkflowTaskEntity();
+            initTask.setTenantId(tenantId);
+            initTask.setInstanceId(instance.getId());
+            initTask.setNodeId("rollback_starter");
+            initTask.setNodeName("申请人重新修改");
+            initTask.setNodeType("APPROVER");
+            initTask.setAssigneeId(instance.getInitiatorId());
+            initTask.setAssigneeName(instance.getInitiatorName());
+            initTask.setStatus("PENDING");
+            initTask.setCreatedBy(userId);
+            initTask.setUpdatedBy(userId);
+            taskMapper.insert(initTask);
+
+            instance.setCurrentNodeName("退回申请人");
+            instance.setUpdatedBy(userId);
+            instanceMapper.updateById(instance);
+
+            logAction(tenantId, instance.getId(), taskId, task.getNodeName(), userId, userName, "ROLLBACK_INITIATOR", "退回发起人",
+                    "单据退回给申请人重新核准。原因: " + (request.comment() != null ? request.comment() : "无"));
+
         } else {
             // 4. 同意审批 (默认)
             task.setStatus("COMPLETED");

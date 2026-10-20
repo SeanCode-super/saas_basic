@@ -165,7 +165,7 @@ async function handleSsoLogin(channel: string) {
   loading.value = true;
   loginError.value = "";
   try {
-    const channelName = channel === "WECOM" ? "企业微信" : channel === "DINGTALK" ? "钉钉" : "飞书";
+    const channelName = channel === "WECOM" ? "企业微信" : channel === "DINGTALK" ? "钉钉" : channel === "FEISHU" ? "飞书" : "SAML/OIDC 身份联合";
     ElMessage.info(`正在通过【${channelName}】进行企业 SSO 单点登录...`);
     await authStore.loginWithSso({
       channel,
@@ -397,6 +397,16 @@ onMounted(() => {
                   >
                     <span class="sso-icon">🕊️</span>
                     <span class="sso-label">飞书</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    class="sso-btn sso-btn--oidc"
+                    title="企业身份联邦 (SAML 2.0 / OIDC)"
+                    @click="handleSsoLogin('SAML_OIDC')"
+                  >
+                    <span class="sso-icon">🔑</span>
+                    <span class="sso-label">SAML/OIDC</span>
                   </button>
                 </div>
               </div>

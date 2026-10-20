@@ -12,7 +12,9 @@ public record EmployeeResponse(
         String deptFullName,
         Long positionId,
         String positionName,
+        @com.saasbasics.platform.mask.DataMask(type = com.saasbasics.platform.common.mask.DataMaskType.MOBILE)
         String mobile,
+        @com.saasbasics.platform.mask.DataMask(type = com.saasbasics.platform.common.mask.DataMaskType.EMAIL)
         String email,
         String gender,
         LocalDate hireDate,
