@@ -3,6 +3,8 @@ package com.saasbasics.platform.modules.tenant.controller;
 import com.saasbasics.platform.common.api.ApiResponse;
 import com.saasbasics.platform.common.api.PageResponse;
 import com.saasbasics.platform.common.auth.RequirePermission;
+import com.saasbasics.platform.modules.tenant.dto.TenantPlanUpdateRequest;
+import com.saasbasics.platform.modules.tenant.dto.TenantQuotaOverviewResponse;
 import com.saasbasics.platform.modules.tenant.dto.TenantResponse;
 import com.saasbasics.platform.modules.tenant.dto.TenantSaveRequest;
 import com.saasbasics.platform.modules.tenant.dto.TenantStatusUpdateRequest;
@@ -39,6 +41,12 @@ public class TenantController {
         return ApiResponse.success(tenantService.getTenant(id));
     }
 
+    @GetMapping("/{id}/quotas")
+    @RequirePermission("tenant:query")
+    public ApiResponse<TenantQuotaOverviewResponse> quotas(@PathVariable Long id) {
+        return ApiResponse.success(tenantService.getQuotaOverview(id));
+    }
+
     @PostMapping
     @RequirePermission("tenant:write")
     public ApiResponse<TenantResponse> create(@Valid @RequestBody TenantSaveRequest request) {
@@ -49,6 +57,13 @@ public class TenantController {
     @RequirePermission("tenant:write")
     public ApiResponse<TenantResponse> update(@PathVariable Long id, @Valid @RequestBody TenantSaveRequest request) {
         return ApiResponse.success(tenantService.updateTenant(id, request));
+    }
+
+    @PutMapping("/{id}/plan")
+    @RequirePermission("tenant:write")
+    public ApiResponse<TenantResponse> updatePlan(@PathVariable Long id,
+                                                  @Valid @RequestBody TenantPlanUpdateRequest request) {
+        return ApiResponse.success(tenantService.updateTenantPlan(id, request));
     }
 
     @PatchMapping("/{id}/status")

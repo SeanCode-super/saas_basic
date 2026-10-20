@@ -9,6 +9,10 @@ public record TenantSaveRequest(
         @NotNull Long packageId,
         @NotBlank String status,
         @NotBlank String isolationMode,
+        String expireAt,
+        String contactName,
+        String contactMobile,
+        String contactEmail,
         String remark
 ) {
 }

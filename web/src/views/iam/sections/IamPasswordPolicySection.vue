@@ -34,11 +34,19 @@ function asPasswordPolicyRows(rows: object[]) {
       subtitle="密码复杂度、过期周期、历史复用和临时密码窗口都应归入统一生命周期控制面。"
     >
       <template #toolbar>
-        <el-button v-if="canWrite" type="primary" @click="openPasswordPolicyCreate">新增密码策略</el-button>
+        <el-button
+          v-if="canWrite"
+          v-button-permission="{ code: 'iam_password_policy:create', fallback: 'iam:password-policy:write' }"
+          type="primary"
+          @click="openPasswordPolicyCreate"
+        >
+          新增密码策略
+        </el-button>
       </template>
       <template #bulkActions="{ rows }">
         <el-button
           v-if="canWrite"
+          v-button-permission="{ code: 'iam_password_policy:toggle', fallback: 'iam:password-policy:write' }"
           type="primary"
           plain
           @click="batchEnablePasswordPolicies(asPasswordPolicyRows(rows))"
@@ -47,6 +55,7 @@ function asPasswordPolicyRows(rows: object[]) {
         </el-button>
         <el-button
           v-if="canWrite"
+          v-button-permission="{ code: 'iam_password_policy:toggle', fallback: 'iam:password-policy:write' }"
           plain
           @click="batchDisablePasswordPolicies(asPasswordPolicyRows(rows))"
         >
@@ -57,8 +66,23 @@ function asPasswordPolicyRows(rows: object[]) {
         <BaseStatusTag :status="String(row.status)" :type="row.status === 'ENABLED' ? 'success' : 'danger'" />
       </template>
       <template #actions="{ row }">
-        <el-button v-if="canWrite" link type="primary" @click="openPasswordPolicyEdit(row)">编辑</el-button>
-        <el-button v-if="canWrite" link @click="togglePasswordPolicy(row)">{{ row.status === "ENABLED" ? "停用" : "启用" }}</el-button>
+        <el-button
+          v-if="canWrite"
+          v-button-permission="{ code: 'iam_password_policy:edit', fallback: 'iam:password-policy:write' }"
+          link
+          type="primary"
+          @click="openPasswordPolicyEdit(row)"
+        >
+          编辑
+        </el-button>
+        <el-button
+          v-if="canWrite"
+          v-button-permission="{ code: 'iam_password_policy:toggle', fallback: 'iam:password-policy:write' }"
+          link
+          @click="togglePasswordPolicy(row)"
+        >
+          {{ row.status === "ENABLED" ? "停用" : "启用" }}
+        </el-button>
       </template>
     </ProTable>
 

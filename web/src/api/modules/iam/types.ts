@@ -12,11 +12,17 @@ export interface IamMenuRow {
   menuCode: string;
   menuName: string;
   routePath?: string;
+  activeMenu?: string;
+  redirect?: string;
   componentPath?: string;
+  componentName?: string;
   permissionCode?: string;
   icon?: string;
   visible: boolean;
   keepAlive: boolean;
+  isFrame?: boolean;
+  frameSrc?: string;
+  isAffix?: boolean;
   sortNo: number;
   status: string;
   metaJson?: string;
@@ -30,11 +36,17 @@ export interface IamMenuSavePayload {
   menuCode: string;
   menuName: string;
   routePath?: string;
+  activeMenu?: string;
+  redirect?: string;
   componentPath?: string;
+  componentName?: string;
   permissionCode?: string;
   icon?: string;
   visible: boolean;
   keepAlive: boolean;
+  isFrame?: boolean;
+  frameSrc?: string;
+  isAffix?: boolean;
   sortNo?: number;
   status: string;
   metaJson?: string;
@@ -379,3 +391,69 @@ export interface RoleApiAssignment {
   tenantId: number;
   apiResourceIds: number[];
 }
+
+export interface RoleUserAssignment {
+  roleId: number;
+  tenantId: number;
+  userIds: number[];
+}
+
+export interface UserPermissionInspection {
+  userId: number;
+  username: string;
+  nickname: string;
+  employeeId?: number;
+  employeeName?: string;
+  departmentId?: number;
+  departmentName?: string;
+  positionId?: number;
+  positionName?: string;
+  companyDepartmentId?: number;
+  companyDepartmentName?: string;
+  roles: Array<{
+    id: number;
+    roleCode: string;
+    roleName: string;
+    roleType: string;
+    status: string;
+  }>;
+  menus: Array<{
+    id: number;
+    parentId: number;
+    menuCode: string;
+    menuName: string;
+    menuType: string;
+    path: string;
+    icon?: string;
+  }>;
+  buttonPermissions: string[];
+  dataScopeRules: Array<{
+    id: number;
+    resourceCode: string;
+    resourceName: string;
+    scopeType: string;
+    subjectType: string;
+    subjectValue: string;
+    resolvedDepartmentIds: number[];
+    configSummary: string;
+  }>;
+}
+
+export interface PermissionSimulationRequest {
+  userId: number;
+  actionCode?: string;
+  menuCode?: string;
+  targetDepartmentId?: number;
+}
+
+export interface PermissionSimulationResponse {
+  overallGranted: boolean;
+  actionGranted: boolean;
+  dataScopeGranted: boolean;
+  scopeType: string;
+  allowedDepartmentIds: number[];
+  matchedRoles: string[];
+  decisionTrace: string[];
+  simulatedSqlCondition: string;
+}
+

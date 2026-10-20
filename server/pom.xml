@@ -40,6 +40,8 @@
         <module>saas-basics-module-scheduler</module>
         <module>saas-basics-module-codegen</module>
         <module>saas-basics-module-audit</module>
+        <module>saas-basics-module-workflow</module>
+        <module>saas-basics-workflow-app</module>
     </modules>
 
     <properties>
@@ -49,5 +51,6 @@
         <flyway.version>10.10.0</flyway.version>
         <mysql.connector.version>9.6.0</mysql.connector.version>
         <archunit.version>1.3.0</archunit.version>
+        <commons-compress.version>1.26.2</commons-compress.version>
     </properties>
 </project>

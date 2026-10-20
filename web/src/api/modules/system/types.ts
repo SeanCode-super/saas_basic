@@ -89,3 +89,60 @@ export interface SystemDictOption {
   tag?: string;
   defaultItem: boolean;
 }
+
+export interface RedisInfoData {
+  available: boolean;
+  mode: string;
+  redisVersion: string;
+  uptimeInSeconds: number;
+  connectedClients: number;
+  usedMemoryHuman: string;
+  usedMemoryPeakHuman: string;
+  totalCommandsProcessed: number;
+  instantaneousOpsPerSec: number;
+  totalKeys: number;
+  hitRate: number;
+  message: string;
+}
+
+export interface RedisKeyItem {
+  key: string;
+  type: string;
+  ttlSeconds: number;
+  size: string;
+}
+
+export interface SlowSqlRecord {
+  id: string;
+  sql: string;
+  costMillis: number;
+  executedAt: string;
+  threadName: string;
+  stackTrace: string;
+}
+
+export interface SlowSqlReportData {
+  thresholdMillis: number;
+  totalSlowQueries: number;
+  recentSlowQueries: SlowSqlRecord[];
+  topSlowestQueries: SlowSqlRecord[];
+}
+
+export interface JvmInfoData {
+  javaVersion: string;
+  javaVendor: string;
+  jvmName: string;
+  startTime: number;
+  uptimeSeconds: number;
+  heapUsedBytes: number;
+  heapMaxBytes: number;
+  heapCommittedBytes: number;
+  heapUsedPercent: number;
+  nonHeapUsedBytes: number;
+  activeThreads: number;
+  peakThreads: number;
+  totalStartedThreads: number;
+  gcMetrics: { name: string; count: number; timeMillis: number }[];
+  availableProcessors: number;
+  systemCpuLoad: number;
+}

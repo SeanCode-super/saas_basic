@@ -91,11 +91,17 @@ public class MenuService {
         entity.setMenuCode(request.menuCode());
         entity.setMenuName(request.menuName());
         entity.setRoutePath(Set.of("MENU", "LINK").contains(menuType) ? request.routePath() : null);
+        entity.setActiveMenu(request.activeMenu());
+        entity.setRedirect("DIRECTORY".equals(menuType) ? request.redirect() : null);
         entity.setComponentPath("MENU".equals(menuType) ? request.componentPath() : null);
-        entity.setPermissionCode(Set.of("MENU", "LINK").contains(menuType) ? request.permissionCode() : null);
+        entity.setComponentName("MENU".equals(menuType) ? request.componentName() : null);
+        entity.setPermissionCode(Set.of("MENU", "LINK", "BUTTON").contains(menuType) ? request.permissionCode() : null);
         entity.setIcon(request.icon());
         entity.setVisible("BUTTON".equals(menuType) ? false : request.visible());
         entity.setKeepAlive("MENU".equals(menuType) && Boolean.TRUE.equals(request.keepAlive()));
+        entity.setIsFrame(Boolean.TRUE.equals(request.isFrame()));
+        entity.setFrameSrc(Boolean.TRUE.equals(request.isFrame()) ? request.frameSrc() : null);
+        entity.setIsAffix(Boolean.TRUE.equals(request.isAffix()));
         entity.setSortNo(request.sortNo() == null ? 0 : request.sortNo());
         entity.setStatus(request.status());
         entity.setMetaJson(request.metaJson());

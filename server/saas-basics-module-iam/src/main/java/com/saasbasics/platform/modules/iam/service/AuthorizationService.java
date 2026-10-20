@@ -6,6 +6,8 @@ import com.saasbasics.platform.modules.audit.service.AuditTrailService;
 import com.saasbasics.platform.modules.iam.dto.RoleApiAssignmentRequest;
 import com.saasbasics.platform.modules.iam.dto.RoleApiAssignmentResponse;
 import com.saasbasics.platform.modules.iam.dto.RoleResponse;
+import com.saasbasics.platform.modules.iam.dto.RoleUserAssignmentRequest;
+import com.saasbasics.platform.modules.iam.dto.RoleUserAssignmentResponse;
 import com.saasbasics.platform.modules.iam.dto.UserRoleAssignmentRequest;
 import com.saasbasics.platform.modules.iam.dto.UserRoleAssignmentResponse;
 import com.saasbasics.platform.modules.iam.entity.ApiResourceEntity;
@@ -103,6 +105,29 @@ public class AuthorizationService {
         }
         auditTrailService.record("iam", "role_api", String.valueOf(roleId), "ASSIGN", "apis=" + request.apiResourceIds(), "apis=" + apiResourceIds, true);
         return new RoleApiAssignmentResponse(roleId, request.tenantId(), apiResourceIds);
+    }
+
+    public RoleUserAssignmentResponse getRoleUserAssignments(Long roleId, Long tenantId) {
+        UserRoleMapper mapper = requiredUserRoleMapper();
+        List<Long> userIds = mapper.selectUserIdsByRoleId(tenantId, roleId, LocalDateTime.now());
+        return new RoleUserAssignmentResponse(roleId, tenantId, userIds != null ? userIds : List.of());
+    }
+
+    public RoleUserAssignmentResponse assignRoleUsers(Long roleId, RoleUserAssignmentRequest request) {
+        UserRoleMapper mapper = requiredUserRoleMapper();
+        List<Long> userIds = normalize(request.userIds());
+        mapper.deleteRoleAssignments(request.tenantId(), roleId);
+
+        for (Long userId : userIds) {
+            UserRoleEntity entity = new UserRoleEntity();
+            entity.setTenantId(request.tenantId());
+            entity.setUserId(userId);
+            entity.setRoleId(roleId);
+            entity.setSourceType("MANUAL");
+            mapper.insert(entity);
+        }
+        auditTrailService.record("iam", "role_user", String.valueOf(roleId), "ASSIGN", null, "users=" + userIds, true);
+        return new RoleUserAssignmentResponse(roleId, request.tenantId(), userIds);
     }
 
     private List<Long> normalize(List<Long> ids) {

@@ -1,6 +1,13 @@
 import { http } from "@/api/http";
 import type { ApiResponse, PageResponse } from "@/types/http";
-import type { TenantRow, TenantSavePayload } from "./types";
+import type {
+  TenantPackageRow,
+  TenantPackageSavePayload,
+  TenantPlanUpdatePayload,
+  TenantQuotaOverview,
+  TenantRow,
+  TenantSavePayload
+} from "./types";
 
 export async function fetchTenantPage(): Promise<TenantRow[]> {
   const response = await http.get<ApiResponse<PageResponse<TenantRow>>>("/tenants");
@@ -10,4 +17,43 @@ export async function fetchTenantPage(): Promise<TenantRow[]> {
 export async function createTenant(payload: TenantSavePayload): Promise<TenantRow> {
   const response = await http.post<ApiResponse<TenantRow>>("/tenants", payload);
   return response.data.data;
+}
+
+export async function updateTenant(id: number, payload: TenantSavePayload): Promise<TenantRow> {
+  const response = await http.put<ApiResponse<TenantRow>>(`/tenants/${id}`, payload);
+  return response.data.data;
+}
+
+export async function updateTenantStatus(id: number, status: string): Promise<TenantRow> {
+  const response = await http.patch<ApiResponse<TenantRow>>(`/tenants/${id}/status`, { status });
+  return response.data.data;
+}
+
+export async function updateTenantPlan(id: number, payload: TenantPlanUpdatePayload): Promise<TenantRow> {
+  const response = await http.put<ApiResponse<TenantRow>>(`/tenants/${id}/plan`, payload);
+  return response.data.data;
+}
+
+export async function fetchTenantQuotas(id: number): Promise<TenantQuotaOverview> {
+  const response = await http.get<ApiResponse<TenantQuotaOverview>>(`/tenants/${id}/quotas`);
+  return response.data.data;
+}
+
+export async function fetchTenantPackages(): Promise<TenantPackageRow[]> {
+  const response = await http.get<ApiResponse<TenantPackageRow[]>>("/tenant-packages");
+  return response.data.data;
+}
+
+export async function createTenantPackage(payload: TenantPackageSavePayload): Promise<TenantPackageRow> {
+  const response = await http.post<ApiResponse<TenantPackageRow>>("/tenant-packages", payload);
+  return response.data.data;
+}
+
+export async function updateTenantPackage(id: number, payload: TenantPackageSavePayload): Promise<TenantPackageRow> {
+  const response = await http.put<ApiResponse<TenantPackageRow>>(`/tenant-packages/${id}`, payload);
+  return response.data.data;
+}
+
+export async function deleteTenantPackage(id: number): Promise<void> {
+  await http.delete(`/tenant-packages/${id}`);
 }

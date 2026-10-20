@@ -225,31 +225,21 @@ public class TenantBootstrapService {
                   tenant_id, menu_id, menu_code, subject_type, subject_value, button_codes_json, status,
                   created_by, created_at, updated_by, updated_at, deleted, version, remark
                 )
-                SELECT ?, id, menu_code, 'ROLE', CAST(? AS CHAR),
-                       CASE menu_code
-                         WHEN 'iam_department' THEN JSON_ARRAY('iam_department:create', 'iam_department:edit', 'iam_department:toggle')
-                         WHEN 'iam_position' THEN JSON_ARRAY('iam_position:create', 'iam_position:edit', 'iam_position:toggle')
-                         WHEN 'iam_employee' THEN JSON_ARRAY('iam_employee:create', 'iam_employee:edit', 'iam_employee:toggle')
-                         WHEN 'iam_user' THEN JSON_ARRAY('iam_user:create', 'iam_user:edit', 'iam_user:toggle')
-                         WHEN 'iam_role' THEN JSON_ARRAY('iam_role:create', 'iam_role:edit', 'iam_role:toggle')
-                         WHEN 'iam_api_resource' THEN JSON_ARRAY('iam_api_resource:create', 'iam_api_resource:edit', 'iam_api_resource:toggle')
-                         WHEN 'iam_user_role' THEN JSON_ARRAY('iam_user_role:assign', 'iam_user_role:save')
-                         WHEN 'iam_role_api' THEN JSON_ARRAY('iam_role_api:assign', 'iam_role_api:save')
-                         WHEN 'iam_menu_center' THEN JSON_ARRAY(
-                           'iam_menu:create', 'iam_menu:edit', 'iam_menu:toggle',
-                           'iam_menu_permission:create', 'iam_menu_permission:edit', 'iam_menu_permission:toggle', 'iam_menu_permission:save'
-                         )
-                         WHEN 'iam_data_scope_center' THEN JSON_ARRAY(
-                           'iam_data_scope_rule:create', 'iam_data_scope_rule:edit', 'iam_data_scope_rule:toggle', 'iam_data_scope_rule:save',
-                           'iam_data_scope_template:create', 'iam_data_scope_template:edit', 'iam_data_scope_template:toggle'
-                         )
-                         ELSE JSON_ARRAY()
-                       END,
+                SELECT ?, target.id, target.menu_code, 'ROLE', CAST(? AS CHAR),
+                       IFNULL((
+                         SELECT JSON_ARRAYAGG(btn.menu_code)
+                         FROM iam_menu btn
+                         WHERE btn.parent_id = target.id
+                           AND btn.tenant_id = target.tenant_id
+                           AND btn.menu_type = 'BUTTON'
+                           AND btn.deleted = 0
+                       ), JSON_ARRAY()),
                        'ENABLED',
                        1, NOW(3), 1, NOW(3), 0, 0, 'tenant bootstrap'
-                FROM iam_menu
-                WHERE tenant_id = ?
-                  AND deleted = 0
+                FROM iam_menu target
+                WHERE target.tenant_id = ?
+                  AND target.menu_type <> 'BUTTON'
+                  AND target.deleted = 0
                 """, tenantId, roleId, tenantId);
     }
 

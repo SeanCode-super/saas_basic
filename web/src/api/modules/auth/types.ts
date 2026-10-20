@@ -38,7 +38,23 @@ export interface AuthLoginRequest {
 
 export interface AuthLoginResponse {
   accessToken: string;
+  refreshToken?: string;
   tokenType: string;
   expireAt: string;
   currentUser: AuthCurrentUser;
+}
+
+export interface OnlineSession {
+  sessionNo: string;
+  userId: number;
+  username: string;
+  nickname?: string;
+  userType: string;
+  loginIp?: string;
+  userAgent?: string;
+  loginTime: string;
+  lastAccessAt?: string;
+  expireAt: string;
+  status: string;
+  isCurrent: boolean;
 }

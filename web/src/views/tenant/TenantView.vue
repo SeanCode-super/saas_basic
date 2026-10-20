@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
-import { createTenant, fetchTenantPage } from "@/api/modules/tenant";
-import type { TenantRow } from "@/api/modules/tenant";
+import { Plus } from "@element-plus/icons-vue";
+import { createTenant, fetchTenantPackages, fetchTenantPage } from "@/api/modules/tenant";
+import type { TenantPackageRow, TenantRow } from "@/api/modules/tenant";
 import BaseCard from "@/components/base/BaseCard.vue";
 import ControlSurface from "@/components/platform/ControlSurface.vue";
 import BaseRefreshButton from "@/components/base/BaseRefreshButton.vue";
@@ -36,6 +37,7 @@ const createVisible = ref(false);
 const importVisible = ref(false);
 const importContent = ref("");
 const rows = ref<TenantRow[]>([]);
+const availablePackages = ref<TenantPackageRow[]>([]);
 const query = reactive({
   keyword: "",
   status: ""
@@ -44,8 +46,11 @@ const form = reactive({
   tenantCode: "",
   tenantName: "",
   packageId: 1,
-  status: "TRIAL",
+  status: "ACTIVE",
   isolationMode: "SHARED_SCHEMA",
+  expireAt: "",
+  contactName: "",
+  contactMobile: "",
   remark: ""
 });
 const runtimePolicy = reactive({
@@ -146,21 +151,28 @@ const operatingBlueprint = [
 ];
 
 const columns: ProTableColumn[] = [
-  { prop: "tenantCode", label: "租户编码", minWidth: 140 },
-  { prop: "tenantName", label: "租户名称", minWidth: 220 },
+  { prop: "tenantCode", label: "租户编码", minWidth: 120 },
+  { prop: "tenantName", label: "租户名称", minWidth: 180 },
   {
     prop: "packageName",
-    label: "套餐",
-    minWidth: 160,
-    formatter: (row) => packageLabelMap[String(row.packageName ?? "")] ?? String(row.packageName ?? "--")
+    label: "订阅套餐",
+    minWidth: 120,
+    slot: "package"
+  },
+  {
+    prop: "expireAt",
+    label: "履约到期 / 倒计时",
+    minWidth: 170,
+    slot: "expireAt"
   },
   {
     prop: "isolationMode",
     label: "隔离模式",
-    minWidth: 160,
+    minWidth: 130,
     formatter: (row) => isolationModeLabelMap[String(row.isolationMode ?? "")] ?? String(row.isolationMode ?? "--")
   },
-  { prop: "status", label: "状态", minWidth: 120, slot: "status" }
+  { prop: "status", label: "生命周期状态", minWidth: 120, slot: "status" },
+  { prop: "actions", label: "操作", minWidth: 180, fixed: "right", slot: "actions" }
 ];
 
 const schema = computed(() => [
@@ -203,7 +215,12 @@ const currentSectionComponent = computed(
 async function loadData() {
   loading.value = true;
   try {
-    rows.value = await fetchTenantPage();
+    const [tenants, pkgs] = await Promise.all([
+      fetchTenantPage(),
+      fetchTenantPackages().catch(() => [])
+    ]);
+    rows.value = tenants;
+    availablePackages.value = pkgs;
   } finally {
     loading.value = false;
   }
@@ -217,9 +234,14 @@ function resetQuery() {
 function openCreateDialog() {
   form.tenantCode = "";
   form.tenantName = "";
-  form.packageId = 1;
-  form.status = "TRIAL";
+  form.packageId = availablePackages.value[0]?.id || 1;
+  form.status = "ACTIVE";
   form.isolationMode = "SHARED_SCHEMA";
+  const d = new Date();
+  d.setDate(d.getDate() + 365);
+  form.expireAt = d.toISOString().substring(0, 10);
+  form.contactName = "";
+  form.contactMobile = "";
   form.remark = "";
   createVisible.value = true;
 }
@@ -230,18 +252,29 @@ function openImportDialog() {
 }
 
 async function handleCreate() {
+  if (!form.tenantCode?.trim()) {
+    ElMessage.warning("请输入租户编码");
+    return;
+  }
+  if (!form.tenantName?.trim()) {
+    ElMessage.warning("请输入企业/租户全称");
+    return;
+  }
   submitting.value = true;
   try {
     await createTenant({
-      tenantCode: form.tenantCode,
-      tenantName: form.tenantName,
+      tenantCode: form.tenantCode.trim(),
+      tenantName: form.tenantName.trim(),
       packageId: form.packageId,
       status: form.status,
       isolationMode: form.isolationMode,
+      expireAt: form.expireAt ? `${form.expireAt} 23:59:59` : undefined,
+      contactName: form.contactName?.trim() || undefined,
+      contactMobile: form.contactMobile?.trim() || undefined,
       remark: form.remark
     });
     createVisible.value = false;
-    ElMessage.success("租户已创建");
+    ElMessage.success("租户已创建，初始配额基线已就绪！");
     await loadData();
   } catch (error: any) {
     ElMessage.error(error?.response?.data?.message ?? "创建租户失败");
@@ -298,69 +331,14 @@ onMounted(loadData);
 </script>
 
 <template>
-  <ModuleWorkbench
-    v-if="isOverviewSection"
+  <ControlSurface
     eyebrow="租户中心"
-    title="租户中心"
-    description="企业级租户底座要把开通治理、配额模型、隔离升级和台账监管放进同一条控制链路，而不是只给一个租户列表。"
-    :summary="summary"
+    :title="activeSectionMeta.label"
+    :description="activeSectionMeta.description"
   >
     <template #actions>
       <BaseRefreshButton :loading="loading" @click="loadData" />
-      <el-button type="primary" @click="openCreateDialog">新建租户</el-button>
-    </template>
-
-    <template #spotlight>
-      <div class="module-workbench__spotlight">
-        <strong>租户治理态势</strong>
-        <p>当前底座先控制注册审批、默认套餐和高隔离升级路径，再进入租户对象台账。</p>
-        <div class="module-workbench__spotlight-grid">
-          <article v-for="item in tenantSpotlight" :key="item.label" class="module-workbench__spotlight-item">
-            <span>{{ item.label }}</span>
-            <strong>{{ item.value }}</strong>
-          </article>
-        </div>
-      </div>
-    </template>
-
-    <template #rail>
-      <BaseCard>
-        <template #header>
-          <div class="panel-header">
-            <h3>治理蓝图</h3>
-            <p>租户模块先定义平台基线，再开放租户对象管理和升级路径。</p>
-          </div>
-        </template>
-        <div class="blueprint-stack">
-          <article v-for="item in operatingBlueprint" :key="item.title" class="blueprint-item">
-            <strong>{{ item.title }}</strong>
-            <p>{{ item.description }}</p>
-          </article>
-        </div>
-      </BaseCard>
-
-      <BaseCard>
-        <template #header>
-          <div class="panel-header">
-            <h3>当前基线</h3>
-            <p>平台在租户治理上的默认执行方向。</p>
-          </div>
-        </template>
-        <div class="signal-stack">
-          <article class="signal-item">
-            <span>审批模式</span>
-            <strong>{{ runtimePolicy.tenantApprovalMode === "MANUAL" ? "人工审批" : "自动开通" }}</strong>
-          </article>
-          <article class="signal-item">
-            <span>默认套餐</span>
-            <strong>{{ packageLabelMap[packagePolicy.defaultPackage] }}</strong>
-          </article>
-          <article class="signal-item">
-            <span>高隔离层</span>
-            <strong>{{ isolationModeLabelMap[isolationPolicy.financeIsolation] }}</strong>
-          </article>
-        </div>
-      </BaseCard>
+      <el-button type="primary" :icon="Plus" @click="openCreateDialog">新建租户空间</el-button>
     </template>
 
     <div class="module-section-stack">
@@ -387,72 +365,90 @@ onMounted(loadData);
         :open-create-dialog="openCreateDialog"
         :open-import-dialog="openImportDialog"
         :save-policy="savePolicy"
+        @navigate-section="updateSection"
       />
     </div>
-  </ModuleWorkbench>
-
-  <ControlSurface
-    v-else
-    eyebrow="租户控制面"
-    :title="activeSectionMeta.label"
-    :description="activeSectionMeta.description"
-  >
-    <template #actions>
-      <BaseRefreshButton :loading="loading" @click="loadData" />
-    </template>
-
-    <component
-      :is="currentSectionComponent"
-      :runtime-policy="runtimePolicy"
-      :package-policy="packagePolicy"
-      :isolation-policy="isolationPolicy"
-      :isolation-mode-label-map="isolationModeLabelMap"
-      :query="query"
-      :schema="schema"
-      :columns="columns"
-      :rows="filteredRows"
-      :loading="loading"
-      :reset-query="resetQuery"
-      :load-data="loadData"
-      :open-create-dialog="openCreateDialog"
-      :open-import-dialog="openImportDialog"
-      :save-policy="savePolicy"
-    />
   </ControlSurface>
 
-  <el-dialog v-model="createVisible" title="新建租户" width="520px">
+  <el-dialog v-model="createVisible" title="新建租户空间" width="580px" :close-on-click-modal="false">
       <el-form label-position="top">
-        <el-form-item label="租户编码">
-          <el-input v-model="form.tenantCode" />
-        </el-form-item>
-        <el-form-item label="租户名称">
-          <el-input v-model="form.tenantName" />
-        </el-form-item>
-        <el-form-item label="套餐 ID">
-          <el-input-number v-model="form.packageId" :min="1" style="width: 100%" />
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="form.status">
-            <el-option label="试用" value="TRIAL" />
-            <el-option label="启用" value="ENABLED" />
-            <el-option label="停用" value="DISABLED" />
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="租户编码" required>
+              <el-input v-model="form.tenantCode" placeholder="英文小写标识，如 demo_corp" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="企业/租户全称" required>
+              <el-input v-model="form.tenantName" placeholder="如 某某科技股份有限公司" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <el-form-item label="订阅套餐档位" required>
+          <el-select v-model="form.packageId" placeholder="选择预设套餐计划" style="width: 100%">
+            <el-option
+              v-for="p in availablePackages"
+              :key="p.id"
+              :label="`${p.packageName} (${p.packageCode}) · 席位上限: ${p.maxUserCount}席 · 存储: ${(p.maxStorageMb/1024).toFixed(0)}GB`"
+              :value="p.id"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item label="隔离模式">
-          <el-select v-model="form.isolationMode">
-            <el-option label="共享 Schema" value="SHARED_SCHEMA" />
-            <el-option label="独立 Schema" value="ISOLATED_SCHEMA" />
-            <el-option label="独立数据库" value="DEDICATED_DATABASE" />
-          </el-select>
+
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="初始生命周期状态">
+              <el-select v-model="form.status" style="width: 100%">
+                <el-option label="正常履约 (ACTIVE)" value="ACTIVE" />
+                <el-option label="试用体验 (TRIAL)" value="TRIAL" />
+                <el-option label="预先停用 (DISABLED)" value="DISABLED" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="物理/逻辑隔离模式">
+              <el-select v-model="form.isolationMode" style="width: 100%">
+                <el-option label="共享 Schema (行级隔离)" value="SHARED_SCHEMA" />
+                <el-option label="独立 Schema (表级隔离)" value="ISOLATED_SCHEMA" />
+                <el-option label="独立数据库 (物理隔离)" value="DEDICATED_DATABASE" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <el-form-item label="合同/试用到期时间">
+          <el-date-picker
+            v-model="form.expireAt"
+            type="date"
+            placeholder="默认开通 1 年，可自定义设定..."
+            format="YYYY-MM-DD"
+            value-format="YYYY-MM-DD"
+            style="width: 100%"
+          />
         </el-form-item>
-        <el-form-item label="备注">
-          <el-input v-model="form.remark" type="textarea" :rows="3" />
+
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="主联系人姓名">
+              <el-input v-model="form.contactName" placeholder="选填，企业对接人姓名" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="联系人手机号码">
+              <el-input v-model="form.contactMobile" placeholder="选填，手机号码" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <el-form-item label="备注说明">
+          <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="商务背景、客户主体或开通批注..." />
         </el-form-item>
       </el-form>
 
       <template #footer>
         <el-button @click="createVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="handleCreate">确认创建</el-button>
+        <el-button type="primary" :loading="submitting" @click="handleCreate">确认创建租户</el-button>
       </template>
   </el-dialog>
 

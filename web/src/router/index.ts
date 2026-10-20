@@ -25,6 +25,15 @@ export const router = createRouter({
       }
     },
     {
+      path: "/screen",
+      name: "screen",
+      component: () => import("@/views/screen/DataScreenView.vue"),
+      meta: {
+        title: "数字驾驶舱大屏",
+        hidden: true
+      }
+    },
+    {
       path: "/",
       name: "console",
       component: ConsoleLayout,

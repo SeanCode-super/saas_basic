@@ -5,6 +5,8 @@ import com.saasbasics.platform.common.auth.AuthContext;
 import com.saasbasics.platform.common.auth.RequirePermission;
 import com.saasbasics.platform.modules.iam.dto.RoleApiAssignmentRequest;
 import com.saasbasics.platform.modules.iam.dto.RoleApiAssignmentResponse;
+import com.saasbasics.platform.modules.iam.dto.RoleUserAssignmentRequest;
+import com.saasbasics.platform.modules.iam.dto.RoleUserAssignmentResponse;
 import com.saasbasics.platform.modules.iam.dto.UserRoleAssignmentRequest;
 import com.saasbasics.platform.modules.iam.dto.UserRoleAssignmentResponse;
 import com.saasbasics.platform.modules.iam.service.AuthorizationService;
@@ -53,6 +55,20 @@ public class AuthorizationController {
     public ApiResponse<RoleApiAssignmentResponse> assignRoleApis(@PathVariable Long roleId,
                                                                  @Valid @RequestBody RoleApiAssignmentRequest request) {
         return ApiResponse.success(authorizationService.assignRoleApis(roleId, request));
+    }
+
+    @GetMapping("/roles/{roleId}/users")
+    @RequirePermission("iam:user-role:query")
+    public ApiResponse<RoleUserAssignmentResponse> roleUsers(@PathVariable Long roleId,
+                                                             @RequestParam(required = false) Long tenantId) {
+        return ApiResponse.success(authorizationService.getRoleUserAssignments(roleId, resolveTenantId(tenantId)));
+    }
+
+    @PutMapping("/roles/{roleId}/users")
+    @RequirePermission("iam:user-role:write")
+    public ApiResponse<RoleUserAssignmentResponse> assignRoleUsers(@PathVariable Long roleId,
+                                                                   @Valid @RequestBody RoleUserAssignmentRequest request) {
+        return ApiResponse.success(authorizationService.assignRoleUsers(roleId, request));
     }
 
     private Long resolveTenantId(Long tenantId) {

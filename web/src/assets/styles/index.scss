@@ -3,14 +3,21 @@
 @use "./workbench-sections";
 
 body {
-  color: var(--sb-text-primary);
+  color: var(--sb-text-secondary);
   font-family: var(--sb-font-family);
   background: var(--sb-page-shell);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 a {
   color: inherit;
   text-decoration: none;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--sb-text-primary);
+  font-weight: 700;
 }
 
 .el-button,
@@ -20,28 +27,174 @@ a {
   font-family: var(--sb-font-family);
 }
 
+/* Card Elevation & Crisp Border */
 .el-card {
-  background: #fff;
-  box-shadow: none;
+  border: 1px solid var(--sb-border-color);
+  border-radius: var(--sb-radius-md);
+  background: var(--sb-surface-strong);
+  box-shadow: var(--sb-shadow-xs);
+  transition: box-shadow 160ms ease, border-color 160ms ease;
+
+  .el-card__header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--sb-border-subtle);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--sb-text-primary);
+  }
 }
 
+/* Button Elevation & Contrast */
 .el-button {
-  border-radius: 5px;
+  border-radius: var(--sb-radius-md);
+  font-weight: 500;
+  transition: all 150ms ease;
+
+  &:not(.el-button--primary):not(.el-button--success):not(.el-button--warning):not(.el-button--danger):not(.is-link):not(.is-text) {
+    border: 1px solid var(--sb-border-color);
+    background: #ffffff;
+    color: var(--sb-text-secondary);
+
+    &:hover {
+      background: #f8fafc;
+      border-color: var(--sb-border-strong);
+      color: var(--sb-text-primary);
+    }
+
+    &:active {
+      background: #f1f5f9;
+      border-color: var(--sb-text-tertiary);
+    }
+  }
 }
 
 .el-button--primary {
   --el-button-bg-color: var(--sb-primary-color);
   --el-button-border-color: var(--sb-primary-color);
-  --el-button-hover-bg-color: #3c76df;
-  --el-button-hover-border-color: #3c76df;
+  --el-button-hover-bg-color: var(--sb-primary-hover);
+  --el-button-hover-border-color: var(--sb-primary-hover);
   --el-button-active-bg-color: var(--sb-primary-strong);
   --el-button-active-border-color: var(--sb-primary-strong);
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2);
 }
 
+/* Form Controls with Crisp Slate-300 Outline and Focus Ring */
 .el-input__wrapper,
 .el-select__wrapper,
 .el-textarea__inner {
-  border-radius: 5px;
+  border-radius: var(--sb-radius-md);
+  background: #ffffff;
+  box-shadow: 0 0 0 1px var(--sb-border-color) inset;
+  transition: all 140ms ease;
+
+  &:hover {
+    box-shadow: 0 0 0 1px var(--sb-border-strong) inset;
+  }
+
+  &.is-focus,
+  &:focus-within {
+    box-shadow: 0 0 0 1.5px var(--sb-primary-color) inset, 0 0 0 3.5px rgba(37, 99, 235, 0.15) !important;
+  }
+}
+
+/* Production-Grade High-Contrast Table Styling */
+.el-table {
+  --el-table-border: 1px solid var(--sb-border-subtle);
+  border: 1px solid var(--sb-border-color);
+  border-radius: var(--sb-radius-md);
+  background: #ffffff;
+  color: var(--sb-text-secondary);
+  font-size: 13px;
+
+  th.el-table__cell {
+    background-color: #f8fafc !important;
+    color: var(--sb-text-primary) !important;
+    font-weight: 650 !important;
+    font-size: 13px !important;
+    border-bottom: 1.5px solid var(--sb-border-color) !important;
+    padding: 10px 0;
+  }
+
+  td.el-table__cell {
+    border-bottom: 1px solid var(--sb-border-subtle) !important;
+    padding: 10px 0;
+    color: var(--sb-text-secondary);
+  }
+
+  .el-table__row:hover > td.el-table__cell {
+    background-color: #eff6ff !important;
+  }
+
+  .el-table__inner-wrapper::before {
+    background-color: var(--sb-border-color);
+  }
+}
+
+/* Global Tag & Badge Centering & High Contrast */
+.el-tag {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  vertical-align: middle !important;
+  line-height: 1 !important;
+  font-weight: 500 !important;
+  border-radius: 4px !important;
+  box-sizing: border-box !important;
+
+  .el-tag__content {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+  }
+}
+
+/* Descriptions Border & Contrast */
+.el-descriptions {
+  --el-descriptions-table-border: 1px solid var(--sb-border-color);
+
+  .el-descriptions__label {
+    background: #f8fafc !important;
+    color: var(--sb-text-primary) !important;
+    font-weight: 600 !important;
+  }
+
+  .el-descriptions__content {
+    color: var(--sb-text-secondary) !important;
+  }
+}
+
+/* Dialog & Drawer Depth */
+.el-dialog {
+  border-radius: var(--sb-radius-lg);
+  border: 1px solid var(--sb-border-color);
+  box-shadow: var(--sb-shadow-lg);
+
+  .el-dialog__header {
+    padding: 16px 20px;
+    margin-right: 0;
+    border-bottom: 1px solid var(--sb-border-subtle);
+
+    .el-dialog__title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--sb-text-primary);
+    }
+  }
+
+  .el-dialog__footer {
+    padding: 12px 20px;
+    border-top: 1px solid var(--sb-border-subtle);
+  }
+}
+
+/* Enterprise Tabular Numerals for metrics, dates, and tables */
+.tabular-nums,
+.el-table,
+.dashboard__stat strong,
+.pro-stat-card strong {
+  font-variant-numeric: tabular-nums;
 }
 
 #app {
@@ -49,7 +202,7 @@ a {
 }
 
 ::selection {
-  background: rgb(30 94 255 / 0.16);
+  background: rgb(37 99 235 / 0.16);
 }
 
 *,
@@ -57,3 +210,5 @@ a {
 *::after {
   letter-spacing: 0;
 }
+
+

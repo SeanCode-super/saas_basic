@@ -26,13 +26,16 @@ const cardClass = computed(() => [`base-card--${props.tone}`]);
 .base-card {
   border: 1px solid var(--sb-border-color);
   border-radius: var(--sb-radius-md);
-  background: #fff;
-  box-shadow: none;
+  background: #ffffff;
+  box-shadow: var(--sb-shadow-xs);
+  transition: box-shadow 160ms ease, border-color 160ms ease;
 }
 
 .base-card :deep(.el-card__header) {
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--sb-border-color);
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--sb-border-subtle);
+  font-weight: 600;
+  color: var(--sb-text-primary);
 }
 
 .base-card :deep(.el-card__body) {
@@ -41,11 +44,11 @@ const cardClass = computed(() => [`base-card--${props.tone}`]);
 
 .base-card--soft,
 .base-card--contrast {
-  background: #fafbfc;
+  background: #ffffff;
 }
 
 .base-card--accent {
-  border-color: #b9c9e8;
-  background: #fff;
+  border-color: #93c5fd;
+  background: #ffffff;
 }
 </style>

@@ -52,11 +52,21 @@ export const useDictStore = defineStore("dict", () => {
     return dictMap.value[dictCode] ?? [];
   }
 
+  async function refreshDict(dictCode?: string) {
+    if (dictCode) {
+      delete dictMap.value[dictCode];
+      return loadDict(dictCode);
+    }
+    dictMap.value = {};
+    return bootstrap();
+  }
+
   return {
     dictMap,
     loadingMap,
     bootstrap,
     loadDict,
+    refreshDict,
     getOptions
   };
 });

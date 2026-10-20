@@ -5,6 +5,12 @@ spring:
     default-property-inclusion: non_null
     serialization:
       write-dates-as-timestamps: false
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 3000ms
   profiles:
     default: db
 
@@ -17,16 +23,31 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics,prometheus,env
   endpoint:
     health:
       show-details: always
+    prometheus:
+      enabled: true
 
 springdoc:
   api-docs:
     path: /api-docs
   swagger-ui:
     path: /swagger-ui.html
+
+knife4j:
+  enable: true
+  openapi:
+    title: "Antigravity Enterprise SaaS 开放接口文档"
+    description: "Antigravity SaaS 工业级高韧性多租户平台 OpenAPI 规范"
+    version: "v1.0.0"
+    group:
+      default:
+        group-name: "平台全部接口"
+        api-rule: package
+        api-rule-resources:
+          - com.saasbasics.platform.modules
 
 saas-basics:
   security:

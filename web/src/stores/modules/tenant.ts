@@ -40,10 +40,18 @@ export const useTenantStore = defineStore("tenant", () => {
     }
   }
 
+  function setCurrentTenant(snapshot: TenantSnapshot) {
+    currentTenant.value = snapshot;
+    if (!tenantOptions.value.some(t => t.id === snapshot.id)) {
+      tenantOptions.value.push(snapshot);
+    }
+  }
+
   return {
     currentTenant,
     tenantOptions,
     bootstrap,
-    switchTenant
+    switchTenant,
+    setCurrentTenant
   };
 });

@@ -37,6 +37,10 @@ export interface EmployeeFormState {
   hireDate: string;
   employeeStatus: string;
   remark: string;
+  createAccount?: boolean;
+  accountUsername?: string;
+  accountPassword?: string;
+  accountRoleIds?: number[];
 }
 
 export interface UserFormState {
@@ -81,11 +85,17 @@ export interface MenuFormState {
   menuCode: string;
   menuName: string;
   routePath: string;
+  activeMenu?: string;
+  redirect?: string;
   componentPath: string;
+  componentName?: string;
   permissionCode: string;
   icon: string;
   visible: boolean;
   keepAlive: boolean;
+  isFrame?: boolean;
+  frameSrc?: string;
+  isAffix?: boolean;
   sortNo: number;
   status: string;
   metaJson: string;

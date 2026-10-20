@@ -18,8 +18,22 @@ public interface TenantMapper extends BaseMapper<TenantEntity> {
               t.tenant_name AS tenantName,
               t.package_id AS packageId,
               COALESCE(p.package_name, 'UNASSIGNED') AS packageName,
-              t.status,
+              CASE
+                WHEN t.status = 'DISABLED' THEN 'DISABLED'
+                WHEN t.status = 'SUSPENDED' THEN 'SUSPENDED'
+                WHEN t.expire_at IS NOT NULL AND t.expire_at < NOW() THEN 'EXPIRED'
+                WHEN t.expire_at IS NOT NULL AND DATEDIFF(t.expire_at, NOW()) <= 7 THEN 'EXPIRING'
+                ELSE t.status
+              END AS status,
               t.isolation_mode AS isolationMode,
+              DATE_FORMAT(t.expire_at, '%Y-%m-%d %H:%i:%s') AS expireAt,
+              CASE
+                WHEN t.expire_at IS NULL THEN NULL
+                ELSE DATEDIFF(t.expire_at, NOW())
+              END AS daysRemaining,
+              t.contact_name AS contactName,
+              t.contact_mobile AS contactMobile,
+              t.contact_email AS contactEmail,
               t.remark AS remark
             FROM plat_tenant t
             LEFT JOIN plat_tenant_package p ON p.id = t.package_id AND p.deleted = 0
@@ -35,8 +49,22 @@ public interface TenantMapper extends BaseMapper<TenantEntity> {
               t.tenant_name AS tenantName,
               t.package_id AS packageId,
               COALESCE(p.package_name, 'UNASSIGNED') AS packageName,
-              t.status,
+              CASE
+                WHEN t.status = 'DISABLED' THEN 'DISABLED'
+                WHEN t.status = 'SUSPENDED' THEN 'SUSPENDED'
+                WHEN t.expire_at IS NOT NULL AND t.expire_at < NOW() THEN 'EXPIRED'
+                WHEN t.expire_at IS NOT NULL AND DATEDIFF(t.expire_at, NOW()) <= 7 THEN 'EXPIRING'
+                ELSE t.status
+              END AS status,
               t.isolation_mode AS isolationMode,
+              DATE_FORMAT(t.expire_at, '%Y-%m-%d %H:%i:%s') AS expireAt,
+              CASE
+                WHEN t.expire_at IS NULL THEN NULL
+                ELSE DATEDIFF(t.expire_at, NOW())
+              END AS daysRemaining,
+              t.contact_name AS contactName,
+              t.contact_mobile AS contactMobile,
+              t.contact_email AS contactEmail,
               t.remark AS remark
             FROM plat_tenant t
             LEFT JOIN plat_tenant_package p ON p.id = t.package_id AND p.deleted = 0

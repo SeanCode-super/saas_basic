@@ -10,6 +10,7 @@ import com.saasbasics.platform.modules.iam.mapper.DepartmentMapper;
 import com.saasbasics.platform.modules.iam.mapper.EmployeeMapper;
 import com.saasbasics.platform.modules.iam.mapper.UserMapper;
 import com.saasbasics.platform.modules.iam.mapper.UserRoleMapper;
+import com.saasbasics.platform.cache.SystemCacheService;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.beans.factory.ObjectProvider;
@@ -22,15 +23,18 @@ public class AccessSubjectProfileService {
     private final ObjectProvider<EmployeeMapper> employeeMapperProvider;
     private final ObjectProvider<DepartmentMapper> departmentMapperProvider;
     private final ObjectProvider<UserRoleMapper> userRoleMapperProvider;
+    private final ObjectProvider<SystemCacheService> cacheServiceProvider;
 
     public AccessSubjectProfileService(ObjectProvider<UserMapper> userMapperProvider,
                                        ObjectProvider<EmployeeMapper> employeeMapperProvider,
                                        ObjectProvider<DepartmentMapper> departmentMapperProvider,
-                                       ObjectProvider<UserRoleMapper> userRoleMapperProvider) {
+                                       ObjectProvider<UserRoleMapper> userRoleMapperProvider,
+                                       ObjectProvider<SystemCacheService> cacheServiceProvider) {
         this.userMapperProvider = userMapperProvider;
         this.employeeMapperProvider = employeeMapperProvider;
         this.departmentMapperProvider = departmentMapperProvider;
         this.userRoleMapperProvider = userRoleMapperProvider;
+        this.cacheServiceProvider = cacheServiceProvider;
     }
 
     public AccessSubjectProfile load(Long tenantId, Long userId) {
@@ -79,6 +83,15 @@ public class AccessSubjectProfileService {
         if (rootIds == null || rootIds.isEmpty()) {
             return List.of();
         }
+        SystemCacheService cache = cacheServiceProvider.getIfAvailable();
+        if (cache != null && rootIds.size() == 1) {
+            String cacheKey = String.format(SystemCacheService.KEY_DEPT_TREE, tenantId, rootIds.get(0));
+            return cache.getOrCompute(cacheKey, 7200, () -> computeDepartmentTree(tenantId, rootIds));
+        }
+        return computeDepartmentTree(tenantId, rootIds);
+    }
+
+    private List<Long> computeDepartmentTree(Long tenantId, List<Long> rootIds) {
         List<DepartmentEntity> departments = requiredDepartmentMapper().selectList(new LambdaQueryWrapper<DepartmentEntity>()
                 .eq(DepartmentEntity::getTenantId, tenantId)
                 .eq(DepartmentEntity::getDeleted, 0));

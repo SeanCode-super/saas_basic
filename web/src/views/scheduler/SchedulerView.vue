@@ -180,14 +180,26 @@ async function loadData() {
 }
 
 async function saveJob() {
+  if (!jobForm.code?.trim()) {
+    ElMessage.warning("请输入任务标识编码");
+    return;
+  }
+  if (!jobForm.name?.trim()) {
+    ElMessage.warning("请输入任务名称");
+    return;
+  }
+  if (!jobForm.handlerName?.trim()) {
+    ElMessage.warning("请输入执行器处理器名称");
+    return;
+  }
   try {
     const payload = {
       tenantId: getTenantId(),
-      code: jobForm.code,
-      name: jobForm.name,
+      code: jobForm.code.trim(),
+      name: jobForm.name.trim(),
       jobType: jobForm.jobType,
       executorId: jobForm.executorId,
-      handlerName: jobForm.handlerName,
+      handlerName: jobForm.handlerName.trim(),
       status: jobForm.status,
       remark: jobForm.remark
     };
@@ -270,6 +282,14 @@ function editAlarm(row: SchedulerJobAlarmRow) {
 }
 
 async function savePolicy() {
+  if (!alarmPolicy.alarmCode?.trim()) {
+    ElMessage.warning("请输入告警策略编码");
+    return;
+  }
+  if (!alarmPolicy.alarmName?.trim()) {
+    ElMessage.warning("请输入告警策略名称");
+    return;
+  }
   try {
     const triggerRule = alarmPolicy.onFailure
       ? "ON_FAILURE"
@@ -279,8 +299,8 @@ async function savePolicy() {
     const payload = {
       tenantId: getTenantId(),
       jobId: alarmPolicy.jobId,
-      alarmCode: alarmPolicy.alarmCode,
-      alarmName: alarmPolicy.alarmName,
+      alarmCode: alarmPolicy.alarmCode.trim(),
+      alarmName: alarmPolicy.alarmName.trim(),
       channelType: alarmPolicy.notifyChannel,
       triggerRule,
       receiverJson: alarmPolicy.receiverJson,

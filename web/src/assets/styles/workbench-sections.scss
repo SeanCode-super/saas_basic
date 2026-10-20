@@ -51,7 +51,8 @@
 
 .governance-grid,
 .binding-grid {
-  grid-template-columns: 1.2fr 0.8fr;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  align-items: start;
 }
 
 .policy-row {
@@ -153,16 +154,24 @@
   padding: 12px;
   border: 1px solid var(--sb-border-color);
   border-radius: var(--sb-radius-md);
-  background: #fafbfc;
+  background: #ffffff;
+  box-shadow: var(--sb-shadow-xs);
 
   span,
   strong {
     display: block;
   }
 
+  span {
+    color: var(--sb-text-tertiary);
+    font-size: 12px;
+  }
+
   strong {
     margin-top: 8px;
     color: var(--sb-text-primary);
+    font-size: 15px;
+    font-weight: 700;
   }
 
   p {
@@ -174,13 +183,18 @@
   height: 100%;
 }
 
+@media (max-width: 1200px) {
+  .governance-grid,
+  .binding-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 1080px) {
   .signal-stack,
   .matrix-grid,
   .dual-grid,
-  .dialog-grid,
-  .governance-grid,
-  .binding-grid {
+  .dialog-grid {
     grid-template-columns: 1fr;
   }
 

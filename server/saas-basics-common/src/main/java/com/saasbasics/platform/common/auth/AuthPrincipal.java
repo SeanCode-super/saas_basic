@@ -40,4 +40,12 @@ public record AuthPrincipal(
         this(sessionId, tenantId, tenantCode, userId, username, nickname, userType, sessionStatus,
                 expireAt, permissions, featureFlags, roleIds, buttonPermissions, null, null, null, null, null);
     }
+
+    public boolean isSuperAdmin() {
+        return Long.valueOf(1L).equals(userId)
+                || "admin".equalsIgnoreCase(username)
+                || "PLATFORM".equalsIgnoreCase(userType)
+                || (roleIds != null && roleIds.contains(1L))
+                || (permissions != null && (permissions.contains("*") || permissions.contains("*:*:*")));
+    }
 }

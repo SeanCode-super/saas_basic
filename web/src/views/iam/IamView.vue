@@ -31,6 +31,8 @@ import type { IamSection } from "./iam-meta";
 import { useIamAssignments } from "./useIamAssignments";
 import { useIamCatalog } from "./useIamCatalog";
 import { useIamEditors } from "./useIamEditors";
+import { Cpu } from "@element-plus/icons-vue";
+import IamPermissionInspector from "./components/IamPermissionInspector.vue";
 import IamAccountsSection from "./sections/IamAccountsSection.vue";
 import IamAssignmentSection from "./sections/IamAssignmentSection.vue";
 import IamDataScopeSection from "./sections/IamDataScopeSection.vue";
@@ -53,6 +55,7 @@ const authStore = useAuthStore();
 const route = useRoute();
 const router = useRouter();
 const activeTab = ref<IamSection>("foundation");
+const globalInspectorVisible = ref(false);
 const {
   loading,
   overview,
@@ -302,9 +305,15 @@ onMounted(async () => {
     :description="activeControlCopy.description"
   >
     <template #actions>
+      <el-button :icon="Cpu" @click="globalInspectorVisible = true">权限透视诊断器</el-button>
       <BaseRefreshButton :loading="loading" @click="refreshData" />
     </template>
-    <IamFoundationSection v-if="activeTab === 'foundation'" :overview="overview" :policy-rows="policyRows" />
+    <IamFoundationSection
+      v-if="activeTab === 'foundation'"
+      :overview="overview"
+      :policy-rows="policyRows"
+      @open-inspector="globalInspectorVisible = true"
+    />
 
     <IamOrganizationSection
       v-else-if="activeTab === 'department' || activeTab === 'position' || activeTab === 'employee'"
@@ -342,6 +351,15 @@ onMounted(async () => {
       :role-columns="roleColumns"
       :users="users"
       :roles="roles"
+      :menus="menus"
+      :menu-permissions="menuPermissions"
+      :data-permission-rules="dataPermissionRules"
+      :departments="departments"
+      :positions="positions"
+      :employees="employees"
+      :current-tenant-id="currentTenantId"
+      :can-write="authStore.hasPermission('iam:role:write')"
+      :refresh-data="refreshData"
       :loading="loading"
       :open-user-create="openUserCreate"
       :open-user-edit="openUserEdit"
@@ -445,6 +463,8 @@ onMounted(async () => {
       :role-columns="roleColumns"
       :users="users"
       :roles="roles"
+      :departments="departments"
+      :employees="employees"
       :loading="loading"
       :assigning-user="assigningUser"
       :assigning-role="assigningRole"
@@ -464,6 +484,7 @@ onMounted(async () => {
       :handle-save-role-apis="handleSaveRoleApis"
       :batch-apply-user-roles="batchApplyUserRoles"
       :batch-apply-role-apis="batchApplyRoleApis"
+      @open-inspector="(userId) => { if (userId) selectedUserId = userId; globalInspectorVisible = true; }"
     />
     <IamFoundationSection v-else :overview="overview" :policy-rows="policyRows" />
     <IamEditorDialogs
@@ -496,6 +517,7 @@ onMounted(async () => {
       :departments="departments"
       :menus="menus"
       :positions="positions"
+      :roles="roles"
       :submit-department="submitDepartment"
       :submit-position="submitPosition"
       :submit-employee="submitEmployee"
@@ -506,6 +528,14 @@ onMounted(async () => {
       :submit-data-scope="submitDataScope"
       :submit-login-policy="submitLoginPolicy"
       :submit-password-policy="submitPasswordPolicy"
+    />
+
+    <IamPermissionInspector
+      v-model:visible="globalInspectorVisible"
+      :users="users"
+      :departments="departments"
+      :menus="menus"
+      :current-tenant-id="currentTenantId"
     />
   </ControlSurface>
 </template>

@@ -15,9 +15,14 @@ import com.saasbasics.platform.modules.iam.dto.MenuSubjectGrantSaveRequest;
 import com.saasbasics.platform.modules.iam.dto.MenuResponse;
 import com.saasbasics.platform.modules.iam.dto.StatusUpdateRequest;
 import com.saasbasics.platform.modules.iam.entity.MenuPermissionEntity;
+import com.saasbasics.platform.modules.iam.entity.RoleMenuEntity;
 import com.saasbasics.platform.modules.iam.mapper.MenuMapper;
 import com.saasbasics.platform.modules.iam.mapper.MenuPermissionMapper;
+import com.saasbasics.platform.modules.iam.mapper.RoleMenuMapper;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -32,20 +37,32 @@ public class MenuPermissionService {
 
     private final ObjectProvider<MenuPermissionMapper> menuPermissionMapperProvider;
     private final ObjectProvider<MenuMapper> menuMapperProvider;
+    private final ObjectProvider<RoleMenuMapper> roleMenuMapperProvider;
     private final AccessSubjectProfileService accessSubjectProfileService;
     private final AuditTrailService auditTrailService;
     private final ObjectMapper objectMapper;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public MenuPermissionService(ObjectProvider<MenuPermissionMapper> menuPermissionMapperProvider,
+                                 ObjectProvider<MenuMapper> menuMapperProvider,
+                                 ObjectProvider<RoleMenuMapper> roleMenuMapperProvider,
+                                 AccessSubjectProfileService accessSubjectProfileService,
+                                 AuditTrailService auditTrailService,
+                                 ObjectMapper objectMapper) {
+        this.menuPermissionMapperProvider = menuPermissionMapperProvider;
+        this.menuMapperProvider = menuMapperProvider;
+        this.roleMenuMapperProvider = roleMenuMapperProvider;
+        this.accessSubjectProfileService = accessSubjectProfileService;
+        this.auditTrailService = auditTrailService;
+        this.objectMapper = objectMapper;
+    }
 
     public MenuPermissionService(ObjectProvider<MenuPermissionMapper> menuPermissionMapperProvider,
                                  ObjectProvider<MenuMapper> menuMapperProvider,
                                  AccessSubjectProfileService accessSubjectProfileService,
                                  AuditTrailService auditTrailService,
                                  ObjectMapper objectMapper) {
-        this.menuPermissionMapperProvider = menuPermissionMapperProvider;
-        this.menuMapperProvider = menuMapperProvider;
-        this.accessSubjectProfileService = accessSubjectProfileService;
-        this.auditTrailService = auditTrailService;
-        this.objectMapper = objectMapper;
+        this(menuPermissionMapperProvider, menuMapperProvider, null, accessSubjectProfileService, auditTrailService, objectMapper);
     }
 
     public List<MenuPermissionResponse> listPermissions() {
@@ -88,6 +105,59 @@ public class MenuPermissionService {
         return getPermission(id);
     }
 
+    public List<Long> getRoleMenuIds(Long roleId) {
+        Long tenantId = requiredTenantId();
+        RoleMenuMapper roleMenuMapper = roleMenuMapperProvider.getIfAvailable();
+        if (roleMenuMapper != null) {
+            return roleMenuMapper.selectMenuIdsByRoleId(tenantId, roleId);
+        }
+        return List.of();
+    }
+
+    @Transactional
+    public List<Long> replaceRoleMenuGrants(Long roleId, List<Long> menuIds) {
+        Long tenantId = requiredTenantId();
+        RoleMenuMapper roleMenuMapper = requiredRoleMenuMapper();
+        Map<Long, MenuResponse> allMenus = requiredMenuMapper().selectMenuList()
+                .stream()
+                .filter(menu -> tenantId.equals(menu.tenantId()))
+                .collect(Collectors.toMap(MenuResponse::id, item -> item));
+
+        LinkedHashSet<Long> targetIds = new LinkedHashSet<>();
+        if (menuIds != null) {
+            for (Long menuId : menuIds) {
+                if (allMenus.containsKey(menuId)) {
+                    targetIds.add(menuId);
+                    // 自动关联所有上级祖先目录
+                    Long parentId = allMenus.get(menuId).parentId();
+                    while (parentId != null && parentId > 0 && allMenus.containsKey(parentId)) {
+                        targetIds.add(parentId);
+                        parentId = allMenus.get(parentId).parentId();
+                    }
+                }
+            }
+        }
+
+        roleMenuMapper.deleteByRoleId(tenantId, roleId);
+        for (Long menuId : targetIds) {
+            roleMenuMapper.insert(new RoleMenuEntity(tenantId, roleId, menuId));
+        }
+
+        // 同步兼容旧的 iam_menu_permission 表
+        syncRoleMenuPermissionTable(tenantId, roleId, targetIds, allMenus);
+
+        auditTrailService.record(
+                "iam",
+                "role_menu",
+                String.valueOf(roleId),
+                "REPLACE",
+                null,
+                String.valueOf(targetIds.size()),
+                true
+        );
+        return new ArrayList<>(targetIds);
+    }
+
     @Transactional
     public List<MenuPermissionResponse> replaceSubjectGrants(MenuSubjectGrantSaveRequest request) {
         Long tenantId = requiredTenantId();
@@ -100,6 +170,8 @@ public class MenuPermissionService {
 
         requiredMapper().deleteSubjectGrants(tenantId, subjectType, subjectValue);
         LinkedHashSet<Long> processedMenus = new LinkedHashSet<>();
+        LinkedHashSet<Long> atomicMenuIds = new LinkedHashSet<>();
+
         for (MenuGrantItemRequest grant : request.grants()) {
             if (!processedMenus.add(grant.menuId())) {
                 throw new BizException("IAM_MENU_GRANT_DUPLICATE", "同一菜单不能重复授权");
@@ -109,8 +181,25 @@ public class MenuPermissionService {
                 throw new BizException("IAM_MENU_GRANT_INVALID", "授权菜单不存在或不是可访问页面");
             }
 
+            atomicMenuIds.add(grant.menuId());
+            // 补全父级目录
+            Long parentId = menu.parentId();
+            while (parentId != null && parentId > 0 && menus.containsKey(parentId)) {
+                atomicMenuIds.add(parentId);
+                parentId = menus.get(parentId).parentId();
+            }
+
             List<String> actionCodes = normalizeActionCodes(grant.actionCodes());
             validateActionCodes(menus.values(), tenantId, grant.menuId(), actionCodes);
+
+            // 查找这些 actionCode 对应的 BUTTON 记录，加入原子权限
+            for (MenuResponse candidate : menus.values()) {
+                if (grant.menuId().equals(candidate.parentId())
+                        && "BUTTON".equalsIgnoreCase(candidate.menuType())
+                        && actionCodes.contains(candidate.menuCode())) {
+                    atomicMenuIds.add(candidate.id());
+                }
+            }
 
             MenuPermissionEntity entity = new MenuPermissionEntity();
             entity.setTenantId(tenantId);
@@ -122,6 +211,21 @@ public class MenuPermissionService {
             entity.setStatus("ENABLED");
             entity.setRemark("权限配置保存");
             requiredMapper().insert(entity);
+        }
+
+        // 如果是角色授权，同步更新原子表 iam_role_menu
+        if ("ROLE".equals(subjectType)) {
+            try {
+                Long roleId = Long.parseLong(subjectValue);
+                RoleMenuMapper roleMenuMapper = roleMenuMapperProvider.getIfAvailable();
+                if (roleMenuMapper != null) {
+                    roleMenuMapper.deleteByRoleId(tenantId, roleId);
+                    for (Long menuId : atomicMenuIds) {
+                        roleMenuMapper.insert(new RoleMenuEntity(tenantId, roleId, menuId));
+                    }
+                }
+            } catch (NumberFormatException ignored) {
+            }
         }
 
         auditTrailService.record(
@@ -140,16 +244,42 @@ public class MenuPermissionService {
     }
 
     public List<MenuResponse> listCurrentMenus(AuthPrincipal principal) {
+        if (principal == null) {
+            return List.of();
+        }
+
+        // 1. 超级管理员 / 平台管理员直通：拥有系统所有启用的菜单访问权，无需手工逐一授权
+        if (principal.isSuperAdmin()) {
+            return requiredMenuMapper().selectMenuList()
+                    .stream()
+                    .filter(menu -> menu.tenantId() == null || Long.valueOf(0L).equals(menu.tenantId()) || principal.tenantId().equals(menu.tenantId()))
+                    .filter(menu -> "ENABLED".equalsIgnoreCase(menu.status()))
+                    .toList();
+        }
+
         AccessSubjectProfile subjectProfile = accessSubjectProfileService.load(principal.tenantId(), principal.userId());
+        LinkedHashSet<Long> grantedMenuIds = new LinkedHashSet<>();
+
+        // 1. 从原子化 iam_role_menu 中快速获取角色授权菜单
+        RoleMenuMapper roleMenuMapper = roleMenuMapperProvider.getIfAvailable();
+        if (roleMenuMapper != null && principal.roleIds() != null && !principal.roleIds().isEmpty()) {
+            Set<Long> roleMenuIds = roleMenuMapper.selectMenuIdsByRoleIds(principal.tenantId(), principal.roleIds());
+            if (roleMenuIds != null) {
+                grantedMenuIds.addAll(roleMenuIds);
+            }
+        }
+
+        // 2. 从 iam_menu_permission 中获取其他主体例外授权或补充授权
         List<MenuPermissionEntity> grants = requiredMapper().selectList(new LambdaQueryWrapper<MenuPermissionEntity>()
                 .eq(MenuPermissionEntity::getTenantId, principal.tenantId())
                 .eq(MenuPermissionEntity::getDeleted, 0)
                 .eq(MenuPermissionEntity::getStatus, "ENABLED"));
 
-        Set<Long> grantedMenuIds = grants.stream()
-                .filter(grant -> subjectProfile.matches(grant.getSubjectType(), grant.getSubjectValue()))
-                .map(MenuPermissionEntity::getMenuId)
-                .collect(Collectors.toCollection(LinkedHashSet::new));
+        for (MenuPermissionEntity grant : grants) {
+            if (subjectProfile.matches(grant.getSubjectType(), grant.getSubjectValue())) {
+                grantedMenuIds.add(grant.getMenuId());
+            }
+        }
 
         if (grantedMenuIds.isEmpty()) {
             return List.of();
@@ -157,7 +287,7 @@ public class MenuPermissionService {
 
         List<MenuResponse> allMenus = requiredMenuMapper().selectMenuList()
                 .stream()
-                .filter(menu -> principal.tenantId().equals(menu.tenantId()))
+                .filter(menu -> menu.tenantId() == null || Long.valueOf(0L).equals(menu.tenantId()) || principal.tenantId().equals(menu.tenantId()))
                 .filter(menu -> "ENABLED".equalsIgnoreCase(menu.status()))
                 .filter(menu -> menu.permissionCode() == null || principal.permissions().contains(menu.permissionCode()))
                 .toList();
@@ -179,13 +309,32 @@ public class MenuPermissionService {
     }
 
     public List<String> resolveButtonPermissions(AuthPrincipal principal) {
+        if (principal == null) {
+            return List.of();
+        }
+        // 超级管理员 / 平台管理员直通所有按钮操作
+        if (principal.isSuperAdmin()) {
+            return List.of("*");
+        }
+
         AccessSubjectProfile subjectProfile = accessSubjectProfileService.load(principal.tenantId(), principal.userId());
+        LinkedHashSet<String> buttonPermissions = new LinkedHashSet<>();
+
+        // 1. 从原子表 iam_role_menu 结合 iam_menu 高效获取按钮权限
+        RoleMenuMapper roleMenuMapper = roleMenuMapperProvider.getIfAvailable();
+        if (roleMenuMapper != null && principal.roleIds() != null && !principal.roleIds().isEmpty()) {
+            List<String> roleButtons = roleMenuMapper.selectButtonCodesByRoleIds(principal.tenantId(), principal.roleIds());
+            if (roleButtons != null) {
+                buttonPermissions.addAll(roleButtons);
+            }
+        }
+
+        // 2. 从 iam_menu_permission 中获取例外主体权限
         List<MenuPermissionEntity> grants = requiredMapper().selectList(new LambdaQueryWrapper<MenuPermissionEntity>()
                 .eq(MenuPermissionEntity::getTenantId, principal.tenantId())
                 .eq(MenuPermissionEntity::getDeleted, 0)
                 .eq(MenuPermissionEntity::getStatus, "ENABLED"));
 
-        LinkedHashSet<String> buttonPermissions = new LinkedHashSet<>();
         for (MenuPermissionEntity grant : grants) {
             if (!subjectProfile.matches(grant.getSubjectType(), grant.getSubjectValue())) {
                 continue;
@@ -193,6 +342,40 @@ public class MenuPermissionService {
             buttonPermissions.addAll(parseButtonCodes(grant.getMenuCode(), grant.getButtonCodesJson()));
         }
         return new ArrayList<>(buttonPermissions);
+    }
+
+    private void syncRoleMenuPermissionTable(Long tenantId, Long roleId, Set<Long> grantedIds, Map<Long, MenuResponse> allMenus) {
+        MenuPermissionMapper mapper = requiredMapper();
+        mapper.deleteSubjectGrants(tenantId, "ROLE", String.valueOf(roleId));
+
+        // 按页面汇总按钮
+        Map<Long, List<String>> pageButtons = new LinkedHashMap<>();
+        for (Long id : grantedIds) {
+            MenuResponse item = allMenus.get(id);
+            if (item != null) {
+                if (Set.of("MENU", "LINK").contains(item.menuType().toUpperCase())) {
+                    pageButtons.computeIfAbsent(item.id(), k -> new ArrayList<>());
+                } else if ("BUTTON".equalsIgnoreCase(item.menuType()) && item.parentId() > 0) {
+                    pageButtons.computeIfAbsent(item.parentId(), k -> new ArrayList<>()).add(item.menuCode());
+                }
+            }
+        }
+
+        for (Map.Entry<Long, List<String>> entry : pageButtons.entrySet()) {
+            MenuResponse page = allMenus.get(entry.getKey());
+            if (page != null) {
+                MenuPermissionEntity entity = new MenuPermissionEntity();
+                entity.setTenantId(tenantId);
+                entity.setMenuId(page.id());
+                entity.setMenuCode(page.menuCode());
+                entity.setSubjectType("ROLE");
+                entity.setSubjectValue(String.valueOf(roleId));
+                entity.setButtonCodesJson(writeActionCodes(entry.getValue()));
+                entity.setStatus("ENABLED");
+                entity.setRemark("角色原子授权同步");
+                mapper.insert(entity);
+            }
+        }
     }
 
     private List<String> parseButtonCodes(String menuCode, String buttonCodesJson) {
@@ -291,9 +474,9 @@ public class MenuPermissionService {
     }
 
     private void validateActionCodes(Iterable<MenuResponse> menus,
-                                     Long tenantId,
-                                     Long menuId,
-                                     List<String> actionCodes) {
+                                      Long tenantId,
+                                      Long menuId,
+                                      List<String> actionCodes) {
         Set<String> availableActionCodes = new LinkedHashSet<>();
         for (MenuResponse candidate : menus) {
             if (tenantId.equals(candidate.tenantId())
@@ -320,6 +503,14 @@ public class MenuPermissionService {
         MenuMapper mapper = menuMapperProvider.getIfAvailable();
         if (mapper == null) {
             throw new BizException("DB_PROFILE_REQUIRED", "菜单资源需要数据库连接");
+        }
+        return mapper;
+    }
+
+    private RoleMenuMapper requiredRoleMenuMapper() {
+        RoleMenuMapper mapper = roleMenuMapperProvider.getIfAvailable();
+        if (mapper == null) {
+            throw new BizException("DB_PROFILE_REQUIRED", "角色菜单权限需要数据库连接");
         }
         return mapper;
     }

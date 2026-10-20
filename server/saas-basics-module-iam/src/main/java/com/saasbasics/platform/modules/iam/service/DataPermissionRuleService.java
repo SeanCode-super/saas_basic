@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.saasbasics.platform.common.auth.AuthContext;
 import com.saasbasics.platform.common.auth.AuthPrincipal;
 import com.saasbasics.platform.common.auth.DataPermissionContext;
+import com.saasbasics.platform.common.auth.DataPermissionProvider;
 import com.saasbasics.platform.common.auth.DataPermissionSqlSpec;
 import com.saasbasics.platform.common.exception.BizException;
 import com.saasbasics.platform.modules.audit.service.AuditTrailService;
@@ -16,11 +17,12 @@ import com.saasbasics.platform.modules.iam.dto.StatusUpdateRequest;
 import com.saasbasics.platform.modules.iam.entity.DataPermissionRuleEntity;
 import com.saasbasics.platform.modules.iam.mapper.DataPermissionRuleMapper;
 import java.util.List;
+import java.util.Locale;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 @Service
-public class DataPermissionRuleService {
+public class DataPermissionRuleService implements DataPermissionProvider {
 
     private final ObjectProvider<DataPermissionRuleMapper> dataPermissionRuleMapperProvider;
     private final AccessSubjectProfileService accessSubjectProfileService;
@@ -77,6 +79,15 @@ public class DataPermissionRuleService {
         return getRule(id);
     }
 
+    @Override
+    public DataPermissionSqlSpec resolveDataPermission(String resourceCode) {
+        AuthPrincipal principal = AuthContext.get();
+        if (principal == null) {
+            return DataPermissionSqlSpec.denyAll(null);
+        }
+        return resolveSpec(principal, resourceCode);
+    }
+
     public DataPermissionSqlSpec resolveCurrentSpec() {
         AuthPrincipal principal = AuthContext.get();
         if (principal == null) {
@@ -94,12 +105,24 @@ public class DataPermissionRuleService {
             return DataPermissionSqlSpec.denyAll(null);
         }
 
+        // 1. 平台管理员或通配符权限直接放行
+        boolean isSuperAdmin = "PLATFORM".equalsIgnoreCase(principal.userType())
+                || (principal.permissions() != null && (principal.permissions().contains("*") || principal.permissions().contains("admin")));
+        if (isSuperAdmin) {
+            return DataPermissionSqlSpec.allowAll(principal.tenantId());
+        }
+
         AccessSubjectProfile subjectProfile = accessSubjectProfileService.load(principal.tenantId(), principal.userId());
         List<DataPermissionRuleEntity> rules = requiredMapper().selectList(new LambdaQueryWrapper<DataPermissionRuleEntity>()
                 .eq(DataPermissionRuleEntity::getTenantId, principal.tenantId())
                 .eq(DataPermissionRuleEntity::getResourceCode, resourceCode)
                 .eq(DataPermissionRuleEntity::getDeleted, 0)
                 .eq(DataPermissionRuleEntity::getStatus, "ENABLED"));
+
+        if (rules.isEmpty()) {
+            // 当该资源未配置行级规则时，默认租户内放行（避免误杀无规则配置的基础资源）
+            return DataPermissionSqlSpec.allowAll(principal.tenantId());
+        }
 
         List<DataPermissionRuleEntity> matchedRules = rules.stream()
                 .filter(rule -> subjectProfile.matches(rule.getSubjectType(), rule.getSubjectValue()))
@@ -124,29 +147,54 @@ public class DataPermissionRuleService {
     }
 
     private void mergeRule(DataPermissionSqlSpec spec, AccessSubjectProfile subjectProfile, DataPermissionRuleEntity rule) {
-        switch (rule.getScopeType()) {
-            case "TENANT" -> spec.setAllowAll(true);
-            case "PERSONAL", "SELF" -> {
+        String scopeType = rule.getScopeType() != null ? rule.getScopeType().toUpperCase(Locale.ROOT) : "";
+        switch (scopeType) {
+            case "ALL", "TENANT" -> spec.setAllowAll(true);
+            case "ORG_AND_CHILDREN" -> {
+                if (subjectProfile.companyDepartmentId() != null) {
+                    List<Long> orgIds = accessSubjectProfileService.expandDepartmentTree(
+                            subjectProfile.tenantId(),
+                            List.of(subjectProfile.companyDepartmentId())
+                    );
+                    spec.addDepartmentIds(orgIds);
+                    spec.addOrgUnitIds(orgIds);
+                }
+                if (subjectProfile.departmentId() != null) {
+                    List<Long> unitIds = accessSubjectProfileService.expandDepartmentTree(
+                            subjectProfile.tenantId(),
+                            List.of(subjectProfile.departmentId())
+                    );
+                    spec.addDepartmentIds(unitIds);
+                    spec.addOrgUnitIds(unitIds);
+                }
+            }
+            case "ORG_ONLY", "COMPANY" -> {
+                if (subjectProfile.companyDepartmentId() != null) {
+                    spec.addDepartmentId(subjectProfile.companyDepartmentId());
+                    spec.addOrganizationId(subjectProfile.companyDepartmentId());
+                }
+            }
+            case "DEPT_AND_CHILDREN", "DEPARTMENT" -> {
+                if (subjectProfile.departmentId() != null) {
+                    List<Long> deptIds = accessSubjectProfileService.expandDepartmentTree(
+                            subjectProfile.tenantId(),
+                            List.of(subjectProfile.departmentId())
+                    );
+                    spec.addDepartmentIds(deptIds);
+                    spec.addOrgUnitIds(deptIds);
+                }
+            }
+            case "DEPT_ONLY" -> {
+                if (subjectProfile.departmentId() != null) {
+                    spec.addDepartmentId(subjectProfile.departmentId());
+                    spec.addOrgUnitId(subjectProfile.departmentId());
+                }
+            }
+            case "SELF_AND_SUBORDINATES", "SELF", "PERSONAL" -> {
                 spec.addUserId(subjectProfile.userId());
                 spec.addEmployeeId(subjectProfile.employeeId());
             }
-            case "DEPARTMENT" -> {
-                if (subjectProfile.departmentId() != null) {
-                    spec.addDepartmentIds(accessSubjectProfileService.expandDepartmentTree(
-                            subjectProfile.tenantId(),
-                            List.of(subjectProfile.departmentId())
-                    ));
-                }
-            }
             case "POSITION" -> spec.addPositionId(subjectProfile.positionId());
-            case "COMPANY" -> {
-                if (subjectProfile.companyDepartmentId() != null) {
-                    spec.addDepartmentIds(accessSubjectProfileService.expandDepartmentTree(
-                            subjectProfile.tenantId(),
-                            List.of(subjectProfile.companyDepartmentId())
-                    ));
-                }
-            }
             case "ROLE" -> spec.addRoleIds(subjectProfile.roleIds());
             case "CUSTOM" -> mergeCustomRule(spec, rule.getConfigJson());
             default -> spec.setDenyAll(true);
@@ -162,9 +210,39 @@ public class DataPermissionRuleService {
             appendLongArray(spec::addUserId, root.path("userIds"));
             appendLongArray(spec::addEmployeeId, root.path("employeeIds"));
             appendLongArray(spec::addDepartmentId, root.path("departmentIds"));
+            appendLongArray(spec::addOrgUnitId, root.path("orgUnitIds"));
+            appendLongArray(spec::addOrganizationId, root.path("organizationIds"));
             appendLongArray(spec::addPositionId, root.path("positionIds"));
             appendLongArray(spec::addRoleId, root.path("roleIds"));
-            if (root.path("scopeType").asText("").equalsIgnoreCase("TENANT")) {
+            if (root.path("treePaths").isArray()) {
+                root.path("treePaths").forEach(n -> spec.addTreePath(n.asText()));
+            }
+            if (root.path("conditions").isArray()) {
+                root.path("conditions").forEach(condNode -> {
+                    String field = condNode.path("field").asText(null);
+                    String op = condNode.path("operator").asText("EQ");
+                    JsonNode valNode = condNode.path("value");
+                    Object val = null;
+                    if (valNode.isIntegralNumber()) {
+                        val = valNode.longValue();
+                    } else if (valNode.isFloatingPointNumber()) {
+                        val = valNode.doubleValue();
+                    } else if (valNode.isBoolean()) {
+                        val = valNode.booleanValue();
+                    } else if (valNode.isArray()) {
+                        List<Object> list = new java.util.ArrayList<>();
+                        valNode.forEach(n -> list.add(n.isNumber() ? n.numberValue() : n.asText()));
+                        val = list;
+                    } else if (!valNode.isNull()) {
+                        val = valNode.asText();
+                    }
+                    if (field != null && !field.isBlank()) {
+                        spec.addAbacCondition(field, op, val);
+                    }
+                });
+            }
+            String customScope = root.path("scopeType").asText("");
+            if ("TENANT".equalsIgnoreCase(customScope) || "ALL".equalsIgnoreCase(customScope)) {
                 spec.setAllowAll(true);
             }
         } catch (Exception ignored) {

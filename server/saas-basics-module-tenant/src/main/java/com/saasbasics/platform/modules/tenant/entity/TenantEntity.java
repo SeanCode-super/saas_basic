@@ -3,6 +3,7 @@ package com.saasbasics.platform.modules.tenant.entity;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.saasbasics.platform.common.model.BaseEntity;
+import java.time.LocalDateTime;
 
 @TableName("plat_tenant")
 public class TenantEntity extends BaseEntity {
@@ -13,6 +14,9 @@ public class TenantEntity extends BaseEntity {
     @TableField("tenant_name")
     private String tenantName;
 
+    @TableField("tenant_type")
+    private String tenantType;
+
     @TableField("package_id")
     private Long packageId;
 
@@ -21,6 +25,18 @@ public class TenantEntity extends BaseEntity {
 
     @TableField("isolation_mode")
     private String isolationMode;
+
+    @TableField("contact_name")
+    private String contactName;
+
+    @TableField("contact_mobile")
+    private String contactMobile;
+
+    @TableField("contact_email")
+    private String contactEmail;
+
+    @TableField("expire_at")
+    private LocalDateTime expireAt;
 
     public String getTenantCode() {
         return tenantCode;
@@ -36,6 +52,14 @@ public class TenantEntity extends BaseEntity {
 
     public void setTenantName(String tenantName) {
         this.tenantName = tenantName;
+    }
+
+    public String getTenantType() {
+        return tenantType;
+    }
+
+    public void setTenantType(String tenantType) {
+        this.tenantType = tenantType;
     }
 
     public Long getPackageId() {
@@ -60,5 +84,37 @@ public class TenantEntity extends BaseEntity {
 
     public void setIsolationMode(String isolationMode) {
         this.isolationMode = isolationMode;
+    }
+
+    public String getContactName() {
+        return contactName;
+    }
+
+    public void setContactName(String contactName) {
+        this.contactName = contactName;
+    }
+
+    public String getContactMobile() {
+        return contactMobile;
+    }
+
+    public void setContactMobile(String contactMobile) {
+        this.contactMobile = contactMobile;
+    }
+
+    public String getContactEmail() {
+        return contactEmail;
+    }
+
+    public void setContactEmail(String contactEmail) {
+        this.contactEmail = contactEmail;
+    }
+
+    public LocalDateTime getExpireAt() {
+        return expireAt;
+    }
+
+    public void setExpireAt(LocalDateTime expireAt) {
+        this.expireAt = expireAt;
     }
 }

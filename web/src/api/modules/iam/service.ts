@@ -29,7 +29,11 @@ import type {
   IamUserRow,
   IamUserSavePayload,
   RoleApiAssignment,
+  RoleUserAssignment,
   StatusPayload,
+  UserPermissionInspection,
+  PermissionSimulationRequest,
+  PermissionSimulationResponse,
   UserRoleAssignment
 } from "./types";
 
@@ -79,6 +83,16 @@ export async function replaceIamMenuSubjectGrants(
     "/iam/menu-permissions/subject-grants",
     payload
   );
+  return response.data.data;
+}
+
+export async function fetchRoleMenuIds(roleId: number): Promise<number[]> {
+  const response = await http.get<ApiResponse<number[]>>(`/iam/menus/role/${roleId}/menu-ids`);
+  return response.data.data;
+}
+
+export async function replaceRoleMenus(roleId: number, menuIds: number[]): Promise<number[]> {
+  const response = await http.put<ApiResponse<number[]>>(`/iam/menus/role/${roleId}/menus`, menuIds);
   return response.data.data;
 }
 
@@ -337,3 +351,35 @@ export async function saveRoleApiAssignment(payload: RoleApiAssignment): Promise
   );
   return response.data.data;
 }
+
+export async function fetchRoleUserAssignment(roleId: number, tenantId?: number): Promise<RoleUserAssignment> {
+  const response = await http.get<ApiResponse<RoleUserAssignment>>(`/iam/roles/${roleId}/users`, {
+    params: tenantId ? { tenantId } : undefined
+  });
+  return response.data.data;
+}
+
+export async function saveRoleUserAssignment(payload: RoleUserAssignment): Promise<RoleUserAssignment> {
+  const response = await http.put<ApiResponse<RoleUserAssignment>>(
+    `/iam/roles/${payload.roleId}/users`,
+    { tenantId: payload.tenantId, userIds: payload.userIds }
+  );
+  return response.data.data;
+}
+
+export async function fetchUserPermissionInspection(userId: number, tenantId?: number): Promise<UserPermissionInspection> {
+  const response = await http.get<ApiResponse<UserPermissionInspection>>(`/iam/inspect/users/${userId}`, {
+    params: tenantId ? { tenantId } : undefined
+  });
+  return response.data.data;
+}
+
+export async function simulatePermission(payload: PermissionSimulationRequest, tenantId?: number): Promise<PermissionSimulationResponse> {
+  const response = await http.post<ApiResponse<PermissionSimulationResponse>>(
+    `/iam/inspect/simulate`,
+    payload,
+    { params: tenantId ? { tenantId } : undefined }
+  );
+  return response.data.data;
+}
+

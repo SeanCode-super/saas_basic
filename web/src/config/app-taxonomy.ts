@@ -81,7 +81,23 @@ export const APP_TAXONOMY: Record<string, AppMeta> = {
       security: { label: "安全策略", description: "统一密码复杂度、会话、MFA 和历史密码控制。" },
       locale: { label: "语言字典", description: "统一默认语言、回退语言、字典缓存和发布策略。" },
       sequence: { label: "序列规则", description: "统一租户编码、业务编号和周期重置规则。" },
-      registry: { label: "配置注册表", description: "管理所有系统级参数的分组、键名和值类型。" }
+      registry: { label: "配置注册表", description: "管理所有系统级参数的分组、键名和值类型。" },
+      sessions: { label: "在线会话", description: "查看实时登录活跃会话并支持强退下线。" },
+      infra: { label: "运维监控", description: "Redis 缓存大屏与慢 SQL 智能诊断台账。" },
+      trash: { label: "数据回收站", description: "核心业务逻辑删除数据归集与一键无损自愈还原。" }
+    }
+  },
+  workflow: {
+    title: "工作流中心",
+    cluster: "runtime",
+    badge: "工作流",
+    summary: "零代码表单设计、智能条件路由与企业审批工作台。",
+    description: "企业无代码业务流转中枢：从业务发起、条件分支分流、多级审批到全链路审计追溯。",
+    sections: {
+      workflow: {
+        label: "工作流与审批",
+        description: "企业业务流转、审批工作台与流程表单设计中心。"
+      }
     }
   },
   integration: {
@@ -156,17 +172,27 @@ export const APP_TAXONOMY: Record<string, AppMeta> = {
   }
 };
 
-export function resolveAppMeta(code?: string, fallbackTitle?: string): AppMeta {
-  return (
-    (code ? APP_TAXONOMY[code] : undefined) ?? {
-      title: fallbackTitle ?? code ?? "应用",
-      cluster: "foundation",
-      badge: "应用",
-      summary: "未定义应用说明。",
-      description: "该应用尚未补充平台信息架构说明。",
-      sections: {}
-    }
-  );
+export function resolveAppMeta(code?: string, fallbackTitle?: string, metaJson?: string): AppMeta {
+  const base = (code ? APP_TAXONOMY[code] : undefined) ?? {
+    title: fallbackTitle ?? code ?? "应用",
+    cluster: "foundation",
+    badge: "应用",
+    summary: "未定义应用说明。",
+    description: "该应用尚未补充平台信息架构说明。",
+    sections: {}
+  };
+  if (metaJson) {
+    try {
+      const parsed = typeof metaJson === "string" ? JSON.parse(metaJson) : metaJson;
+      if (parsed?.cluster) {
+        return {
+          ...base,
+          cluster: parsed.cluster
+        };
+      }
+    } catch {}
+  }
+  return base;
 }
 
 export function resolveSectionMeta(params: {

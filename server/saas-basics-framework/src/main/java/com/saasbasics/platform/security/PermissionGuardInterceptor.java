@@ -40,8 +40,12 @@ public class PermissionGuardInterceptor implements HandlerInterceptor {
             throw new BizException("AUTH_UNAUTHORIZED", "Authentication is required");
         }
 
+        if (principal.isSuperAdmin()) {
+            return true;
+        }
+
         List<String> permissions = principal.permissions();
-        if (permissions == null || !permissions.contains(requirePermission.value())) {
+        if (permissions == null || (!permissions.contains("*") && !permissions.contains("*:*:*") && !permissions.contains(requirePermission.value()))) {
             throw new BizException("AUTH_FORBIDDEN", "Permission denied: " + requirePermission.value());
         }
         return true;

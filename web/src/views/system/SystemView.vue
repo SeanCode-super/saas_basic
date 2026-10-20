@@ -5,9 +5,12 @@ import {
   createSystemConfig,
   createSystemDictItem,
   createSystemDictType,
+  deleteSystemDictItem,
+  deleteSystemDictType,
   fetchSystemConfigs,
   fetchSystemDictItems,
   fetchSystemDictTypes,
+  refreshSystemDictCache,
   updateSystemDictItem,
   updateSystemDictItemStatus,
   updateSystemDictType,
@@ -45,6 +48,7 @@ import ModuleWorkbench from "@/components/platform/ModuleWorkbench.vue";
 import type { ProTableColumn } from "@/components/pro/ProTable.vue";
 import { useAuthStore } from "@/stores/modules/auth";
 import { useLocaleStore } from "@/stores/modules/locale";
+import { useDictStore } from "@/stores/modules/dict";
 import { useModuleSection } from "@/hooks/useModuleSection";
 import { formatJsonManifest, parseJsonManifest } from "@/utils/manifest-import";
 import SystemLocaleSection from "./sections/SystemLocaleSection.vue";
@@ -52,6 +56,10 @@ import SystemOverviewSection from "./sections/SystemOverviewSection.vue";
 import SystemRegistrySection from "./sections/SystemRegistrySection.vue";
 import SystemSecuritySection from "./sections/SystemSecuritySection.vue";
 import SystemSequenceSection from "./sections/SystemSequenceSection.vue";
+import SystemSessionsSection from "./sections/SystemSessionsSection.vue";
+import SystemInfraSection from "./sections/SystemInfraSection.vue";
+import SystemTrashSection from "./sections/SystemTrashSection.vue";
+
 
 const props = withDefaults(
   defineProps<{
@@ -64,6 +72,7 @@ const props = withDefaults(
 
 const authStore = useAuthStore();
 const localeStore = useLocaleStore();
+const dictStore = useDictStore();
 const loading = ref(false);
 const submitting = ref(false);
 const importing = ref(false);
@@ -188,8 +197,12 @@ const sectionItems = [
   { key: "security", label: "安全策略", description: "统一密码复杂度、会话时长和多因子基线。" },
   { key: "locale", label: "语言字典", description: "管理国际化入口语言、回退语言和缓存周期。" },
   { key: "sequence", label: "序列规则", description: "约束租户编码、订单号和编号重置周期。" },
-  { key: "registry", label: "配置注册表", description: "维护参数分组、键名和值类型台账。" }
+  { key: "registry", label: "配置注册表", description: "维护参数分组、键名和值类型台账。" },
+  { key: "sessions", label: "在线会话", description: "实时监控当前租户活跃会话、登录终端与有效期，支持一键强退治理。" },
+  { key: "infra", label: "运维监控", description: "Redis 缓存大屏、慢 SQL 智能诊断与 JVM 运行时监控台账。" },
+  { key: "trash", label: "数据回收站", description: "核心业务逻辑软删除记录归集、一键无损自愈还原与物理销毁。" }
 ];
+
 
 const { activeSection, updateSection } = useModuleSection(sectionItems, {
   mode: "path",
@@ -274,14 +287,15 @@ const dictTypeColumns: ProTableColumn[] = [
   { prop: "actions", label: "操作", minWidth: 220, slot: "actions" }
 ];
 const dictItemColumns: ProTableColumn[] = [
-  { prop: "itemValue", label: "值", minWidth: 120 },
-  { prop: "itemLabel", label: "标签", minWidth: 140 },
-  { prop: "itemColor", label: "颜色", minWidth: 100 },
-  { prop: "itemTag", label: "标签类型", minWidth: 110 },
-  { prop: "sortNo", label: "排序", minWidth: 90 },
-  { prop: "defaultItem", label: "默认项", minWidth: 100, slot: "defaultItem" },
-  { prop: "status", label: "状态", minWidth: 100, slot: "status" },
-  { prop: "actions", label: "操作", minWidth: 180, slot: "actions" }
+  { prop: "itemValue", label: "字典值", minWidth: 100 },
+  { prop: "itemLabel", label: "标签名称", minWidth: 110 },
+  { prop: "preview", label: "回显预览", minWidth: 120, slot: "preview" },
+  { prop: "color", label: "颜色", minWidth: 100, slot: "color" },
+  { prop: "itemTag", label: "样式标签", minWidth: 95, slot: "itemTag" },
+  { prop: "sortNo", label: "排序", minWidth: 70 },
+  { prop: "defaultItem", label: "默认", minWidth: 80, slot: "defaultItem" },
+  { prop: "status", label: "状态", minWidth: 80, slot: "status" },
+  { prop: "actions", label: "操作", minWidth: 160, slot: "actions" }
 ];
 
 const schema = computed(() => [
@@ -312,8 +326,12 @@ const sectionComponentMap = {
   security: SystemSecuritySection,
   locale: SystemLocaleSection,
   sequence: SystemSequenceSection,
-  registry: SystemRegistrySection
+  registry: SystemRegistrySection,
+  sessions: SystemSessionsSection,
+  infra: SystemInfraSection,
+  trash: SystemTrashSection
 } as const;
+
 
 const configImportSample = formatJsonManifest([
   {
@@ -566,15 +584,46 @@ function editDictItem(row: SystemDictItemRow) {
   dictItemVisible.value = true;
 }
 
+function resolveDictTagType(color?: string): "primary" | "success" | "warning" | "danger" | "info" {
+  if (color && ["primary", "success", "warning", "danger", "info"].includes(color)) {
+    return color as "primary" | "success" | "warning" | "danger" | "info";
+  }
+  return "info";
+}
+
 async function handleSaveDictType() {
+  if (!dictTypeForm.dictCode?.trim()) {
+    ElMessage.warning("请输入字典编码");
+    return;
+  }
+  if (!dictTypeForm.dictName?.trim()) {
+    ElMessage.warning("请输入字典名称");
+    return;
+  }
+  const cleanExtJson = dictTypeForm.extJson?.trim();
+  if (cleanExtJson) {
+    try {
+      JSON.parse(cleanExtJson);
+    } catch {
+      ElMessage.warning("扩展 JSON 格式不合法，请输入合法的 JSON 文本");
+      return;
+    }
+  }
   submitting.value = true;
   try {
+    const payload = {
+      ...dictTypeForm,
+      dictCode: dictTypeForm.dictCode.trim(),
+      dictName: dictTypeForm.dictName.trim(),
+      extJson: cleanExtJson || undefined
+    };
     if (dictTypeEditingId.value) {
-      await updateSystemDictType(dictTypeEditingId.value, dictTypeForm);
+      await updateSystemDictType(dictTypeEditingId.value, payload);
     } else {
-      await createSystemDictType(dictTypeForm);
+      await createSystemDictType(payload);
     }
     dictTypeVisible.value = false;
+    await dictStore.refreshDict(payload.dictCode);
     await loadData();
     ElMessage.success("字典类型已保存");
   } catch (error: any) {
@@ -589,10 +638,30 @@ async function handleSaveDictItem() {
     ElMessage.warning("当前没有可用的字典类型");
     return;
   }
+  if (!dictItemForm.itemValue?.trim()) {
+    ElMessage.warning("请输入字典值");
+    return;
+  }
+  if (!dictItemForm.itemLabel?.trim()) {
+    ElMessage.warning("请输入显示标签");
+    return;
+  }
+  const cleanExtJson = dictItemForm.extJson?.trim();
+  if (cleanExtJson) {
+    try {
+      JSON.parse(cleanExtJson);
+    } catch {
+      ElMessage.warning("扩展 JSON 格式不合法，请输入合法的 JSON 文本");
+      return;
+    }
+  }
   submitting.value = true;
   try {
     const payload = {
       ...dictItemForm,
+      itemValue: dictItemForm.itemValue.trim(),
+      itemLabel: dictItemForm.itemLabel.trim(),
+      extJson: cleanExtJson || undefined,
       dictTypeId: activeDictType.value?.id ?? dictItemForm.dictTypeId
     };
     if (dictItemEditingId.value) {
@@ -603,6 +672,7 @@ async function handleSaveDictItem() {
     dictItemVisible.value = false;
     if (activeDictType.value) {
       dictItems.value = await fetchSystemDictItems(activeDictType.value.id);
+      await dictStore.refreshDict(activeDictType.value.dictCode);
     }
     await loadData();
     ElMessage.success("字典项已保存");
@@ -613,12 +683,53 @@ async function handleSaveDictItem() {
   }
 }
 
+async function handleRefreshDictCache() {
+  try {
+    await refreshSystemDictCache();
+    await dictStore.refreshDict();
+    await loadData();
+    ElMessage.success("字典全局缓存与本地状态已刷新同步");
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message ?? "刷新字典缓存失败");
+  }
+}
+
+async function deleteDictType(row: SystemDictTypeRow) {
+  try {
+    await deleteSystemDictType(row.id);
+    if (activeDictType.value?.id === row.id) {
+      activeDictType.value = null;
+      dictItems.value = [];
+    }
+    await dictStore.refreshDict(row.dictCode);
+    await loadData();
+    ElMessage.success(`字典分类【${row.dictName}】已删除`);
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message ?? "删除字典分类失败");
+  }
+}
+
+async function deleteDictItem(row: SystemDictItemRow) {
+  try {
+    await deleteSystemDictItem(row.id);
+    if (activeDictType.value) {
+      dictItems.value = await fetchSystemDictItems(activeDictType.value.id);
+      await dictStore.refreshDict(activeDictType.value.dictCode);
+    }
+    await loadData();
+    ElMessage.success(`字典项【${row.itemLabel}】已删除`);
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message ?? "删除字典项失败");
+  }
+}
+
 async function toggleDictTypeStatus(row: SystemDictTypeRow) {
   try {
     await updateSystemDictTypeStatus(row.id, {
       tenantId: authStore.currentUser?.tenantId ?? 1,
       status: row.status === "ENABLED" ? "DISABLED" : "ENABLED"
     });
+    await dictStore.refreshDict(row.dictCode);
     await loadData();
     ElMessage.success("字典类型状态已更新");
   } catch (error: any) {
@@ -634,6 +745,7 @@ async function toggleDictItemStatus(row: SystemDictItemRow) {
     });
     if (activeDictType.value) {
       dictItems.value = await fetchSystemDictItems(activeDictType.value.id);
+      await dictStore.refreshDict(activeDictType.value.dictCode);
     }
     await loadData();
     ElMessage.success("字典项状态已更新");
@@ -669,14 +781,30 @@ async function handleCreate() {
     ElMessage.error("当前登录态缺少租户信息");
     return;
   }
+  if (!form.group?.trim()) {
+    ElMessage.warning("请输入配置分组");
+    return;
+  }
+  if (!form.key?.trim()) {
+    ElMessage.warning("请输入配置键名");
+    return;
+  }
+  if (!form.name?.trim()) {
+    ElMessage.warning("请输入配置名称");
+    return;
+  }
+  if (!form.value?.trim()) {
+    ElMessage.warning("请输入配置值");
+    return;
+  }
   submitting.value = true;
   try {
     await createSystemConfig({
       tenantId,
-      group: form.group,
-      key: form.key,
-      name: form.name,
-      value: form.value,
+      group: form.group.trim(),
+      key: form.key.trim(),
+      name: form.name.trim(),
+      value: form.value.trim(),
       valueType: form.valueType,
       status: form.status,
       remark: form.remark
@@ -739,12 +867,25 @@ async function handleImport() {
 }
 
 async function handleSavePortalClient() {
+  if (!portalClientForm.clientId?.trim()) {
+    ElMessage.warning("请输入 Client ID");
+    return;
+  }
+  if (!portalClientForm.clientName?.trim()) {
+    ElMessage.warning("请输入客户端名称");
+    return;
+  }
   submitting.value = true;
   try {
+    const payload = {
+      ...portalClientForm,
+      clientId: portalClientForm.clientId.trim(),
+      clientName: portalClientForm.clientName.trim()
+    };
     if (portalClientEditingId.value) {
-      await updatePortalClient(portalClientEditingId.value, portalClientForm);
+      await updatePortalClient(portalClientEditingId.value, payload);
     } else {
-      await createPortalClient(portalClientForm);
+      await createPortalClient(payload);
     }
     portalClientVisible.value = false;
     await loadData();
@@ -757,12 +898,25 @@ async function handleSavePortalClient() {
 }
 
 async function handleSavePortalTerminal() {
+  if (!portalTerminalForm.terminalCode?.trim()) {
+    ElMessage.warning("请输入终端编码");
+    return;
+  }
+  if (!portalTerminalForm.terminalName?.trim()) {
+    ElMessage.warning("请输入终端名称");
+    return;
+  }
   submitting.value = true;
   try {
+    const payload = {
+      ...portalTerminalForm,
+      terminalCode: portalTerminalForm.terminalCode.trim(),
+      terminalName: portalTerminalForm.terminalName.trim()
+    };
     if (portalTerminalEditingId.value) {
-      await updatePortalTerminal(portalTerminalEditingId.value, portalTerminalForm);
+      await updatePortalTerminal(portalTerminalEditingId.value, payload);
     } else {
-      await createPortalTerminal(portalTerminalForm);
+      await createPortalTerminal(payload);
     }
     portalTerminalVisible.value = false;
     await loadData();
@@ -894,6 +1048,9 @@ onMounted(loadData);
         :edit-dict-item="editDictItem"
         :toggle-dict-type-status="toggleDictTypeStatus"
         :toggle-dict-item-status="toggleDictItemStatus"
+        :delete-dict-type="deleteDictType"
+        :delete-dict-item="deleteDictItem"
+        :refresh-cache="handleRefreshDictCache"
         :save-policy="savePolicy"
       />
     </div>
@@ -945,23 +1102,26 @@ onMounted(loadData);
       :edit-dict-item="editDictItem"
       :toggle-dict-type-status="toggleDictTypeStatus"
       :toggle-dict-item-status="toggleDictItemStatus"
+      :delete-dict-type="deleteDictType"
+      :delete-dict-item="deleteDictItem"
+      :refresh-cache="handleRefreshDictCache"
       :save-policy="savePolicy"
     />
   </ControlSurface>
 
   <el-dialog v-model="createVisible" title="新增系统配置" width="520px">
     <el-form label-position="top">
-      <el-form-item label="分组">
-        <el-input v-model="form.group" />
+      <el-form-item label="分组" required>
+        <el-input v-model="form.group" placeholder="如 GLOBAL / SECURITY" />
       </el-form-item>
-      <el-form-item label="配置键">
-        <el-input v-model="form.key" />
+      <el-form-item label="配置键" required>
+        <el-input v-model="form.key" placeholder="如 sys.security.mfa" />
       </el-form-item>
-      <el-form-item label="配置名称">
-        <el-input v-model="form.name" />
+      <el-form-item label="配置名称" required>
+        <el-input v-model="form.name" placeholder="如 强制开启MFA认证" />
       </el-form-item>
-      <el-form-item label="配置值">
-        <el-input v-model="form.value" />
+      <el-form-item label="配置值" required>
+        <el-input v-model="form.value" placeholder="配置键值" />
       </el-form-item>
       <el-form-item label="值类型">
         <el-select v-model="form.valueType">
@@ -1000,8 +1160,8 @@ onMounted(loadData);
 
   <el-dialog v-model="dictTypeVisible" :title="dictTypeEditingId ? '编辑字典类型' : '新增字典类型'" width="560px">
     <el-form label-position="top">
-      <el-form-item label="字典编码"><el-input v-model="dictTypeForm.dictCode" /></el-form-item>
-      <el-form-item label="字典名称"><el-input v-model="dictTypeForm.dictName" /></el-form-item>
+      <el-form-item label="字典编码" required><el-input v-model="dictTypeForm.dictCode" placeholder="如 sys_user_sex" /></el-form-item>
+      <el-form-item label="字典名称" required><el-input v-model="dictTypeForm.dictName" placeholder="如 用户性别" /></el-form-item>
       <el-form-item label="作用域">
         <el-select v-model="dictTypeForm.dictScope">
           <el-option label="平台" value="PLATFORM" />
@@ -1029,13 +1189,32 @@ onMounted(loadData);
       <el-form-item label="所属字典">
         <el-input :model-value="activeDictType ? `${activeDictType.dictName}（${activeDictType.dictCode}）` : '未选择'" disabled />
       </el-form-item>
-      <el-form-item label="字典值"><el-input v-model="dictItemForm.itemValue" /></el-form-item>
-      <el-form-item label="显示标签"><el-input v-model="dictItemForm.itemLabel" /></el-form-item>
-      <el-form-item label="颜色"><el-input v-model="dictItemForm.itemColor" placeholder="success / warning / danger" /></el-form-item>
-      <el-form-item label="标签类型"><el-input v-model="dictItemForm.itemTag" placeholder="SUCCESS / INFO / API" /></el-form-item>
+      <el-form-item label="字典值" required><el-input v-model="dictItemForm.itemValue" placeholder="如 1 / ENABLED / VIP" /></el-form-item>
+      <el-form-item label="显示标签" required><el-input v-model="dictItemForm.itemLabel" placeholder="如 男 / 启用 / 黄金会员" /></el-form-item>
+      <el-form-item label="样式预设（回显类型）">
+        <el-radio-group v-model="dictItemForm.itemColor" size="small">
+          <el-radio-button label="primary">主要 (蓝)</el-radio-button>
+          <el-radio-button label="success">成功 (绿)</el-radio-button>
+          <el-radio-button label="warning">告警 (橙)</el-radio-button>
+          <el-radio-button label="danger">危险 (红)</el-radio-button>
+          <el-radio-button label="info">信息 (灰)</el-radio-button>
+        </el-radio-group>
+      </el-form-item>
+      <el-form-item label="样式标签/徽标">
+        <el-input v-model="dictItemForm.itemTag" placeholder="如 SUCCESS / VIP / API 或自定义" />
+      </el-form-item>
+      <el-form-item label="效果预览">
+        <el-tag
+          :type="resolveDictTagType(dictItemForm.itemColor)"
+          size="default"
+          round
+        >
+          {{ dictItemForm.itemLabel || '标签预览' }}
+        </el-tag>
+      </el-form-item>
       <el-form-item label="排序"><el-input-number v-model="dictItemForm.sortNo" :min="0" :max="9999" style="width: 100%" /></el-form-item>
       <el-form-item label="状态">
-        <el-select v-model="dictItemForm.status">
+        <el-select v-model="dictItemForm.status" style="width: 100%">
           <el-option label="启用" value="ENABLED" />
           <el-option label="停用" value="DISABLED" />
         </el-select>
@@ -1052,8 +1231,8 @@ onMounted(loadData);
 
   <el-dialog v-model="portalClientVisible" :title="portalClientEditingId ? '编辑门户 Client' : '新增门户 Client'" width="640px">
     <el-form label-position="top">
-      <el-form-item label="Client ID"><el-input v-model="portalClientForm.clientId" /></el-form-item>
-      <el-form-item label="客户端名称"><el-input v-model="portalClientForm.clientName" /></el-form-item>
+      <el-form-item label="Client ID"><el-input v-model="portalClientForm.clientId" placeholder="如 portal_console" /></el-form-item>
+      <el-form-item label="客户端名称" required><el-input v-model="portalClientForm.clientName" placeholder="如 平台总控制台" /></el-form-item>
       <el-form-item label="租户编码"><el-input v-model="portalClientForm.tenantCode" /></el-form-item>
       <el-form-item label="门户标题"><el-input v-model="portalClientForm.portalTitle" /></el-form-item>
       <el-form-item label="欢迎标题"><el-input v-model="portalClientForm.welcomeTitle" /></el-form-item>
@@ -1102,8 +1281,8 @@ onMounted(loadData);
           <el-option v-for="item in portalClients" :key="item.id" :label="item.clientName" :value="item.id" />
         </el-select>
       </el-form-item>
-      <el-form-item label="终端编码"><el-input v-model="portalTerminalForm.terminalCode" /></el-form-item>
-      <el-form-item label="终端名称"><el-input v-model="portalTerminalForm.terminalName" /></el-form-item>
+      <el-form-item label="终端编码" required><el-input v-model="portalTerminalForm.terminalCode" placeholder="如 PC_WEB" /></el-form-item>
+      <el-form-item label="终端名称" required><el-input v-model="portalTerminalForm.terminalName" placeholder="如 网页控制台" /></el-form-item>
       <el-form-item label="终端类型">
         <el-select v-model="portalTerminalForm.terminalType">
           <el-option label="浏览器" value="BROWSER" />

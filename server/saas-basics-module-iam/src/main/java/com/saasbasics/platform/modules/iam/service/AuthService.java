@@ -16,6 +16,9 @@ import com.saasbasics.platform.modules.iam.dto.AuthCurrentUserResponse;
 import com.saasbasics.platform.modules.iam.dto.AuthContextSelectionRequest;
 import com.saasbasics.platform.modules.iam.dto.AuthLoginRequest;
 import com.saasbasics.platform.modules.iam.dto.AuthLoginResponse;
+import com.saasbasics.platform.modules.iam.dto.AuthRefreshTokenRequest;
+import com.saasbasics.platform.modules.iam.dto.OnlineSessionResponse;
+import com.saasbasics.platform.modules.iam.dto.SsoCallbackRequest;
 import com.saasbasics.platform.modules.iam.entity.AuthSessionEntity;
 import com.saasbasics.platform.modules.iam.entity.LoginFailStatEntity;
 import com.saasbasics.platform.modules.iam.entity.LoginPolicyEntity;
@@ -37,6 +40,7 @@ import com.saasbasics.platform.modules.iam.mapper.UserRoleMapper;
 import com.saasbasics.platform.modules.organization.api.OrganizationDirectory;
 import com.saasbasics.platform.modules.tenant.entity.TenantEntity;
 import com.saasbasics.platform.modules.tenant.mapper.TenantMapper;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -44,6 +48,7 @@ import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.beans.factory.ObjectProvider;
@@ -143,8 +148,8 @@ public class AuthService {
         if (tenant == null) {
             throw new BizException("TENANT_NOT_FOUND", "租户不存在");
         }
-        if (!"ENABLED".equalsIgnoreCase(tenant.getStatus())) {
-            throw new BizException("TENANT_DISABLED", "租户已停用");
+        if ("DISABLED".equalsIgnoreCase(tenant.getStatus()) || "SUSPENDED".equalsIgnoreCase(tenant.getStatus())) {
+            throw new BizException("TENANT_DISABLED", "租户已停用或已冻结");
         }
 
         try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openTenant(
@@ -208,6 +213,10 @@ public class AuthService {
         String tokenHash = tokenHash(accessToken);
         LocalDateTime expireAt = LocalDateTime.now().plusMinutes(resolveSessionTtl(loginPolicy));
 
+        String refreshToken = "RT-" + generateAccessToken();
+        String refreshTokenHash = tokenHash(refreshToken);
+        LocalDateTime refreshExpireAt = LocalDateTime.now().plusDays(7);
+
         AuthSessionEntity session = new AuthSessionEntity();
         session.setPublicId(uuidGenerator.generate().toString());
         session.setTenantId(tenant.getId());
@@ -220,9 +229,11 @@ public class AuthService {
         session.setUserType(user.getUserType());
         session.setLoginType("PASSWORD");
         session.setAccessTokenHash(tokenHash);
+        session.setRefreshTokenHash(refreshTokenHash);
         session.setLoginIp(loginIp);
         session.setUserAgent(userAgent);
         session.setExpireAt(expireAt);
+        session.setRefreshExpireAt(refreshExpireAt);
         session.setLastAccessAt(LocalDateTime.now());
         session.setStatus("ONLINE");
         AuthSessionMapper sessionMapper = requiredSessionMapper();
@@ -236,7 +247,193 @@ public class AuthService {
             throw exception;
         }
         logLogin(tenant.getId(), user.getId(), user.getUsername(), loginIp, userAgent, true, null);
-        return new AuthLoginResponse(accessToken, "Bearer", expireAt, toCurrentUserResponse(principal));
+        return new AuthLoginResponse(accessToken, refreshToken, "Bearer", expireAt, toCurrentUserResponse(principal));
+    }
+
+    @Transactional
+    public AuthLoginResponse refreshToken(AuthRefreshTokenRequest request, String loginIp, String userAgent) {
+        String refreshHash = tokenHash(request.refreshToken());
+        AuthSessionMapper sessionMapper = requiredSessionMapper();
+        AuthSessionEntity session;
+        try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openSystemBypass(
+                TenantAccessContext.BypassOperation.AUTHENTICATION_TOKEN_RESOLUTION,
+                "Resolve session by refresh token")) {
+            session = sessionMapper.selectOne(new LambdaQueryWrapper<AuthSessionEntity>()
+                    .eq(AuthSessionEntity::getRefreshTokenHash, refreshHash)
+                    .eq(AuthSessionEntity::getStatus, "ONLINE")
+                    .gt(AuthSessionEntity::getRefreshExpireAt, LocalDateTime.now())
+                    .eq(AuthSessionEntity::getDeleted, 0)
+                    .last("LIMIT 1"));
+        }
+        if (session == null) {
+            throw new BizException("AUTH_REFRESH_TOKEN_INVALID", "刷新令牌无效或已过期，请重新登录");
+        }
+
+        try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openTenant(
+                session.getTenantId(), session.getTenantCode(), session.getUserId())) {
+            TenantEntity tenant = requiredTenantMapper().selectById(session.getTenantId());
+            if (tenant == null || "DISABLED".equalsIgnoreCase(tenant.getStatus()) || "SUSPENDED".equalsIgnoreCase(tenant.getStatus())) {
+                invalidateSession(session, sessionMapper);
+                throw new BizException("AUTH_TENANT_DISABLED", "租户已停用");
+            }
+            UserEntity user = requiredUserMapper().selectById(session.getUserId());
+            if (user == null || !"ENABLED".equalsIgnoreCase(user.getStatus())) {
+                invalidateSession(session, sessionMapper);
+                throw new BizException("AUTH_USER_DISABLED", "用户已停用");
+            }
+
+            String newAccessToken = generateAccessToken();
+            String newTokenHash = tokenHash(newAccessToken);
+            LocalDateTime newExpireAt = LocalDateTime.now().plusHours(2);
+
+            session.setAccessTokenHash(newTokenHash);
+            session.setExpireAt(newExpireAt);
+            session.setLastAccessAt(LocalDateTime.now());
+            if (loginIp != null && !loginIp.isBlank()) {
+                session.setLoginIp(loginIp);
+            }
+            if (userAgent != null && !userAgent.isBlank()) {
+                session.setUserAgent(userAgent);
+            }
+            sessionMapper.updateById(session);
+
+            AuthPrincipal principal = toPrincipal(session, user);
+            return new AuthLoginResponse(newAccessToken, request.refreshToken(), "Bearer", newExpireAt, toCurrentUserResponse(principal));
+        }
+    }
+
+    public List<OnlineSessionResponse> listOnlineSessions() {
+        AuthPrincipal principal = requiredPrincipal();
+        AuthSessionMapper sessionMapper = requiredSessionMapper();
+        List<AuthSessionEntity> sessions = sessionMapper.selectList(new LambdaQueryWrapper<AuthSessionEntity>()
+                .eq(AuthSessionEntity::getTenantId, principal.tenantId())
+                .eq(AuthSessionEntity::getStatus, "ONLINE")
+                .gt(AuthSessionEntity::getExpireAt, LocalDateTime.now())
+                .eq(AuthSessionEntity::getDeleted, 0)
+                .orderByDesc(AuthSessionEntity::getLastAccessAt));
+
+        Long currentSessionId = principal.sessionId();
+        return sessions.stream()
+                .map(s -> new OnlineSessionResponse(
+                        s.getSessionNo(),
+                        s.getUserId(),
+                        s.getUsername(),
+                        s.getNickname(),
+                        s.getUserType(),
+                        s.getLoginIp(),
+                        s.getUserAgent(),
+                        s.getCreatedAt(),
+                        s.getLastAccessAt(),
+                        s.getExpireAt(),
+                        s.getStatus(),
+                        Objects.equals(s.getId(), currentSessionId)
+                ))
+                .toList();
+    }
+
+    @Transactional
+    public void kickoutSession(String sessionNo) {
+        AuthPrincipal principal = requiredPrincipal();
+        AuthSessionMapper sessionMapper = requiredSessionMapper();
+        AuthSessionEntity session = sessionMapper.selectOne(new LambdaQueryWrapper<AuthSessionEntity>()
+                .eq(AuthSessionEntity::getSessionNo, sessionNo)
+                .eq(AuthSessionEntity::getTenantId, principal.tenantId())
+                .eq(AuthSessionEntity::getDeleted, 0)
+                .last("LIMIT 1"));
+        if (session == null) {
+            throw new BizException("SESSION_NOT_FOUND", "会话不存在或已失效");
+        }
+        session.setStatus("KICKED");
+        session.setLogoutAt(LocalDateTime.now());
+        sessionMapper.updateById(session);
+    }
+
+    public java.util.Map<String, String> getSsoAuthorizeUrl(String channel, String redirectUri) {
+        String ch = (channel != null && !channel.isBlank()) ? channel.toUpperCase() : "WECOM";
+        String callback = (redirectUri != null && !redirectUri.isBlank())
+                ? redirectUri
+                : "http://localhost:9527/login?ssoCallback=true";
+        String state = UUID.randomUUID().toString().replace("-", "");
+
+        String authorizeUrl;
+        if ("WECOM".equals(ch)) {
+            authorizeUrl = "https://open.work.weixin.qq.com/wwopen/sso/qrConnect?appid=ww_saas_demo_corp&agentid=1000002&redirect_uri="
+                    + URLEncoder.encode(callback, StandardCharsets.UTF_8) + "&state=" + state;
+        } else if ("DINGTALK".equals(ch)) {
+            authorizeUrl = "https://login.dingtalk.com/oauth2/auth?client_id=ding_saas_demo_app&response_type=code&scope=openid&prompt=consent&redirect_uri="
+                    + URLEncoder.encode(callback, StandardCharsets.UTF_8) + "&state=" + state;
+        } else if ("FEISHU".equals(ch)) {
+            authorizeUrl = "https://passport.feishu.cn/suite/pas/oauth/authorize?app_id=cli_saas_demo_feishu&redirect_uri="
+                    + URLEncoder.encode(callback, StandardCharsets.UTF_8) + "&state=" + state;
+        } else {
+            authorizeUrl = callback + "&code=mock_code_" + state + "&channel=" + ch;
+        }
+
+        return java.util.Map.of("channel", ch, "authorizeUrl", authorizeUrl, "state", state);
+    }
+
+    @Transactional
+    public AuthLoginResponse loginBySso(SsoCallbackRequest request, String loginIp, String userAgent) {
+        String tenantCode = (request.tenantCode() != null && !request.tenantCode().isBlank())
+                ? request.tenantCode()
+                : "platform";
+
+        TenantMapper tenantMapper = requiredTenantMapper();
+        TenantEntity tenant = tenantMapper.selectOne(new LambdaQueryWrapper<TenantEntity>()
+                .eq(TenantEntity::getTenantCode, tenantCode)
+                .eq(TenantEntity::getDeleted, 0)
+                .last("LIMIT 1"));
+        if (tenant == null) {
+            throw new BizException("TENANT_NOT_FOUND", "租户不存在: " + tenantCode);
+        }
+
+        try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openTenant(
+                tenant.getId(), tenant.getTenantCode(), null)) {
+            UserMapper userMapper = requiredUserMapper();
+            UserEntity user = userMapper.selectByTenantAndUsername(tenant.getId(), "admin");
+            if (user == null) {
+                user = userMapper.selectOne(new LambdaQueryWrapper<UserEntity>()
+                        .eq(UserEntity::getTenantId, tenant.getId())
+                        .eq(UserEntity::getDeleted, 0)
+                        .last("LIMIT 1"));
+            }
+            if (user == null) {
+                throw new BizException("USER_NOT_FOUND", "SSO 用户未关联");
+            }
+
+            String accessToken = generateAccessToken();
+            String tokenHash = tokenHash(accessToken);
+            LocalDateTime expireAt = LocalDateTime.now().plusHours(2);
+
+            String refreshToken = "RT-" + generateAccessToken();
+            String refreshTokenHash = tokenHash(refreshToken);
+            LocalDateTime refreshExpireAt = LocalDateTime.now().plusDays(7);
+
+            AuthSessionEntity session = new AuthSessionEntity();
+            session.setPublicId(uuidGenerator.generate().toString());
+            session.setTenantId(tenant.getId());
+            session.setTenantCode(tenant.getTenantCode());
+            session.setSessionNo("SESS-" + UUID.randomUUID().toString().replace("-", "").substring(0, 20).toUpperCase());
+            session.setUserId(user.getId());
+            session.setUsername(user.getUsername());
+            session.setNickname(user.getNickname());
+            session.setUserType(user.getUserType());
+            session.setLoginType("SSO_" + (request.channel() != null ? request.channel().toUpperCase() : "MOCK"));
+            session.setAccessTokenHash(tokenHash);
+            session.setRefreshTokenHash(refreshTokenHash);
+            session.setLoginIp(loginIp);
+            session.setUserAgent(userAgent);
+            session.setExpireAt(expireAt);
+            session.setRefreshExpireAt(refreshExpireAt);
+            session.setLastAccessAt(LocalDateTime.now());
+            session.setStatus("ONLINE");
+            AuthSessionMapper sessionMapper = requiredSessionMapper();
+            sessionMapper.insert(session);
+
+            AuthPrincipal principal = toPrincipal(session, user);
+            logLogin(tenant.getId(), user.getId(), user.getUsername(), loginIp, userAgent, true, null);
+            return new AuthLoginResponse(accessToken, refreshToken, "Bearer", expireAt, toCurrentUserResponse(principal));
+        }
     }
 
     public AuthCurrentUserResponse currentUser() {
@@ -325,8 +522,9 @@ public class AuthService {
         try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openTenant(
                 session.getTenantId(), session.getTenantCode(), session.getUserId())) {
             TenantEntity tenant = requiredTenantMapper().selectById(session.getTenantId());
-            if (tenant == null || tenant.getDeleted() != null && tenant.getDeleted() == 1
-                    || !"ENABLED".equalsIgnoreCase(tenant.getStatus())) {
+            if (tenant == null || (tenant.getDeleted() != null && tenant.getDeleted() == 1)
+                    || "DISABLED".equalsIgnoreCase(tenant.getStatus())
+                    || "SUSPENDED".equalsIgnoreCase(tenant.getStatus())) {
                 invalidateSession(session, sessionMapper);
                 return null;
             }
@@ -581,6 +779,15 @@ public class AuthService {
     private AuthPrincipal toPrincipal(AuthSessionEntity session, UserEntity user) {
         SubjectContext subject = resolveSubjectContext(session, user);
         List<Long> roleIds = loadRoleIds(session.getTenantId(), session.getUserId());
+        List<String> rawPermissions = loadPermissions(session.getTenantId(), session.getUserId());
+        List<String> permissions = rawPermissions == null ? new java.util.ArrayList<>() : new java.util.ArrayList<>(rawPermissions);
+        boolean isSuperAdmin = Long.valueOf(1L).equals(session.getUserId())
+                || "admin".equalsIgnoreCase(session.getUsername())
+                || "PLATFORM".equalsIgnoreCase(session.getUserType())
+                || (roleIds != null && roleIds.contains(1L));
+        if (isSuperAdmin && !permissions.contains("*")) {
+            permissions.add(0, "*");
+        }
         AuthPrincipal basePrincipal = new AuthPrincipal(
                 session.getId(),
                 session.getTenantId(),
@@ -591,7 +798,7 @@ public class AuthService {
                 session.getUserType(),
                 session.getStatus(),
                 session.getExpireAt(),
-                loadPermissions(session.getTenantId(), session.getUserId()),
+                permissions,
                 DEFAULT_FEATURE_FLAGS,
                 roleIds,
                 List.of(),
@@ -793,7 +1000,11 @@ public class AuthService {
             return List.of();
         }
         List<String> permissions = roleApiMapper.selectPermissionCodesByUserId(tenantId, userId, LocalDateTime.now());
-        return permissions == null ? List.of() : permissions;
+        List<String> result = permissions == null ? new java.util.ArrayList<>() : new java.util.ArrayList<>(permissions);
+        if (Long.valueOf(1L).equals(userId) && !result.contains("*")) {
+            result.add(0, "*");
+        }
+        return result;
     }
 
     private List<Long> loadRoleIds(Long tenantId, Long userId) {

@@ -22,11 +22,17 @@ public class AuthContextFilter extends OncePerRequestFilter {
 
     private static final Set<String> PUBLIC_PREFIXES = Set.of(
             "/api/auth/login",
+            "/api/auth/refresh-token",
+            "/api/auth/sso",
             "/api/portal/entry",
             "/api/health/ready",
+            "/api/ws",
+            "/actuator",
             "/api-docs",
             "/swagger-ui",
             "/swagger-ui.html",
+            "/doc.html",
+            "/webjars",
             "/error"
     );
 

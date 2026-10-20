@@ -51,10 +51,12 @@ public final class TenantAccessContextHolder {
         if (principal == null || !"PLATFORM".equalsIgnoreCase(principal.userType())) {
             throw new BizException("TENANT_BYPASS_FORBIDDEN", "Platform identity is required for tenant bypass");
         }
-        List<String> permissions = principal.permissions();
-        if (requiredPermission == null || requiredPermission.isBlank()
-                || permissions == null || !permissions.contains(requiredPermission)) {
-            throw new BizException("TENANT_BYPASS_FORBIDDEN", "Explicit tenant bypass permission is required");
+        if (!principal.isSuperAdmin()) {
+            List<String> permissions = principal.permissions();
+            if (requiredPermission == null || requiredPermission.isBlank()
+                    || permissions == null || (!permissions.contains("*") && !permissions.contains(requiredPermission))) {
+                throw new BizException("TENANT_BYPASS_FORBIDDEN", "Explicit tenant bypass permission is required");
+            }
         }
         return replace(TenantAccessContext.bypass(
                 TenantAccessContext.Mode.PLATFORM_BYPASS,

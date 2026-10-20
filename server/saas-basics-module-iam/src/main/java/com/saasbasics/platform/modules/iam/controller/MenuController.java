@@ -63,6 +63,18 @@ public class MenuController {
         return ApiResponse.success(menuService.updateMenu(id, request));
     }
 
+    @GetMapping("/role/{roleId}/menu-ids")
+    @RequirePermission("iam:menu:query")
+    public ApiResponse<List<Long>> getRoleMenuIds(@PathVariable Long roleId) {
+        return ApiResponse.success(menuPermissionService.getRoleMenuIds(roleId));
+    }
+
+    @PutMapping("/role/{roleId}/menus")
+    @RequirePermission("iam:menu:write")
+    public ApiResponse<List<Long>> replaceRoleMenus(@PathVariable Long roleId, @RequestBody List<Long> menuIds) {
+        return ApiResponse.success(menuPermissionService.replaceRoleMenuGrants(roleId, menuIds));
+    }
+
     @PatchMapping("/{id}/status")
     @RequirePermission("iam:menu:write")
     public ApiResponse<MenuResponse> updateStatus(@PathVariable Long id,

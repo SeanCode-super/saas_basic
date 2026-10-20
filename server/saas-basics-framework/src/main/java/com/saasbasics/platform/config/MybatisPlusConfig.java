@@ -26,11 +26,12 @@ public class MybatisPlusConfig {
 
     static final Set<String> PLATFORM_TABLES = Set.of(
             "plat_tenant",
-            "plat_tenant_package"
+            "plat_tenant_package",
+            "plat_tenant_quota"
     );
 
     @Bean
-    public MybatisPlusInterceptor mybatisPlusInterceptor() {
+    public MybatisPlusInterceptor mybatisPlusInterceptor(com.saasbasics.platform.security.EnterpriseDataPermissionHandler dataPermissionHandler) {
         MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
         interceptor.addInnerInterceptor(new TenantLineInnerInterceptor(new com.baomidou.mybatisplus.extension.plugins.handler.TenantLineHandler() {
             @Override
@@ -45,6 +46,7 @@ public class MybatisPlusConfig {
                         || PLATFORM_TABLES.contains(tableName.toLowerCase(Locale.ROOT));
             }
         }));
+        interceptor.addInnerInterceptor(new com.baomidou.mybatisplus.extension.plugins.inner.DataPermissionInterceptor(dataPermissionHandler));
         PaginationInnerInterceptor pagination = new PaginationInnerInterceptor(DbType.MYSQL);
         pagination.setMaxLimit(200L);
         pagination.setOverflow(false);
@@ -54,8 +56,15 @@ public class MybatisPlusConfig {
     }
 
     @Bean
+    public ConfigurationCustomizer typeHandlerCustomizer() {
+        return configuration -> {
+            configuration.getTypeHandlerRegistry().register(UuidTypeHandler.class);
+            configuration.getTypeHandlerRegistry().register(com.saasbasics.platform.mybatis.JsonStringTypeHandler.class);
+        };
+    }
+
     public ConfigurationCustomizer uuidTypeHandlerCustomizer() {
-        return configuration -> configuration.getTypeHandlerRegistry().register(UuidTypeHandler.class);
+        return typeHandlerCustomizer();
     }
 
     @Bean
@@ -89,6 +98,10 @@ public class MybatisPlusConfig {
                 TenantAccessContext context = TenantAccessContextHolder.current();
                 if (context == null) {
                     throw new BizException("TENANT_CONTEXT_REQUIRED", "Tenant-owned writes require a tenant context");
+                }
+                Object existingTenantId = metaObject.getValue("tenantId");
+                if (existingTenantId != null && ("platform".equalsIgnoreCase(context.tenantCode()) || context.bypassesTenantIsolation())) {
+                    return;
                 }
                 if (!context.bypassesTenantIsolation()) {
                     metaObject.setValue("tenantId", context.tenantId());

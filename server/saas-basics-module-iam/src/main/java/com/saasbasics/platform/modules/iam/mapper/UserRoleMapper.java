@@ -31,4 +31,24 @@ public interface UserRoleMapper extends BaseMapper<UserRoleEntity> {
               AND user_id = #{userId}
             """)
     int deleteAssignments(@Param("tenantId") Long tenantId, @Param("userId") Long userId);
+
+    @Select("""
+            SELECT user_id
+            FROM iam_user_role
+            WHERE tenant_id = #{tenantId}
+              AND role_id = #{roleId}
+              AND deleted = 0
+              AND (expire_at IS NULL OR expire_at > #{now})
+            ORDER BY id DESC
+            """)
+    List<Long> selectUserIdsByRoleId(@Param("tenantId") Long tenantId,
+                                     @Param("roleId") Long roleId,
+                                     @Param("now") LocalDateTime now);
+
+    @Delete("""
+            DELETE FROM iam_user_role
+            WHERE tenant_id = #{tenantId}
+              AND role_id = #{roleId}
+            """)
+    int deleteRoleAssignments(@Param("tenantId") Long tenantId, @Param("roleId") Long roleId);
 }

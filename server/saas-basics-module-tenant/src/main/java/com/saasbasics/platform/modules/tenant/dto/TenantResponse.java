@@ -8,6 +8,11 @@ public record TenantResponse(
         String packageName,
         String status,
         String isolationMode,
+        String expireAt,
+        Long daysRemaining,
+        String contactName,
+        String contactMobile,
+        String contactEmail,
         String remark
 ) {
 }

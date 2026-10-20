@@ -14,7 +14,8 @@ public final class TenantAccessContext {
         AUTHENTICATION_TOKEN_RESOLUTION,
         PUBLIC_PORTAL_RESOLUTION,
         TENANT_BOOTSTRAP,
-        PLATFORM_TENANT_ADMINISTRATION
+        PLATFORM_TENANT_ADMINISTRATION,
+        SYSTEM_TASK_OR_ANNOTATION_IGNORE
     }
 
     private final Mode mode;

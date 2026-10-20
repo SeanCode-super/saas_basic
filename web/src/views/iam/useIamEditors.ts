@@ -12,6 +12,7 @@ import {
   createIamPosition,
   createIamRole,
   createIamUser,
+  saveUserRoleAssignment,
   updateIamApiResource,
   updateIamApiResourceStatus,
   updateIamDataScope,
@@ -243,6 +244,10 @@ export function useIamEditors(params: UseIamEditorsParams) {
     employeeForm.hireDate = "";
     employeeForm.employeeStatus = "ACTIVE";
     employeeForm.remark = "";
+    employeeForm.createAccount = false;
+    employeeForm.accountUsername = "";
+    employeeForm.accountPassword = "User@123456";
+    employeeForm.accountRoleIds = [];
   }
 
   function resetUserForm() {
@@ -287,11 +292,17 @@ export function useIamEditors(params: UseIamEditorsParams) {
     menuForm.menuCode = "";
     menuForm.menuName = "";
     menuForm.routePath = "";
+    menuForm.activeMenu = "";
+    menuForm.redirect = "";
     menuForm.componentPath = "";
+    menuForm.componentName = "";
     menuForm.permissionCode = "";
     menuForm.icon = "";
     menuForm.visible = true;
     menuForm.keepAlive = true;
+    menuForm.isFrame = false;
+    menuForm.frameSrc = "";
+    menuForm.isAffix = false;
     menuForm.sortNo = params.menus.value.length + 1;
     menuForm.status = "ENABLED";
     menuForm.metaJson = "";
@@ -340,10 +351,13 @@ export function useIamEditors(params: UseIamEditorsParams) {
     passwordPolicyForm.remark = "";
   }
 
-  function openDepartmentCreate() {
+  function openDepartmentCreate(parentId?: number) {
     departmentDialog.mode = "create";
     departmentDialog.id = 0;
     resetDepartmentForm();
+    if (parentId !== undefined && parentId !== null) {
+      departmentForm.parentId = parentId;
+    }
     departmentDialog.visible = true;
   }
 
@@ -361,10 +375,13 @@ export function useIamEditors(params: UseIamEditorsParams) {
     departmentDialog.visible = true;
   }
 
-  function openPositionCreate() {
+  function openPositionCreate(positionCodePrefix?: string) {
     positionDialog.mode = "create";
     positionDialog.id = 0;
     resetPositionForm();
+    if (positionCodePrefix) {
+      positionForm.positionCode = positionCodePrefix;
+    }
     positionDialog.visible = true;
   }
 
@@ -380,10 +397,13 @@ export function useIamEditors(params: UseIamEditorsParams) {
     positionDialog.visible = true;
   }
 
-  function openEmployeeCreate() {
+  function openEmployeeCreate(deptId?: number) {
     employeeDialog.mode = "create";
     employeeDialog.id = 0;
     resetEmployeeForm();
+    if (deptId !== undefined && deptId !== null) {
+      employeeForm.deptId = deptId;
+    }
     employeeDialog.visible = true;
   }
 
@@ -485,12 +505,15 @@ export function useIamEditors(params: UseIamEditorsParams) {
     apiDialog.visible = true;
   }
 
-  function openMenuCreate(defaults?: { parentId?: number; menuType?: string }) {
+  function openMenuCreate(defaults?: { parentId?: number; menuType?: string; metaJson?: string }) {
     menuDialog.mode = "create";
     menuDialog.id = 0;
     resetMenuForm();
     menuForm.parentId = defaults?.parentId ?? 0;
     menuForm.menuType = defaults?.menuType ?? "MENU";
+    if (defaults?.metaJson) {
+      menuForm.metaJson = defaults.metaJson;
+    }
     const parent = params.menus.value.find((item) => item.id === menuForm.parentId);
     const suffix = Date.now().toString(36);
     menuForm.menuCode =
@@ -510,11 +533,17 @@ export function useIamEditors(params: UseIamEditorsParams) {
     menuForm.menuCode = row.menuCode;
     menuForm.menuName = row.menuName;
     menuForm.routePath = row.routePath ?? "";
+    menuForm.activeMenu = row.activeMenu ?? "";
+    menuForm.redirect = row.redirect ?? "";
     menuForm.componentPath = row.componentPath ?? "";
+    menuForm.componentName = row.componentName ?? "";
     menuForm.permissionCode = row.permissionCode ?? "";
     menuForm.icon = row.icon ?? "";
     menuForm.visible = row.visible;
     menuForm.keepAlive = row.keepAlive;
+    menuForm.isFrame = Boolean(row.isFrame);
+    menuForm.frameSrc = row.frameSrc ?? "";
+    menuForm.isAffix = Boolean(row.isAffix);
     menuForm.sortNo = row.sortNo;
     menuForm.status = row.status;
     menuForm.metaJson = row.metaJson ?? "";
@@ -660,12 +689,20 @@ export function useIamEditors(params: UseIamEditorsParams) {
   }
 
   async function submitDepartment() {
+    if (!departmentForm.deptName?.trim()) {
+      ElMessage.warning("请输入部门名称");
+      return;
+    }
+    if (!departmentForm.deptCode?.trim()) {
+      ElMessage.warning("请输入部门编码");
+      return;
+    }
     await withSubmit(async () => {
       const payload = {
         tenantId: params.getCurrentTenantId(),
         parentId: departmentForm.parentId,
-        deptCode: departmentForm.deptCode,
-        deptName: departmentForm.deptName,
+        deptCode: departmentForm.deptCode.trim(),
+        deptName: departmentForm.deptName.trim(),
         deptFullName: departmentForm.deptFullName,
         leaderUserId: departmentForm.leaderUserId,
         status: departmentForm.status,
@@ -685,11 +722,19 @@ export function useIamEditors(params: UseIamEditorsParams) {
   }
 
   async function submitPosition() {
+    if (!positionForm.positionName?.trim()) {
+      ElMessage.warning("请输入岗位名称");
+      return;
+    }
+    if (!positionForm.positionCode?.trim()) {
+      ElMessage.warning("请输入岗位编码");
+      return;
+    }
     await withSubmit(async () => {
       const payload = {
         tenantId: params.getCurrentTenantId(),
-        positionCode: positionForm.positionCode,
-        positionName: positionForm.positionName,
+        positionCode: positionForm.positionCode.trim(),
+        positionName: positionForm.positionName.trim(),
         positionLevel: positionForm.positionLevel,
         status: positionForm.status,
         sortNo: positionForm.sortNo,
@@ -708,6 +753,24 @@ export function useIamEditors(params: UseIamEditorsParams) {
   }
 
   async function submitEmployee() {
+    if (employeeDialog.mode !== "transfer") {
+      if (!employeeForm.employeeNo?.trim()) {
+        ElMessage.warning("请输入员工编号");
+        return;
+      }
+      if (!employeeForm.employeeName?.trim()) {
+        ElMessage.warning("请输入员工姓名");
+        return;
+      }
+      if (!employeeForm.deptId) {
+        ElMessage.warning("请选择所属部门");
+        return;
+      }
+      if (!employeeForm.positionId) {
+        ElMessage.warning("请选择岗位");
+        return;
+      }
+    }
     await withSubmit(async () => {
       if (employeeDialog.mode === "transfer") {
         await transferIamEmployee(employeeDialog.id, {
@@ -722,20 +785,47 @@ export function useIamEditors(params: UseIamEditorsParams) {
       }
       const payload = {
         tenantId: params.getCurrentTenantId(),
-        employeeNo: employeeForm.employeeNo,
-        employeeName: employeeForm.employeeName,
+        employeeNo: employeeForm.employeeNo.trim(),
+        employeeName: employeeForm.employeeName.trim(),
         deptId: employeeForm.deptId,
         positionId: employeeForm.positionId,
-        mobile: employeeForm.mobile,
-        email: employeeForm.email,
+        mobile: employeeForm.mobile?.trim() || undefined,
+        email: employeeForm.email?.trim() || undefined,
         gender: employeeForm.gender,
         hireDate: employeeForm.hireDate || undefined,
         employeeStatus: employeeForm.employeeStatus,
         remark: employeeForm.remark
       };
       if (employeeDialog.mode === "create") {
-        await createIamEmployee(payload);
-        ElMessage.success("员工档案已创建");
+        const createdEmployee = await createIamEmployee(payload);
+        if (employeeForm.createAccount) {
+          const username = employeeForm.accountUsername?.trim() || employeeForm.employeeNo.toLowerCase();
+          const userPayload = {
+            tenantId: params.getCurrentTenantId(),
+            userCode: username,
+            username,
+            nickname: employeeForm.employeeName,
+            employeeId: createdEmployee.id,
+            userType: "EMPLOYEE",
+            status: "ENABLED",
+            mobile: employeeForm.mobile || undefined,
+            email: employeeForm.email || undefined,
+            password: employeeForm.accountPassword?.trim() || "User@123456",
+            needResetPassword: true,
+            remark: "入职向导自动创建账号"
+          };
+          const createdUser = await createIamUser(userPayload);
+          if (employeeForm.accountRoleIds && employeeForm.accountRoleIds.length > 0) {
+            await saveUserRoleAssignment({
+              userId: createdUser.id,
+              tenantId: params.getCurrentTenantId(),
+              roleIds: employeeForm.accountRoleIds
+            });
+          }
+          ElMessage.success(`员工已入职，且已开通登录账号：${username}`);
+        } else {
+          ElMessage.success("员工档案已创建");
+        }
       } else {
         await updateIamEmployee(employeeDialog.id, payload);
         ElMessage.success("员工档案已更新");
@@ -746,17 +836,25 @@ export function useIamEditors(params: UseIamEditorsParams) {
   }
 
   async function submitUser() {
+    if (!userForm.username?.trim()) {
+      ElMessage.warning("请输入登录账号/用户名");
+      return;
+    }
+    if (!userForm.nickname?.trim()) {
+      ElMessage.warning("请输入用户昵称/姓名");
+      return;
+    }
     await withSubmit(async () => {
       const payload = {
         tenantId: params.getCurrentTenantId(),
-        userCode: userForm.userCode,
-        username: userForm.username,
-        nickname: userForm.nickname,
+        userCode: userForm.userCode?.trim() || userForm.username.trim(),
+        username: userForm.username.trim(),
+        nickname: userForm.nickname.trim(),
         employeeId: userForm.employeeId || undefined,
         userType: userForm.userType,
         status: userForm.status,
-        mobile: userForm.mobile,
-        email: userForm.email,
+        mobile: userForm.mobile?.trim() || undefined,
+        email: userForm.email?.trim() || undefined,
         password: userForm.password || undefined,
         needResetPassword: userForm.needResetPassword,
         remark: userForm.remark
@@ -774,12 +872,20 @@ export function useIamEditors(params: UseIamEditorsParams) {
   }
 
   async function submitRole() {
+    if (!roleForm.roleCode?.trim()) {
+      ElMessage.warning("请输入角色编码");
+      return;
+    }
+    if (!roleForm.roleName?.trim()) {
+      ElMessage.warning("请输入角色名称");
+      return;
+    }
     await withSubmit(async () => {
       const payload = {
         tenantId: params.getCurrentTenantId(),
         roleGroupId: roleForm.roleGroupId,
-        roleCode: roleForm.roleCode,
-        roleName: roleForm.roleName,
+        roleCode: roleForm.roleCode.trim(),
+        roleName: roleForm.roleName.trim(),
         roleType: roleForm.roleType,
         dataScopeType: roleForm.dataScopeType,
         status: roleForm.status,
@@ -800,13 +906,25 @@ export function useIamEditors(params: UseIamEditorsParams) {
   }
 
   async function submitApiResource() {
+    if (!apiForm.resourceCode?.trim()) {
+      ElMessage.warning("请输入权限编码");
+      return;
+    }
+    if (!apiForm.resourceName?.trim()) {
+      ElMessage.warning("请输入资源名称");
+      return;
+    }
+    if (!apiForm.urlPattern?.trim()) {
+      ElMessage.warning("请输入接口规则路径");
+      return;
+    }
     await withSubmit(async () => {
       const payload = {
         tenantId: params.getCurrentTenantId(),
-        resourceCode: apiForm.resourceCode,
-        resourceName: apiForm.resourceName,
+        resourceCode: apiForm.resourceCode.trim(),
+        resourceName: apiForm.resourceName.trim(),
         httpMethod: apiForm.httpMethod,
-        urlPattern: apiForm.urlPattern,
+        urlPattern: apiForm.urlPattern.trim(),
         authRequired: apiForm.authRequired,
         status: apiForm.status,
         remark: apiForm.remark
@@ -824,22 +942,40 @@ export function useIamEditors(params: UseIamEditorsParams) {
   }
 
   async function submitMenu() {
+    if (!menuForm.menuName?.trim()) {
+      ElMessage.warning(menuForm.menuType === "BUTTON" ? "请输入操作名称" : "请输入资源名称");
+      return;
+    }
+    if (!menuForm.menuCode?.trim()) {
+      ElMessage.warning("请输入资源标识编码");
+      return;
+    }
+    if (menuForm.isFrame && !menuForm.frameSrc?.trim()) {
+      ElMessage.warning("内嵌外链已开启，请输入内嵌地址 (Iframe Src)");
+      return;
+    }
     await withSubmit(async () => {
       const payload = {
         tenantId: params.getCurrentTenantId(),
         parentId: menuForm.parentId || undefined,
         menuType: menuForm.menuType,
-        menuCode: menuForm.menuCode,
-        menuName: menuForm.menuName,
-        routePath: menuForm.routePath || undefined,
-        componentPath: menuForm.componentPath || undefined,
-        permissionCode: menuForm.permissionCode || undefined,
-        icon: menuForm.icon || undefined,
+        menuCode: menuForm.menuCode.trim(),
+        menuName: menuForm.menuName.trim(),
+        routePath: menuForm.routePath?.trim() || undefined,
+        activeMenu: menuForm.activeMenu?.trim() || undefined,
+        redirect: menuForm.redirect?.trim() || undefined,
+        componentPath: menuForm.componentPath?.trim() || undefined,
+        componentName: menuForm.componentName?.trim() || undefined,
+        permissionCode: menuForm.permissionCode?.trim() || undefined,
+        icon: menuForm.icon?.trim() || undefined,
         visible: menuForm.visible,
         keepAlive: menuForm.keepAlive,
+        isFrame: menuForm.isFrame,
+        frameSrc: menuForm.frameSrc?.trim() || undefined,
+        isAffix: menuForm.isAffix,
         sortNo: menuForm.sortNo,
         status: menuForm.status,
-        metaJson: menuForm.metaJson || undefined,
+        metaJson: menuForm.metaJson?.trim() || undefined,
         remark: menuForm.remark
       };
       if (menuDialog.mode === "create") {
@@ -855,13 +991,21 @@ export function useIamEditors(params: UseIamEditorsParams) {
   }
 
   async function submitDataScope() {
+    if (!dataScopeForm.scopeCode?.trim()) {
+      ElMessage.warning("请输入数据范围编码");
+      return;
+    }
+    if (!dataScopeForm.scopeName?.trim()) {
+      ElMessage.warning("请输入数据范围名称");
+      return;
+    }
     await withSubmit(async () => {
       const payload = {
         tenantId: params.getCurrentTenantId(),
-        scopeCode: dataScopeForm.scopeCode,
-        scopeName: dataScopeForm.scopeName,
+        scopeCode: dataScopeForm.scopeCode.trim(),
+        scopeName: dataScopeForm.scopeName.trim(),
         scopeType: dataScopeForm.scopeType,
-        scopeRuleJson: dataScopeForm.scopeRuleJson || undefined,
+        scopeRuleJson: dataScopeForm.scopeRuleJson?.trim() || undefined,
         status: dataScopeForm.status,
         remark: dataScopeForm.remark
       };
@@ -878,11 +1022,19 @@ export function useIamEditors(params: UseIamEditorsParams) {
   }
 
   async function submitLoginPolicy() {
+    if (!loginPolicyForm.policyCode?.trim()) {
+      ElMessage.warning("请输入登录策略编码");
+      return;
+    }
+    if (!loginPolicyForm.policyName?.trim()) {
+      ElMessage.warning("请输入登录策略名称");
+      return;
+    }
     await withSubmit(async () => {
       const payload = {
         tenantId: params.getCurrentTenantId(),
-        policyCode: loginPolicyForm.policyCode,
-        policyName: loginPolicyForm.policyName,
+        policyCode: loginPolicyForm.policyCode.trim(),
+        policyName: loginPolicyForm.policyName.trim(),
         allowPasswordLogin: loginPolicyForm.allowPasswordLogin,
         allowSmsLogin: loginPolicyForm.allowSmsLogin,
         allowEmailLogin: loginPolicyForm.allowEmailLogin,
@@ -891,7 +1043,7 @@ export function useIamEditors(params: UseIamEditorsParams) {
         sessionTimeoutMinutes: loginPolicyForm.sessionTimeoutMinutes,
         maxFailedCount: loginPolicyForm.maxFailedCount,
         lockMinutes: loginPolicyForm.lockMinutes,
-        ipAllowlistJson: loginPolicyForm.ipAllowlistJson || undefined,
+        ipAllowlistJson: loginPolicyForm.ipAllowlistJson?.trim() || undefined,
         deviceTrustDays: loginPolicyForm.deviceTrustDays,
         status: loginPolicyForm.status,
         remark: loginPolicyForm.remark
@@ -909,11 +1061,19 @@ export function useIamEditors(params: UseIamEditorsParams) {
   }
 
   async function submitPasswordPolicy() {
+    if (!passwordPolicyForm.policyCode?.trim()) {
+      ElMessage.warning("请输入密码策略编码");
+      return;
+    }
+    if (!passwordPolicyForm.policyName?.trim()) {
+      ElMessage.warning("请输入密码策略名称");
+      return;
+    }
     await withSubmit(async () => {
       const payload = {
         tenantId: params.getCurrentTenantId(),
-        policyCode: passwordPolicyForm.policyCode,
-        policyName: passwordPolicyForm.policyName,
+        policyCode: passwordPolicyForm.policyCode.trim(),
+        policyName: passwordPolicyForm.policyName.trim(),
         minLength: passwordPolicyForm.minLength,
         maxLength: passwordPolicyForm.maxLength,
         requireUppercase: passwordPolicyForm.requireUppercase,

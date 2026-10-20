@@ -232,11 +232,19 @@ function hydrateLifecyclePolicy() {
 }
 
 async function saveStorage() {
+  if (!storageForm.storageCode?.trim()) {
+    ElMessage.warning("请输入存储标识编码");
+    return;
+  }
+  if (!storageForm.storageName?.trim()) {
+    ElMessage.warning("请输入存储配置名称");
+    return;
+  }
   try {
     const payload = {
       tenantId: getTenantId(),
-      storageCode: storageForm.storageCode,
-      storageName: storageForm.storageName,
+      storageCode: storageForm.storageCode.trim(),
+      storageName: storageForm.storageName.trim(),
       storageType: storageForm.storageType,
       endpoint: storageForm.endpoint,
       bucketDefault: storageForm.bucketDefault,
@@ -269,11 +277,19 @@ function editStorage(row: FileStorageRow) {
 }
 
 async function saveLifecyclePolicy() {
+  if (!lifecycleForm.policyCode?.trim()) {
+    ElMessage.warning("请输入生命周期策略编码");
+    return;
+  }
+  if (!lifecycleForm.policyName?.trim()) {
+    ElMessage.warning("请输入生命周期策略名称");
+    return;
+  }
   try {
     const payload = {
       tenantId: getTenantId(),
-      policyCode: lifecycleForm.policyCode,
-      policyName: lifecycleForm.policyName,
+      policyCode: lifecycleForm.policyCode.trim(),
+      policyName: lifecycleForm.policyName.trim(),
       fileScope: lifecycleForm.fileScope,
       retentionDays: lifecycleForm.retentionDays,
       archiveAfterDays: lifecycleForm.archiveAfterDays,
@@ -310,13 +326,21 @@ function editLifecycle(row: FileLifecyclePolicyRow) {
 }
 
 async function createUpload() {
+  if (!uploadForm.fileName?.trim()) {
+    ElMessage.warning("请输入文件名称");
+    return;
+  }
+  if (!uploadForm.objectKey?.trim()) {
+    ElMessage.warning("请输入存储对象路径 Key");
+    return;
+  }
   try {
     await createFileUploadSession({
       tenantId: getTenantId(),
       bucketId: 1,
       storageId: editingStorageId.value || 1,
-      objectKey: uploadForm.objectKey,
-      fileName: uploadForm.fileName,
+      objectKey: uploadForm.objectKey.trim(),
+      fileName: uploadForm.fileName.trim(),
       fileSize: uploadForm.fileSize,
       uploadMode: uploadForm.uploadMode,
       partCount: uploadForm.partCount,

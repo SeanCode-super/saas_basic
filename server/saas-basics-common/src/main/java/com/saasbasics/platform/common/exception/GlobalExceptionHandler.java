@@ -19,6 +19,47 @@ public class GlobalExceptionHandler {
         return ApiResponse.failure(exception.getCode(), exception.getMessage());
     }
 
+    private static final java.util.Map<String, String> FIELD_NAME_MAP = java.util.Map.ofEntries(
+            java.util.Map.entry("menuName", "资源名称"),
+            java.util.Map.entry("menuCode", "资源标识编码"),
+            java.util.Map.entry("menuType", "资源类型"),
+            java.util.Map.entry("tenantName", "租户名称"),
+            java.util.Map.entry("tenantCode", "租户编码"),
+            java.util.Map.entry("deptName", "部门名称"),
+            java.util.Map.entry("deptCode", "部门编码"),
+            java.util.Map.entry("positionName", "岗位名称"),
+            java.util.Map.entry("positionCode", "岗位编码"),
+            java.util.Map.entry("employeeNo", "工号"),
+            java.util.Map.entry("employeeName", "员工姓名"),
+            java.util.Map.entry("username", "登录账号"),
+            java.util.Map.entry("password", "登录密码"),
+            java.util.Map.entry("roleName", "角色名称"),
+            java.util.Map.entry("roleCode", "角色编码"),
+            java.util.Map.entry("resourceName", "资源名称"),
+            java.util.Map.entry("resourceCode", "资源编码"),
+            java.util.Map.entry("urlPattern", "请求路径规则"),
+            java.util.Map.entry("dictName", "字典名称"),
+            java.util.Map.entry("dictCode", "字典类型编码"),
+            java.util.Map.entry("itemLabel", "字典项名称"),
+            java.util.Map.entry("itemValue", "字典项键值"),
+            java.util.Map.entry("name", "名称"),
+            java.util.Map.entry("code", "编码"),
+            java.util.Map.entry("key", "配置键名"),
+            java.util.Map.entry("value", "配置键值"),
+            java.util.Map.entry("group", "配置分组"),
+            java.util.Map.entry("handlerName", "执行器处理器"),
+            java.util.Map.entry("alarmName", "告警策略名称"),
+            java.util.Map.entry("alarmCode", "告警策略编码"),
+            java.util.Map.entry("storageName", "存储配置名称"),
+            java.util.Map.entry("storageCode", "存储标识编码"),
+            java.util.Map.entry("status", "状态"),
+            java.util.Map.entry("isolationMode", "隔离模式"),
+            java.util.Map.entry("scopeName", "数据范围名称"),
+            java.util.Map.entry("scopeCode", "数据范围编码"),
+            java.util.Map.entry("policyName", "策略名称"),
+            java.util.Map.entry("policyCode", "策略编码")
+    );
+
     @ExceptionHandler({MethodArgumentNotValidException.class, ConstraintViolationException.class})
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiResponse<Void> handleValidationException(Exception exception) {
@@ -26,7 +67,7 @@ public class GlobalExceptionHandler {
             String message = methodArgumentNotValidException.getBindingResult()
                     .getFieldErrors()
                     .stream()
-                    .map(fieldError -> fieldError.getDefaultMessage() == null ? "参数校验失败" : fieldError.getDefaultMessage())
+                    .map(this::formatFieldError)
                     .distinct()
                     .collect(Collectors.joining("；"));
             return ApiResponse.failure("VALIDATION_ERROR", message.isBlank() ? "参数校验失败" : message);
@@ -34,7 +75,7 @@ public class GlobalExceptionHandler {
         if (exception instanceof ConstraintViolationException constraintViolationException) {
             String message = constraintViolationException.getConstraintViolations()
                     .stream()
-                    .map(violation -> violation.getMessage() == null ? "参数校验失败" : violation.getMessage())
+                    .map(this::formatConstraintViolation)
                     .distinct()
                     .collect(Collectors.joining("；"));
             return ApiResponse.failure("VALIDATION_ERROR", message.isBlank() ? "参数校验失败" : message);
@@ -42,10 +83,45 @@ public class GlobalExceptionHandler {
         return ApiResponse.failure("VALIDATION_ERROR", "参数校验失败");
     }
 
+    private String formatFieldError(org.springframework.validation.FieldError fieldError) {
+        String field = fieldError.getField();
+        String defaultMsg = fieldError.getDefaultMessage();
+        if (defaultMsg == null || defaultMsg.isBlank()) {
+            defaultMsg = "不得为空白";
+        }
+        String label = FIELD_NAME_MAP.getOrDefault(field, field);
+        if (defaultMsg.contains(label) || defaultMsg.contains(field)) {
+            return defaultMsg;
+        }
+        return label + " " + defaultMsg;
+    }
+
+    private String formatConstraintViolation(jakarta.validation.ConstraintViolation<?> violation) {
+        String path = violation.getPropertyPath().toString();
+        int lastDot = path.lastIndexOf('.');
+        String field = lastDot >= 0 ? path.substring(lastDot + 1) : path;
+        String defaultMsg = violation.getMessage();
+        if (defaultMsg == null || defaultMsg.isBlank()) {
+            defaultMsg = "不得为空白";
+        }
+        String label = FIELD_NAME_MAP.getOrDefault(field, field);
+        if (defaultMsg.contains(label) || defaultMsg.contains(field)) {
+            return defaultMsg;
+        }
+        return label + " " + defaultMsg;
+    }
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ApiResponse<Void> handleException(Exception exception) {
-        return ApiResponse.failure("INTERNAL_SERVER_ERROR", exception.getMessage());
+        log.error("Unhandled server exception: ", exception);
+        String msg = exception.getMessage();
+        if (msg == null || msg.isBlank()) {
+            msg = exception.getClass().getSimpleName();
+        }
+        return ApiResponse.failure("INTERNAL_SERVER_ERROR", msg);
     }
 
     private HttpStatus resolveStatus(BizException exception) {

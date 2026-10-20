@@ -8,6 +8,7 @@ import {
   Grid,
   OfficeBuilding,
   Setting,
+  Tickets,
   Tools,
   User
 } from "@element-plus/icons-vue";
@@ -16,6 +17,7 @@ const APP_ICONS: Record<string, Component> = {
   dashboard: DataAnalysis,
   tenant: OfficeBuilding,
   iam: User,
+  workflow: Tickets,
   system: Setting,
   integration: Connection,
   file: FolderOpened,
@@ -24,6 +26,9 @@ const APP_ICONS: Record<string, Component> = {
   audit: DocumentChecked
 };
 
-export function resolveAppIcon(code?: string): Component {
+export function resolveAppIcon(code?: string, customIcon?: string): Component | string {
+  if (customIcon && customIcon.trim()) {
+    return customIcon.trim();
+  }
   return (code && APP_ICONS[code]) || Grid;
 }

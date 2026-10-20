@@ -112,20 +112,66 @@ const DATA_SCOPE_LABELS: Record<string, string> = {
 };
 
 const SCOPE_TYPE_LABELS: Record<string, string> = {
-  ALL_ACCESS: "全量访问",
-  ALL: "全量访问",
-  PERSONAL: "个人范围",
-  ORG_TREE: "组织树范围",
-  DEPARTMENT: "单部门",
-  DEPARTMENT_AND_CHILDREN: "组织树范围",
-  POSITION: "岗位范围",
-  COMPANY: "公司范围",
-  TENANT: "租户范围",
-  ROLE: "角色范围",
-  SELF_ONLY: "仅本人",
-  SELF: "仅本人",
-  CUSTOM: "自定义规则"
+  ALL_ACCESS: "全企业全部数据",
+  ALL: "全企业全部数据",
+  TENANT: "全企业全部数据",
+  PERSONAL: "仅限本人经办",
+  ORG_TREE: "本部门及所有下级",
+  DEPARTMENT: "仅限本部门",
+  DEPT_ONLY: "仅限本部门",
+  DEPT_AND_CHILDREN: "本部门及所有下级",
+  DEPARTMENT_AND_CHILDREN: "本部门及所有下级",
+  ORG_AND_CHILDREN: "本公司及所有分支",
+  ORG_ONLY: "仅限本公司",
+  COMPANY: "仅限本公司",
+  SELF_AND_SUBORDINATES: "本人及直属下级",
+  POSITION: "仅限所属岗位",
+  ROLE: "所属角色范围",
+  SELF_ONLY: "仅限本人经办",
+  SELF: "仅限本人经办",
+  CUSTOM: "自定义勾选范围"
 };
+
+export function summarizeScopeRule(scopeType: string, ruleJson?: string): string {
+  switch (scopeType) {
+    case "ALL":
+    case "ALL_ACCESS":
+    case "TENANT":
+      return "全企业所有业务数据，跨部门全量可见";
+    case "DEPT_AND_CHILDREN":
+    case "DEPARTMENT_AND_CHILDREN":
+    case "ORG_TREE":
+      return "所属部门及所有下属分支子部门数据";
+    case "DEPT_ONLY":
+    case "DEPARTMENT":
+      return "仅限直接归属的部门（不含下级部门）";
+    case "SELF_AND_SUBORDINATES":
+      return "本人经办以及汇报线上下属人员的数据";
+    case "SELF":
+    case "SELF_ONLY":
+    case "PERSONAL":
+      return "仅限本人经办或录入的业务数据";
+    case "ORG_AND_CHILDREN":
+    case "COMPANY":
+      return "所属独立公司主体及所有下属机构数据";
+    case "CUSTOM":
+      if (ruleJson) {
+        try {
+          const parsed = JSON.parse(ruleJson);
+          const parts: string[] = [];
+          if (parsed.departmentIds?.length) parts.push(`部门(${parsed.departmentIds.length})`);
+          if (parsed.userIds?.length) parts.push(`成员(${parsed.userIds.length})`);
+          if (parsed.positionIds?.length) parts.push(`岗位(${parsed.positionIds.length})`);
+          if (parts.length) return `自定义指定: ${parts.join("、")}`;
+        } catch {
+          // ignore
+        }
+      }
+      return "按可视化勾选的部门/成员自定义范围";
+    default:
+      return ruleJson || "系统内置通用规则";
+  }
+}
 
 const SUBJECT_TYPE_LABELS: Record<string, string> = {
   USER: "个人",

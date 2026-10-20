@@ -10,6 +10,7 @@ export interface ProTableColumn {
   minWidth?: number;
   slot?: string;
   formatter?: (row: Record<string, unknown>) => string;
+  fixed?: boolean | "left" | "right";
 }
 
 const props = withDefaults(
@@ -136,13 +137,14 @@ function exportRows(rows: object[], mode: "selected" | "current") {
       @selection-change="handleSelectionChange"
       @row-click="handleRowClick"
     >
-      <el-table-column v-if="props.selectable" type="selection" width="48" reserve-selection />
+      <el-table-column v-if="props.selectable" type="selection" width="48" fixed="left" reserve-selection />
       <el-table-column
         v-for="column in columns"
         :key="column.prop"
         :prop="column.prop"
         :label="column.label"
         :min-width="column.minWidth ?? 120"
+        :fixed="column.fixed ?? (column.prop === 'actions' ? 'right' : undefined)"
       >
         <template v-if="column.slot" #default="scope">
           <slot :name="column.slot" v-bind="scope" />
@@ -164,16 +166,27 @@ function exportRows(rows: object[], mode: "selected" | "current") {
 </template>
 
 <style scoped lang="scss">
+.pro-table {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.pro-table :deep(.el-card__body) {
+  padding: 0;
+  overflow-x: auto;
+}
+
+.pro-table__grid {
+  width: 100%;
+  min-width: 0;
+}
+
 .pro-table__header {
   display: flex;
   min-height: 32px;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-}
-
-.pro-table :deep(.el-card__body) {
-  padding: 0;
 }
 
 .pro-table--compact .pro-table__header h3 {
@@ -237,20 +250,21 @@ function exportRows(rows: object[], mode: "selected" | "current") {
 }
 
 .pro-table__grid :deep(.el-table__header th) {
-  height: 40px;
-  background: #f5f7f9;
-  color: var(--sb-text-secondary);
-  font-size: 12px;
-  font-weight: 700;
+  height: 42px;
+  background: #f8fafc !important;
+  color: var(--sb-text-primary) !important;
+  font-size: 13px;
+  font-weight: 650;
+  border-bottom: 1.5px solid var(--sb-border-color) !important;
 }
 
 .pro-table__grid :deep(.el-table td),
 .pro-table__grid :deep(.el-table th.el-table__cell) {
-  padding: 9px 0;
+  padding: 10px 0;
 }
 
 .pro-table__grid :deep(.el-table__row:hover > td.el-table__cell) {
-  background: #f4f7fb;
+  background: #eff6ff !important;
 }
 
 .pro-table__empty {

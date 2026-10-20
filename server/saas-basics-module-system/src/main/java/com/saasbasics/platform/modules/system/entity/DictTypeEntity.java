@@ -22,7 +22,7 @@ public class DictTypeEntity extends BaseTenantEntity {
     @TableField("cacheable")
     private Boolean cacheable;
 
-    @TableField("ext_json")
+    @TableField(value = "ext_json", typeHandler = com.saasbasics.platform.mybatis.JsonStringTypeHandler.class)
     private String extJson;
 
     public String getDictCode() {

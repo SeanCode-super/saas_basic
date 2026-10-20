@@ -34,7 +34,7 @@ public class DictItemEntity extends BaseTenantEntity {
     @TableField("is_default")
     private Boolean isDefault;
 
-    @TableField("ext_json")
+    @TableField(value = "ext_json", typeHandler = com.saasbasics.platform.mybatis.JsonStringTypeHandler.class)
     private String extJson;
 
     public Long getDictTypeId() {

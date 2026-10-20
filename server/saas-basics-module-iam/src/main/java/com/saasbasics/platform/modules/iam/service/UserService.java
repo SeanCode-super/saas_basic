@@ -19,14 +19,17 @@ public class UserService {
     private final ObjectProvider<UserMapper> userMapperProvider;
     private final PasswordSecurityService passwordSecurityService;
     private final DataPermissionRuleService dataPermissionRuleService;
+    private final com.saasbasics.platform.modules.tenant.service.TenantQuotaService tenantQuotaService;
     private final UuidV7Generator uuidGenerator = new UuidV7Generator();
 
     public UserService(ObjectProvider<UserMapper> userMapperProvider,
                        PasswordSecurityService passwordSecurityService,
-                       DataPermissionRuleService dataPermissionRuleService) {
+                       DataPermissionRuleService dataPermissionRuleService,
+                       com.saasbasics.platform.modules.tenant.service.TenantQuotaService tenantQuotaService) {
         this.userMapperProvider = userMapperProvider;
         this.passwordSecurityService = passwordSecurityService;
         this.dataPermissionRuleService = dataPermissionRuleService;
+        this.tenantQuotaService = tenantQuotaService;
     }
 
     public List<UserResponse> listUsers() {
@@ -44,6 +47,9 @@ public class UserService {
     }
 
     public UserResponse createUser(UserSaveRequest request) {
+        if (request.tenantId() != null) {
+            tenantQuotaService.checkUserQuota(request.tenantId());
+        }
         UserEntity entity = new UserEntity();
         entity.setPublicId(uuidGenerator.generate().toString());
         apply(entity, request);

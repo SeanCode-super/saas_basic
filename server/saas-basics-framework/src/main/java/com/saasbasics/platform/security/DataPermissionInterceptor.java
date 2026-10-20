@@ -1,6 +1,7 @@
 package com.saasbasics.platform.security;
 
 import com.saasbasics.platform.common.auth.DataPermissionContext;
+import com.saasbasics.platform.common.auth.DataScope;
 import com.saasbasics.platform.common.auth.RequireDataPermission;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -19,6 +20,27 @@ public class DataPermissionInterceptor implements HandlerInterceptor {
             return true;
         }
 
+        // 1. 优先提取 @DataScope 注解
+        DataScope dataScope = AnnotatedElementUtils.findMergedAnnotation(
+                handlerMethod.getMethod(),
+                DataScope.class
+        );
+        if (dataScope == null) {
+            dataScope = AnnotatedElementUtils.findMergedAnnotation(
+                    handlerMethod.getBeanType(),
+                    DataScope.class
+            );
+        }
+
+        if (dataScope != null) {
+            DataPermissionContext.setDataScope(dataScope);
+            if (!dataScope.resource().isBlank()) {
+                DataPermissionContext.setResourceCode(dataScope.resource());
+            }
+            return true;
+        }
+
+        // 2. 兼容提取 @RequireDataPermission 注解
         RequireDataPermission requireDataPermission = AnnotatedElementUtils.findMergedAnnotation(
                 handlerMethod.getMethod(),
                 RequireDataPermission.class

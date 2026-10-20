@@ -41,6 +41,9 @@ public class AuthSessionEntity extends BaseTenantEntity {
     @TableField("access_token_hash")
     private String accessTokenHash;
 
+    @TableField("refresh_token_hash")
+    private String refreshTokenHash;
+
     @TableField("login_ip")
     private String loginIp;
 
@@ -49,6 +52,9 @@ public class AuthSessionEntity extends BaseTenantEntity {
 
     @TableField("expire_at")
     private LocalDateTime expireAt;
+
+    @TableField("refresh_expire_at")
+    private LocalDateTime refreshExpireAt;
 
     @TableField("last_access_at")
     private LocalDateTime lastAccessAt;
@@ -185,6 +191,22 @@ public class AuthSessionEntity extends BaseTenantEntity {
 
     public void setLogoutAt(LocalDateTime logoutAt) {
         this.logoutAt = logoutAt;
+    }
+
+    public String getRefreshTokenHash() {
+        return refreshTokenHash;
+    }
+
+    public void setRefreshTokenHash(String refreshTokenHash) {
+        this.refreshTokenHash = refreshTokenHash;
+    }
+
+    public LocalDateTime getRefreshExpireAt() {
+        return refreshExpireAt;
+    }
+
+    public void setRefreshExpireAt(LocalDateTime refreshExpireAt) {
+        this.refreshExpireAt = refreshExpireAt;
     }
 
     public String getStatus() {

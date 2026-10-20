@@ -55,12 +55,13 @@ function update(value: string) {
   border: 0;
   border-bottom: 2px solid transparent;
   background: transparent;
+  color: var(--sb-text-secondary);
   text-align: left;
   cursor: pointer;
   transition: 140ms ease;
 
   &:hover {
-    color: var(--sb-primary-color);
+    color: var(--sb-text-primary);
   }
 
   &.is-active {
@@ -69,8 +70,8 @@ function update(value: string) {
   }
 
   strong {
-    font-size: 13px;
-    font-weight: 700;
+    font-size: 13.5px;
+    font-weight: 600;
   }
 }
 </style>

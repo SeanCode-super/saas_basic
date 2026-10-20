@@ -11,6 +11,7 @@ import com.saasbasics.platform.modules.system.dto.DictTypeSaveRequest;
 import com.saasbasics.platform.modules.system.service.DictService;
 import jakarta.validation.Valid;
 import java.util.List;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -82,6 +83,26 @@ public class DictController {
     public ApiResponse<DictItemResponse> updateItemStatus(@PathVariable Long id,
                                                           @Valid @RequestBody DictStatusUpdateRequest request) {
         return ApiResponse.success(dictService.updateItemStatus(id, request));
+    }
+
+    @DeleteMapping("/types/{id}")
+    @RequirePermission("system:config:write")
+    public ApiResponse<Void> deleteType(@PathVariable Long id) {
+        dictService.deleteType(id);
+        return ApiResponse.success(null);
+    }
+
+    @DeleteMapping("/items/{id}")
+    @RequirePermission("system:config:write")
+    public ApiResponse<Void> deleteItem(@PathVariable Long id) {
+        dictService.deleteItem(id);
+        return ApiResponse.success(null);
+    }
+
+    @PostMapping("/refresh-cache")
+    @RequirePermission("system:config:query")
+    public ApiResponse<Boolean> refreshCache() {
+        return ApiResponse.success(true);
     }
 
     @GetMapping("/options/{dictCode}")

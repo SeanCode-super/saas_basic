@@ -18,6 +18,7 @@ import IntegrationConnectionSection from "./sections/IntegrationConnectionSectio
 import IntegrationHealthSection from "./sections/IntegrationHealthSection.vue";
 import IntegrationOverviewSection from "./sections/IntegrationOverviewSection.vue";
 import IntegrationRegistrySection from "./sections/IntegrationRegistrySection.vue";
+import IntegrationMessageSection from "./sections/IntegrationMessageSection.vue";
 
 const props = withDefaults(
   defineProps<{
@@ -73,7 +74,8 @@ const sectionItems = [
   { key: "connection", label: "连接治理", description: "统一超时、检测、凭证加密和网络边界。" },
   { key: "callback", label: "回调策略", description: "统一签名、重试、去重和死信队列策略。" },
   { key: "health", label: "健康检测", description: "监控连接可达性、异常补偿和平台健康信号。" },
-  { key: "registry", label: "接入台账", description: "查看并管理数据源与接入对象台账。" }
+  { key: "registry", label: "接入台账", description: "查看并管理数据源与接入对象台账。" },
+  { key: "message", label: "消息网关", description: "多渠道短信网关 (Aliyun/Tencent/Mock) 与 SMTP 邮件分发调度及审计。" }
 ];
 
 const { activeSection, updateSection } = useModuleSection(sectionItems, {
@@ -162,7 +164,8 @@ const sectionComponentMap = {
   connection: IntegrationConnectionSection,
   callback: IntegrationCallbackSection,
   health: IntegrationHealthSection,
-  registry: IntegrationRegistrySection
+  registry: IntegrationRegistrySection,
+  message: IntegrationMessageSection
 } as const;
 
 const datasourceImportSample = formatJsonManifest([
@@ -225,18 +228,26 @@ async function handleCreate() {
     ElMessage.error("当前登录态缺少租户信息");
     return;
   }
+  if (!form.code?.trim()) {
+    ElMessage.warning("请输入数据源编码");
+    return;
+  }
+  if (!form.name?.trim()) {
+    ElMessage.warning("请输入数据源名称");
+    return;
+  }
   submitting.value = true;
   try {
     await createDatasource({
       tenantId,
-      code: form.code,
-      name: form.name,
+      code: form.code.trim(),
+      name: form.name.trim(),
       type: form.type,
       usageType: form.usageType,
-      host: form.host,
+      host: form.host?.trim() || undefined,
       port: form.port,
-      databaseName: form.databaseName,
-      username: form.username,
+      databaseName: form.databaseName?.trim() || undefined,
+      username: form.username?.trim() || undefined,
       testStatus: form.testStatus,
       status: form.status,
       remark: form.remark
@@ -430,11 +441,11 @@ onMounted(loadData);
 
   <el-dialog v-model="createVisible" title="新增数据源" width="560px">
     <el-form label-position="top">
-      <el-form-item label="数据源编码">
-        <el-input v-model="form.code" />
+      <el-form-item label="数据源编码" required>
+        <el-input v-model="form.code" placeholder="如 ds_order_mysql" />
       </el-form-item>
-      <el-form-item label="数据源名称">
-        <el-input v-model="form.name" />
+      <el-form-item label="数据源名称" required>
+        <el-input v-model="form.name" placeholder="如 订单中心业务库" />
       </el-form-item>
       <div class="dialog-grid">
         <el-form-item label="类型">

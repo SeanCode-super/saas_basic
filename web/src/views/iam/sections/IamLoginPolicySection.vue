@@ -34,25 +34,55 @@ function asLoginPolicyRows(rows: object[]) {
       subtitle="把失败阈值、设备信任、会话时长和 MFA 统一纳入登录入口治理。"
     >
       <template #toolbar>
-        <el-button v-if="canWrite" type="primary" @click="openLoginPolicyCreate">新增登录策略</el-button>
+        <el-button
+          v-if="canWrite"
+          v-button-permission="{ code: 'iam_login_policy:create', fallback: 'iam:login-policy:write' }"
+          type="primary"
+          @click="openLoginPolicyCreate"
+        >
+          新增登录策略
+        </el-button>
       </template>
       <template #bulkActions="{ rows }">
         <el-button
           v-if="canWrite"
+          v-button-permission="{ code: 'iam_login_policy:toggle', fallback: 'iam:login-policy:write' }"
           type="primary"
           plain
           @click="batchEnableLoginPolicies(asLoginPolicyRows(rows))"
         >
           批量启用
         </el-button>
-        <el-button v-if="canWrite" plain @click="batchDisableLoginPolicies(asLoginPolicyRows(rows))">批量停用</el-button>
+        <el-button
+          v-if="canWrite"
+          v-button-permission="{ code: 'iam_login_policy:toggle', fallback: 'iam:login-policy:write' }"
+          plain
+          @click="batchDisableLoginPolicies(asLoginPolicyRows(rows))"
+        >
+          批量停用
+        </el-button>
       </template>
       <template #status="{ row }">
         <BaseStatusTag :status="String(row.status)" :type="row.status === 'ENABLED' ? 'success' : 'danger'" />
       </template>
       <template #actions="{ row }">
-        <el-button v-if="canWrite" link type="primary" @click="openLoginPolicyEdit(row)">编辑</el-button>
-        <el-button v-if="canWrite" link @click="toggleLoginPolicy(row)">{{ row.status === "ENABLED" ? "停用" : "启用" }}</el-button>
+        <el-button
+          v-if="canWrite"
+          v-button-permission="{ code: 'iam_login_policy:edit', fallback: 'iam:login-policy:write' }"
+          link
+          type="primary"
+          @click="openLoginPolicyEdit(row)"
+        >
+          编辑
+        </el-button>
+        <el-button
+          v-if="canWrite"
+          v-button-permission="{ code: 'iam_login_policy:toggle', fallback: 'iam:login-policy:write' }"
+          link
+          @click="toggleLoginPolicy(row)"
+        >
+          {{ row.status === "ENABLED" ? "停用" : "启用" }}
+        </el-button>
       </template>
     </ProTable>
 

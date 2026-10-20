@@ -25,14 +25,6 @@ const queryModel = computed({
 
 <template>
   <section class="module-registry-shell">
-    <div class="module-registry-shell__header">
-      <div>
-        <span class="module-registry-shell__eyebrow">集成注册表</span>
-        <h3>接入台账</h3>
-        <p>所有数据源和接入对象都必须进入统一注册表，而不是散落在各系统配置中。</p>
-      </div>
-    </div>
-
     <SchemaForm v-model="queryModel" :schema="schema">
       <template #actions>
         <el-button @click="resetQuery">重置</el-button>

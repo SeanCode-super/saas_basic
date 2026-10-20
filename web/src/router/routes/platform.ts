@@ -18,7 +18,7 @@ export const platformRoutes: RouteRecordRaw[] = [
         }
       },
       {
-        path: "tenant",
+        path: "tenant/:section*",
         name: "tenant",
         component: () => import("@/views/tenant/TenantView.vue"),
         meta: {
@@ -38,9 +38,30 @@ export const platformRoutes: RouteRecordRaw[] = [
         }
       },
       {
+        path: "organization",
+        name: "organization",
+        component: () => import("@/views/organization/OrganizationView.vue"),
+        meta: {
+          title: "组织与人员中心",
+          icon: "OfficeBuilding",
+          permissionCode: "iam:user:query"
+        }
+      },
+      {
         path: "system",
         name: "system",
         component: () => import("@/views/system/SystemView.vue"),
+        meta: {
+          title: "系统中心",
+          icon: "Setting",
+          permissionCode: "system:config:query"
+        }
+      },
+      {
+        path: "system/:section",
+        name: "system-section",
+        component: () => import("@/views/system/SystemView.vue"),
+        props: true,
         meta: {
           title: "系统中心",
           icon: "Setting",
@@ -96,7 +117,75 @@ export const platformRoutes: RouteRecordRaw[] = [
           icon: "DataAnalysis",
           permissionCode: "audit:operation:query"
         }
+      },
+      {
+        path: "workflow",
+        name: "workflow",
+        component: () => import("@/views/workflow/WorkflowView.vue"),
+        meta: {
+          title: "工作流与审批中心",
+          icon: "Tickets",
+          permissionCode: "workflow:task:query"
+        }
+      },
+      {
+        path: "print",
+        name: "print",
+        component: () => import("@/views/report/PrintCenterView.vue"),
+        meta: {
+          title: "单据套打中心",
+          icon: "Printer",
+          permissionCode: "report:print:query"
+        }
+      },
+      {
+        path: "erp",
+        name: "erp",
+        component: () => import("@/views/erp/ErpView.vue"),
+        meta: {
+          title: "进销存 ERP",
+          icon: "Briefcase",
+          permissionCode: "erp:inventory:query"
+        }
+      },
+      {
+        path: "server-monitor",
+        name: "server-monitor",
+        component: () => import("@/views/monitor/ServerMonitorView.vue"),
+        meta: {
+          title: "服务与应用监控",
+          icon: "Monitor",
+          permissionCode: "system:config:query"
+        }
+      },
+      {
+        path: "crm",
+        name: "crm",
+        component: () => import("@/views/crm/CrmView.vue"),
+        meta: {
+          title: "客户关系 CRM",
+          icon: "TrendCharts"
+        }
+      },
+      {
+        path: "crm/:tab",
+        name: "crm-tab",
+        component: () => import("@/views/crm/CrmView.vue"),
+        meta: {
+          title: "客户关系 CRM",
+          icon: "TrendCharts"
+        }
+      },
+      {
+        path: "profile",
+        name: "profile",
+        component: () => import("@/views/profile/ProfileView.vue"),
+        meta: {
+          title: "个人中心",
+          icon: "User"
+        }
       }
     ]
+
   }
 ];

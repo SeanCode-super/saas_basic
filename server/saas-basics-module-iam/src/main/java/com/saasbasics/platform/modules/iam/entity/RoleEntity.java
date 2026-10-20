@@ -26,7 +26,7 @@ public class RoleEntity extends BaseTenantEntity {
     private String status;
 
     @TableField("is_system")
-    private Boolean system;
+    private Boolean isSystem;
 
     @TableField("sort_no")
     private Integer sortNo;
@@ -80,11 +80,19 @@ public class RoleEntity extends BaseTenantEntity {
     }
 
     public Boolean getSystem() {
-        return system;
+        return isSystem;
     }
 
     public void setSystem(Boolean system) {
-        this.system = system;
+        this.isSystem = system;
+    }
+
+    public Boolean getIsSystem() {
+        return isSystem;
+    }
+
+    public void setIsSystem(Boolean isSystem) {
+        this.isSystem = isSystem;
     }
 
     public Integer getSortNo() {

@@ -1,0 +1,68 @@
+{
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "移动数字化工作台",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/workflow/list",
+      "style": {
+        "navigationBarTitleText": "审批待办中心",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/erp/inventory",
+      "style": {
+        "navigationBarTitleText": "多仓库存与扫码",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/profile/profile",
+      "style": {
+        "navigationBarTitleText": "个人中心与多租户"
+      }
+    },
+    {
+      "path": "pages/login/login",
+      "style": {
+        "navigationBarTitleText": "租户登录",
+        "navigationStyle": "custom"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "Antigravity",
+    "navigationBarBackgroundColor": "#0f172a",
+    "backgroundColor": "#f8fafc"
+  },
+  "tabBar": {
+    "color": "#64748b",
+    "selectedColor": "#0284c7",
+    "borderStyle": "black",
+    "backgroundColor": "#ffffff",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "工作台"
+      },
+      {
+        "pagePath": "pages/workflow/list",
+        "text": "待办审批"
+      },
+      {
+        "pagePath": "pages/erp/inventory",
+        "text": "移动库存"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我的"
+      }
+    ]
+  }
+}

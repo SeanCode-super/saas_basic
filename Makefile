@@ -1,5 +1,9 @@
 SHELL := /bin/sh
 
+export PATH := $(PATH):/opt/homebrew/bin
+JAVA_HOME ?= $(shell /usr/libexec/java_home -v 17 2>/dev/null || echo "$$JAVA_HOME")
+export JAVA_HOME
+
 .PHONY: backend-build backend-test frontend-install frontend-build frontend-lint frontend-test verify dev-db-up dev-db-down dev-backend dev-frontend
 
 backend-build:

@@ -8,7 +8,8 @@ import {
   localizeSubjectType,
   localizeUserType,
   summarizeLoginChannels,
-  summarizePasswordRules
+  summarizePasswordRules,
+  summarizeScopeRule
 } from "./iam-meta";
 
 export const departmentColumns: ProTableColumn[] = [
@@ -95,7 +96,7 @@ export const dataScopeColumns: ProTableColumn[] = [
   { prop: "scopeCode", label: "范围编码", minWidth: 160 },
   { prop: "scopeName", label: "范围名称", minWidth: 180 },
   { prop: "scopeType", label: "范围类型", minWidth: 140, formatter: (row) => localizeScopeType(String(row.scopeType ?? "")) },
-  { prop: "scopeRuleJson", label: "规则表达式", minWidth: 240, formatter: (row) => String(row.scopeRuleJson ?? "-") },
+  { prop: "scopeRuleJson", label: "适用数据边界", minWidth: 260, formatter: (row) => summarizeScopeRule(String(row.scopeType ?? ""), String(row.scopeRuleJson ?? "")) },
   { prop: "status", label: "状态", minWidth: 100, slot: "status" },
   { prop: "actions", label: "操作", minWidth: 170, slot: "actions" }
 ];
@@ -110,11 +111,11 @@ export const menuPermissionColumns: ProTableColumn[] = [
 ];
 
 export const dataPermissionRuleColumns: ProTableColumn[] = [
-  { prop: "resourceCode", label: "资源编码", minWidth: 180 },
+  { prop: "resourceCode", label: "数据资源", minWidth: 200 },
   { prop: "subjectType", label: "授权维度", minWidth: 110, formatter: (row) => localizeSubjectType(String(row.subjectType ?? "")) },
   { prop: "subjectLabel", label: "授权对象", minWidth: 180 },
-  { prop: "scopeType", label: "数据范围", minWidth: 140, formatter: (row) => localizeScopeType(String(row.scopeType ?? "")) },
-  { prop: "configSummary", label: "自定义配置", minWidth: 240 },
+  { prop: "scopeType", label: "数据范围", minWidth: 160, slot: "scopeType" },
+  { prop: "configSummary", label: "生效范围明细", minWidth: 260, slot: "configSummary" },
   { prop: "status", label: "状态", minWidth: 100, slot: "status" },
   { prop: "actions", label: "操作", minWidth: 170, slot: "actions" }
 ];

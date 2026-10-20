@@ -9,6 +9,19 @@ const MENU_FETCH_TIMEOUT = 4000;
 
 type MenuBootstrapSource = "remote" | "empty";
 
+export type NavPosition = "AUTO" | "TOP" | "SIDE" | "BOTH";
+
+export function resolveNavPosition(metaJson?: string): NavPosition {
+  if (!metaJson) return "AUTO";
+  try {
+    const parsed = typeof metaJson === "string" ? JSON.parse(metaJson) : metaJson;
+    if (parsed.navPosition && ["AUTO", "TOP", "SIDE", "BOTH"].includes(parsed.navPosition)) {
+      return parsed.navPosition;
+    }
+  } catch {}
+  return "AUTO";
+}
+
 export interface MenuNavItem {
   id: number;
   code: string;
@@ -21,6 +34,8 @@ export interface MenuNavItem {
   menuType: string;
   sortNo: number;
   visible: boolean;
+  metaJson?: string;
+  navPosition: NavPosition;
   children: MenuNavItem[];
 }
 
@@ -141,6 +156,8 @@ function buildNavigationTree(menus: IamMenuRow[]): MenuNavItem[] {
       menuType: menu.menuType,
       sortNo: menu.sortNo,
       visible: menu.visible,
+      metaJson: menu.metaJson ?? undefined,
+      navPosition: resolveNavPosition(menu.metaJson),
       children: []
     });
   }

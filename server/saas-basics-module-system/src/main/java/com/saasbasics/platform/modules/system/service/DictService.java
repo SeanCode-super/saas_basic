@@ -1,6 +1,7 @@
 package com.saasbasics.platform.modules.system.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.saasbasics.platform.common.exception.BizException;
 import com.saasbasics.platform.common.tenant.TenantAccessContextHolder;
 import com.saasbasics.platform.modules.audit.service.AuditTrailService;
@@ -14,11 +15,13 @@ import com.saasbasics.platform.modules.system.entity.DictItemEntity;
 import com.saasbasics.platform.modules.system.entity.DictTypeEntity;
 import com.saasbasics.platform.modules.system.mapper.DictItemMapper;
 import com.saasbasics.platform.modules.system.mapper.DictTypeMapper;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class DictService {
@@ -138,6 +141,44 @@ public class DictService {
         return response;
     }
 
+    @Transactional
+    public void deleteType(Long id) {
+        DictTypeMapper mapper = requiredTypeMapper();
+        DictTypeEntity entity = mapper.selectById(id);
+        if (entity == null || entity.getDeleted() != null && entity.getDeleted() == 1) {
+            throw new BizException("DICT_TYPE_NOT_FOUND", "Dict type not found");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        mapper.update(null, new LambdaUpdateWrapper<DictTypeEntity>()
+                .eq(DictTypeEntity::getId, id)
+                .set(DictTypeEntity::getDeletedAt, now));
+        mapper.deleteById(id);
+
+        DictItemMapper itemMapper = requiredItemMapper();
+        itemMapper.update(null, new LambdaUpdateWrapper<DictItemEntity>()
+                .eq(DictItemEntity::getDictTypeId, id)
+                .set(DictItemEntity::getDeletedAt, now));
+        itemMapper.delete(new LambdaQueryWrapper<DictItemEntity>()
+                .eq(DictItemEntity::getDictTypeId, id));
+
+        auditTrailService.record("system", "dict_type", String.valueOf(id), "DELETE", entity.getDictCode(), null, true);
+    }
+
+    @Transactional
+    public void deleteItem(Long id) {
+        DictItemMapper mapper = requiredItemMapper();
+        DictItemEntity entity = mapper.selectById(id);
+        if (entity == null || entity.getDeleted() != null && entity.getDeleted() == 1) {
+            throw new BizException("DICT_ITEM_NOT_FOUND", "Dict item not found");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        mapper.update(null, new LambdaUpdateWrapper<DictItemEntity>()
+                .eq(DictItemEntity::getId, id)
+                .set(DictItemEntity::getDeletedAt, now));
+        mapper.deleteById(id);
+        auditTrailService.record("system", "dict_item", String.valueOf(id), "DELETE", entity.getItemValue(), null, true);
+    }
+
     public List<DictOptionResponse> listOptions(String dictCode) {
         Long tenantId = TenantAccessContextHolder.requiredTenantId();
         DictTypeMapper typeMapper = requiredTypeMapper();
@@ -147,12 +188,20 @@ public class DictService {
                 .eq(DictTypeEntity::getDictCode, dictCode)
                 .last("LIMIT 1"));
         if (type == null) {
-            return List.of();
+            type = typeMapper.selectOne(new LambdaQueryWrapper<DictTypeEntity>()
+                    .eq(DictTypeEntity::getDeleted, 0)
+                    .and(w -> w.eq(DictTypeEntity::getTenantId, 1L).or().eq(DictTypeEntity::getDictScope, "GLOBAL"))
+                    .eq(DictTypeEntity::getDictCode, dictCode)
+                    .last("LIMIT 1"));
+            if (type == null) {
+                return List.of();
+            }
         }
 
+        Long targetTenantId = type.getTenantId();
         return requiredItemMapper().selectList(new LambdaQueryWrapper<DictItemEntity>()
                         .eq(DictItemEntity::getDeleted, 0)
-                        .eq(DictItemEntity::getTenantId, tenantId)
+                        .eq(DictItemEntity::getTenantId, targetTenantId)
                         .eq(DictItemEntity::getDictTypeId, type.getId())
                         .eq(DictItemEntity::getStatus, "ENABLED")
                         .orderByAsc(DictItemEntity::getSortNo, DictItemEntity::getId))
@@ -194,6 +243,21 @@ public class DictService {
         }
     }
 
+    private static final com.fasterxml.jackson.databind.ObjectMapper OBJECT_MAPPER = new com.fasterxml.jackson.databind.ObjectMapper();
+
+    private String normalizeJson(String raw) {
+        if (raw == null || raw.trim().isEmpty()) {
+            return null;
+        }
+        String trimmed = raw.trim();
+        try {
+            OBJECT_MAPPER.readTree(trimmed);
+            return trimmed;
+        } catch (Exception e) {
+            throw new BizException("INVALID_JSON", "附加扩展参数必须是合法的 JSON 格式");
+        }
+    }
+
     private void apply(DictTypeEntity entity, DictTypeSaveRequest request) {
         entity.setTenantId(request.tenantId());
         entity.setDictCode(request.dictCode());
@@ -201,7 +265,7 @@ public class DictService {
         entity.setDictScope(request.dictScope());
         entity.setStatus(request.status());
         entity.setCacheable(request.cacheable());
-        entity.setExtJson(request.extJson());
+        entity.setExtJson(normalizeJson(request.extJson()));
         entity.setRemark(request.remark());
     }
 
@@ -216,7 +280,7 @@ public class DictService {
         entity.setSortNo(request.sortNo() == null ? 0 : request.sortNo());
         entity.setStatus(request.status());
         entity.setIsDefault(request.defaultItem());
-        entity.setExtJson(request.extJson());
+        entity.setExtJson(normalizeJson(request.extJson()));
         entity.setRemark(request.remark());
     }
 
