@@ -9,6 +9,7 @@ import com.saasbasics.platform.common.exception.BizException;
 import com.saasbasics.platform.common.id.UuidV7Generator;
 import com.saasbasics.platform.common.tenant.TenantAccessContext;
 import com.saasbasics.platform.common.tenant.TenantAccessContextHolder;
+import com.saasbasics.platform.common.tenant.TenantFeatureProvider;
 import com.saasbasics.platform.config.SecurityProperties;
 import com.saasbasics.platform.modules.audit.entity.LoginLogEntity;
 import com.saasbasics.platform.modules.audit.mapper.LoginLogMapper;
@@ -103,7 +104,45 @@ public class AuthService {
     private final PortalEntryService portalEntryService;
     private final MenuPermissionService menuPermissionService;
     private final OrganizationDirectory organizationDirectory;
+    private final ObjectProvider<TenantFeatureProvider> tenantFeatureProvider;
     private final UuidV7Generator uuidGenerator = new UuidV7Generator();
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public AuthService(SecurityProperties securityProperties,
+                       PasswordSecurityService passwordSecurityService,
+                       ObjectProvider<UserMapper> userMapperProvider,
+                       ObjectProvider<TenantMapper> tenantMapperProvider,
+                       ObjectProvider<AuthSessionMapper> authSessionMapperProvider,
+                       ObjectProvider<LoginPolicyMapper> loginPolicyMapperProvider,
+                       ObjectProvider<PasswordPolicyMapper> passwordPolicyMapperProvider,
+                       ObjectProvider<LoginFailStatMapper> loginFailStatMapperProvider,
+                       ObjectProvider<PasswordHistoryMapper> passwordHistoryMapperProvider,
+                       ObjectProvider<LoginLogMapper> loginLogMapperProvider,
+                       ObjectProvider<UserRoleMapper> userRoleMapperProvider,
+                       ObjectProvider<RoleApiMapper> roleApiMapperProvider,
+                       ObjectProvider<UserPersonBindingMapper> userPersonBindingMapperProvider,
+                       PortalEntryService portalEntryService,
+                       MenuPermissionService menuPermissionService,
+                       OrganizationDirectory organizationDirectory,
+                       ObjectProvider<TenantFeatureProvider> tenantFeatureProvider) {
+        this.securityProperties = securityProperties;
+        this.passwordSecurityService = passwordSecurityService;
+        this.userMapperProvider = userMapperProvider;
+        this.tenantMapperProvider = tenantMapperProvider;
+        this.authSessionMapperProvider = authSessionMapperProvider;
+        this.loginPolicyMapperProvider = loginPolicyMapperProvider;
+        this.passwordPolicyMapperProvider = passwordPolicyMapperProvider;
+        this.loginFailStatMapperProvider = loginFailStatMapperProvider;
+        this.passwordHistoryMapperProvider = passwordHistoryMapperProvider;
+        this.loginLogMapperProvider = loginLogMapperProvider;
+        this.userRoleMapperProvider = userRoleMapperProvider;
+        this.roleApiMapperProvider = roleApiMapperProvider;
+        this.userPersonBindingMapperProvider = userPersonBindingMapperProvider;
+        this.portalEntryService = portalEntryService;
+        this.menuPermissionService = menuPermissionService;
+        this.organizationDirectory = organizationDirectory;
+        this.tenantFeatureProvider = tenantFeatureProvider;
+    }
 
     public AuthService(SecurityProperties securityProperties,
                        PasswordSecurityService passwordSecurityService,
@@ -121,22 +160,11 @@ public class AuthService {
                        PortalEntryService portalEntryService,
                        MenuPermissionService menuPermissionService,
                        OrganizationDirectory organizationDirectory) {
-        this.securityProperties = securityProperties;
-        this.passwordSecurityService = passwordSecurityService;
-        this.userMapperProvider = userMapperProvider;
-        this.tenantMapperProvider = tenantMapperProvider;
-        this.authSessionMapperProvider = authSessionMapperProvider;
-        this.loginPolicyMapperProvider = loginPolicyMapperProvider;
-        this.passwordPolicyMapperProvider = passwordPolicyMapperProvider;
-        this.loginFailStatMapperProvider = loginFailStatMapperProvider;
-        this.passwordHistoryMapperProvider = passwordHistoryMapperProvider;
-        this.loginLogMapperProvider = loginLogMapperProvider;
-        this.userRoleMapperProvider = userRoleMapperProvider;
-        this.roleApiMapperProvider = roleApiMapperProvider;
-        this.userPersonBindingMapperProvider = userPersonBindingMapperProvider;
-        this.portalEntryService = portalEntryService;
-        this.menuPermissionService = menuPermissionService;
-        this.organizationDirectory = organizationDirectory;
+        this(securityProperties, passwordSecurityService, userMapperProvider, tenantMapperProvider,
+             authSessionMapperProvider, loginPolicyMapperProvider, passwordPolicyMapperProvider,
+             loginFailStatMapperProvider, passwordHistoryMapperProvider, loginLogMapperProvider,
+             userRoleMapperProvider, roleApiMapperProvider, userPersonBindingMapperProvider,
+             portalEntryService, menuPermissionService, organizationDirectory, null);
     }
 
     public AuthLoginResponse login(AuthLoginRequest request, String loginIp, String userAgent) {
@@ -788,6 +816,16 @@ public class AuthService {
         if (isSuperAdmin && !permissions.contains("*")) {
             permissions.add(0, "*");
         }
+        List<String> featureFlags = DEFAULT_FEATURE_FLAGS;
+        if (tenantFeatureProvider != null) {
+            TenantFeatureProvider provider = tenantFeatureProvider.getIfAvailable();
+            if (provider != null && session.getTenantId() != null) {
+                Set<String> effective = provider.getEffectiveFeatures(session.getTenantId());
+                if (effective != null && !effective.isEmpty()) {
+                    featureFlags = new java.util.ArrayList<>(effective);
+                }
+            }
+        }
         AuthPrincipal basePrincipal = new AuthPrincipal(
                 session.getId(),
                 session.getTenantId(),
@@ -799,7 +837,7 @@ public class AuthService {
                 session.getStatus(),
                 session.getExpireAt(),
                 permissions,
-                DEFAULT_FEATURE_FLAGS,
+                featureFlags,
                 roleIds,
                 List.of(),
                 requiredUuid(session.getPublicId(), "AUTH_SESSION_PUBLIC_ID_INVALID", "The session public identifier is invalid"),

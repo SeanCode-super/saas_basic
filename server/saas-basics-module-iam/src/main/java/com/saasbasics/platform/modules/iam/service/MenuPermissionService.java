@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import com.saasbasics.platform.common.tenant.TenantFeatureProvider;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +39,7 @@ public class MenuPermissionService {
     private final ObjectProvider<MenuPermissionMapper> menuPermissionMapperProvider;
     private final ObjectProvider<MenuMapper> menuMapperProvider;
     private final ObjectProvider<RoleMenuMapper> roleMenuMapperProvider;
+    private final ObjectProvider<TenantFeatureProvider> tenantFeatureProvider;
     private final AccessSubjectProfileService accessSubjectProfileService;
     private final AuditTrailService auditTrailService;
     private final ObjectMapper objectMapper;
@@ -46,12 +48,14 @@ public class MenuPermissionService {
     public MenuPermissionService(ObjectProvider<MenuPermissionMapper> menuPermissionMapperProvider,
                                  ObjectProvider<MenuMapper> menuMapperProvider,
                                  ObjectProvider<RoleMenuMapper> roleMenuMapperProvider,
+                                 ObjectProvider<TenantFeatureProvider> tenantFeatureProvider,
                                  AccessSubjectProfileService accessSubjectProfileService,
                                  AuditTrailService auditTrailService,
                                  ObjectMapper objectMapper) {
         this.menuPermissionMapperProvider = menuPermissionMapperProvider;
         this.menuMapperProvider = menuMapperProvider;
         this.roleMenuMapperProvider = roleMenuMapperProvider;
+        this.tenantFeatureProvider = tenantFeatureProvider;
         this.accessSubjectProfileService = accessSubjectProfileService;
         this.auditTrailService = auditTrailService;
         this.objectMapper = objectMapper;
@@ -59,10 +63,19 @@ public class MenuPermissionService {
 
     public MenuPermissionService(ObjectProvider<MenuPermissionMapper> menuPermissionMapperProvider,
                                  ObjectProvider<MenuMapper> menuMapperProvider,
+                                 ObjectProvider<RoleMenuMapper> roleMenuMapperProvider,
                                  AccessSubjectProfileService accessSubjectProfileService,
                                  AuditTrailService auditTrailService,
                                  ObjectMapper objectMapper) {
-        this(menuPermissionMapperProvider, menuMapperProvider, null, accessSubjectProfileService, auditTrailService, objectMapper);
+        this(menuPermissionMapperProvider, menuMapperProvider, roleMenuMapperProvider, null, accessSubjectProfileService, auditTrailService, objectMapper);
+    }
+
+    public MenuPermissionService(ObjectProvider<MenuPermissionMapper> menuPermissionMapperProvider,
+                                 ObjectProvider<MenuMapper> menuMapperProvider,
+                                 AccessSubjectProfileService accessSubjectProfileService,
+                                 AuditTrailService auditTrailService,
+                                 ObjectMapper objectMapper) {
+        this(menuPermissionMapperProvider, menuMapperProvider, null, null, accessSubjectProfileService, auditTrailService, objectMapper);
     }
 
     public List<MenuPermissionResponse> listPermissions() {
@@ -248,12 +261,27 @@ public class MenuPermissionService {
             return List.of();
         }
 
-        // 1. 超级管理员 / 平台管理员直通：拥有系统所有启用的菜单访问权，无需手工逐一授权
+        TenantFeatureProvider featureProvider = tenantFeatureProvider != null ? tenantFeatureProvider.getIfAvailable() : null;
+        Set<String> effectiveFeatures = (featureProvider != null && principal.tenantId() != null)
+                ? featureProvider.getEffectiveFeatures(principal.tenantId())
+                : Set.of("*");
+
+        // 1. 平台超级管理员 (Tenant 0 或 1) 直通系统所有启用的菜单
+        if (principal.isSuperAdmin() && (principal.tenantId() == null || principal.tenantId() <= 1L)) {
+            return requiredMenuMapper().selectMenuList()
+                    .stream()
+                    .filter(menu -> menu.tenantId() == null || Long.valueOf(0L).equals(menu.tenantId()) || principal.tenantId().equals(menu.tenantId()))
+                    .filter(menu -> "ENABLED".equalsIgnoreCase(menu.status()))
+                    .toList();
+        }
+
+        // 2. 租户超级管理员 (Tenant > 1L)：直通该租户已开通套餐的所有启用菜单
         if (principal.isSuperAdmin()) {
             return requiredMenuMapper().selectMenuList()
                     .stream()
                     .filter(menu -> menu.tenantId() == null || Long.valueOf(0L).equals(menu.tenantId()) || principal.tenantId().equals(menu.tenantId()))
                     .filter(menu -> "ENABLED".equalsIgnoreCase(menu.status()))
+                    .filter(menu -> isMenuAllowedForTenant(menu, effectiveFeatures))
                     .toList();
         }
 
@@ -290,6 +318,7 @@ public class MenuPermissionService {
                 .filter(menu -> menu.tenantId() == null || Long.valueOf(0L).equals(menu.tenantId()) || principal.tenantId().equals(menu.tenantId()))
                 .filter(menu -> "ENABLED".equalsIgnoreCase(menu.status()))
                 .filter(menu -> menu.permissionCode() == null || principal.permissions().contains(menu.permissionCode()))
+                .filter(menu -> isMenuAllowedForTenant(menu, effectiveFeatures))
                 .toList();
 
         Map<Long, MenuResponse> menuMap = allMenus.stream().collect(Collectors.toMap(MenuResponse::id, item -> item));
@@ -306,6 +335,33 @@ public class MenuPermissionService {
         }
 
         return allMenus.stream().filter(menu -> visibleIds.contains(menu.id())).toList();
+    }
+
+    private boolean isMenuAllowedForTenant(MenuResponse menu, Set<String> effectiveFeatures) {
+        if (effectiveFeatures.contains("*")) {
+            return true;
+        }
+        String appCode = menu.appCode();
+        if (appCode == null || appCode.isBlank() || "dashboard".equalsIgnoreCase(appCode.trim())) {
+            return true;
+        }
+        String target = appCode.trim().toLowerCase(java.util.Locale.ROOT);
+        for (String eff : effectiveFeatures) {
+            String low = eff.toLowerCase(java.util.Locale.ROOT);
+            if ("*".equals(low)) {
+                return true;
+            }
+            if (low.equals(target)) {
+                return true;
+            }
+            if (low.startsWith("saas." + target + ".") || low.equals("saas." + target)) {
+                return true;
+            }
+            if (target.startsWith("saas." + low + ".") || target.equals("saas." + low)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public List<String> resolveButtonPermissions(AuthPrincipal principal) {

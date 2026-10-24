@@ -20,6 +20,12 @@ public class TenantEntity extends BaseEntity {
     @TableField("package_id")
     private Long packageId;
 
+    @TableField("extra_features_json")
+    private String extraFeaturesJson;
+
+    @TableField("disabled_features_json")
+    private String disabledFeaturesJson;
+
     @TableField("status")
     private String status;
 
@@ -108,6 +114,22 @@ public class TenantEntity extends BaseEntity {
 
     public void setContactEmail(String contactEmail) {
         this.contactEmail = contactEmail;
+    }
+
+    public String getExtraFeaturesJson() {
+        return extraFeaturesJson;
+    }
+
+    public void setExtraFeaturesJson(String extraFeaturesJson) {
+        this.extraFeaturesJson = extraFeaturesJson;
+    }
+
+    public String getDisabledFeaturesJson() {
+        return disabledFeaturesJson;
+    }
+
+    public void setDisabledFeaturesJson(String disabledFeaturesJson) {
+        this.disabledFeaturesJson = disabledFeaturesJson;
     }
 
     public LocalDateTime getExpireAt() {

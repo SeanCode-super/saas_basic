@@ -2,6 +2,7 @@ package com.saasbasics.platform.modules.workflow.controller;
 
 import com.saasbasics.platform.common.api.ApiResponse;
 import com.saasbasics.platform.common.auth.RequirePermission;
+import com.saasbasics.platform.common.auth.RequireTenantFeature;
 import com.saasbasics.platform.modules.workflow.dto.TaskHandleRequest;
 import com.saasbasics.platform.modules.workflow.dto.WorkflowTaskResponse;
 import com.saasbasics.platform.modules.workflow.service.WorkflowTaskService;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/workflow/tasks")
 @ConditionalOnProperty(name = "saas.workflow.mode", havingValue = "embedded", matchIfMissing = true)
+@RequireTenantFeature("workflow")
 public class WorkflowTaskController {
 
     private final WorkflowTaskService taskService;

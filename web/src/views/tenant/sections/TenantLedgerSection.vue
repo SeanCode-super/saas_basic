@@ -15,7 +15,8 @@ import {
   User,
   Warning,
   Download,
-  UploadFilled
+  UploadFilled,
+  Grid
 } from "@element-plus/icons-vue";
 import {
   fetchTenantPackages,
@@ -51,6 +52,10 @@ const props = defineProps<{
   loadData: () => Promise<void> | void;
   openCreateDialog: () => void;
   openImportDialog: () => void;
+}>();
+
+const emit = defineEmits<{
+  (e: "navigate-section", section: string): void;
 }>();
 
 const queryModel = computed({
@@ -134,6 +139,9 @@ async function handleConfirmEdit() {
 function handleMoreCommand(cmd: string, row: TenantRow) {
   if (cmd === "plan") {
     openPlanRenewDialog(row);
+  } else if (cmd === "apps") {
+    handleSwitchTenant(row);
+    emit("navigate-section", "apps");
   } else if (cmd === "quota") {
     openQuotaDrawer(row);
   } else if (cmd === "metering") {
@@ -444,6 +452,7 @@ onMounted(() => {
             </el-button>
             <template #dropdown>
               <el-dropdown-menu>
+                <el-dropdown-item command="apps" :icon="Grid">应用矩阵与订阅</el-dropdown-item>
                 <el-dropdown-item command="plan" :icon="Operation">变配与续期</el-dropdown-item>
                 <el-dropdown-item command="quota" :icon="DataAnalysis">配额与画像</el-dropdown-item>
                 <el-dropdown-item command="metering" :icon="Timer">计量与账单</el-dropdown-item>

@@ -1,6 +1,7 @@
 package com.saasbasics.platform.modules.crm.controller;
 
 import com.saasbasics.platform.common.api.ApiResponse;
+import com.saasbasics.platform.common.auth.RequireTenantFeature;
 import com.saasbasics.platform.modules.crm.dto.*;
 import com.saasbasics.platform.modules.crm.service.CrmService;
 import org.springframework.web.bind.annotation.*;
@@ -10,6 +11,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/crm")
+@RequireTenantFeature("crm")
 public class CrmController {
 
     private final CrmService crmService;

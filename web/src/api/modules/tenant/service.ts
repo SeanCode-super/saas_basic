@@ -10,7 +10,10 @@ import type {
   TenantMeteringSummary,
   TenantBillRow,
   TenantSnapshotExportResult,
-  TenantSnapshotRestoreResult
+  TenantSnapshotRestoreResult,
+  TenantAppCatalogItem,
+  TenantAppResponse,
+  TenantAppSubscribePayload
 } from "./types";
 
 export async function fetchTenantPage(): Promise<TenantRow[]> {
@@ -87,4 +90,27 @@ export async function restoreTenantSnapshot(file: File, tenantId?: number): Prom
     headers: { "Content-Type": "multipart/form-data" }
   });
   return response.data.data;
+}
+
+export async function fetchTenantAppCatalog(tenantId?: number): Promise<TenantAppCatalogItem[]> {
+  const response = await http.get<ApiResponse<TenantAppCatalogItem[]>>("/tenant/apps/catalog", {
+    params: tenantId ? { tenantId } : {}
+  });
+  return response.data.data;
+}
+
+export async function subscribeTenantApp(payload: TenantAppSubscribePayload, tenantId?: number): Promise<TenantAppResponse> {
+  const response = await http.post<ApiResponse<TenantAppResponse>>("/tenant/apps/subscribe", payload, {
+    params: tenantId ? { tenantId } : {}
+  });
+  return response.data.data;
+}
+
+export async function updateTenantAppStatus(id: number, status: string, tenantId?: number): Promise<void> {
+  await http.put<ApiResponse<void>>(`/tenant/apps/${id}/status`, null, {
+    params: {
+      status,
+      ...(tenantId ? { tenantId } : {})
+    }
+  });
 }

@@ -16,6 +16,9 @@ public class MenuEntity extends BaseTenantEntity {
     @TableField("menu_code")
     private String menuCode;
 
+    @TableField("app_code")
+    private String appCode;
+
     @TableField("menu_name")
     private String menuName;
 
@@ -86,6 +89,14 @@ public class MenuEntity extends BaseTenantEntity {
 
     public void setMenuCode(String menuCode) {
         this.menuCode = menuCode;
+    }
+
+    public String getAppCode() {
+        return appCode;
+    }
+
+    public void setAppCode(String appCode) {
+        this.appCode = appCode;
     }
 
     public String getMenuName() {

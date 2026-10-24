@@ -25,15 +25,18 @@ public class TenantService {
     private final ObjectProvider<TenantMapper> tenantMapperProvider;
     private final TenantBootstrapService tenantBootstrapService;
     private final TenantQuotaService tenantQuotaService;
+    private final TenantFeatureService tenantFeatureService;
     private final AuditTrailService auditTrailService;
 
     public TenantService(ObjectProvider<TenantMapper> tenantMapperProvider,
                           TenantBootstrapService tenantBootstrapService,
                           TenantQuotaService tenantQuotaService,
+                          TenantFeatureService tenantFeatureService,
                           AuditTrailService auditTrailService) {
         this.tenantMapperProvider = tenantMapperProvider;
         this.tenantBootstrapService = tenantBootstrapService;
         this.tenantQuotaService = tenantQuotaService;
+        this.tenantFeatureService = tenantFeatureService;
         this.auditTrailService = auditTrailService;
     }
 
@@ -111,6 +114,7 @@ public class TenantService {
         }
         entity.setStatus(request.status());
         tenantMapper.updateById(entity);
+        tenantFeatureService.invalidateCache(id);
         TenantResponse response = getTenant(id);
         auditTrailService.record("tenant", "tenant", String.valueOf(response.id()), "STATUS", request.status(), response.status(), true);
         return response;
@@ -136,6 +140,7 @@ public class TenantService {
 
         // Update quota thresholds to match new package
         tenantQuotaService.initTenantQuotas(id, request.packageId());
+        tenantFeatureService.invalidateCache(id);
 
         TenantResponse response = getTenant(id);
         auditTrailService.record("tenant", "tenant_plan", String.valueOf(id), "UPGRADE_PLAN",

@@ -131,3 +131,37 @@ export interface TenantSnapshotRestoreResult {
   restoredAt: string;
   message: string;
 }
+
+export interface TenantAppCatalogItem {
+  appCode: string;
+  appName: string;
+  description: string;
+  category: string;
+  icon: string;
+  requiredTier: string;
+  status: "ENABLED" | "DISABLED" | "TRIAL" | "EXPIRED";
+  openedAt?: string;
+  expiredAt?: string;
+  daysRemaining?: number | null;
+  isTrial: boolean;
+  isIncludedInPlan: boolean;
+  canSubscribeTrial: boolean;
+}
+
+export interface TenantAppResponse {
+  id: number;
+  tenantId: number;
+  appCode: string;
+  appName: string;
+  status: string;
+  openedAt?: string;
+  expiredAt?: string;
+  configJson?: string;
+  remark?: string;
+}
+
+export interface TenantAppSubscribePayload {
+  appCode: string;
+  trialDays?: number;
+  remark?: string;
+}

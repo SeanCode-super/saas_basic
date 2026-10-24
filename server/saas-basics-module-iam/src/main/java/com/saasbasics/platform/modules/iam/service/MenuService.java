@@ -12,15 +12,24 @@ import com.saasbasics.platform.modules.iam.mapper.MenuMapper;
 import java.util.List;
 import java.util.Set;
 import org.springframework.beans.factory.ObjectProvider;
+import com.saasbasics.platform.common.tenant.TenantFeatureProvider;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 @Service
 public class MenuService {
 
     private final ObjectProvider<MenuMapper> menuMapperProvider;
+    private final ObjectProvider<TenantFeatureProvider> tenantFeatureProvider;
+
+    public MenuService(ObjectProvider<MenuMapper> menuMapperProvider,
+                       ObjectProvider<TenantFeatureProvider> tenantFeatureProvider) {
+        this.menuMapperProvider = menuMapperProvider;
+        this.tenantFeatureProvider = tenantFeatureProvider;
+    }
 
     public MenuService(ObjectProvider<MenuMapper> menuMapperProvider) {
-        this.menuMapperProvider = menuMapperProvider;
+        this(menuMapperProvider, null);
     }
 
     public List<MenuResponse> listMenus() {
@@ -29,9 +38,42 @@ public class MenuService {
             return List.of();
         }
         Long tenantId = requiredTenantId();
+        TenantFeatureProvider featureProvider = tenantFeatureProvider != null ? tenantFeatureProvider.getIfAvailable() : null;
+        Set<String> effectiveFeatures = (featureProvider != null && tenantId != null)
+                ? featureProvider.getEffectiveFeatures(tenantId)
+                : Set.of("*");
+
         return mapper.selectMenuList().stream()
                 .filter(menu -> tenantId.equals(menu.tenantId()))
+                .filter(menu -> isMenuAllowedForTenant(menu, effectiveFeatures))
                 .toList();
+    }
+
+    private boolean isMenuAllowedForTenant(MenuResponse menu, Set<String> effectiveFeatures) {
+        if (effectiveFeatures.contains("*")) {
+            return true;
+        }
+        String appCode = menu.appCode();
+        if (appCode == null || appCode.isBlank() || "dashboard".equalsIgnoreCase(appCode.trim())) {
+            return true;
+        }
+        String target = appCode.trim().toLowerCase(java.util.Locale.ROOT);
+        for (String eff : effectiveFeatures) {
+            String low = eff.toLowerCase(java.util.Locale.ROOT);
+            if ("*".equals(low)) {
+                return true;
+            }
+            if (low.equals(target)) {
+                return true;
+            }
+            if (low.startsWith("saas." + target + ".") || low.equals("saas." + target)) {
+                return true;
+            }
+            if (target.startsWith("saas." + low + ".") || target.equals("saas." + low)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public MenuResponse getMenu(Long id) {

@@ -42,6 +42,7 @@ export const APP_TAXONOMY: Record<string, AppMeta> = {
     description: "统一处理租户注册、审批、配额、隔离升级和生命周期治理。",
     sections: {
       overview: { label: "租户总览", description: "从平台视角看租户分布、试用窗口和隔离模型。" },
+      apps: { label: "应用矩阵与订阅", description: "两层商业化授权，各应用订阅开通与试用管理。" },
       onboarding: { label: "开通治理", description: "配置注册方式、审批模式、试用期和控制台开通规则。" },
       package: { label: "套餐配额", description: "配置套餐、席位、存储与 API 限流的默认基线。" },
       isolation: { label: "隔离升级", description: "规划共享、独 Schema、独库和读写分离升级路径。" },
@@ -168,6 +169,26 @@ export const APP_TAXONOMY: Record<string, AppMeta> = {
       risk: { label: "风险识别", description: "定义异常登录、提权和批量导出预警规则。" },
       blacklist: { label: "黑名单", description: "统一账号、设备、IP 和租户级封禁策略。" },
       catalog: { label: "高危目录", description: "定义必须被审计和预警的动作集合。" }
+    }
+  },
+  crm: {
+    title: "CRM 客户关系中台",
+    cluster: "runtime",
+    badge: "CRM",
+    summary: "线索商机、客户画像与销售全生命周期流转。",
+    description: "企业客户主数据治理、商机阶段推进、拜访记录与销售业绩转化中心。",
+    sections: {
+      crm: { label: "CRM 客户管理", description: "线索商机转化、公海池与客户档案全景。" }
+    }
+  },
+  erp: {
+    title: "ERP 进销存中台",
+    cluster: "runtime",
+    badge: "ERP",
+    summary: "商品物料、多仓库存与采购销售履约中枢。",
+    description: "商品主数据、多级仓储库存出入库调度与采销订单流转履约。",
+    sections: {
+      erp: { label: "ERP 进销存管理", description: "物料清单、仓储调度与采销进销存履约台账。" }
     }
   }
 };

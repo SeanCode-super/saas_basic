@@ -19,6 +19,7 @@ import TenantLedgerSection from "./sections/TenantLedgerSection.vue";
 import TenantOnboardingSection from "./sections/TenantOnboardingSection.vue";
 import TenantOverviewSection from "./sections/TenantOverviewSection.vue";
 import TenantPackageSection from "./sections/TenantPackageSection.vue";
+import TenantAppStoreSection from "./sections/TenantAppStoreSection.vue";
 
 const props = withDefaults(
   defineProps<{
@@ -92,6 +93,7 @@ const isolationModeLabelMap: Record<string, string> = {
 
 const sectionItems = [
   { key: "overview", label: "总览", description: "查看租户底座的治理蓝图、运行信号和租户画像。" },
+  { key: "apps", label: "应用矩阵与订阅", description: "企业级两层商业化授权，各应用订阅开通、免费试用与状态管理。" },
   { key: "onboarding", label: "开通治理", description: "统一注册、审批、试用期与控制台开通基线。" },
   { key: "package", label: "套餐配额", description: "管理默认套餐、席位、存储和流量配额模型。" },
   { key: "isolation", label: "隔离升级", description: "规划共享、独库与高隔离租户的升级路径。" },
@@ -191,6 +193,7 @@ const filteredRows = computed(() =>
 
 const sectionComponentMap = {
   overview: TenantOverviewSection,
+  apps: TenantAppStoreSection,
   onboarding: TenantOnboardingSection,
   package: TenantPackageSection,
   isolation: TenantIsolationSection,

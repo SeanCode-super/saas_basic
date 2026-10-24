@@ -2,6 +2,7 @@ package com.saasbasics.platform.modules.codegen.controller;
 
 import com.saasbasics.platform.common.api.ApiResponse;
 import com.saasbasics.platform.common.auth.RequirePermission;
+import com.saasbasics.platform.common.auth.RequireTenantFeature;
 import com.saasbasics.platform.modules.codegen.dto.*;
 import com.saasbasics.platform.modules.codegen.dto.CodegenTableDefinitionRequest.CodegenColumnDefinition;
 import com.saasbasics.platform.modules.codegen.service.CodegenService;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping({"/api/codegen", "/api/codegen/projects"})
+@RequireTenantFeature("codegen")
 public class CodegenController {
 
     private final CodegenService codegenService;

@@ -2,6 +2,7 @@ package com.saasbasics.platform.modules.file.controller;
 
 import com.saasbasics.platform.common.api.ApiResponse;
 import com.saasbasics.platform.common.auth.RequirePermission;
+import com.saasbasics.platform.common.auth.RequireTenantFeature;
 import com.saasbasics.platform.modules.file.dto.FileCapabilityResponse;
 import com.saasbasics.platform.modules.file.dto.FileAccessLogCreateRequest;
 import com.saasbasics.platform.modules.file.dto.FileAccessLogResponse;
@@ -31,6 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/files")
+@RequireTenantFeature("file")
 public class FileController {
 
     private final FileService fileService;

@@ -8,6 +8,7 @@ export interface IamMenuRow {
   id: number;
   tenantId: number;
   parentId: number;
+  appCode?: string;
   menuType: string;
   menuCode: string;
   menuName: string;
@@ -32,6 +33,7 @@ export interface IamMenuRow {
 export interface IamMenuSavePayload {
   tenantId: number;
   parentId?: number;
+  appCode?: string;
   menuType: string;
   menuCode: string;
   menuName: string;

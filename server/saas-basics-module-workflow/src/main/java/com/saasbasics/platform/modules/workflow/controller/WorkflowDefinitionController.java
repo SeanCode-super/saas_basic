@@ -2,6 +2,7 @@ package com.saasbasics.platform.modules.workflow.controller;
 
 import com.saasbasics.platform.common.api.ApiResponse;
 import com.saasbasics.platform.common.auth.RequirePermission;
+import com.saasbasics.platform.common.auth.RequireTenantFeature;
 import com.saasbasics.platform.modules.workflow.dto.ProcessDefinitionResponse;
 import com.saasbasics.platform.modules.workflow.dto.ProcessDefinitionSaveRequest;
 import com.saasbasics.platform.modules.workflow.service.WorkflowDefinitionService;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/workflow/definitions")
 @ConditionalOnProperty(name = "saas.workflow.mode", havingValue = "embedded", matchIfMissing = true)
+@RequireTenantFeature("workflow")
 public class WorkflowDefinitionController {
 
     private final WorkflowDefinitionService definitionService;

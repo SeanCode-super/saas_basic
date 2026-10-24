@@ -2,6 +2,7 @@ package com.saasbasics.platform.config;
 
 import com.saasbasics.platform.security.PermissionGuardInterceptor;
 import com.saasbasics.platform.security.DataPermissionInterceptor;
+import com.saasbasics.platform.security.TenantFeatureGuardInterceptor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
@@ -14,13 +15,16 @@ public class WebConfig implements WebMvcConfigurer {
 
     private final SecurityProperties securityProperties;
     private final DataPermissionInterceptor dataPermissionInterceptor;
+    private final TenantFeatureGuardInterceptor tenantFeatureGuardInterceptor;
     private final PermissionGuardInterceptor permissionGuardInterceptor;
 
     public WebConfig(SecurityProperties securityProperties,
                      DataPermissionInterceptor dataPermissionInterceptor,
+                     TenantFeatureGuardInterceptor tenantFeatureGuardInterceptor,
                      PermissionGuardInterceptor permissionGuardInterceptor) {
         this.securityProperties = securityProperties;
         this.dataPermissionInterceptor = dataPermissionInterceptor;
+        this.tenantFeatureGuardInterceptor = tenantFeatureGuardInterceptor;
         this.permissionGuardInterceptor = permissionGuardInterceptor;
     }
 
@@ -36,6 +40,7 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(dataPermissionInterceptor).addPathPatterns("/api/**");
+        registry.addInterceptor(tenantFeatureGuardInterceptor).addPathPatterns("/api/**");
         registry.addInterceptor(permissionGuardInterceptor).addPathPatterns("/api/**");
     }
 }

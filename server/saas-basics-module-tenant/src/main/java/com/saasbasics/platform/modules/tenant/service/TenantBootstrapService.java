@@ -189,10 +189,10 @@ public class TenantBootstrapService {
     private void cloneMenus(Long tenantId) {
         jdbcTemplate.update("""
                 INSERT INTO iam_menu (
-                  tenant_id, parent_id, menu_type, menu_code, menu_name, route_path, component_path, permission_code, icon,
+                  tenant_id, parent_id, menu_type, menu_code, app_code, menu_name, route_path, component_path, permission_code, icon,
                   visible, keep_alive, sort_no, status, meta_json, created_by, created_at, updated_by, updated_at, deleted, version, remark
                 )
-                SELECT ?, 0, menu_type, menu_code, menu_name, route_path, component_path, permission_code, icon,
+                SELECT ?, 0, menu_type, menu_code, app_code, menu_name, route_path, component_path, permission_code, icon,
                        visible, keep_alive, sort_no, status, meta_json, 1, NOW(3), 1, NOW(3), 0, 0, 'tenant bootstrap'
                 FROM iam_menu
                 WHERE tenant_id = ?

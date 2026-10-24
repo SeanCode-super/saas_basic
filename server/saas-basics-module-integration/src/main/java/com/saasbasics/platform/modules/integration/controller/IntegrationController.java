@@ -2,6 +2,7 @@ package com.saasbasics.platform.modules.integration.controller;
 
 import com.saasbasics.platform.common.api.ApiResponse;
 import com.saasbasics.platform.common.auth.RequirePermission;
+import com.saasbasics.platform.common.auth.RequireTenantFeature;
 import com.saasbasics.platform.modules.integration.dto.DatasourceResponse;
 import com.saasbasics.platform.modules.integration.dto.DatasourceSaveRequest;
 import com.saasbasics.platform.modules.integration.service.IntegrationService;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/integrations")
+@RequireTenantFeature("integration")
 public class IntegrationController {
 
     private final IntegrationService integrationService;

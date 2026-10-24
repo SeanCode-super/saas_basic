@@ -1,6 +1,7 @@
 package com.saasbasics.platform.modules.erp.controller;
 
 import com.saasbasics.platform.common.api.ApiResponse;
+import com.saasbasics.platform.common.auth.RequireTenantFeature;
 import com.saasbasics.platform.modules.erp.dto.ErpInventoryRecordResponse;
 import com.saasbasics.platform.modules.erp.dto.ErpInventoryResponse;
 import com.saasbasics.platform.modules.erp.dto.ErpProductResponse;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/erp")
+@RequireTenantFeature("erp")
 public class ErpController {
 
     private final ErpService erpService;
