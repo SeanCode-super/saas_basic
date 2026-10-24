@@ -9,7 +9,8 @@ import type {
   TenantSavePayload,
   TenantMeteringSummary,
   TenantBillRow,
-  TenantSnapshotExportResult
+  TenantSnapshotExportResult,
+  TenantSnapshotRestoreResult
 } from "./types";
 
 export async function fetchTenantPage(): Promise<TenantRow[]> {
@@ -74,6 +75,16 @@ export async function fetchTenantBills(): Promise<TenantBillRow[]> {
 export async function exportTenantSnapshot(tenantId?: number): Promise<TenantSnapshotExportResult> {
   const response = await http.post<ApiResponse<TenantSnapshotExportResult>>("/tenant/snapshot/export", null, {
     params: tenantId ? { tenantId } : {}
+  });
+  return response.data.data;
+}
+
+export async function restoreTenantSnapshot(file: File, tenantId?: number): Promise<TenantSnapshotRestoreResult> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const response = await http.post<ApiResponse<TenantSnapshotRestoreResult>>("/tenant/snapshot/restore", formData, {
+    params: tenantId ? { tenantId } : {},
+    headers: { "Content-Type": "multipart/form-data" }
   });
   return response.data.data;
 }

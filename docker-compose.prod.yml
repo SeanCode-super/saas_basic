@@ -1,0 +1,84 @@
+services:
+  saas-mysql:
+    image: mysql:8.3.0
+    container_name: saas-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: saas_basics
+      MYSQL_USER: saas
+      MYSQL_PASSWORD: saas
+    ports:
+      - "${SAAS_MYSQL_PORT:-3306}:3306"
+    volumes:
+      - saas-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 20s
+    networks:
+      - saas-network
+
+  saas-redis:
+    image: redis:7.2-alpine
+    container_name: saas-redis
+    restart: always
+    ports:
+      - "${SAAS_REDIS_PORT:-6379}:6379"
+    volumes:
+      - saas-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - saas-network
+
+  saas-backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: saas-backend
+    restart: always
+    depends_on:
+      saas-mysql:
+        condition: service_healthy
+      saas-redis:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: saas-mysql
+      DB_PORT: 3306
+      DB_NAME: saas_basics
+      DB_USERNAME: root
+      DB_PASSWORD: root
+      REDIS_HOST: saas-redis
+      REDIS_PORT: 6379
+    ports:
+      - "${SAAS_BACKEND_PORT:-8080}:8080"
+    networks:
+      - saas-network
+
+  saas-frontend:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: saas-frontend
+    restart: always
+    depends_on:
+      - saas-backend
+    ports:
+      - "${SAAS_FRONTEND_PORT:-80}:80"
+    networks:
+      - saas-network
+
+networks:
+  saas-network:
+    driver: bridge
+
+volumes:
+  saas-mysql-data:
+  saas-redis-data:

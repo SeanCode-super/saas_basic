@@ -120,3 +120,14 @@ export interface TenantSnapshotExportResult {
   checksum: string;
   createdAt: string;
 }
+
+export interface TenantSnapshotRestoreResult {
+  tenantId: number;
+  tenantCode: string;
+  snapshotId: string;
+  restoreBatchNo: string;
+  status: string;
+  restoredCounts: Record<string, number>;
+  restoredAt: string;
+  message: string;
+}

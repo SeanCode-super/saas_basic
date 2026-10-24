@@ -1,6 +1,7 @@
 package com.saasbasics.platform.modules.integration.controller;
 
 import com.saasbasics.platform.common.api.ApiResponse;
+import com.saasbasics.platform.idempotent.Idempotent;
 import com.saasbasics.platform.modules.integration.dto.OpenAppResponse;
 import com.saasbasics.platform.modules.integration.dto.OpenAppSaveRequest;
 import com.saasbasics.platform.modules.integration.service.PlatOpenAppService;
@@ -35,6 +36,7 @@ public class OpenPlatformController {
     }
 
     @PostMapping("/{id}/regenerate-secret")
+    @Idempotent(message = "秘钥轮转重置中，请勿重复点击", expireMillis = 3000)
     public ApiResponse<OpenAppResponse> regenerateSecret(@PathVariable Long id) {
         return ApiResponse.success(openAppService.regenerateSecret(id));
     }

@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.saasbasics.platform.common.auth.AuthContext;
 import com.saasbasics.platform.common.auth.AuthPrincipal;
 import com.saasbasics.platform.common.exception.BizException;
+import com.saasbasics.platform.idempotent.Idempotent;
 import com.saasbasics.platform.modules.workflow.dto.TaskHandleRequest;
 import com.saasbasics.platform.modules.workflow.dto.WorkflowTaskResponse;
 import com.saasbasics.platform.modules.workflow.entity.ProcessDefinitionEntity;
@@ -87,6 +88,7 @@ public class WorkflowTaskService {
         return enrichTasks(tasks);
     }
 
+    @Idempotent(message = "审批单正在处理中，请勿重复操作", expireMillis = 3000)
     @Transactional
     public void handleTask(Long taskId, TaskHandleRequest request) {
         Long tenantId = getTenantId();

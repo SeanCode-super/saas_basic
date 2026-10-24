@@ -14,7 +14,8 @@ import {
   Timer,
   User,
   Warning,
-  Download
+  Download,
+  UploadFilled
 } from "@element-plus/icons-vue";
 import {
   fetchTenantPackages,
@@ -24,7 +25,8 @@ import {
   updateTenantStatus,
   fetchTenantMeteringSummary,
   fetchTenantBills,
-  exportTenantSnapshot
+  exportTenantSnapshot,
+  restoreTenantSnapshot
 } from "@/api/modules/tenant";
 import type {
   TenantPackageRow,
@@ -32,7 +34,8 @@ import type {
   TenantRow,
   TenantMeteringSummary,
   TenantBillRow,
-  TenantSnapshotExportResult
+  TenantSnapshotExportResult,
+  TenantSnapshotRestoreResult
 } from "@/api/modules/tenant";
 import ProTable, { type ProTableColumn } from "@/components/pro/ProTable.vue";
 import SchemaForm, { type SchemaField } from "@/components/pro/SchemaForm.vue";
@@ -168,14 +171,21 @@ async function openMeteringDrawer(row: TenantRow) {
 
 // Snapshot Dialog
 const snapshotDialogVisible = ref(false);
+const snapshotActiveTab = ref("export");
 const snapshotSubmitting = ref(false);
 const snapshotResult = ref<TenantSnapshotExportResult | null>(null);
+const selectedRestoreFile = ref<File | null>(null);
+const restoreSubmitting = ref(false);
+const restoreResult = ref<TenantSnapshotRestoreResult | null>(null);
 
 async function handleExportSnapshot(row: TenantRow) {
   activeTenant.value = row;
+  snapshotActiveTab.value = "export";
   snapshotDialogVisible.value = true;
   snapshotSubmitting.value = true;
   snapshotResult.value = null;
+  selectedRestoreFile.value = null;
+  restoreResult.value = null;
   try {
     const res = await exportTenantSnapshot(row.id);
     snapshotResult.value = res;
@@ -184,6 +194,39 @@ async function handleExportSnapshot(row: TenantRow) {
     ElMessage.error(error?.response?.data?.message || "导出租户数据快照失败");
   } finally {
     snapshotSubmitting.value = false;
+  }
+}
+
+function handleRestoreFileChange(uploadFile: any) {
+  if (uploadFile.raw) {
+    selectedRestoreFile.value = uploadFile.raw;
+  }
+}
+
+async function handleExecuteRestore() {
+  if (!activeTenant.value || !selectedRestoreFile.value) {
+    ElMessage.warning("请先选取要恢复的备份归档文件（.json 或 .zip）");
+    return;
+  }
+  try {
+    await ElMessageBox.confirm(
+      `快照恢复将对租户「${activeTenant.value.tenantName}」现有业务数据进行原子性覆盖与同步还原。确定继续执行吗？`,
+      "高危操作提示",
+      {
+        confirmButtonText: "确认恢复",
+        cancelButtonText: "取消",
+        type: "warning"
+      }
+    );
+    restoreSubmitting.value = true;
+    const res = await restoreTenantSnapshot(selectedRestoreFile.value, activeTenant.value.id);
+    restoreResult.value = res;
+    ElMessage.success(res.message || "租户快照已成功恢复生效！");
+    await props.loadData();
+  } catch {
+    // cancelled
+  } finally {
+    restoreSubmitting.value = false;
   }
 }
 
@@ -684,39 +727,105 @@ onMounted(() => {
       </div>
     </el-drawer>
 
-    <!-- Tenant Snapshot Export Dialog -->
+    <!-- Tenant Snapshot Export & Restore Dialog -->
     <el-dialog
       v-model="snapshotDialogVisible"
-      title="租户全量数据快照与灾备归档"
-      width="540px"
+      :title="`租户数据快照与灾备归档 —「${activeTenant?.tenantName || ''}」`"
+      width="600px"
       :close-on-click-modal="false"
     >
-      <div v-loading="snapshotSubmitting" class="snapshot-dialog-body">
-        <el-alert
-          type="info"
-          :closable="false"
-          show-icon
-          title="数据安全快照说明"
-          description="快照将对租户业务数据、配置、IAM 账号与日志进行原子性锁定并导出为签名加密文件。"
-          style="margin-bottom: 16px;"
-        />
-        <div v-if="snapshotResult" class="snapshot-result-box">
-          <el-descriptions :column="1" border size="small">
-            <el-descriptions-item label="快照批次 ID">{{ snapshotResult.snapshotId }}</el-descriptions-item>
-            <el-descriptions-item label="所属租户">{{ snapshotResult.tenantCode }}</el-descriptions-item>
-            <el-descriptions-item label="归档数据大小">{{ (snapshotResult.fileSizeBytes / 1024).toFixed(2) }} KB</el-descriptions-item>
-            <el-descriptions-item label="SHA-256 校验和">
-              <span style="font-family: monospace; font-size: 11px;">{{ snapshotResult.checksum }}</span>
-            </el-descriptions-item>
-            <el-descriptions-item label="生成时间">{{ snapshotResult.createdAt }}</el-descriptions-item>
-          </el-descriptions>
-          <div style="margin-top: 16px; text-align: right;">
-            <a :href="snapshotResult.downloadUrl" target="_blank" style="text-decoration: none;">
-              <el-button type="primary" :icon="Download">立即下载快照归档包</el-button>
-            </a>
+      <el-tabs v-model="snapshotActiveTab" class="snapshot-tabs">
+        <el-tab-pane label="全量快照导出备份" name="export">
+          <div v-loading="snapshotSubmitting" class="snapshot-dialog-body" style="padding-top: 10px;">
+            <el-alert
+              type="info"
+              :closable="false"
+              show-icon
+              title="数据安全快照说明"
+              description="快照将对租户业务数据、配置、IAM 账号与日志进行原子性锁定并导出为签名加密文件。"
+              style="margin-bottom: 16px;"
+            />
+            <div v-if="snapshotResult" class="snapshot-result-box">
+              <el-descriptions :column="1" border size="small">
+                <el-descriptions-item label="快照批次 ID">{{ snapshotResult.snapshotId }}</el-descriptions-item>
+                <el-descriptions-item label="所属租户">{{ snapshotResult.tenantCode }}</el-descriptions-item>
+                <el-descriptions-item label="归档数据大小">{{ (snapshotResult.fileSizeBytes / 1024).toFixed(2) }} KB</el-descriptions-item>
+                <el-descriptions-item label="SHA-256 校验和">
+                  <span style="font-family: monospace; font-size: 11px;">{{ snapshotResult.checksum }}</span>
+                </el-descriptions-item>
+                <el-descriptions-item label="生成时间">{{ snapshotResult.createdAt }}</el-descriptions-item>
+              </el-descriptions>
+              <div style="margin-top: 16px; text-align: right;">
+                <a :href="snapshotResult.downloadUrl" target="_blank" style="text-decoration: none;">
+                  <el-button type="primary" :icon="Download">立即下载快照归档包</el-button>
+                </a>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </el-tab-pane>
+
+        <el-tab-pane label="快照灾备原子还原" name="restore">
+          <div v-loading="restoreSubmitting" class="snapshot-dialog-body" style="padding-top: 10px;">
+            <el-alert
+              type="warning"
+              :closable="false"
+              show-icon
+              title="灾备恢复特别警示"
+              description="快照导入将对目标租户的历史业务数据进行完整性校验和原子覆盖还原。请确认备份包来源合法受信。"
+              style="margin-bottom: 16px;"
+            />
+
+            <el-upload
+              drag
+              :auto-upload="false"
+              :limit="1"
+              accept=".json,.zip,.bak"
+              :on-change="handleRestoreFileChange"
+              style="width: 100%; margin-bottom: 16px;"
+            >
+              <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
+              <div class="el-upload__text">
+                拖拽租户备份快照文件到此处，或 <em>点击上传</em>
+              </div>
+              <template #tip>
+                <div class="el-upload__tip">
+                  支持此前导出的 .json / .zip / .bak 格式加密快照文件，单文件不超过 500MB
+                </div>
+              </template>
+            </el-upload>
+
+            <div v-if="restoreResult" class="restore-result-box" style="margin-top: 12px;">
+              <el-alert
+                type="success"
+                :closable="false"
+                show-icon
+                :title="restoreResult.message"
+                style="margin-bottom: 10px;"
+              />
+              <el-descriptions :column="2" border size="small">
+                <el-descriptions-item label="还原批次号">{{ restoreResult.restoreBatchNo }}</el-descriptions-item>
+                <el-descriptions-item label="还原时间">{{ restoreResult.restoredAt }}</el-descriptions-item>
+                <el-descriptions-item label="恢复实体统计" :span="2">
+                  <span v-for="(cnt, key) in restoreResult.restoredCounts" :key="key" style="margin-right: 12px;">
+                    {{ key }}: <strong>{{ cnt }}</strong>
+                  </span>
+                </el-descriptions-item>
+              </el-descriptions>
+            </div>
+
+            <div style="margin-top: 16px; text-align: right;">
+              <el-button
+                type="danger"
+                :loading="restoreSubmitting"
+                :disabled="!selectedRestoreFile"
+                @click="handleExecuteRestore"
+              >
+                确认开始原子还原
+              </el-button>
+            </div>
+          </div>
+        </el-tab-pane>
+      </el-tabs>
     </el-dialog>
   </section>
 </template>

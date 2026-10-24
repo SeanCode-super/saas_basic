@@ -17,5 +17,13 @@ services:
     volumes:
       - saas-mysql-data:/var/lib/mysql
 
+  redis:
+    image: redis:7.2-alpine
+    ports:
+      - "${SAAS_REDIS_PORT:-6379}:6379"
+    volumes:
+      - saas-redis-data:/data
+
 volumes:
   saas-mysql-data:
+  saas-redis-data:
