@@ -11,9 +11,9 @@ import com.saasbasics.platform.modules.iam.entity.MenuEntity;
 import com.saasbasics.platform.modules.iam.mapper.MenuMapper;
 import java.util.List;
 import java.util.Set;
-import org.springframework.beans.factory.ObjectProvider;
 import com.saasbasics.platform.common.tenant.TenantFeatureProvider;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -22,6 +22,7 @@ public class MenuService {
     private final ObjectProvider<MenuMapper> menuMapperProvider;
     private final ObjectProvider<TenantFeatureProvider> tenantFeatureProvider;
 
+    @Autowired
     public MenuService(ObjectProvider<MenuMapper> menuMapperProvider,
                        ObjectProvider<TenantFeatureProvider> tenantFeatureProvider) {
         this.menuMapperProvider = menuMapperProvider;

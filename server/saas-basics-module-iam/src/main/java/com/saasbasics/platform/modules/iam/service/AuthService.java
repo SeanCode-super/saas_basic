@@ -53,6 +53,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -107,7 +108,7 @@ public class AuthService {
     private final ObjectProvider<TenantFeatureProvider> tenantFeatureProvider;
     private final UuidV7Generator uuidGenerator = new UuidV7Generator();
 
-    @org.springframework.beans.factory.annotation.Autowired
+    @Autowired
     public AuthService(SecurityProperties securityProperties,
                        PasswordSecurityService passwordSecurityService,
                        ObjectProvider<UserMapper> userMapperProvider,

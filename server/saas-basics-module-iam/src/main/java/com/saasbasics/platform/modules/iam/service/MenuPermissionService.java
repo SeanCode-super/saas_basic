@@ -30,6 +30,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import com.saasbasics.platform.common.tenant.TenantFeatureProvider;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,7 +45,7 @@ public class MenuPermissionService {
     private final AuditTrailService auditTrailService;
     private final ObjectMapper objectMapper;
 
-    @org.springframework.beans.factory.annotation.Autowired
+    @Autowired
     public MenuPermissionService(ObjectProvider<MenuPermissionMapper> menuPermissionMapperProvider,
                                  ObjectProvider<MenuMapper> menuMapperProvider,
                                  ObjectProvider<RoleMenuMapper> roleMenuMapperProvider,
