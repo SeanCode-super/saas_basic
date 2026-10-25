@@ -90,4 +90,17 @@ public class DynamicDataController {
         dynamicDataService.batchDeleteRecords(modelCode, ids);
         return ApiResponse.success(null);
     }
+
+    @PostMapping("/seed-mock")
+    public ApiResponse<Integer> seedMock(@PathVariable("modelCode") String modelCode) {
+        return ApiResponse.success(dynamicDataService.seedMockRecords(modelCode));
+    }
+
+    @PostMapping("/batch-import")
+    public ApiResponse<Integer> batchImport(
+            @PathVariable("modelCode") String modelCode,
+            @RequestBody List<Map<String, Object>> records
+    ) {
+        return ApiResponse.success(dynamicDataService.batchImportRecords(modelCode, records));
+    }
 }

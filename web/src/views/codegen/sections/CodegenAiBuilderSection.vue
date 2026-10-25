@@ -143,7 +143,8 @@ async function handlePublishApp() {
       icon: designResult.value.icon,
       description: designResult.value.description,
       fields: designResult.value.fields,
-      seedMockData: seedMockData.value
+      seedSampleData: seedMockData.value,
+      sampleData: designResult.value.sampleData
     });
 
     if (res.data) {

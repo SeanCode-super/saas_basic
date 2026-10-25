@@ -717,8 +717,10 @@ onMounted(() => {
         <!-- 侧栏/混合模式下的面包屑导航 -->
         <div v-else-if="showBreadcrumbs" class="console-shell__breadcrumb-bar">
           <span class="console-shell__breadcrumb-app">{{ currentApp?.title ?? "控制台" }}</span>
-          <span class="console-shell__breadcrumb-sep">/</span>
-          <span class="console-shell__breadcrumb-page">{{ currentSectionMeta.label }}</span>
+          <template v-if="currentApp?.title && currentSectionMeta.label && currentApp.title !== currentSectionMeta.label">
+            <span class="console-shell__breadcrumb-sep">/</span>
+            <span class="console-shell__breadcrumb-page">{{ currentSectionMeta.label }}</span>
+          </template>
         </div>
         <div v-else class="console-shell__title-block console-shell__title-block--minimal">
           <h1>{{ currentSectionMeta.label }}</h1>
@@ -1115,8 +1117,10 @@ onMounted(() => {
           <div v-if="layoutMode === 'top' && showBreadcrumbs" class="console-shell__page-header-bar">
             <div class="console-shell__breadcrumbs">
               <span class="console-shell__breadcrumb-app">{{ currentApp?.title ?? "控制台" }}</span>
-              <span class="console-shell__breadcrumb-sep">/</span>
-              <span class="console-shell__breadcrumb-page">{{ currentSectionMeta.label }}</span>
+              <template v-if="currentApp?.title && currentSectionMeta.label && currentApp.title !== currentSectionMeta.label">
+                <span class="console-shell__breadcrumb-sep">/</span>
+                <span class="console-shell__breadcrumb-page">{{ currentSectionMeta.label }}</span>
+              </template>
             </div>
             <h2 class="console-shell__page-header-title">{{ currentSectionMeta.label }}</h2>
           </div>

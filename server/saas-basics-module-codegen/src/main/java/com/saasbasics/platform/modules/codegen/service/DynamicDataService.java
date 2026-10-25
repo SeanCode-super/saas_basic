@@ -249,6 +249,118 @@ public class DynamicDataService {
     }
 
     @Transactional
+    public int seedMockRecords(String modelCode) {
+        Long tenantId = currentTenantId();
+        DynamicModelEntity model = findModel(tenantId, modelCode);
+        List<DynamicFieldEntity> fields = findFields(tenantId, model.getId());
+        String tableName = model.getTableName();
+        validateCode(tableName);
+
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM `" + tableName + "` WHERE tenant_id = ? AND deleted = 0",
+                Integer.class,
+                tenantId
+        );
+        if (count != null && count > 0) {
+            return count;
+        }
+
+        List<Map<String, Object>> samples = generateDefaultSamples(modelCode, fields);
+        for (Map<String, Object> sample : samples) {
+            createRecord(modelCode, sample);
+        }
+        return samples.size();
+    }
+
+    @Transactional
+    public int batchImportRecords(String modelCode, List<Map<String, Object>> records) {
+        if (records == null || records.isEmpty()) return 0;
+        int count = 0;
+        for (Map<String, Object> record : records) {
+            createRecord(modelCode, record);
+            count++;
+        }
+        return count;
+    }
+
+    private List<Map<String, Object>> generateDefaultSamples(String modelCode, List<DynamicFieldEntity> fields) {
+        List<Map<String, Object>> list = new ArrayList<>();
+        if ("asset_inventory".equalsIgnoreCase(modelCode)) {
+            list.add(Map.of(
+                    "asset_code", "AST-2026-001",
+                    "asset_name", "MacBook Pro 16寸 M3 Max 工作站",
+                    "category", "IT",
+                    "specification", "64GB / 2TB SSD / 黑色",
+                    "original_value", 24999.00,
+                    "purchase_date", "2026-01-15",
+                    "holder", "张架构师",
+                    "location", "北京研发中心A座502工位",
+                    "status", "IN_USE",
+                    "remark", "核心系统开发高性能工作机"
+            ));
+            list.add(Map.of(
+                    "asset_code", "AST-2026-002",
+                    "asset_name", "戴尔 32寸 4K Type-C 专业显示器",
+                    "category", "IT",
+                    "specification", "UltraSharp U3223QE",
+                    "original_value", 4899.00,
+                    "purchase_date", "2026-02-18",
+                    "holder", "李设计师",
+                    "location", "北京研发中心A座503工位",
+                    "status", "IN_USE",
+                    "remark", "UI设计部标准双屏设备"
+            ));
+            list.add(Map.of(
+                    "asset_code", "AST-2026-003",
+                    "asset_name", "高背人体工学电脑网椅",
+                    "category", "FURNITURE",
+                    "specification", "全网透气旗舰款带腰托",
+                    "original_value", 1899.00,
+                    "purchase_date", "2026-03-05",
+                    "holder", "物资调配库",
+                    "location", "公司1号资产仓库B区04号货架",
+                    "status", "IDLE",
+                    "remark", "新入职员工备用办公物资"
+            ));
+            list.add(Map.of(
+                    "asset_code", "AST-2026-004",
+                    "asset_name", "企业级千兆POE核心交换机",
+                    "category", "LAB",
+                    "specification", "48口全千兆网管型",
+                    "original_value", 6800.00,
+                    "purchase_date", "2025-08-20",
+                    "holder", "IT运维组",
+                    "location", "主栋核心机房Rack-02",
+                    "status", "MAINTENANCE",
+                    "remark", "主供电模块异常已报修供应商售后"
+            ));
+            return list;
+        }
+
+        // Generic generator
+        for (int i = 1; i <= 3; i++) {
+            Map<String, Object> row = new HashMap<>();
+            for (DynamicFieldEntity f : fields) {
+                String cType = f.getComponentType();
+                if ("number".equalsIgnoreCase(cType)) {
+                    row.put(f.getFieldCode(), i * 100);
+                } else if ("date".equalsIgnoreCase(cType)) {
+                    row.put(f.getFieldCode(), "2026-10-2" + i);
+                } else if ("datetime".equalsIgnoreCase(cType)) {
+                    row.put(f.getFieldCode(), "2026-10-2" + i + " 10:00:00");
+                } else if ("select".equalsIgnoreCase(cType) && f.getOptionsJson() != null && !f.getOptionsJson().isBlank()) {
+                    // Extract first or second option
+                    row.put(f.getFieldCode(), i == 1 ? "IN_USE" : (i == 2 ? "IDLE" : "MAINTENANCE"));
+                } else {
+                    row.put(f.getFieldCode(), "演示" + f.getFieldName() + " #" + i);
+                }
+            }
+            list.add(row);
+        }
+        return list;
+    }
+
+    @Transactional
     public void deleteRecord(String modelCode, Long id) {
         Long tenantId = currentTenantId();
         DynamicModelEntity model = findModel(tenantId, modelCode);

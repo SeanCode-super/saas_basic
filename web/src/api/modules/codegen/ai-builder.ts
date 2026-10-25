@@ -51,7 +51,9 @@ export interface DynamicModelPublishPayload {
   icon?: string;
   description?: string;
   fields: DynamicFieldItem[];
+  seedSampleData?: boolean;
   seedMockData?: boolean;
+  sampleData?: Record<string, unknown>[];
 }
 
 export interface DynamicDataPagePayload {
@@ -134,5 +136,18 @@ export async function deleteDynamicRecord(modelCode: string, id: number): Promis
 
 export async function batchDeleteDynamicRecords(modelCode: string, ids: number[]): Promise<ApiResponse<null>> {
   const res = await http.post<ApiResponse<null>>(`/dynamic/${modelCode}/batch-delete`, ids);
+  return res.data;
+}
+
+export async function seedDynamicMock(modelCode: string): Promise<ApiResponse<number>> {
+  const res = await http.post<ApiResponse<number>>(`/dynamic/${modelCode}/seed-mock`);
+  return res.data;
+}
+
+export async function batchImportDynamicRecords(
+  modelCode: string,
+  records: Record<string, unknown>[]
+): Promise<ApiResponse<number>> {
+  const res = await http.post<ApiResponse<number>>(`/dynamic/${modelCode}/batch-import`, records);
   return res.data;
 }
