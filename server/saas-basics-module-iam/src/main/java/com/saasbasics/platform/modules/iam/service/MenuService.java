@@ -45,7 +45,7 @@ public class MenuService {
                 : Set.of("*");
 
         return mapper.selectMenuList().stream()
-                .filter(menu -> tenantId.equals(menu.tenantId()))
+                .filter(menu -> menu.tenantId() == null || Long.valueOf(0L).equals(menu.tenantId()) || tenantId.equals(menu.tenantId()))
                 .filter(menu -> isMenuAllowedForTenant(menu, effectiveFeatures))
                 .toList();
     }

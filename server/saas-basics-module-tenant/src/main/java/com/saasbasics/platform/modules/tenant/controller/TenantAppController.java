@@ -55,6 +55,21 @@ public class TenantAppController {
         return ApiResponse.success(null);
     }
 
+    public record ToggleAppAuthorizationRequest(
+            String appCode,
+            boolean enabled,
+            String remark
+    ) {}
+
+    @PutMapping("/authorize")
+    @RequirePermission("tenant:write")
+    public ApiResponse<Void> toggleAuthorization(@RequestBody ToggleAppAuthorizationRequest request,
+                                                 @RequestParam(value = "tenantId", required = false) Long queryTenantId) {
+        Long tenantId = resolveTenantId(queryTenantId);
+        tenantAppService.toggleAppAuthorization(tenantId, request.appCode(), request.enabled(), request.remark());
+        return ApiResponse.success(null);
+    }
+
     private Long resolveTenantId(Long queryTenantId) {
         AuthPrincipal principal = AuthContext.get();
         if (queryTenantId != null && principal != null && principal.isSuperAdmin()) {

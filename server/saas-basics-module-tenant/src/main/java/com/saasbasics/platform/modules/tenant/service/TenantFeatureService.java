@@ -94,7 +94,7 @@ public class TenantFeatureService implements TenantFeatureProvider {
 
     @Override
     public Set<String> getEffectiveFeatures(Long tenantId) {
-        if (tenantId == null || tenantId <= 1L) {
+        if (tenantId == null || tenantId <= 0L) {
             return Set.of("*");
         }
 
@@ -166,6 +166,15 @@ public class TenantFeatureService implements TenantFeatureProvider {
         Set<String> effective = new HashSet<>();
         Set<String> disabled = new HashSet<>();
 
+        // Platform root tenant (tenantId == 1) defaults to having all system apps enabled unless explicitly disabled
+        if (tenantId == 1L) {
+            for (String code : List.of("iam", "tenant", "workflow", "file", "crm", "erp", "scheduler", "audit", "integration", "system", "codegen", "dashboard")) {
+                effective.add(code);
+                effective.add("saas." + code + ".basic");
+                effective.add("saas." + code + ".all");
+            }
+        }
+
         // Package features
         TenantPackageMapper packageMapper = tenantPackageMapperProvider.getIfAvailable();
         if (packageMapper != null && tenant.getPackageId() != null && tenant.getPackageId() > 0) {
@@ -193,15 +202,32 @@ public class TenantFeatureService implements TenantFeatureProvider {
                     .eq(TenantAppEntity::getDeleted, 0));
             LocalDateTime now = LocalDateTime.now();
             for (TenantAppEntity app : apps) {
+                String code = app.getAppCode().trim().toLowerCase(Locale.ROOT);
                 if ("ENABLED".equalsIgnoreCase(app.getStatus())) {
                     if (app.getExpiredAt() == null || app.getExpiredAt().isAfter(now)) {
-                        effective.add(app.getAppCode().trim().toLowerCase(Locale.ROOT));
+                        effective.add(code);
+                        effective.add("saas." + code + ".basic");
+                        effective.add("saas." + code + ".all");
                     } else {
-                        disabled.add(app.getAppCode().trim().toLowerCase(Locale.ROOT));
+                        disabled.add(code);
+                        disabled.add("saas." + code + ".basic");
+                        disabled.add("saas." + code + ".all");
                     }
                 } else if ("DISABLED".equalsIgnoreCase(app.getStatus())) {
-                    disabled.add(app.getAppCode().trim().toLowerCase(Locale.ROOT));
+                    disabled.add(code);
+                    disabled.add("saas." + code + ".basic");
+                    disabled.add("saas." + code + ".all");
                 }
+            }
+        }
+
+        // If wildcard "*" was present but specific apps were disabled, expand "*" into all known system apps so the rest remain enabled
+        if (effective.contains("*") && !disabled.isEmpty()) {
+            effective.remove("*");
+            for (String code : List.of("iam", "tenant", "workflow", "file", "crm", "erp", "scheduler", "audit", "integration", "system", "codegen", "dashboard")) {
+                effective.add(code);
+                effective.add("saas." + code + ".basic");
+                effective.add("saas." + code + ".all");
             }
         }
 

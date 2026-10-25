@@ -61,7 +61,7 @@ public class TenantAppService {
 
     public List<TenantAppCatalogItemResponse> listAppCatalog(Long tenantId) {
         Set<String> effectiveFeatures = tenantFeatureProvider.getEffectiveFeatures(tenantId);
-        boolean isAllAccess = effectiveFeatures.contains("*") || (tenantId != null && tenantId <= 1L);
+        boolean isAllAccess = effectiveFeatures.contains("*") || (tenantId != null && tenantId <= 0L);
 
         Map<String, TenantAppEntity> subscribedAppsMap = Map.of();
         TenantAppMapper appMapper = tenantAppMapperProvider.getIfAvailable();
@@ -90,8 +90,8 @@ public class TenantAppService {
             boolean isExpired = isSubscribed && subscription.getExpiredAt() != null && subscription.getExpiredAt().isBefore(now);
             boolean isTrial = isSubscribed && subscription.getExpiredAt() != null && subscription.getExpiredAt().isAfter(now);
 
-            boolean hasAccess = isAllAccess || (!isExplicitlyDisabled && !isExpired && (
-                    isSubscribed || tenantFeatureProvider.hasFeature(tenantId, code)
+            boolean hasAccess = (!isExplicitlyDisabled && !isExpired && (
+                    isAllAccess || isSubscribed || tenantFeatureProvider.hasFeature(tenantId, code)
             ));
 
             String status;
@@ -223,6 +223,61 @@ public class TenantAppService {
                 "UPDATE_APP_STATUS",
                 entity.getAppCode(),
                 status,
+                true
+        );
+    }
+
+    @Transactional
+    public void toggleAppAuthorization(Long tenantId, String appCode, boolean enabled, String remark) {
+        TenantAppMapper appMapper = tenantAppMapperProvider.getIfAvailable();
+        if (appMapper == null) {
+            throw new BizException("SYSTEM_ERROR", "TenantAppMapper not available");
+        }
+
+        String targetCode = appCode.trim().toLowerCase(Locale.ROOT);
+        SystemAppMeta meta = SYSTEM_APPS.stream()
+                .filter(m -> m.appCode().equalsIgnoreCase(targetCode))
+                .findFirst()
+                .orElseThrow(() -> new BizException("APP_NOT_FOUND", "Unknown appCode: " + targetCode));
+
+        TenantAppEntity entity = appMapper.selectOne(new LambdaQueryWrapper<TenantAppEntity>()
+                .eq(TenantAppEntity::getTenantId, tenantId)
+                .eq(TenantAppEntity::getAppCode, targetCode)
+                .eq(TenantAppEntity::getDeleted, 0));
+
+        LocalDateTime now = LocalDateTime.now();
+        String newStatus = enabled ? "ENABLED" : "DISABLED";
+
+        if (entity == null) {
+            entity = new TenantAppEntity();
+            entity.setTenantId(tenantId);
+            entity.setAppCode(targetCode);
+            entity.setAppName(meta.appName());
+            entity.setStatus(newStatus);
+            entity.setOpenedAt(now);
+            entity.setExpiredAt(null);
+            entity.setRemark(remark != null ? remark : (enabled ? "管理员授权应用权限" : "管理员回收应用权限"));
+            appMapper.insert(entity);
+        } else {
+            entity.setStatus(newStatus);
+            if (enabled && entity.getOpenedAt() == null) {
+                entity.setOpenedAt(now);
+            }
+            if (remark != null) {
+                entity.setRemark(remark);
+            }
+            appMapper.updateById(entity);
+        }
+
+        tenantFeatureProvider.invalidateCache(tenantId);
+
+        auditTrailService.record(
+                "tenant",
+                "plat_tenant_app",
+                String.valueOf(tenantId),
+                "TOGGLE_APP_AUTHORIZATION",
+                targetCode,
+                newStatus,
                 true
         );
     }

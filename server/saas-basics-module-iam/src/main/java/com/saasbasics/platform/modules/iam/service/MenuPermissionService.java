@@ -267,16 +267,16 @@ public class MenuPermissionService {
                 ? featureProvider.getEffectiveFeatures(principal.tenantId())
                 : Set.of("*");
 
-        // 1. 平台超级管理员 (Tenant 0 或 1) 直通系统所有启用的菜单
-        if (principal.isSuperAdmin() && (principal.tenantId() == null || principal.tenantId() <= 1L)) {
+        // 1. 系统底层无租户环境 (Tenant 0 或 null) 直通系统所有启用的菜单
+        if (principal.isSuperAdmin() && (principal.tenantId() == null || principal.tenantId() <= 0L)) {
             return requiredMenuMapper().selectMenuList()
                     .stream()
-                    .filter(menu -> menu.tenantId() == null || Long.valueOf(0L).equals(menu.tenantId()) || principal.tenantId().equals(menu.tenantId()))
+                    .filter(menu -> menu.tenantId() == null || Long.valueOf(0L).equals(menu.tenantId()))
                     .filter(menu -> "ENABLED".equalsIgnoreCase(menu.status()))
                     .toList();
         }
 
-        // 2. 租户超级管理员 (Tenant > 1L)：直通该租户已开通套餐的所有启用菜单
+        // 2. 租户超级管理员 (Tenant >= 1L)：必须受该租户已获授权应用权限严格过滤！
         if (principal.isSuperAdmin()) {
             return requiredMenuMapper().selectMenuList()
                     .stream()

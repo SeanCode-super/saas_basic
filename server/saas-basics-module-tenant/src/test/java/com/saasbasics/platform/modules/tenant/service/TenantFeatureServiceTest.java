@@ -48,10 +48,17 @@ class TenantFeatureServiceTest {
 
     @Test
     void platformTenantAlwaysHasAllFeatures() {
+        TenantEntity tenant = new TenantEntity();
+        tenant.setId(1L);
+        tenant.setStatus("ENABLED");
+        when(tenantMapper.selectById(1L)).thenReturn(tenant);
+        when(appMapper.selectList(any())).thenReturn(List.of());
+
         assertThat(featureService.hasFeature(1L, "workflow")).isTrue();
         assertThat(featureService.hasFeature(1L, "crm")).isTrue();
         assertThat(featureService.hasFeature(0L, "any_random_feature")).isTrue();
-        assertThat(featureService.getEffectiveFeatures(1L)).contains("*");
+        assertThat(featureService.getEffectiveFeatures(0L)).contains("*");
+        assertThat(featureService.getEffectiveFeatures(1L)).contains("crm", "workflow");
     }
 
     @Test

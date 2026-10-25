@@ -31,6 +31,7 @@ import {
   fetchTenantAppCatalog,
   subscribeTenantApp,
   updateTenantAppStatus,
+  toggleTenantAppAuthorization,
   fetchTenantPage
 } from "@/api/modules/tenant";
 import type {
@@ -214,6 +215,44 @@ async function handleSubscribe() {
   }
 }
 
+async function handleToggleAppAuthorization(app: TenantAppCatalogItem, targetEnabled: boolean) {
+  const actionText = targetEnabled ? "授权开通" : "停用回收";
+  const impactText = targetEnabled
+    ? `授权后，【${app.appName}】的全部默认菜单和功能将同步对该租户生效，并在【菜单管理】中呈现。`
+    : `停用后，该租户在【菜单管理】、【角色分配】及【侧边栏导航】中将彻底隐藏【${app.appName}】的所有菜单与按钮！`;
+
+  try {
+    await ElMessageBox.confirm(
+      `${impactText}\n\n确定要${actionText}【${app.appName}】的应用权限吗？`,
+      `确认${actionText}应用权限`,
+      {
+        confirmButtonText: `确定${actionText}`,
+        cancelButtonText: "取消",
+        type: targetEnabled ? "success" : "warning"
+      }
+    );
+
+    catalogLoading.value = true;
+    await toggleTenantAppAuthorization(
+      {
+        appCode: app.appCode,
+        enabled: targetEnabled,
+        remark: `管理员${actionText}应用权限`
+      },
+      selectedTenantId.value
+    );
+
+    ElMessage.success(`应用【${app.appName}】权限已成功${targetEnabled ? "授权开启" : "回收停用"}！`);
+    await fetchCatalog();
+  } catch (e: any) {
+    if (e !== "cancel") {
+      ElMessage.error(e?.response?.data?.message ?? `${actionText}失败`);
+    }
+  } finally {
+    catalogLoading.value = false;
+  }
+}
+
 async function handleQuickTrial(app: TenantAppCatalogItem) {
   try {
     await ElMessageBox.confirm(
@@ -266,13 +305,13 @@ onMounted(() => {
       <div class="header-wrapper">
         <div class="header-left">
           <div class="title-row">
-            <span class="main-title">应用矩阵与商业化订阅中心</span>
+            <span class="main-title">租户应用授权中心</span>
             <el-tag type="primary" effect="plain" round class="badge-tag">
-              双层授权体系 · PLG 体验流
+              顶级应用权限控制
             </el-tag>
           </div>
           <p class="subtitle">
-            严格隔离套餐商业化开通（平台层）与角色菜单分配（租户层），未订阅应用物理切断直接 API 调用并隐藏界面入口。
+            由平台或顶级管理员统一控制各租户可使用的应用权限。未授权的应用对租户完全隔离（在菜单管理、角色分配及系统导航中均不呈现）。
           </p>
         </div>
 
@@ -303,27 +342,17 @@ onMounted(() => {
       <div class="stats-row">
         <div class="stat-item total">
           <span class="stat-num">{{ stats.total }}</span>
-          <span class="stat-label">矩阵应用数</span>
+          <span class="stat-label">矩阵应用总数</span>
         </div>
         <div class="stat-divider" />
         <div class="stat-item enabled">
           <span class="stat-num">{{ stats.enabled }}</span>
-          <span class="stat-label">套餐/永久订阅</span>
-        </div>
-        <div class="stat-divider" />
-        <div class="stat-item trial">
-          <span class="stat-num">{{ stats.trial }}</span>
-          <span class="stat-label">免费试用中</span>
+          <span class="stat-label">已授权应用</span>
         </div>
         <div class="stat-divider" />
         <div class="stat-item disabled">
           <span class="stat-num">{{ stats.disabled }}</span>
-          <span class="stat-label">未开通应用</span>
-        </div>
-        <div class="stat-divider" />
-        <div class="stat-item expired">
-          <span class="stat-num">{{ stats.expired }}</span>
-          <span class="stat-label">已过期</span>
+          <span class="stat-label">未授权应用</span>
         </div>
       </div>
 
@@ -340,12 +369,10 @@ onMounted(() => {
         </el-radio-group>
 
         <div class="filter-inputs">
-          <el-select v-model="selectedStatus" placeholder="状态筛选" style="width: 130px">
+          <el-select v-model="selectedStatus" placeholder="权限状态筛选" style="width: 140px">
             <el-option label="全部状态" value="ALL" />
-            <el-option label="已开通 (有效)" value="ENABLED" />
-            <el-option label="免费试用中" value="TRIAL" />
-            <el-option label="未订阅" value="DISABLED" />
-            <el-option label="已过期" value="EXPIRED" />
+            <el-option label="已授权 (有效)" value="ENABLED" />
+            <el-option label="未授权 (停用)" value="DISABLED" />
           </el-select>
 
           <el-input
@@ -398,25 +425,7 @@ onMounted(() => {
               round
               size="small"
             >
-              <el-icon class="mr-1"><CircleCheck /></el-icon> 已开通
-            </el-tag>
-            <el-tag
-              v-else-if="app.status === 'TRIAL'"
-              type="warning"
-              effect="dark"
-              round
-              size="small"
-            >
-              <el-icon class="mr-1"><Timer /></el-icon> 试用中
-            </el-tag>
-            <el-tag
-              v-else-if="app.status === 'EXPIRED'"
-              type="danger"
-              effect="plain"
-              round
-              size="small"
-            >
-              <el-icon class="mr-1"><Warning /></el-icon> 已到期
+              <el-icon class="mr-1"><CircleCheck /></el-icon> 已授权使用
             </el-tag>
             <el-tag
               v-else
@@ -425,7 +434,7 @@ onMounted(() => {
               round
               size="small"
             >
-              未订阅
+              未授权 / 已停用
             </el-tag>
           </div>
         </div>
@@ -436,86 +445,46 @@ onMounted(() => {
         <!-- Entitlement Context Pills -->
         <div class="entitlement-meta">
           <div class="meta-row">
-            <span class="meta-label">准入套餐档位:</span>
+            <span class="meta-label">应用类型分类:</span>
             <el-tag size="small" type="primary" effect="light">
-              {{ tierLabelMap[app.requiredTier] || app.requiredTier }} 及以上
+              {{ categoryLabelMap[app.category] || app.category }}
             </el-tag>
           </div>
 
           <div class="meta-row">
-            <span class="meta-label">授权源属性:</span>
-            <span v-if="app.isIncludedInPlan" class="plan-included-text">
-              <el-icon><Check /></el-icon> 租户基础套餐内包含
-            </span>
-            <span v-else-if="app.isTrial" class="trial-included-text">
-              <el-icon><Clock /></el-icon> 独立试用包 (剩余 {{ app.daysRemaining ?? 0 }} 天)
+            <span class="meta-label">权限隔离范围:</span>
+            <span v-if="app.status === 'ENABLED'" class="plan-included-text">
+              <el-icon><Check /></el-icon> 菜单管理可见 · 角色分配可用
             </span>
             <span v-else class="addon-text">
-              需独立订阅或升级套餐
+              <el-icon><Close /></el-icon> 菜单管理隐藏 · 导航物理切断
             </span>
-          </div>
-
-          <!-- Trial Countdown Bar -->
-          <div v-if="app.isTrial && app.daysRemaining !== null" class="trial-bar-wrapper">
-            <div class="trial-bar-label">
-              <span>试用有效期履约进度</span>
-              <span>剩余 {{ app.daysRemaining }} 天</span>
-            </div>
-            <el-progress
-              :percentage="Math.min(100, Math.max(5, Math.round(((app.daysRemaining ?? 0) / 14) * 100)))"
-              :status="(app.daysRemaining ?? 0) < 3 ? 'exception' : 'warning'"
-              :stroke-width="6"
-              :show-text="false"
-            />
           </div>
         </div>
 
         <!-- Card Footer Actions -->
         <div class="card-footer">
-          <template v-if="app.status === 'ENABLED'">
-            <el-button
-              type="primary"
-              class="action-btn"
-              @click="navigateToApp(app)"
-            >
-              进入应用 <el-icon class="el-icon--right"><ArrowRight /></el-icon>
-            </el-button>
-          </template>
+          <div class="auth-toggle-group">
+            <span class="auth-toggle-label">授权控制:</span>
+            <el-switch
+              :model-value="app.status === 'ENABLED'"
+              active-text="已授权"
+              inactive-text="未授权"
+              inline-prompt
+              :loading="catalogLoading"
+              @change="(val: any) => handleToggleAppAuthorization(app, Boolean(val))"
+            />
+          </div>
 
-          <template v-else-if="app.status === 'TRIAL'">
-            <el-button
-              type="warning"
-              class="action-btn"
-              @click="navigateToApp(app)"
-            >
-              进入试用 <el-icon class="el-icon--right"><ArrowRight /></el-icon>
-            </el-button>
-            <el-button
-              type="primary"
-              plain
-              size="default"
-              @click="openSubscribeDialog(app, 365)"
-            >
-              正式开通
-            </el-button>
-          </template>
-
-          <template v-else>
-            <el-button
-              type="success"
-              class="action-btn"
-              @click="handleQuickTrial(app)"
-            >
-              14 天免费体验
-            </el-button>
-            <el-button
-              type="primary"
-              plain
-              @click="openSubscribeDialog(app)"
-            >
-              开通订阅
-            </el-button>
-          </template>
+          <el-button
+            v-if="app.status === 'ENABLED'"
+            type="primary"
+            link
+            size="small"
+            @click="navigateToApp(app)"
+          >
+            进入应用 <el-icon class="el-icon--right"><ArrowRight /></el-icon>
+          </el-button>
         </div>
       </div>
     </div>
@@ -892,7 +861,22 @@ onMounted(() => {
   margin-top: auto;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--el-border-color-lighter);
+}
+
+.auth-toggle-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.auth-toggle-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--el-text-color-regular);
 }
 
 .action-btn {

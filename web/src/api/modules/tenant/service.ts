@@ -114,3 +114,9 @@ export async function updateTenantAppStatus(id: number, status: string, tenantId
     }
   });
 }
+
+export async function toggleTenantAppAuthorization(payload: { appCode: string; enabled: boolean; remark?: string }, tenantId?: number): Promise<void> {
+  await http.put<ApiResponse<void>>("/tenant/apps/authorize", payload, {
+    params: tenantId ? { tenantId } : {}
+  });
+}

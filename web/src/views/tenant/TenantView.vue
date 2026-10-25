@@ -93,7 +93,7 @@ const isolationModeLabelMap: Record<string, string> = {
 
 const sectionItems = [
   { key: "overview", label: "总览", description: "查看租户底座的治理蓝图、运行信号和租户画像。" },
-  { key: "apps", label: "应用矩阵与订阅", description: "企业级两层商业化授权，各应用订阅开通、免费试用与状态管理。" },
+  { key: "apps", label: "租户应用授权", description: "顶级应用权限管控，授予或回收租户应用权限；未获授权的应用在菜单管理、角色分配及导航中完全隐形。" },
   { key: "onboarding", label: "开通治理", description: "统一注册、审批、试用期与控制台开通基线。" },
   { key: "package", label: "套餐配额", description: "管理默认套餐、席位、存储和流量配额模型。" },
   { key: "isolation", label: "隔离升级", description: "规划共享、独库与高隔离租户的升级路径。" },
