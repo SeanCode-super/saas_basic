@@ -109,6 +109,24 @@ export const platformRoutes: RouteRecordRaw[] = [
         }
       },
       {
+        path: "dynamic/:modelCode",
+        name: "dynamic-data-view",
+        component: () => import("@/views/dynamic/DynamicDataView.vue"),
+        meta: {
+          title: "业务中台",
+          hidden: true
+        }
+      },
+      {
+        path: "dynamic/:modelCode/:section(.*)*",
+        name: "dynamic-data-view-section",
+        component: () => import("@/views/dynamic/DynamicDataView.vue"),
+        meta: {
+          title: "业务中台",
+          hidden: true
+        }
+      },
+      {
         path: "audit",
         name: "audit",
         component: () => import("@/views/audit/AuditView.vue"),

@@ -10,6 +10,7 @@ import CodegenGateSection from "./sections/CodegenGateSection.vue";
 import CodegenMetadataSection from "./sections/CodegenMetadataSection.vue";
 import CodegenOverviewSection from "./sections/CodegenOverviewSection.vue";
 import CodegenTemplateSection from "./sections/CodegenTemplateSection.vue";
+import CodegenAiBuilderSection from "./sections/CodegenAiBuilderSection.vue";
 
 const props = withDefaults(
   defineProps<{
@@ -45,6 +46,7 @@ const qualityGate = reactive({
 
 const sectionItems = [
   { key: "overview", label: "总览", description: "查看生成器的元数据驱动、输出矩阵和门禁概况。" },
+  { key: "ai-builder", label: "AI 智能应用工坊", description: "零代码自然语言一键生成多租户业务应用、物理表与工作台。" },
   { key: "metadata", label: "元数据建模", description: "定义表、字段、字典、索引和权限输出模型。" },
   { key: "template", label: "模板基线", description: "统一后端、前端、SQL 与菜单模板骨架。" },
   { key: "gate", label: "交付门禁", description: "用强约束保障生成物符合企业级规范。" },
@@ -76,6 +78,7 @@ const outputMatrix = [
 
 const sectionComponentMap = {
   overview: CodegenOverviewSection,
+  "ai-builder": CodegenAiBuilderSection,
   metadata: CodegenMetadataSection,
   template: CodegenTemplateSection,
   gate: CodegenGateSection,
