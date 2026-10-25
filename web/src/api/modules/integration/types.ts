@@ -38,6 +38,25 @@ export interface MessageChannelItem {
 export interface MessageChannelsData {
   smsChannels: MessageChannelItem[];
   mailChannels: MessageChannelItem[];
+  botChannels?: MessageChannelItem[];
+}
+
+export interface BotSendPayload {
+  botType: "WECHAT_WORK" | "DINGTALK" | "FEISHU";
+  webhookUrl: string;
+  secret?: string;
+  title: string;
+  content: string;
+  msgType?: string;
+}
+
+export interface BotSendResult {
+  success: boolean;
+  botType: string;
+  messageId: string;
+  message: string;
+  durationMs: number;
+  sendTime: string;
 }
 
 export interface SmsSendPayload {
@@ -77,7 +96,7 @@ export interface MailSendResult {
 
 export interface MessageLogItem {
   id: string;
-  type: "SMS" | "MAIL";
+  type: "SMS" | "MAIL" | "BOT";
   target: string;
   channel: string;
   title: string;
@@ -87,6 +106,26 @@ export interface MessageLogItem {
   responseMsg: string;
   costMillis: number;
   sentAt: string;
+}
+
+export interface PayOrderCreatePayload {
+  orderNo?: string;
+  amount: number;
+  channel: "WECHAT" | "ALIPAY" | "MOCK_SANDBOX";
+  subject?: string;
+  description?: string;
+}
+
+export interface PayOrderRow {
+  payTradeNo: string;
+  orderNo: string;
+  amount: number;
+  channel: string;
+  status: "PENDING" | "SUCCESS" | "FAILED" | "EXPIRED" | "NOT_FOUND";
+  payUrl: string;
+  qrCodeUrl: string;
+  expireAt: string;
+  paidAt?: string;
 }
 
 export interface OpenAppRow {

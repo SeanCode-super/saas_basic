@@ -7,8 +7,10 @@ import com.saasbasics.platform.modules.workflow.dto.ProcessInstanceDetailRespons
 import com.saasbasics.platform.modules.workflow.dto.ProcessInstanceResponse;
 import com.saasbasics.platform.modules.workflow.dto.ProcessStartRequest;
 import com.saasbasics.platform.modules.workflow.service.WorkflowInstanceService;
+import com.saasbasics.platform.modules.workflow.service.WorkflowTaskService;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Map;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,9 +27,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class WorkflowInstanceController {
 
     private final WorkflowInstanceService instanceService;
+    private final WorkflowTaskService taskService;
 
-    public WorkflowInstanceController(WorkflowInstanceService instanceService) {
+    public WorkflowInstanceController(WorkflowInstanceService instanceService, WorkflowTaskService taskService) {
         this.instanceService = instanceService;
+        this.taskService = taskService;
     }
 
     @PostMapping("/start")
@@ -61,5 +65,21 @@ public class WorkflowInstanceController {
     ) {
         instanceService.cancelInstance(id, reason);
         return ApiResponse.success(null);
+    }
+
+    @PostMapping("/{id}/urge")
+    @RequirePermission("workflow:instance:write")
+    public ApiResponse<Void> urge(
+            @PathVariable Long id,
+            @RequestParam(required = false) String comment
+    ) {
+        taskService.urgeInstance(id, comment);
+        return ApiResponse.success(null);
+    }
+
+    @GetMapping("/{id}/rollback-nodes")
+    @RequirePermission("workflow:task:query")
+    public ApiResponse<List<Map<String, Object>>> getRollbackNodes(@PathVariable Long id) {
+        return ApiResponse.success(taskService.getRollbackNodes(id));
     }
 }

@@ -8,6 +8,10 @@ import type {
   SmsSendResult,
   MailSendPayload,
   MailSendResult,
+  BotSendPayload,
+  BotSendResult,
+  PayOrderCreatePayload,
+  PayOrderRow,
   MessageLogItem,
   OpenAppRow,
   OpenAppSavePayload
@@ -40,6 +44,11 @@ export async function sendTestMail(payload: MailSendPayload): Promise<MailSendRe
   return response.data.data;
 }
 
+export async function sendTestBot(payload: BotSendPayload): Promise<BotSendResult> {
+  const response = await http.post<ApiResponse<BotSendResult>>("/message/bot/send", payload);
+  return response.data.data;
+}
+
 export async function fetchMessageLogs(): Promise<MessageLogItem[]> {
   const response = await http.get<ApiResponse<MessageLogItem[]>>("/message/logs");
   return response.data.data;
@@ -69,4 +78,21 @@ export async function regenerateOpenAppSecret(id: number): Promise<OpenAppRow> {
 
 export async function deleteOpenApp(id: number): Promise<void> {
   await http.delete(`/integration/open-apps/${id}`);
+}
+
+// ==================== 统一支付中心 (Unified Pay Center) ====================
+
+export async function createPayOrder(payload: PayOrderCreatePayload): Promise<PayOrderRow> {
+  const response = await http.post<ApiResponse<PayOrderRow>>("/pay/create-order", payload);
+  return response.data.data;
+}
+
+export async function getPayOrderStatus(orderNo: string): Promise<PayOrderRow> {
+  const response = await http.get<ApiResponse<PayOrderRow>>(`/pay/order-status/${orderNo}`);
+  return response.data.data;
+}
+
+export async function mockPaySuccess(orderNo: string): Promise<PayOrderRow> {
+  const response = await http.post<ApiResponse<PayOrderRow>>(`/pay/mock-success/${orderNo}`);
+  return response.data.data;
 }

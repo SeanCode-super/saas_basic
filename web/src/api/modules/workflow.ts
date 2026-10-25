@@ -90,7 +90,7 @@ export interface WorkflowTaskRow {
   nodeType: "APPROVER" | "CC";
   assigneeId: number;
   assigneeName: string;
-  status: "PENDING" | "COMPLETED" | "REJECTED" | "TRANSFERRED" | "CANCELLED";
+  status: "PENDING" | "COMPLETED" | "REJECTED" | "TRANSFERRED" | "CANCELLED" | "ROLLBACK";
   action?: "AGREE" | "REJECT" | "TRANSFER" | "READ";
   comment?: string;
   claimTime?: string;
@@ -140,12 +140,25 @@ export interface ProcessStartPayload {
 }
 
 export interface TaskHandlePayload {
-  action: "AGREE" | "REJECT" | "TRANSFER" | "READ" | "ADD_SIGN" | "ROLLBACK_PREVIOUS" | "ROLLBACK_INITIATOR";
+  action: "AGREE" | "REJECT" | "TRANSFER" | "READ" | "ADD_SIGN" | "ROLLBACK_PREVIOUS" | "ROLLBACK_INITIATOR" | "ROLLBACK_TARGET" | "DELEGATE" | "DELEGATE_RESOLVE" | "URGE";
   comment?: string;
   transferToUserId?: number;
   transferToUserName?: string;
   addSignUserId?: number;
   addSignUserName?: string;
+  addSignType?: "BEFORE" | "AFTER";
+  delegateUserId?: number;
+  delegateUserName?: string;
+  targetNodeId?: string;
+  targetNodeName?: string;
+}
+
+export interface RollbackTargetNode {
+  nodeId: string;
+  nodeName: string;
+  assigneeId?: number;
+  assigneeName?: string;
+  time?: string;
 }
 
 // ----------------------------------------------------------------------------
@@ -217,6 +230,15 @@ export async function fetchCcTasks(): Promise<WorkflowTaskRow[]> {
 
 export async function handleWorkflowTask(taskId: number, data: TaskHandlePayload): Promise<void> {
   await http.post<ApiResponse<void>>(`/workflow/tasks/${taskId}/handle`, data);
+}
+
+export async function urgeWorkflowInstance(id: number, comment?: string): Promise<void> {
+  await http.post<ApiResponse<void>>(`/workflow/instances/${id}/urge`, null, { params: { comment } });
+}
+
+export async function fetchRollbackNodes(id: number): Promise<RollbackTargetNode[]> {
+  const res = await http.get<ApiResponse<RollbackTargetNode[]>>(`/workflow/instances/${id}/rollback-nodes`);
+  return res.data.data;
 }
 
 export async function checkWorkflowHealth(): Promise<{ status: string; standaloneUrl?: string }> {

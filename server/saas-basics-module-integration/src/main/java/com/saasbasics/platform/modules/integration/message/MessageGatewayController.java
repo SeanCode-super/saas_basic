@@ -30,6 +30,11 @@ public class MessageGatewayController {
         return ApiResponse.success(messageGatewayService.sendMail(request));
     }
 
+    @PostMapping("/bot/send")
+    public ApiResponse<BotSendResult> sendBot(@Valid @RequestBody BotSendRequest request) {
+        return ApiResponse.success(messageGatewayService.sendBot(request));
+    }
+
     @GetMapping("/channels")
     public ApiResponse<Map<String, Object>> getChannels() {
         return ApiResponse.success(messageGatewayService.getChannels());

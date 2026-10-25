@@ -18,6 +18,7 @@ import {
   fetchMessageChannels,
   sendTestSms,
   sendTestMail,
+  sendTestBot,
   fetchMessageLogs,
   clearMessageLogs
 } from "@/api/modules/integration";
@@ -27,11 +28,13 @@ import type {
   SmsSendPayload,
   SmsSendResult,
   MailSendPayload,
-  MailSendResult
+  MailSendResult,
+  BotSendPayload,
+  BotSendResult
 } from "@/api/modules/integration";
 
 const loading = ref(false);
-const activeTab = ref<"sms" | "mail" | "logs">("sms");
+const activeTab = ref<"sms" | "mail" | "bot" | "logs">("sms");
 const channelsData = ref<MessageChannelsData>({ smsChannels: [], mailChannels: [] });
 const messageLogs = ref<MessageLogItem[]>([]);
 
@@ -60,6 +63,44 @@ const mailForm = reactive<MailSendPayload>({
   isHtml: false,
   cc: ""
 });
+
+// Bot form
+const botSending = ref(false);
+const botResult = ref<BotSendResult | null>(null);
+const botForm = reactive<BotSendPayload>({
+  botType: "WECHAT_WORK",
+  webhookUrl: "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=mock_demo_key",
+  secret: "",
+  title: "【业务待办提请审批】新采购入库单审核",
+  content: "采购单号：PO-20261026-001\n提交人：平台管理员\n当前节点：财务总监复核\n请各负责人在移动端或工作台及时处理！",
+  msgType: "markdown"
+});
+
+async function handleSendBot() {
+  if (!botForm.webhookUrl?.trim()) {
+    ElMessage.warning("请输入群机器人 Webhook URL");
+    return;
+  }
+  if (!botForm.title?.trim() || !botForm.content?.trim()) {
+    ElMessage.warning("请填写消息标题与正文");
+    return;
+  }
+  botSending.value = true;
+  try {
+    const res = await sendTestBot(botForm);
+    botResult.value = res;
+    if (res.success) {
+      ElMessage.success("群机器人消息派发成功！");
+    } else {
+      ElMessage.error(`派发失败: ${res.message}`);
+    }
+    await reloadLogs();
+  } catch (err: any) {
+    ElMessage.error(err.message || "请求异常");
+  } finally {
+    botSending.value = false;
+  }
+}
 
 async function loadData() {
   loading.value = true;
@@ -176,6 +217,7 @@ const stats = computed(() => {
     total,
     smsCount: messageLogs.value.filter((i) => i.type === "SMS").length,
     mailCount: messageLogs.value.filter((i) => i.type === "MAIL").length,
+    botCount: messageLogs.value.filter((i) => i.type === "BOT").length,
     rate
   };
 });
@@ -201,15 +243,15 @@ onMounted(loadData);
         </div>
         <div class="divider"></div>
         <div class="metric-item">
-          <el-icon class="icon-green"><Position /></el-icon>
-          <span class="label">累计调度</span>
-          <span class="value">{{ stats.total }} 次 (短: {{ stats.smsCount }} / 邮: {{ stats.mailCount }})</span>
+          <el-icon class="icon-green"><Promotion /></el-icon>
+          <span class="label">企业群机器人</span>
+          <span class="value">企微/钉钉/飞书</span>
         </div>
         <div class="divider"></div>
         <div class="metric-item">
           <el-icon class="icon-orange"><CircleCheckFilled /></el-icon>
-          <span class="label">派发成功率</span>
-          <span class="value">{{ stats.rate }}%</span>
+          <span class="label">累计调度</span>
+          <span class="value">{{ stats.total }} 次 (短: {{ stats.smsCount }} / 邮: {{ stats.mailCount }} / 机器人: {{ stats.botCount }})</span>
         </div>
       </div>
     </div>
@@ -234,6 +276,15 @@ onMounted(loadData);
         >
           <el-icon><Message /></el-icon>
           <span>邮件发送测试 (Mail Gateway)</span>
+        </button>
+        <button
+          type="button"
+          class="tab-btn"
+          :class="{ active: activeTab === 'bot' }"
+          @click="activeTab = 'bot'"
+        >
+          <el-icon><Promotion /></el-icon>
+          <span>群机器人推送 (企微 / 钉钉 / 飞书)</span>
         </button>
         <button
           type="button"
@@ -403,6 +454,96 @@ onMounted(loadData);
         </div>
       </div>
 
+      <!-- TAB: BOT -->
+      <div v-if="activeTab === 'bot'" class="tab-panel">
+        <div class="panel-grid">
+          <BaseCard title="企业群机器人 Webhook 调度测试">
+            <el-form label-position="top">
+              <el-form-item label="群机器人渠道" required>
+                <el-radio-group v-model="botForm.botType">
+                  <el-radio-button value="WECHAT_WORK">企业微信群机器人</el-radio-button>
+                  <el-radio-button value="DINGTALK">钉钉群自定义机器人</el-radio-button>
+                  <el-radio-button value="FEISHU">飞书自定义机器人</el-radio-button>
+                </el-radio-group>
+              </el-form-item>
+
+              <el-form-item label="Webhook URL" required>
+                <el-input
+                  v-model="botForm.webhookUrl"
+                  placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=..."
+                  clearable
+                />
+                <span class="field-hint">支持企业微信、钉钉、飞书标准 Webhook 地址，若包含 mock 则自动触发安全沙箱仿真</span>
+              </el-form-item>
+
+              <el-form-item v-if="botForm.botType === 'DINGTALK' || botForm.botType === 'FEISHU'" label="安全加签密钥 (Secret)">
+                <el-input
+                  v-model="botForm.secret"
+                  placeholder="选填：SEC... 或 飞书签名密钥"
+                  type="password"
+                  show-password
+                />
+              </el-form-item>
+
+              <el-form-item label="消息标题" required>
+                <el-input v-model="botForm.title" placeholder="请输入推送标题" />
+              </el-form-item>
+
+              <el-form-item label="消息正文 (Markdown)" required>
+                <el-input
+                  v-model="botForm.content"
+                  type="textarea"
+                  :rows="4"
+                  placeholder="支持 Markdown 语法与换行"
+                />
+              </el-form-item>
+
+              <div class="form-actions-bar">
+                <el-button
+                  type="primary"
+                  :icon="Promotion"
+                  :loading="botSending"
+                  @click="handleSendBot"
+                >
+                  立即推送群机器人消息
+                </el-button>
+              </div>
+            </el-form>
+          </BaseCard>
+
+          <BaseCard title="机器人派发回执 (Bot Delivery Result)">
+            <div v-if="botResult" class="result-box">
+              <div class="result-status-line">
+                <el-tag :type="botResult.success ? 'success' : 'danger'" effect="dark">
+                  {{ botResult.success ? '派发成功' : '派发失败' }}
+                </el-tag>
+                <span class="result-time">{{ botResult.sendTime }}</span>
+              </div>
+              <div class="result-item mt-2">
+                <span class="label">渠道平台:</span>
+                <span class="val">{{ botResult.botType }}</span>
+              </div>
+              <div class="result-item">
+                <span class="label">Message ID:</span>
+                <span class="val code-font">{{ botResult.messageId }}</span>
+              </div>
+              <div class="result-item">
+                <span class="label">耗时:</span>
+                <span class="val">{{ botResult.durationMs }} ms</span>
+              </div>
+              <div class="result-item">
+                <span class="label">响应回执:</span>
+                <span class="val font-semibold text-primary">{{ botResult.message }}</span>
+              </div>
+            </div>
+            <div v-else class="empty-result">
+              <el-icon class="empty-icon"><Promotion /></el-icon>
+              <span>请在左侧配置群机器人并点击推送测试</span>
+            </div>
+          </BaseCard>
+        </div>
+      </div>
+
       <!-- TAB 3: Logs -->
       <div v-if="activeTab === 'logs'" class="tab-panel">
         <BaseCard title="消息网关下发全量审计台账">
@@ -439,10 +580,10 @@ onMounted(loadData);
             max-height="600"
           >
             <el-table-column type="index" label="#" width="60" align="center" />
-            <el-table-column prop="type" label="消息类型" width="100" align="center">
+            <el-table-column prop="type" label="消息类型" width="110" align="center">
               <template #default="{ row }">
-                <el-tag :type="row.type === 'SMS' ? 'success' : 'warning'" effect="plain">
-                  {{ row.type === 'SMS' ? '📱 短信' : '✉️ 邮件' }}
+                <el-tag :type="row.type === 'SMS' ? 'success' : row.type === 'MAIL' ? 'warning' : 'primary'" effect="plain">
+                  {{ row.type === 'SMS' ? '📱 短信' : row.type === 'MAIL' ? '✉️ 邮件' : '🤖 机器人' }}
                 </el-tag>
               </template>
             </el-table-column>

@@ -20,6 +20,7 @@ import IntegrationOverviewSection from "./sections/IntegrationOverviewSection.vu
 import IntegrationRegistrySection from "./sections/IntegrationRegistrySection.vue";
 import IntegrationMessageSection from "./sections/IntegrationMessageSection.vue";
 import IntegrationOpenAppSection from "./sections/IntegrationOpenAppSection.vue";
+import IntegrationPaySection from "./sections/IntegrationPaySection.vue";
 
 const props = withDefaults(
   defineProps<{
@@ -77,7 +78,8 @@ const sectionItems = [
   { key: "health", label: "健康检测", description: "监控连接可达性、异常补偿和平台健康信号。" },
   { key: "registry", label: "接入台账", description: "查看并管理数据源与接入对象台账。" },
   { key: "message", label: "消息网关", description: "多渠道短信网关 (Aliyun/Tencent/Mock) 与 SMTP 邮件分发调度及审计。" },
-  { key: "openapp", label: "开放平台", description: "企业 Open API 应用接入、凭据托管与 HMAC-SHA256 签名鉴权网关。" }
+  { key: "openapp", label: "开放平台", description: "企业 Open API 应用接入、凭据托管与 HMAC-SHA256 签名鉴权网关。" },
+  { key: "pay", label: "统一支付", description: "聚合微信支付 Native 扫码、支付宝当面付与聚合收银台全景沙箱体验。" }
 ];
 
 const { activeSection, updateSection } = useModuleSection(sectionItems, {
@@ -168,7 +170,8 @@ const sectionComponentMap = {
   health: IntegrationHealthSection,
   registry: IntegrationRegistrySection,
   message: IntegrationMessageSection,
-  openapp: IntegrationOpenAppSection
+  openapp: IntegrationOpenAppSection,
+  pay: IntegrationPaySection
 } as const;
 
 const datasourceImportSample = formatJsonManifest([

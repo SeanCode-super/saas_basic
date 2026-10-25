@@ -20,11 +20,13 @@ public class MessageGatewayService {
 
     private final SmsClientFactory smsClientFactory;
     private final MailClient mailClient;
+    private final EnterpriseBotClient enterpriseBotClient;
     private final Deque<MessageLogItem> logQueue = new ConcurrentLinkedDeque<>();
 
-    public MessageGatewayService(SmsClientFactory smsClientFactory, MailClient mailClient) {
+    public MessageGatewayService(SmsClientFactory smsClientFactory, MailClient mailClient, EnterpriseBotClient enterpriseBotClient) {
         this.smsClientFactory = smsClientFactory;
         this.mailClient = mailClient;
+        this.enterpriseBotClient = enterpriseBotClient;
 
         // 初始化几条演示审计台账
         initSampleLogs();
@@ -87,11 +89,34 @@ public class MessageGatewayService {
         return result;
     }
 
+    public BotSendResult sendBot(BotSendRequest request) {
+        BotSendResult result = enterpriseBotClient.send(request);
+        recordLog(new MessageLogItem(
+                UUID.randomUUID().toString(),
+                "BOT",
+                request.botType(),
+                request.botType(),
+                request.title(),
+                request.content().length() > 60 ? request.content().substring(0, 60) + "..." : request.content(),
+                result.success() ? "SUCCESS" : "FAILED",
+                result.messageId(),
+                result.message(),
+                result.durationMs(),
+                LocalDateTime.now()
+        ));
+        return result;
+    }
+
     public Map<String, Object> getChannels() {
         Map<String, Object> map = new HashMap<>();
         map.put("smsChannels", smsClientFactory.listChannels());
         map.put("mailChannels", List.of(
                 Map.of("channelCode", "SMTP", "channelName", "标准 SMTP 邮件网关", "status", "ACTIVE")
+        ));
+        map.put("botChannels", List.of(
+                Map.of("channelCode", "WECHAT_WORK", "channelName", "企业微信群机器人 Webhook", "status", "ACTIVE"),
+                Map.of("channelCode", "DINGTALK", "channelName", "钉钉自定义群机器人 Webhook", "status", "ACTIVE"),
+                Map.of("channelCode", "FEISHU", "channelName", "飞书自定义群机器人 Webhook", "status", "ACTIVE")
         ));
         return map;
     }

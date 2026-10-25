@@ -3,7 +3,7 @@ import { computed, ref } from "vue";
 import { ElMessage } from "element-plus";
 import { Document, Printer, Refresh, Stamp, Tickets } from "@element-plus/icons-vue";
 
-type TemplateType = "PURCHASE_IN" | "REIMBURSE" | "SHIPPING_LABEL";
+type TemplateType = "PURCHASE_IN" | "REIMBURSE" | "SHIPPING_LABEL" | "VAT_INVOICE";
 
 const selectedTemplate = ref<TemplateType>("PURCHASE_IN");
 const showWatermark = ref(true);
@@ -11,6 +11,62 @@ const showOfficialStamp = ref(true);
 const paperSize = ref<"A4" | "A5">("A4");
 
 // 模拟表单数据
+const vatInvoiceData = ref({
+  invoiceCode: "031002300111",
+  invoiceNo: "98236109",
+  invoiceDate: "2026年10月26日",
+  checkCode: "82910 39102 77481 02918",
+  buyer: {
+    name: "阿里云计算有限公司",
+    taxId: "91330106673959654K",
+    addrTel: "浙江省杭州市西湖区云谷园区 0571-82128888",
+    bankAccount: "招商银行杭州高新支行 571906281010801"
+  },
+  seller: {
+    name: "Antigravity 企业数字中台软件技术有限公司",
+    taxId: "91320594MA27BXYZ88",
+    addrTel: "江苏省苏州市工业园区纳米城 0512-68889999",
+    bankAccount: "中国建设银行苏州独墅湖支行 3220198888005291"
+  },
+  items: [
+    { name: "*信息技术服务* Antigravity PaaS 企业级平台授权", spec: "旗舰版 v2.0", unit: "套", qty: 1, price: 180000.0, amount: 180000.0, taxRate: "6%", taxAmount: 10800.0 },
+    { name: "*技术咨询服务* 多租户微服务与 BPMN 工作流定制开发", spec: "实施周期 30人天", unit: "项", qty: 1, price: 45000.0, amount: 45000.0, taxRate: "6%", taxAmount: 2700.0 },
+    { name: "*运维保障服务* 7x24 小时高可用容灾与安全加固", spec: "年度维保 SLA 99.99%", unit: "年", qty: 1, price: 20000.0, amount: 20000.0, taxRate: "6%", taxAmount: 1200.0 }
+  ],
+  payee: "陈静敏",
+  checker: "王雪峰",
+  drawer: "平台开票专员",
+  remark: "对应合同编号: AGY-SaaS-2026-Q4-001。款项已全额结清。"
+});
+
+const totalVatGoodsAmount = computed(() => vatInvoiceData.value.items.reduce((s, i) => s + i.amount, 0));
+const totalVatTaxAmount = computed(() => vatInvoiceData.value.items.reduce((s, i) => s + i.taxAmount, 0));
+const totalVatSumAmount = computed(() => totalVatGoodsAmount.value + totalVatTaxAmount.value);
+
+function digitToChinese(n: number): string {
+  const fraction = ["角", "分"];
+  const digit = ["零", "壹", "贰", "叁", "肆", "伍", "陆", "柒", "捌", "玖"];
+  const unit = [["元", "万", "亿"], ["", "拾", "佰", "仟"]];
+  let num = Math.abs(n);
+  let s = "";
+  for (let i = 0; i < fraction.length; i++) {
+    s += (digit[Math.floor(num * 10 * Math.pow(10, i)) % 10] + fraction[i]).replace(/零./, "");
+  }
+  s = s || "整";
+  num = Math.floor(num);
+  for (let i = 0; i < unit[0].length && num > 0; i++) {
+    let p = "";
+    for (let j = 0; j < unit[1].length && num > 0; j++) {
+      p = digit[num % 10] + unit[1][j] + p;
+      num = Math.floor(num / 10);
+    }
+    s = p.replace(/(零.)*零$/, "").replace(/^$/, "零") + unit[0][i] + s;
+  }
+  return s.replace(/(零.)*零元/, "元").replace(/(零.)+/g, "零").replace(/^整$/, "零元整");
+}
+
+const chineseVatSumAmount = computed(() => digitToChinese(totalVatSumAmount.value));
+
 const purchaseData = ref({
   orderNo: "PO-20261019-8802",
   supplierName: "华为数字能源技术有限公司",
@@ -86,6 +142,7 @@ function handlePrint() {
               <el-radio-button value="PURCHASE_IN">采购入库验收单</el-radio-button>
               <el-radio-button value="REIMBURSE">费用报销凭证单</el-radio-button>
               <el-radio-button value="SHIPPING_LABEL">仓储快递发货面单</el-radio-button>
+              <el-radio-button value="VAT_INVOICE">增值税专用发票</el-radio-button>
             </el-radio-group>
           </div>
 
@@ -279,6 +336,162 @@ function handlePrint() {
           <div class="shipping-footer">
             <span>经办发货人：系统出库自动化</span>
             <span>签收人签字：_______________ 日期：____月____日</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. 增值税专用发票模板 -->
+      <div v-if="selectedTemplate === 'VAT_INVOICE'" class="print-paper vat-invoice-paper" :class="`paper-${paperSize.toLowerCase()}`">
+        <!-- 防伪水印 -->
+        <div v-if="showWatermark" class="watermark-text vat-watermark">国家税务总局全国统一发票</div>
+
+        <!-- 发票椭圆监制章 (税务局官方发票印章) -->
+        <div class="national-tax-stamp">
+          <div class="stamp-ellipse">
+            <span class="stamp-top">全国统一发票监制章</span>
+            <span class="stamp-mid">★</span>
+            <span class="stamp-bot">国家税务总局监制</span>
+          </div>
+        </div>
+
+        <!-- 发票抬头区 -->
+        <div class="vat-header">
+          <div class="vat-header-left">
+            <div class="qr-placeholder">
+              <div class="sim-qr-box">
+                <div class="qr-dot"></div>
+                <div class="qr-dot"></div>
+                <div class="qr-dot"></div>
+                <div class="qr-dot"></div>
+              </div>
+              <span class="qr-sub">防伪查验</span>
+            </div>
+            <div class="code-box">
+              <div>机器编号: <strong>661928374921</strong></div>
+            </div>
+          </div>
+
+          <div class="vat-title-box">
+            <h1 class="vat-main-title">增值税专用发票</h1>
+            <div class="vat-title-underline"></div>
+          </div>
+
+          <div class="vat-header-right">
+            <div>发票代码: <strong class="vat-code">{{ vatInvoiceData.invoiceCode }}</strong></div>
+            <div>发票号码: <strong class="vat-no">{{ vatInvoiceData.invoiceNo }}</strong></div>
+            <div>开票日期: <span>{{ vatInvoiceData.invoiceDate }}</span></div>
+            <div>校 验 码: <span class="vat-check-code">{{ vatInvoiceData.checkCode }}</span></div>
+          </div>
+        </div>
+
+        <!-- 发票核心网格主体 -->
+        <div class="vat-body-grid">
+          <!-- 购买方 & 密码区 -->
+          <div class="vat-row vat-row-party">
+            <div class="party-col party-buyer">
+              <div class="party-label">购<br>买<br>方</div>
+              <div class="party-content">
+                <div class="line"><span>名　　　　称：</span><strong>{{ vatInvoiceData.buyer.name }}</strong></div>
+                <div class="line"><span>纳税人识别号：</span><strong>{{ vatInvoiceData.buyer.taxId }}</strong></div>
+                <div class="line"><span>地 址、电 话：</span><span>{{ vatInvoiceData.buyer.addrTel }}</span></div>
+                <div class="line"><span>开户行及账号：</span><span>{{ vatInvoiceData.buyer.bankAccount }}</span></div>
+              </div>
+            </div>
+
+            <div class="party-col party-pwd">
+              <div class="party-label">密<br>码<br>区</div>
+              <div class="pwd-content">
+                <code>&lt;&gt;148*&lt;78/4+82&gt;10-91823&gt;&lt;&gt;92*</code>
+                <code>78+&lt;1920-819&lt;&gt;123+45910/&lt;&gt;82</code>
+                <code>45/1829&lt;&gt;*+192-384910283&gt;&lt;&gt;</code>
+                <code>9102+4859&lt;&gt;1028-49218293*&lt;&gt;</code>
+              </div>
+            </div>
+          </div>
+
+          <!-- 货物及应税劳务清单明细表 -->
+          <div class="vat-table-wrapper">
+            <table class="vat-goods-table">
+              <thead>
+                <tr>
+                  <th style="width: 30%;">货物或应税劳务、服务名称</th>
+                  <th style="width: 14%;">规格型号</th>
+                  <th style="width: 6%;">单位</th>
+                  <th style="width: 8%;">数量</th>
+                  <th style="width: 10%;">单价</th>
+                  <th style="width: 12%;">金 额</th>
+                  <th style="width: 8%;">税率</th>
+                  <th style="width: 12%;">税 额</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(it, idx) in vatInvoiceData.items" :key="idx">
+                  <td class="text-left font-mono">{{ it.name }}</td>
+                  <td>{{ it.spec }}</td>
+                  <td class="text-center">{{ it.unit }}</td>
+                  <td class="text-right">{{ it.qty }}</td>
+                  <td class="text-right">{{ it.price.toFixed(2) }}</td>
+                  <td class="text-right font-mono">{{ it.amount.toFixed(2) }}</td>
+                  <td class="text-center">{{ it.taxRate }}</td>
+                  <td class="text-right font-mono">{{ it.taxAmount.toFixed(2) }}</td>
+                </tr>
+                <!-- 小计行 -->
+                <tr class="vat-subtotal-tr">
+                  <td colspan="5" class="text-center font-bold">合　　　　　计</td>
+                  <td class="text-right font-bold font-mono">¥{{ totalVatGoodsAmount.toFixed(2) }}</td>
+                  <td></td>
+                  <td class="text-right font-bold font-mono">¥{{ totalVatTaxAmount.toFixed(2) }}</td>
+                </tr>
+                <!-- 价税合计行 -->
+                <tr class="vat-total-sum-tr">
+                  <td colspan="2" class="text-center font-bold">价税合计 (大写)</td>
+                  <td colspan="4" class="text-left font-bold chinese-amount">
+                    {{ chineseVatSumAmount }}
+                  </td>
+                  <td colspan="2" class="text-right font-bold font-mono">
+                    (小写) ¥{{ totalVatSumAmount.toFixed(2) }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- 销售方 & 备注区 -->
+          <div class="vat-row vat-row-party">
+            <div class="party-col party-buyer">
+              <div class="party-label">销<br>售<br>方</div>
+              <div class="party-content">
+                <div class="line"><span>名　　　　称：</span><strong>{{ vatInvoiceData.seller.name }}</strong></div>
+                <div class="line"><span>纳税人识别号：</span><strong>{{ vatInvoiceData.seller.taxId }}</strong></div>
+                <div class="line"><span>地 址、电 话：</span><span>{{ vatInvoiceData.seller.addrTel }}</span></div>
+                <div class="line"><span>开户行及账号：</span><span>{{ vatInvoiceData.seller.bankAccount }}</span></div>
+              </div>
+            </div>
+
+            <div class="party-col party-pwd">
+              <div class="party-label">备<br><br>注</div>
+              <div class="remark-content">
+                <p>{{ vatInvoiceData.remark }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 发票底部签署区 -->
+        <div class="vat-footer">
+          <div>收款人: <strong>{{ vatInvoiceData.payee }}</strong></div>
+          <div>复核: <strong>{{ vatInvoiceData.checker }}</strong></div>
+          <div>开票人: <strong>{{ vatInvoiceData.drawer }}</strong></div>
+          <div>销售方: (章)</div>
+        </div>
+
+        <!-- 销售方发票专用印章 (电子防伪红章) -->
+        <div v-if="showOfficialStamp" class="vat-seller-stamp">
+          <div class="vat-stamp-outer">
+            <div class="vat-stamp-title">{{ vatInvoiceData.seller.name }}</div>
+            <div class="vat-stamp-star">★</div>
+            <div class="vat-stamp-type">发票专用章</div>
+            <div class="vat-stamp-taxid">{{ vatInvoiceData.seller.taxId }}</div>
           </div>
         </div>
       </div>
@@ -614,6 +827,283 @@ function handlePrint() {
 
 .mb-4 {
   margin-bottom: 16px;
+}
+
+/* ==================== 增值税发票专有套打样式 ==================== */
+.vat-invoice-paper {
+  border: 1px solid #994d1a;
+  background-color: #fffefb;
+  color: #5c2d12;
+}
+
+.national-tax-stamp {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.stamp-ellipse {
+  width: 140px;
+  height: 70px;
+  border: 2px solid rgb(220 38 38 / 0.7);
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: rgb(220 38 38 / 0.75);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.stamp-mid {
+  font-size: 16px;
+  color: rgb(220 38 38 / 0.8);
+}
+
+.vat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 12px;
+  padding: 0 4px;
+}
+
+.vat-header-left {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.sim-qr-box {
+  width: 44px;
+  height: 44px;
+  border: 1px solid #994d1a;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 4px;
+  gap: 4px;
+  background: #fff;
+}
+
+.qr-dot {
+  background: #5c2d12;
+}
+
+.qr-sub {
+  display: block;
+  font-size: 10px;
+  color: #78350f;
+  text-align: center;
+  margin-top: 2px;
+}
+
+.vat-title-box {
+  text-align: center;
+  flex: 1;
+}
+
+.vat-main-title {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 6px;
+  color: #78350f;
+  margin: 0;
+  font-family: SimSun, "Songti SC", serif;
+}
+
+.vat-title-underline {
+  height: 3px;
+  border-top: 1px solid #994d1a;
+  border-bottom: 1px solid #994d1a;
+  margin-top: 6px;
+  width: 240px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.vat-header-right {
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: right;
+  font-family: var(--sb-font-mono, monospace);
+  color: #5c2d12;
+}
+
+.vat-code, .vat-no {
+  font-size: 14px;
+  color: #b91c1c;
+  letter-spacing: 1px;
+}
+
+.vat-body-grid {
+  border: 1px solid #994d1a;
+}
+
+.vat-row-party {
+  display: flex;
+  border-bottom: 1px solid #994d1a;
+}
+
+.party-col {
+  display: flex;
+}
+
+.party-buyer {
+  width: 60%;
+  border-right: 1px solid #994d1a;
+}
+
+.party-pwd {
+  width: 40%;
+}
+
+.party-label {
+  width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid #994d1a;
+  font-size: 12px;
+  font-weight: 600;
+  background: #fff9f0;
+  text-align: center;
+  color: #78350f;
+  padding: 4px;
+}
+
+.party-content {
+  padding: 6px 10px;
+  font-size: 12px;
+  line-height: 1.7;
+  flex: 1;
+}
+
+.party-content .line {
+  display: flex;
+}
+
+.party-content .line span {
+  color: #78350f;
+  white-space: nowrap;
+}
+
+.party-content .line strong {
+  color: #1e293b;
+  font-weight: 600;
+}
+
+.pwd-content {
+  padding: 8px 12px;
+  font-size: 11px;
+  font-family: var(--sb-font-mono, monospace);
+  line-height: 1.5;
+  color: #78350f;
+  display: flex;
+  flex-direction: column;
+}
+
+.remark-content {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #334155;
+  line-height: 1.5;
+}
+
+.vat-table-wrapper {
+  border-bottom: 1px solid #994d1a;
+}
+
+.vat-goods-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.vat-goods-table th,
+.vat-goods-table td {
+  border: 1px solid #994d1a;
+  padding: 6px 8px;
+}
+
+.vat-goods-table th {
+  background: #fff9f0;
+  color: #78350f;
+  font-weight: 600;
+  text-align: center;
+}
+
+.vat-subtotal-tr {
+  background: #fff9f0;
+}
+
+.vat-total-sum-tr {
+  background: #fffdf7;
+}
+
+.chinese-amount {
+  letter-spacing: 2px;
+  font-size: 13px;
+  color: #991b1b;
+}
+
+.vat-footer {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 14px 4px;
+  font-size: 12px;
+  color: #78350f;
+}
+
+.vat-seller-stamp {
+  position: absolute;
+  right: 60px;
+  bottom: 24px;
+  pointer-events: none;
+}
+
+.vat-stamp-outer {
+  width: 150px;
+  height: 150px;
+  border: 3px solid rgb(220 38 38 / 0.85);
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: rgb(220 38 38 / 0.88);
+  transform: rotate(-12deg);
+  padding: 8px;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.vat-stamp-title {
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.vat-stamp-star {
+  font-size: 22px;
+  line-height: 1;
+  margin: 2px 0;
+}
+
+.vat-stamp-type {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+.vat-stamp-taxid {
+  font-size: 9px;
+  font-family: var(--sb-font-mono, monospace);
+  margin-top: 2px;
 }
 
 /* 浏览器原生高保真打印适配 */
