@@ -41,8 +41,11 @@ public class MybatisPlusConfig {
             @Override
             public boolean ignoreTable(String tableName) {
                 TenantAccessContext context = TenantAccessContextHolder.current();
-                return context != null && context.bypassesTenantIsolation()
-                        || PLATFORM_TABLES.contains(tableName.toLowerCase(Locale.ROOT));
+                if (context != null && context.bypassesTenantIsolation()) {
+                    return true;
+                }
+                String lower = tableName.toLowerCase(Locale.ROOT);
+                return lower.startsWith("plat_") || PLATFORM_TABLES.contains(lower);
             }
         }));
         interceptor.addInnerInterceptor(new com.baomidou.mybatisplus.extension.plugins.inner.DataPermissionInterceptor(dataPermissionHandler));

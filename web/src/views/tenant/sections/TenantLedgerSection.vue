@@ -1,12 +1,18 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
+import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
   ArrowDown,
+  ArrowRight,
   CircleCheck,
+  Close,
   DataAnalysis,
   Edit,
   Files,
+  Grid,
+  Key,
+  MagicStick,
   Monitor,
   OfficeBuilding,
   Operation,
@@ -15,8 +21,7 @@ import {
   User,
   Warning,
   Download,
-  UploadFilled,
-  Grid
+  UploadFilled
 } from "@element-plus/icons-vue";
 import {
   fetchTenantPackages,
@@ -27,7 +32,11 @@ import {
   fetchTenantMeteringSummary,
   fetchTenantBills,
   exportTenantSnapshot,
-  restoreTenantSnapshot
+  restoreTenantSnapshot,
+  fetchTenantAppCatalog,
+  toggleTenantAppAuthorization,
+  batchAuthorizeTenantApps,
+  resetTenantPackageBaseline
 } from "@/api/modules/tenant";
 import type {
   TenantPackageRow,
@@ -36,7 +45,8 @@ import type {
   TenantMeteringSummary,
   TenantBillRow,
   TenantSnapshotExportResult,
-  TenantSnapshotRestoreResult
+  TenantSnapshotRestoreResult,
+  TenantAppCatalogItem
 } from "@/api/modules/tenant";
 import ProTable, { type ProTableColumn } from "@/components/pro/ProTable.vue";
 import SchemaForm, { type SchemaField } from "@/components/pro/SchemaForm.vue";
@@ -140,8 +150,7 @@ function handleMoreCommand(cmd: string, row: TenantRow) {
   if (cmd === "plan") {
     openPlanRenewDialog(row);
   } else if (cmd === "apps") {
-    handleSwitchTenant(row);
-    emit("navigate-section", "apps");
+    openAppAuthDrawer(row);
   } else if (cmd === "quota") {
     openQuotaDrawer(row);
   } else if (cmd === "metering") {
@@ -236,6 +245,125 @@ async function handleExecuteRestore() {
   } finally {
     restoreSubmitting.value = false;
   }
+}
+
+const router = useRouter();
+
+// App Entitlement Drawer
+const appAuthDrawerVisible = ref(false);
+const appAuthLoading = ref(false);
+const drawerAuthTenant = ref<TenantRow | null>(null);
+const drawerAppCatalog = ref<TenantAppCatalogItem[]>([]);
+
+async function openAppAuthDrawer(row: TenantRow) {
+  drawerAuthTenant.value = row;
+  appAuthDrawerVisible.value = true;
+  await loadDrawerCatalog();
+}
+
+async function loadDrawerCatalog() {
+  if (!drawerAuthTenant.value) return;
+  appAuthLoading.value = true;
+  try {
+    drawerAppCatalog.value = await fetchTenantAppCatalog(drawerAuthTenant.value.id);
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.message || "加载租户应用目录失败");
+  } finally {
+    appAuthLoading.value = false;
+  }
+}
+
+async function handleDrawerToggleAuth(app: TenantAppCatalogItem, enabled: boolean) {
+  if (!drawerAuthTenant.value) return;
+  const tenantName = drawerAuthTenant.value.tenantName;
+  const actionText = enabled ? "授权开通" : "停用回收";
+  try {
+    appAuthLoading.value = true;
+    await toggleTenantAppAuthorization(
+      {
+        appCode: app.appCode,
+        enabled,
+        remark: `管理员在租户台账快速${actionText}`
+      },
+      drawerAuthTenant.value.id
+    );
+    ElMessage.success(`应用【${app.appName}】已成功为企业【${tenantName}】${actionText}！`);
+    await loadDrawerCatalog();
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.message || `${actionText}失败`);
+  } finally {
+    appAuthLoading.value = false;
+  }
+}
+
+async function handleDrawerBatch(enabled: boolean) {
+  if (!drawerAuthTenant.value) return;
+  const tenantName = drawerAuthTenant.value.tenantName;
+  const actionText = enabled ? "全量授权" : "全部回收";
+  try {
+    await ElMessageBox.confirm(
+      `确定为企业【${tenantName}】执行全部可用应用【${actionText}】吗？`,
+      `确认${actionText}`,
+      {
+        confirmButtonText: `确认${actionText}`,
+        cancelButtonText: "取消",
+        type: enabled ? "success" : "warning"
+      }
+    );
+    appAuthLoading.value = true;
+    await batchAuthorizeTenantApps(
+      {
+        appCodes: drawerAppCatalog.value.map((c) => c.appCode),
+        enabled,
+        remark: `台账抽屉批量${actionText}`
+      },
+      drawerAuthTenant.value.id
+    );
+    ElMessage.success(`企业【${tenantName}】已完成应用${actionText}！`);
+    await loadDrawerCatalog();
+  } catch (e: any) {
+    if (e !== "cancel") {
+      ElMessage.error(e?.response?.data?.message || `${actionText}失败`);
+    }
+  } finally {
+    appAuthLoading.value = false;
+  }
+}
+
+async function handleDrawerResetBaseline() {
+  if (!drawerAuthTenant.value) return;
+  const tenantName = drawerAuthTenant.value.tenantName;
+  try {
+    await ElMessageBox.confirm(
+      `确定将企业【${tenantName}】的应用权限重置并对齐其套餐基线吗？\n将清除所有单独设定的覆盖配置，严格还原为套餐默认。`,
+      "对齐套餐基线",
+      {
+        confirmButtonText: "确认对齐",
+        cancelButtonText: "取消",
+        type: "info"
+      }
+    );
+    appAuthLoading.value = true;
+    await resetTenantPackageBaseline(drawerAuthTenant.value.id);
+    ElMessage.success(`企业【${tenantName}】已成功对齐套餐基线！`);
+    await loadDrawerCatalog();
+  } catch (e: any) {
+    if (e !== "cancel") {
+      ElMessage.error(e?.response?.data?.message || "对齐基线失败");
+    }
+  } finally {
+    appAuthLoading.value = false;
+  }
+}
+
+function handleGoToFullAuthPage() {
+  if (!drawerAuthTenant.value) return;
+  const tid = drawerAuthTenant.value.id;
+  appAuthDrawerVisible.value = false;
+  router.push({
+    path: "/tenant/apps",
+    query: { tenantId: String(tid) }
+  });
 }
 
 // Quota Drawer
@@ -442,6 +570,9 @@ onMounted(() => {
         <div class="table-action-links">
           <el-button link type="primary" :icon="Switch" @click="handleSwitchTenant(row)">
             切入
+          </el-button>
+          <el-button link type="primary" :icon="Key" class="auth-btn" @click="openAppAuthDrawer(row)">
+            应用授权
           </el-button>
           <el-button link type="primary" :icon="Edit" @click="openEditTenantDialog(row)">
             编辑
@@ -736,6 +867,99 @@ onMounted(() => {
       </div>
     </el-drawer>
 
+    <!-- Dedicated Tenant App Entitlement Drawer -->
+    <el-drawer
+      v-model="appAuthDrawerVisible"
+      :title="`企业应用授权控制台 —【${drawerAuthTenant?.tenantName || ''}】`"
+      size="640px"
+      :destroy-on-close="true"
+    >
+      <div v-loading="appAuthLoading" class="app-auth-drawer-content">
+        <!-- Tenant Summary Header -->
+        <div class="tenant-auth-header-card">
+          <div class="header-main-row">
+            <div class="tenant-title-block">
+              <span class="tenant-display-name">{{ drawerAuthTenant?.tenantName }}</span>
+              <el-tag size="small" effect="plain" class="code-tag">编码: {{ drawerAuthTenant?.tenantCode }}</el-tag>
+            </div>
+            <el-tag type="success" effect="dark" size="small">{{ drawerAuthTenant?.packageName || '默认套餐' }}</el-tag>
+          </div>
+          <div class="header-meta-row">
+            <span>隔离模式：<strong>{{ drawerAuthTenant?.isolationMode }}</strong></span>
+            <span>履约状态：<strong>{{ drawerAuthTenant?.status === 'ACTIVE' ? '正常履约' : drawerAuthTenant?.status }}</strong></span>
+            <span v-if="drawerAuthTenant?.daysRemaining != null">剩余有效期：<strong>{{ drawerAuthTenant.daysRemaining }} 天</strong></span>
+          </div>
+        </div>
+
+        <!-- Callout Banner -->
+        <el-alert
+          type="info"
+          :closable="false"
+          show-icon
+          class="auth-drawer-alert"
+        >
+          <template #title>
+            此处的每个开关<strong>仅对企业【{{ drawerAuthTenant?.tenantName }}】生效</strong>。未授权的应用在对应企业管理员和员工的菜单与侧边栏中将彻底隐藏。
+          </template>
+        </el-alert>
+
+        <!-- Batch Action Bar -->
+        <div class="drawer-batch-bar">
+          <div class="batch-title">矩阵应用授权列表 ({{ drawerAppCatalog.length }})</div>
+          <div class="batch-btns">
+            <el-button size="small" type="success" :icon="CircleCheck" @click="handleDrawerBatch(true)">
+              全量授权
+            </el-button>
+            <el-button size="small" type="primary" plain :icon="MagicStick" @click="handleDrawerResetBaseline">
+              对齐套餐
+            </el-button>
+            <el-button size="small" type="warning" plain :icon="Close" @click="handleDrawerBatch(false)">
+              全部回收
+            </el-button>
+          </div>
+        </div>
+
+        <!-- Apps List -->
+        <div class="drawer-app-list">
+          <div
+            v-for="app in drawerAppCatalog"
+            :key="app.appCode"
+            class="drawer-app-row"
+            :class="{ 'is-enabled': app.status === 'ENABLED' }"
+          >
+            <div class="drawer-app-info">
+              <div class="app-title-line">
+                <span class="drawer-app-name">{{ app.appName }}</span>
+                <el-tag size="small" effect="plain" type="info">{{ app.category }}</el-tag>
+                <el-tag v-if="app.isIncludedInPlan" size="small" effect="light" type="success">套餐标配</el-tag>
+                <el-tag v-else size="small" effect="light" type="warning">单独特许</el-tag>
+              </div>
+              <div class="drawer-app-desc">{{ app.description }}</div>
+            </div>
+
+            <div class="drawer-app-toggle">
+              <el-switch
+                :model-value="app.status === 'ENABLED'"
+                active-text="已授权"
+                inactive-text="未授权"
+                inline-prompt
+                @change="(val: any) => handleDrawerToggleAuth(app, Boolean(val))"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="drawer-footer-row">
+          <el-button type="primary" link :icon="ArrowRight" @click="handleGoToFullAuthPage">
+            在独立全屏应用授权页中管理此企业 ↗
+          </el-button>
+          <el-button @click="appAuthDrawerVisible = false">关闭</el-button>
+        </div>
+      </template>
+    </el-drawer>
+
     <!-- Tenant Snapshot Export & Restore Dialog -->
     <el-dialog
       v-model="snapshotDialogVisible"
@@ -891,6 +1115,131 @@ onMounted(() => {
   align-items: center;
   gap: 6px;
   white-space: nowrap;
+}
+
+.auth-btn {
+  font-weight: 600;
+  color: var(--el-color-primary) !important;
+}
+
+.app-auth-drawer-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tenant-auth-header-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.header-main-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.tenant-title-block {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tenant-display-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.header-meta-row {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: #64748b;
+  flex-wrap: wrap;
+}
+
+.auth-drawer-alert {
+  margin-bottom: 0;
+}
+
+.drawer-batch-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.batch-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.batch-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.drawer-app-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: calc(100vh - 350px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.drawer-app-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px 14px;
+  transition: all 0.2s ease;
+
+  &.is-enabled {
+    border-left: 4px solid #10b981;
+    background: #f0fdf4;
+  }
+}
+
+.drawer-app-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-right: 12px;
+}
+
+.app-title-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.drawer-app-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.drawer-app-desc {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.drawer-footer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
 }
 
 .more-action-btn {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import { Plus } from "@element-plus/icons-vue";
 import { createTenant, fetchTenantPackages, fetchTenantPage } from "@/api/modules/tenant";
@@ -100,6 +101,9 @@ const sectionItems = [
   { key: "ledger", label: "租户台账", description: "查看并管理租户清单、状态和隔离模式。" }
 ];
 
+const route = useRoute();
+const router = useRouter();
+
 const { activeSection, updateSection } = useModuleSection(sectionItems, {
   mode: "path",
   basePath: "/tenant",
@@ -112,6 +116,21 @@ const isOverviewSection = computed(() => currentSection.value === "overview");
 const activeSectionMeta = computed(
   () => sectionItems.find((item) => item.key === currentSection.value) ?? sectionItems[0]
 );
+
+const targetTenantId = computed(() => {
+  const tid = route.query.tenantId;
+  return tid ? Number(tid) : undefined;
+});
+
+function handleNavigateSection(section: string, params?: Record<string, any>) {
+  updateSection(section);
+  if (params && Object.keys(params).length > 0) {
+    router.replace({
+      path: `/tenant/${section}`,
+      query: { ...route.query, ...params }
+    });
+  }
+}
 
 const summary = computed(() => {
   const total = rows.value.length;
@@ -174,7 +193,7 @@ const columns: ProTableColumn[] = [
     formatter: (row) => isolationModeLabelMap[String(row.isolationMode ?? "")] ?? String(row.isolationMode ?? "--")
   },
   { prop: "status", label: "生命周期状态", minWidth: 120, slot: "status" },
-  { prop: "actions", label: "操作", minWidth: 180, fixed: "right", slot: "actions" }
+  { prop: "actions", label: "操作", minWidth: 260, fixed: "right", slot: "actions" }
 ];
 
 const schema = computed(() => [
@@ -362,13 +381,15 @@ onMounted(loadData);
         :schema="schema"
         :columns="columns"
         :rows="filteredRows"
+        :tenants="rows"
+        :tenant-id="targetTenantId"
         :loading="loading"
         :reset-query="resetQuery"
         :load-data="loadData"
         :open-create-dialog="openCreateDialog"
         :open-import-dialog="openImportDialog"
         :save-policy="savePolicy"
-        @navigate-section="updateSection"
+        @navigate-section="handleNavigateSection"
       />
     </div>
   </ControlSurface>

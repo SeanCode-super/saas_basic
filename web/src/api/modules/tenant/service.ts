@@ -120,3 +120,18 @@ export async function toggleTenantAppAuthorization(payload: { appCode: string; e
     params: tenantId ? { tenantId } : {}
   });
 }
+
+export async function batchAuthorizeTenantApps(
+  payload: { appCodes: string[]; enabled: boolean; remark?: string },
+  tenantId?: number
+): Promise<void> {
+  await http.put<ApiResponse<void>>("/tenant/apps/batch-authorize", payload, {
+    params: tenantId ? { tenantId } : {}
+  });
+}
+
+export async function resetTenantPackageBaseline(tenantId?: number): Promise<void> {
+  await http.post<ApiResponse<void>>("/tenant/apps/reset-package-baseline", null, {
+    params: tenantId ? { tenantId } : {}
+  });
+}
