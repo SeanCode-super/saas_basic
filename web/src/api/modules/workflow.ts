@@ -87,11 +87,11 @@ export interface WorkflowTaskRow {
   initiatorName: string;
   nodeId: string;
   nodeName: string;
-  nodeType: "APPROVER" | "CC";
+  nodeType: "APPROVER" | "CC" | "DELEGATE" | string;
   assigneeId: number;
   assigneeName: string;
-  status: "PENDING" | "COMPLETED" | "REJECTED" | "TRANSFERRED" | "CANCELLED" | "ROLLBACK";
-  action?: "AGREE" | "REJECT" | "TRANSFER" | "READ";
+  status: "PENDING" | "COMPLETED" | "REJECTED" | "TRANSFERRED" | "CANCELLED" | "ROLLBACK" | "DELEGATED" | string;
+  action?: "AGREE" | "REJECT" | "TRANSFER" | "READ" | "ADD_SIGN" | "DELEGATE" | "DELEGATE_RESOLVE" | "ROLLBACK_PREVIOUS" | "ROLLBACK_INITIATOR" | "ROLLBACK_TARGET" | "URGE" | string;
   comment?: string;
   claimTime?: string;
   finishTime?: string;
@@ -106,7 +106,7 @@ export interface TaskLogItem {
   nodeName: string;
   operatorId: number;
   operatorName: string;
-  action: "SUBMIT" | "AGREE" | "REJECT" | "TRANSFER" | "CANCEL" | "READ" | "END" | "ADD_SIGN" | "ROLLBACK_PREVIOUS" | "ROLLBACK_INITIATOR";
+  action: "SUBMIT" | "AGREE" | "REJECT" | "TRANSFER" | "CANCEL" | "READ" | "END" | "ADD_SIGN" | "ROLLBACK_PREVIOUS" | "ROLLBACK_INITIATOR" | "ROLLBACK_TARGET" | "DELEGATE" | "DELEGATE_RESOLVE" | "URGE" | string;
   actionLabel: string;
   comment?: string;
   createdAt: string;

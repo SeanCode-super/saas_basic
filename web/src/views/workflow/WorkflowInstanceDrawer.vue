@@ -10,6 +10,8 @@ import {
   fetchRollbackNodes
 } from "@/api/modules/workflow";
 import type { FormFieldConfig, ProcessInstanceDetail, WorkflowTaskRow, RollbackTargetNode } from "@/api/modules/workflow";
+import { fetchIamUsers } from "@/api/modules/iam/service";
+import type { IamUserRow } from "@/api/modules/iam/types";
 import { useAuthStore } from "@/stores/modules/auth";
 
 const props = defineProps<{
@@ -29,6 +31,30 @@ const loading = ref(false);
 const submitting = ref(false);
 const detail = ref<ProcessInstanceDetail | null>(null);
 
+// 企业人员名录与搜索
+const systemUsers = ref<IamUserRow[]>([]);
+const loadingUsers = ref(false);
+
+async function ensureSystemUsers() {
+  if (systemUsers.value.length > 0) return;
+  loadingUsers.value = true;
+  try {
+    const list = await fetchIamUsers();
+    systemUsers.value = list || [];
+  } catch (e) {
+    console.error("加载人员名录失败:", e);
+  } finally {
+    loadingUsers.value = false;
+  }
+}
+
+// 排除当前登录人以及被禁用的账号
+const candidateUsers = computed(() => {
+  return systemUsers.value.filter(
+    (u) => Number(u.id) !== currentUserId.value && u.status !== "DISABLED"
+  );
+});
+
 const handleForm = ref({
   action: "AGREE" as "AGREE" | "REJECT" | "TRANSFER",
   comment: "",
@@ -41,11 +67,36 @@ const rollbackTargetNodes = ref<RollbackTargetNode[]>([]);
 const selectedRollbackNode = ref<string>("");
 const rollbackComment = ref("");
 
-// 计算当前登录人是否有该审批单的待办任务
+// 委派代审弹窗
+const delegateDialogVisible = ref(false);
+const delegateForm = ref<{ targetUserId?: number; comment: string }>({
+  targetUserId: undefined,
+  comment: ""
+});
+
+// 加签会签弹窗
+const addSignDialogVisible = ref(false);
+const addSignForm = ref<{ targetUserId?: number; signType: "BEFORE" | "AFTER"; comment: string }>({
+  targetUserId: undefined,
+  signType: "AFTER",
+  comment: ""
+});
+
+// 转办移交弹窗
+const transferDialogVisible = ref(false);
+const transferForm = ref<{ targetUserId?: number; comment: string }>({
+  targetUserId: undefined,
+  comment: ""
+});
+
+// 计算当前登录人是否有该审批单的待办任务（支持主审 APPROVER 与受托 DELEGATE）
 const myPendingTask = computed<WorkflowTaskRow | undefined>(() => {
   if (!detail.value) return undefined;
   return detail.value.tasks.find(
-    (t) => t.status === "PENDING" && t.nodeType === "APPROVER" && Number(t.assigneeId) === currentUserId.value
+    (t) =>
+      t.status === "PENDING" &&
+      (t.nodeType === "APPROVER" || t.nodeType === "DELEGATE") &&
+      Number(t.assigneeId) === currentUserId.value
   );
 });
 
@@ -174,6 +225,7 @@ watch(
   () => [props.visible, props.instanceId],
   async ([vis, id]) => {
     if (vis && id) {
+      ensureSystemUsers().catch(() => {});
       await loadDetail();
     } else {
       detail.value = null;
@@ -271,51 +323,142 @@ async function confirmRollbackTarget() {
   }
 }
 
-async function handleDelegate() {
+async function openDelegateDialog() {
   if (!myPendingTask.value) return;
+  delegateForm.value = {
+    targetUserId: undefined,
+    comment: handleForm.value.comment.trim()
+  };
+  await ensureSystemUsers();
+  delegateDialogVisible.value = true;
+}
+
+async function confirmDelegate() {
+  if (!myPendingTask.value) return;
+  if (!delegateForm.value.targetUserId) {
+    ElMessage.warning("请在企业人员列表中选择受托人");
+    return;
+  }
+  const target = systemUsers.value.find((u) => u.id === delegateForm.value.targetUserId);
+  if (!target) {
+    ElMessage.warning("所选人员不存在");
+    return;
+  }
+  const targetName = target.nickname || target.username;
+  submitting.value = true;
   try {
-    const { value: delegatee } = await ElMessageBox.prompt("请输入受托人姓名（审结后交回原审批人）：", "审批任务委派 (Delegate)", {
-      confirmButtonText: "确认委派",
-      cancelButtonText: "取消",
-      inputPlaceholder: "例如: 李高级工程师 / 财务李主管",
-      inputValidator: (val) => Boolean(val && val.trim()) || "请填写受托人姓名"
-    });
-    submitting.value = true;
     await handleWorkflowTask(myPendingTask.value.id, {
       action: "DELEGATE",
-      delegateUserId: 2,
-      delegateUserName: delegatee.trim(),
-      comment: handleForm.value.comment.trim() || `委派说明：委托同事 ${delegatee} 协助核验并出具意见。`
+      delegateUserId: target.id,
+      delegateUserName: targetName,
+      comment: delegateForm.value.comment.trim() || `委派说明：委托同事 ${targetName} 协助核验并出具意见。`
     });
-    ElMessage.success(`审批任务已委派给「${delegatee}」！`);
+    ElMessage.success(`审批任务已成功委派给「${targetName}」！`);
+    delegateDialogVisible.value = false;
     handleForm.value.comment = "";
     emit("refresh");
     await loadDetail();
-  } catch {
-    // cancelled
   } finally {
     submitting.value = false;
   }
 }
 
-async function handleAddSign() {
+async function openAddSignDialog() {
+  if (!myPendingTask.value) return;
+  addSignForm.value = {
+    targetUserId: undefined,
+    signType: "AFTER",
+    comment: handleForm.value.comment.trim()
+  };
+  await ensureSystemUsers();
+  addSignDialogVisible.value = true;
+}
+
+async function confirmAddSign() {
+  if (!myPendingTask.value) return;
+  if (!addSignForm.value.targetUserId) {
+    ElMessage.warning("请在企业人员列表中选择加签协办人");
+    return;
+  }
+  const target = systemUsers.value.find((u) => u.id === addSignForm.value.targetUserId);
+  if (!target) {
+    ElMessage.warning("所选人员不存在");
+    return;
+  }
+  const targetName = target.nickname || target.username;
+  submitting.value = true;
+  try {
+    await handleWorkflowTask(myPendingTask.value.id, {
+      action: "ADD_SIGN",
+      addSignUserId: target.id,
+      addSignUserName: targetName,
+      addSignType: addSignForm.value.signType,
+      comment: addSignForm.value.comment.trim() || `加签协同：邀请 ${targetName} 参与会签。`
+    });
+    ElMessage.success(`已成功邀请「${targetName}」进行加签会签！`);
+    addSignDialogVisible.value = false;
+    handleForm.value.comment = "";
+    emit("refresh");
+    await loadDetail();
+  } finally {
+    submitting.value = false;
+  }
+}
+
+async function openTransferDialog() {
+  if (!myPendingTask.value) return;
+  transferForm.value = {
+    targetUserId: undefined,
+    comment: handleForm.value.comment.trim()
+  };
+  await ensureSystemUsers();
+  transferDialogVisible.value = true;
+}
+
+async function confirmTransfer() {
+  if (!myPendingTask.value) return;
+  if (!transferForm.value.targetUserId) {
+    ElMessage.warning("请在企业人员列表中选择转办承接人");
+    return;
+  }
+  const target = systemUsers.value.find((u) => u.id === transferForm.value.targetUserId);
+  if (!target) {
+    ElMessage.warning("所选人员不存在");
+    return;
+  }
+  const targetName = target.nickname || target.username;
+  submitting.value = true;
+  try {
+    await handleWorkflowTask(myPendingTask.value.id, {
+      action: "TRANSFER",
+      transferToUserId: target.id,
+      transferToUserName: targetName,
+      comment: transferForm.value.comment.trim() || `转办说明：因业务职责分工，将该审批转交由 ${targetName} 全权办理。`
+    });
+    ElMessage.success(`审批任务已全权转交给「${targetName}」！`);
+    transferDialogVisible.value = false;
+    handleForm.value.comment = "";
+    emit("refresh");
+    await loadDetail();
+  } finally {
+    submitting.value = false;
+  }
+}
+
+async function handleDelegateResolve() {
   if (!myPendingTask.value) return;
   try {
-    const { value: assigneeName } = await ElMessageBox.prompt("请输入加签协办人姓名或工号：", "审批加签协办 (Add Sign)", {
-      confirmButtonText: "确认加签",
+    await ElMessageBox.confirm("确认完成代审并将审批单交回原主审人吗？", "完成代审确认", {
+      confirmButtonText: "确认交回",
       cancelButtonText: "取消",
-      inputPlaceholder: "例如: 架构评审委员会 / 法务专员",
-      inputValidator: (val) => Boolean(val && val.trim()) || "请填写加签协办人姓名"
+      type: "info"
     });
     submitting.value = true;
     await handleWorkflowTask(myPendingTask.value.id, {
-      action: "ADD_SIGN",
-      addSignUserId: 2,
-      addSignUserName: assigneeName.trim(),
-      addSignType: "AFTER",
-      comment: handleForm.value.comment.trim() || `加签协办：邀请 ${assigneeName} 参与并联会签。`
+      action: "DELEGATE_RESOLVE",
+      comment: handleForm.value.comment.trim() || "已完成受托事项初审，出具核验意见并交回原主审人最终审批。"
     });
-    ElMessage.success(`已成功邀请「${assigneeName}」进行加签会签！`);
+    ElMessage.success("已完成代审并将任务交回原主审人！");
     handleForm.value.comment = "";
     emit("refresh");
     await loadDetail();
@@ -415,6 +558,7 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
     case "ADD_SIGN":
     case "DELEGATE":
     case "DELEGATE_RESOLVE":
+    case "TRANSFER":
       return "primary";
     case "URGE":
       return "danger";
@@ -562,7 +706,9 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
         <!-- 5. 当前待办办理操作区（如果当前人是审批人） -->
         <div v-if="myPendingTask" class="action-footer-panel">
           <div class="panel-header">
-            <div class="panel-tag">待您审批</div>
+            <div class="panel-tag" :class="{ 'tag-delegate': myPendingTask.nodeType === 'DELEGATE' }">
+              {{ myPendingTask.nodeType === 'DELEGATE' ? '受托待办' : '待您审批' }}
+            </div>
             <span>当前审批环节：<strong>{{ myPendingTask.nodeName }}</strong></span>
           </div>
 
@@ -574,59 +720,94 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
           />
 
           <div class="panel-actions">
-            <!-- 自由退回至历史节点 -->
-            <el-button
-              type="warning"
-              plain
-              :icon="RefreshLeft"
-              :loading="submitting"
-              @click="openRollbackPicker"
-            >
-              退回历史环节
-            </el-button>
+            <!-- 如果是受托代审环节 -->
+            <template v-if="myPendingTask.nodeType === 'DELEGATE'">
+              <el-button
+                type="danger"
+                plain
+                :icon="Close"
+                :loading="submitting"
+                @click="doHandle('REJECT')"
+              >
+                驳回申请
+              </el-button>
+              <el-button
+                type="primary"
+                :icon="Check"
+                :loading="submitting"
+                @click="handleDelegateResolve"
+              >
+                完成初审并交回
+              </el-button>
+            </template>
 
-            <!-- 委派 -->
-            <el-button
-              type="info"
-              plain
-              :icon="Share"
-              :loading="submitting"
-              @click="handleDelegate"
-            >
-              委派代审
-            </el-button>
+            <!-- 常规主审环节 -->
+            <template v-else>
+              <!-- 自由退回至历史节点 -->
+              <el-button
+                type="warning"
+                plain
+                :icon="RefreshLeft"
+                :loading="submitting"
+                @click="openRollbackPicker"
+              >
+                退回历史环节
+              </el-button>
 
-            <!-- 加签 -->
-            <el-button
-              type="primary"
-              plain
-              :icon="Plus"
-              :loading="submitting"
-              @click="handleAddSign"
-            >
-              加签会签
-            </el-button>
+              <!-- 转办全权移交 -->
+              <el-button
+                type="default"
+                plain
+                :icon="Right"
+                :loading="submitting"
+                @click="openTransferDialog"
+              >
+                转办移交
+              </el-button>
 
-            <!-- 驳回 -->
-            <el-button
-              type="danger"
-              plain
-              :icon="Close"
-              :loading="submitting"
-              @click="doHandle('REJECT')"
-            >
-              驳回申请
-            </el-button>
+              <!-- 委派代审 -->
+              <el-button
+                type="info"
+                plain
+                :icon="Share"
+                :loading="submitting"
+                @click="openDelegateDialog"
+              >
+                委派代审
+              </el-button>
 
-            <!-- 同意 -->
-            <el-button
-              type="success"
-              :icon="Check"
-              :loading="submitting"
-              @click="doHandle('AGREE')"
-            >
-              同意审批
-            </el-button>
+              <!-- 加签会签 -->
+              <el-button
+                type="primary"
+                plain
+                :icon="Plus"
+                :loading="submitting"
+                @click="openAddSignDialog"
+              >
+                加签会签
+              </el-button>
+
+              <!-- 驳回 -->
+              <el-button
+                type="danger"
+                plain
+                :icon="Close"
+                :loading="submitting"
+                @click="doHandle('REJECT')"
+              >
+                驳回申请
+              </el-button>
+
+              <!-- 同意 -->
+              <el-button
+                type="success"
+                :icon="Check"
+                :loading="submitting"
+                @click="doHandle('AGREE')"
+              >
+                同意审批
+              </el-button>
+            </template>
           </div>
         </div>
 
@@ -642,7 +823,7 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
       </template>
     </div>
 
-    <!-- 自由回退选择弹窗 -->
+    <!-- 1. 自由回退选择弹窗 -->
     <el-dialog
       v-model="rollbackDialogVisible"
       title="BPMN 自由退回至历史指定环节"
@@ -684,6 +865,239 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
           <el-button @click="rollbackDialogVisible = false">取消</el-button>
           <el-button type="warning" :loading="submitting" @click="confirmRollbackTarget">
             确认退回流转
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
+
+    <!-- 2. 审批任务委派弹窗 (委托同事代审，审结后交回) -->
+    <el-dialog
+      v-model="delegateDialogVisible"
+      title="审批任务委派 (Delegate)"
+      width="540px"
+      append-to-body
+    >
+      <div class="user-action-dialog-body">
+        <div class="action-alert-tip tip-info">
+          <el-icon><Share /></el-icon>
+          <div>
+            <strong>委派代审机制说明</strong>
+            <p>将当前审批任务委托给指定同事协助审阅并出具初审意见。受托人审结后，流程将自动交回给您做最终裁决。</p>
+          </div>
+        </div>
+
+        <el-form label-position="top">
+          <el-form-item label="选择受托人 (支持输入姓名 / 账号 / 工号检索)" required>
+            <el-select
+              v-model="delegateForm.targetUserId"
+              placeholder="请搜索或选择受托人"
+              filterable
+              clearable
+              style="width: 100%"
+              :loading="loadingUsers"
+            >
+              <el-option
+                v-for="u in candidateUsers"
+                :key="u.id"
+                :label="`${u.nickname || u.username} (${u.username})${u.userCode ? ' - ' + u.userCode : ''}`"
+                :value="u.id"
+              >
+                <div class="user-select-row">
+                  <div class="user-avatar-tag">{{ (u.nickname || u.username || 'U').slice(0, 1) }}</div>
+                  <div class="user-meta">
+                    <div class="name-line">
+                      <span class="nickname">{{ u.nickname || u.username }}</span>
+                      <span class="username">@{{ u.username }}</span>
+                      <el-tag v-if="u.userType === 'SUPER_ADMIN'" size="small" type="danger" effect="plain" class="type-tag">超管</el-tag>
+                      <el-tag v-else-if="u.userType === 'TENANT_ADMIN'" size="small" type="warning" effect="plain" class="type-tag">管理员</el-tag>
+                    </div>
+                    <div class="sub-line">
+                      <span v-if="u.userCode">工号: {{ u.userCode }}</span>
+                      <span v-if="u.email" class="email">{{ u.email }}</span>
+                    </div>
+                  </div>
+                </div>
+              </el-option>
+            </el-select>
+          </el-form-item>
+
+          <el-form-item label="委派说明与核验指示">
+            <el-input
+              v-model="delegateForm.comment"
+              type="textarea"
+              :rows="3"
+              placeholder="请输入委派指示说明（例如：请协助核验该单据技术指标与采购合规材料）"
+            />
+          </el-form-item>
+        </el-form>
+      </div>
+
+      <template #footer>
+        <div class="dialog-actions">
+          <el-button @click="delegateDialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="submitting" @click="confirmDelegate">
+            确认委派
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
+
+    <!-- 3. 审批加签会签弹窗 (邀请同事会签) -->
+    <el-dialog
+      v-model="addSignDialogVisible"
+      title="审批加签协同 (Add Sign)"
+      width="540px"
+      append-to-body
+    >
+      <div class="user-action-dialog-body">
+        <div class="action-alert-tip tip-primary">
+          <el-icon><Plus /></el-icon>
+          <div>
+            <strong>加签会签机制说明</strong>
+            <p>在当前环节动态邀请其他同事协同参与评审。会签完成后，结果自动汇流并入主流程流转。</p>
+          </div>
+        </div>
+
+        <el-form label-position="top">
+          <el-form-item label="选择加签协办人 (支持输入姓名 / 账号 / 工号检索)" required>
+            <el-select
+              v-model="addSignForm.targetUserId"
+              placeholder="请搜索或选择加签协办人"
+              filterable
+              clearable
+              style="width: 100%"
+              :loading="loadingUsers"
+            >
+              <el-option
+                v-for="u in candidateUsers"
+                :key="u.id"
+                :label="`${u.nickname || u.username} (${u.username})${u.userCode ? ' - ' + u.userCode : ''}`"
+                :value="u.id"
+              >
+                <div class="user-select-row">
+                  <div class="user-avatar-tag">{{ (u.nickname || u.username || 'U').slice(0, 1) }}</div>
+                  <div class="user-meta">
+                    <div class="name-line">
+                      <span class="nickname">{{ u.nickname || u.username }}</span>
+                      <span class="username">@{{ u.username }}</span>
+                      <el-tag v-if="u.userType === 'SUPER_ADMIN'" size="small" type="danger" effect="plain" class="type-tag">超管</el-tag>
+                      <el-tag v-else-if="u.userType === 'TENANT_ADMIN'" size="small" type="warning" effect="plain" class="type-tag">管理员</el-tag>
+                    </div>
+                    <div class="sub-line">
+                      <span v-if="u.userCode">工号: {{ u.userCode }}</span>
+                      <span v-if="u.email" class="email">{{ u.email }}</span>
+                    </div>
+                  </div>
+                </div>
+              </el-option>
+            </el-select>
+          </el-form-item>
+
+          <el-form-item label="加签流转方式" required>
+            <el-radio-group v-model="addSignForm.signType" class="sign-type-group">
+              <el-radio value="AFTER" class="sign-radio-card">
+                <div class="radio-card-content">
+                  <span class="radio-title">后加签 (推荐)</span>
+                  <span class="radio-desc">本人完成审批后，自动流转至加签协办人会签审核</span>
+                </div>
+              </el-radio>
+              <el-radio value="BEFORE" class="sign-radio-card">
+                <div class="radio-card-content">
+                  <span class="radio-title">前加签</span>
+                  <span class="radio-desc">优先流转至加签协办人，加签人审核通过后再由本人终审</span>
+                </div>
+              </el-radio>
+            </el-radio-group>
+          </el-form-item>
+
+          <el-form-item label="加签说明与协同要点">
+            <el-input
+              v-model="addSignForm.comment"
+              type="textarea"
+              :rows="3"
+              placeholder="请输入加签协同说明（例如：请技术委员会 / 法务专员核验合同约束与合规风险）"
+            />
+          </el-form-item>
+        </el-form>
+      </div>
+
+      <template #footer>
+        <div class="dialog-actions">
+          <el-button @click="addSignDialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="submitting" @click="confirmAddSign">
+            确认加签
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
+
+    <!-- 4. 审批任务转办弹窗 (全权移交给他人) -->
+    <el-dialog
+      v-model="transferDialogVisible"
+      title="审批任务转办 (Transfer)"
+      width="540px"
+      append-to-body
+    >
+      <div class="user-action-dialog-body">
+        <div class="action-alert-tip tip-warning">
+          <el-icon><Right /></el-icon>
+          <div>
+            <strong>转办全权移交说明</strong>
+            <p>将该待办全权移交给所选同事办理。转办后该待办将从您的待办列表中移出，完全由转办承接人执行后续批示。</p>
+          </div>
+        </div>
+
+        <el-form label-position="top">
+          <el-form-item label="选择转办承接人 (支持输入姓名 / 账号 / 工号检索)" required>
+            <el-select
+              v-model="transferForm.targetUserId"
+              placeholder="请搜索或选择转办承接人"
+              filterable
+              clearable
+              style="width: 100%"
+              :loading="loadingUsers"
+            >
+              <el-option
+                v-for="u in candidateUsers"
+                :key="u.id"
+                :label="`${u.nickname || u.username} (${u.username})${u.userCode ? ' - ' + u.userCode : ''}`"
+                :value="u.id"
+              >
+                <div class="user-select-row">
+                  <div class="user-avatar-tag">{{ (u.nickname || u.username || 'U').slice(0, 1) }}</div>
+                  <div class="user-meta">
+                    <div class="name-line">
+                      <span class="nickname">{{ u.nickname || u.username }}</span>
+                      <span class="username">@{{ u.username }}</span>
+                      <el-tag v-if="u.userType === 'SUPER_ADMIN'" size="small" type="danger" effect="plain" class="type-tag">超管</el-tag>
+                      <el-tag v-else-if="u.userType === 'TENANT_ADMIN'" size="small" type="warning" effect="plain" class="type-tag">管理员</el-tag>
+                    </div>
+                    <div class="sub-line">
+                      <span v-if="u.userCode">工号: {{ u.userCode }}</span>
+                      <span v-if="u.email" class="email">{{ u.email }}</span>
+                    </div>
+                  </div>
+                </div>
+              </el-option>
+            </el-select>
+          </el-form-item>
+
+          <el-form-item label="转办说明与交接事由">
+            <el-input
+              v-model="transferForm.comment"
+              type="textarea"
+              :rows="3"
+              placeholder="请输入转办交接说明（例如：因业务线分工调整，交由专项业务负责人全权办理）"
+            />
+          </el-form-item>
+        </el-form>
+      </div>
+
+      <template #footer>
+        <div class="dialog-actions">
+          <el-button @click="transferDialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="submitting" @click="confirmTransfer">
+            确认转办
           </el-button>
         </div>
       </template>
@@ -995,6 +1409,11 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
       color: #2563eb;
       font-size: 12px;
       font-weight: 600;
+
+      &.tag-delegate {
+        background: #fef3c7;
+        color: #d97706;
+      }
     }
 
     span {
@@ -1062,6 +1481,163 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
           color: #64748b;
         }
       }
+    }
+  }
+}
+
+.user-action-dialog-body {
+  .action-alert-tip {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    line-height: 1.5;
+
+    .el-icon {
+      font-size: 20px;
+      margin-top: 2px;
+      flex-shrink: 0;
+    }
+
+    strong {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 2px;
+    }
+
+    p {
+      margin: 0;
+      font-size: 12px;
+      opacity: 0.9;
+    }
+
+    &.tip-info {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1e40af;
+      .el-icon {
+        color: #2563eb;
+      }
+    }
+
+    &.tip-primary {
+      background: #f5f3ff;
+      border: 1px solid #ddd6fe;
+      color: #5b21b6;
+      .el-icon {
+        color: #7c3aed;
+      }
+    }
+
+    &.tip-warning {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      color: #92400e;
+      .el-icon {
+        color: #d97706;
+      }
+    }
+  }
+
+  .sign-type-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+
+    .sign-radio-card {
+      display: flex;
+      align-items: flex-start;
+      margin-right: 0;
+      padding: 10px 14px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      background: #f8fafc;
+      width: 100%;
+
+      &:hover {
+        border-color: #93c5fd;
+        background: #f0f7ff;
+      }
+
+      .radio-card-content {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        margin-left: 6px;
+
+        .radio-title {
+          font-size: 13px;
+          font-weight: 600;
+          color: #1e293b;
+        }
+
+        .radio-desc {
+          font-size: 12px;
+          color: #64748b;
+        }
+      }
+    }
+  }
+}
+
+.user-select-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+
+  .user-avatar-tag {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #e0e7ff;
+    color: #4338ca;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .user-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    line-height: 1.2;
+
+    .name-line {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+
+      .nickname {
+        font-size: 13px;
+        font-weight: 500;
+        color: #1e293b;
+      }
+
+      .username {
+        font-size: 12px;
+        color: #64748b;
+      }
+
+      .type-tag {
+        font-size: 10px;
+        height: 18px;
+        padding: 0 4px;
+      }
+    }
+
+    .sub-line {
+      font-size: 11px;
+      color: #94a3b8;
+      display: flex;
+      gap: 8px;
     }
   }
 }
