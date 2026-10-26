@@ -26,7 +26,15 @@
     </view>
 
     <view class="login-footer">
-      <text class="footer-tip">默认开发账号: admin / Admin@123456</text>
+      <view class="quick-chips">
+        <view class="chip-item chip-item--admin" @click="fillAccount('admin')">
+          <text class="chip-title">👑 超管凭证: admin</text>
+        </view>
+        <view class="chip-item chip-item--user" @click="fillAccount('user')">
+          <text class="chip-title">👤 普通用户: user</text>
+        </view>
+      </view>
+      <text class="footer-tip">密码统一为: Admin@123456 / User@123456</text>
     </view>
   </view>
 </template>
@@ -42,6 +50,19 @@ const form = reactive({
   password: "Admin@123456"
 });
 
+function fillAccount(type: "admin" | "user") {
+  form.tenantCode = "platform";
+  if (type === "user") {
+    form.username = "user";
+    form.password = "User@123456";
+    uni.showToast({ title: "已填入普通用户 user", icon: "none" });
+  } else {
+    form.username = "admin";
+    form.password = "Admin@123456";
+    uni.showToast({ title: "已填入超管 admin", icon: "none" });
+  }
+}
+
 async function handleLogin() {
   if (!form.username || !form.password) {
     uni.showToast({ title: "请填写完整账号与密码", icon: "none" });
@@ -53,6 +74,9 @@ async function handleLogin() {
     uni.setStorageSync("sb_access_token", res.accessToken);
     uni.setStorageSync("sb_refresh_token", res.refreshToken);
     uni.setStorageSync("sb_tenant_id", "1");
+    if (res.currentUser) {
+      uni.setStorageSync("sb_current_user", JSON.stringify(res.currentUser));
+    }
     uni.showToast({ title: "登录成功", icon: "success" });
     setTimeout(() => {
       uni.switchTab({ url: "/pages/index/index" });
@@ -142,8 +166,38 @@ async function handleLogin() {
 }
 
 .login-footer {
-  margin-top: 30px;
+  margin-top: 24px;
   text-align: center;
+}
+
+.quick-chips {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.chip-item {
+  padding: 6px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.chip-item--admin {
+  border-color: rgba(56, 189, 248, 0.4);
+  background: rgba(56, 189, 248, 0.1);
+}
+
+.chip-item--user {
+  border-color: rgba(52, 211, 153, 0.4);
+  background: rgba(52, 211, 153, 0.1);
+}
+
+.chip-title {
+  font-size: 11px;
+  color: #e2e8f0;
 }
 
 .footer-tip {

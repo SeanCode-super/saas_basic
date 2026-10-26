@@ -95,14 +95,23 @@ async function bootstrapPortal() {
   }
 }
 
-function fillDemoAccount() {
+function fillDemoAccount(type: "admin" | "user" = "admin") {
   form.tenantCode = "platform";
-  form.username = "admin";
-  form.password = "Admin@123456";
-  if (captchaSeed.value) {
-    form.captchaCode = captchaSeed.value;
+  if (type === "user") {
+    form.username = "user";
+    form.password = "User@123456";
+    if (captchaSeed.value) {
+      form.captchaCode = captchaSeed.value;
+    }
+    ElMessage.success("已填入企业普通员工账号 (user)");
+  } else {
+    form.username = "admin";
+    form.password = "Admin@123456";
+    if (captchaSeed.value) {
+      form.captchaCode = captchaSeed.value;
+    }
+    ElMessage.success("已填入超级管理员默认凭证 (admin)");
   }
-  ElMessage.success("已自动填入超级管理员默认凭证");
 }
 
 function validateForm() {
@@ -148,7 +157,7 @@ async function handleLogin() {
       username: form.username,
       password: form.password
     });
-    const redirect = typeof route.query.redirect === "string" ? route.query.redirect : "/dashboard";
+    const redirect = typeof route.query.redirect === "string" ? route.query.redirect : "/";
     router.push(redirect);
   } catch (error: any) {
     loginError.value = error?.response?.data?.message ?? "登录失败，请检查账号、密码或验证码";
@@ -174,7 +183,7 @@ async function handleSsoLogin(channel: string) {
       tenantCode: form.tenantCode.trim() || "platform"
     });
     ElMessage.success(`${channelName} SSO 鉴权成功，正在进入工作台...`);
-    const redirect = typeof route.query.redirect === "string" ? route.query.redirect : "/dashboard";
+    const redirect = typeof route.query.redirect === "string" ? route.query.redirect : "/";
     router.push(redirect);
   } catch (err: any) {
     loginError.value = err?.response?.data?.message || err?.message || "SSO 登录失败";
@@ -353,9 +362,26 @@ onMounted(() => {
 
               <div class="login-page__security-hint">
                 <span>🔒 启用 256 位端到端加密传输 · 账号安全策略已防护</span>
-                <span class="demo-acc-hint" @click="fillDemoAccount" style="cursor: pointer;" title="点击一键填入演示凭据">
-                  演示体验默认超级管理员账号：<strong style="color: #2563eb; text-decoration: underline;">admin / Admin@123456</strong> (点击自动填入)
-                </span>
+                <div class="demo-acc-wrapper" style="margin-top: 8px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+                  <el-tag
+                    effect="plain"
+                    type="primary"
+                    style="cursor: pointer;"
+                    title="点击填入超管凭证"
+                    @click="fillDemoAccount('admin')"
+                  >
+                    👑 超管: admin / Admin@123456
+                  </el-tag>
+                  <el-tag
+                    effect="plain"
+                    type="success"
+                    style="cursor: pointer;"
+                    title="点击填入企业普通员工测试凭证"
+                    @click="fillDemoAccount('user')"
+                  >
+                    👤 普通用户: user / User@123456
+                  </el-tag>
+                </div>
               </div>
 
               <!-- 企业 SSO 快捷单点登录通道 -->

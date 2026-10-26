@@ -1,7 +1,7 @@
 import { request } from "../utils/request";
 
 export function apiLogin(payload: { tenantCode: string; username: string; password: string }) {
-  return request<{ accessToken: string; refreshToken: string; user: any }>({
+  return request<{ accessToken: string; refreshToken: string; currentUser?: any; user?: any }>({
     url: "/api/auth/login",
     method: "POST",
     data: payload
@@ -10,7 +10,7 @@ export function apiLogin(payload: { tenantCode: string; username: string; passwo
 
 export function apiGetUserInfo() {
   return request<any>({
-    url: "/api/iam/users/me",
+    url: "/api/auth/me",
     method: "GET"
   });
 }

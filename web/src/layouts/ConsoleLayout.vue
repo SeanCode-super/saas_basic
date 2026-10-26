@@ -1116,7 +1116,15 @@ onMounted(() => {
                   {{ authStore.currentUser?.nickname || authStore.currentUser?.username || "用户" }}
                 </span>
                 <span class="console-shell__user-tag">
-                  {{ authStore.currentUser?.userType === 'SUPER_ADMIN' ? '超级管理员' : '平台管理员' }}
+                  {{
+                    authStore.isSuperAdmin
+                      ? '超级管理员'
+                      : authStore.currentUser?.userType === 'TENANT_ADMIN'
+                      ? '租户管理员'
+                      : authStore.currentUser?.userType === 'TENANT_USER'
+                      ? '企业普通员工'
+                      : '普通用户'
+                  }}
                 </span>
               </div>
             </button>

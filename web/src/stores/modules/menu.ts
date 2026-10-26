@@ -188,12 +188,13 @@ function sortTree(nodes: MenuNavItem[]): MenuNavItem[] {
 
 function findFirstEntry(nodes: MenuNavItem[]): MenuNavItem | null {
   for (const node of nodes) {
-    if (node.path) {
+    if (node.children && node.children.length > 0) {
+      const child = findFirstEntry(node.children);
+      if (child) {
+        return child;
+      }
+    } else if (node.path && node.menuType !== "DIR") {
       return node;
-    }
-    const child = findFirstEntry(node.children);
-    if (child) {
-      return child;
     }
   }
   return null;

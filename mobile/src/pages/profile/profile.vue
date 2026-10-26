@@ -6,7 +6,7 @@
       <text class="user-name">{{ userName }}</text>
       <text class="user-account">账号：{{ userAccount }}</text>
       <view class="badge-row">
-        <text class="role-badge">超级管理员 · 平台管控</text>
+        <text class="role-badge">{{ userRoleLabel }}</text>
         <text class="tenant-badge">{{ currentTenantName }}</text>
       </view>
     </view>
@@ -88,12 +88,42 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import { apiGetTenants } from "../../api/tenant";
+import { apiGetUserInfo } from "../../api/auth";
 
-const userName = ref("平台管理员");
-const userAccount = ref("admin");
-const userInitial = ref("管");
+const userName = ref("体验员工 (普通用户)");
+const userAccount = ref("user");
+const userInitial = ref("普");
+const userRoleLabel = ref("企业普通员工 · 业务授权");
 const currentTenantName = ref("平台默认空间 (platform)");
 const currentTenantId = ref("1");
+
+function applyUserData(u: any) {
+  if (!u) return;
+  userName.value = u.nickname || u.username || "用户";
+  userAccount.value = u.username || "";
+  userInitial.value = (u.nickname || u.username || "用").slice(0, 1);
+  if (u.userType === "SUPER_ADMIN" || u.username === "admin" || (u.roleIds && u.roleIds.includes(1))) {
+    userRoleLabel.value = "超级管理员 · 平台管控";
+  } else if (u.userType === "TENANT_ADMIN") {
+    userRoleLabel.value = "租户管理员 · 企业中枢";
+  } else {
+    userRoleLabel.value = "企业普通员工 · 业务授权";
+  }
+}
+
+async function loadProfile() {
+  try {
+    const rawUser = uni.getStorageSync("sb_current_user");
+    if (rawUser) {
+      applyUserData(typeof rawUser === "string" ? JSON.parse(rawUser) : rawUser);
+    }
+    const remoteUser = await apiGetUserInfo();
+    if (remoteUser) {
+      applyUserData(remoteUser);
+      uni.setStorageSync("sb_current_user", JSON.stringify(remoteUser));
+    }
+  } catch {}
+}
 
 const tenantOptions = ref([
   { id: "1", name: "平台默认空间 (platform)", code: "platform" },
@@ -166,6 +196,7 @@ function handleLogout() {
 }
 
 onMounted(() => {
+  loadProfile();
   loadTenants();
 });
 </script>
