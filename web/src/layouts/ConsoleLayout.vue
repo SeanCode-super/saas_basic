@@ -1385,95 +1385,62 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-right: 1px solid var(--sb-shell-rail-border);
-  background: var(--sb-shell-rail);
-  color: var(--sb-shell-rail-text);
   box-shadow: 1px 0 3px rgb(0 0 0 / 0.02);
 
+  /* 主题 A：默认深钛金冷灰蓝 (Classic Dark Slate) */
+  --rail-bg: #0f172a;
+  --rail-border: #1e293b;
+  --rail-brand-bg: #0b1120;
+  --rail-brand-border: #1e293b;
+  --rail-text-cluster: #94a3b8;
+  --rail-text-cluster-hover: #ffffff;
+  --rail-text-cluster-active: #38bdf8;
+  --rail-text-app: #cbd5e1;
+  --rail-text-app-hover: #ffffff;
+  --rail-text-app-active: #ffffff;
+  --rail-app-bg-hover: rgba(255, 255, 255, 0.06);
+  --rail-app-bg-active: rgba(37, 99, 235, 0.25);
+  --rail-icon-color: #64748b;
+  --rail-icon-active: #38bdf8;
+  --rail-indicator: #38bdf8;
+  --rail-indicator-glow: 0 0 8px rgba(56, 189, 248, 0.6);
+  --rail-arrow-color: #64748b;
+  --rail-tree-line: #1e293b;
+  --rail-footer-bg: #0b1120;
+  --rail-footer-border: #1e293b;
+  --rail-btn-text: #94a3b8;
+  --rail-btn-border: #1e293b;
+
+  background: var(--rail-bg);
+  border-right: 1px solid var(--rail-border);
+  color: var(--rail-text-app);
+
+  /* 主题 B：极简雅白 (Unified Light Slate - 超高对比度，黑白严谨，绝对清晰) */
   &.rail-theme--light {
-    background: #ffffff;
-    border-right: 1px solid var(--sb-border-subtle, #e2e8f0);
-    color: #1e293b;
+    --rail-bg: #ffffff;
+    --rail-border: #e2e8f0;
+    --rail-brand-bg: #ffffff;
+    --rail-brand-border: #e2e8f0;
+    --rail-text-cluster: #0f172a;       /* 顶层主域大字：深邃 Slate-900，极高对比度，绝不发虚 */
+    --rail-text-cluster-hover: #2563eb; /* 悬浮科技钴蓝 */
+    --rail-text-cluster-active: #2563eb;
+    --rail-text-app: #1e293b;           /* 二级功能文字：高对比度 Slate-800，清晰锐利 */
+    --rail-text-app-hover: #0f172a;
+    --rail-text-app-active: #2563eb;    /* 激活项纯正钴蓝 */
+    --rail-app-bg-hover: #f1f5f9;       /* 雅灰悬浮背景 */
+    --rail-app-bg-active: #eff6ff;      /* 清爽浅蓝激活底色 */
+    --rail-icon-color: #475569;         /* 图标清晰易辨 */
+    --rail-icon-active: #2563eb;
+    --rail-indicator: #2563eb;
+    --rail-indicator-glow: none;
+    --rail-arrow-color: #94a3b8;
+    --rail-tree-line: #cbd5e1;          /* 细腻雅灰引导发丝线，告别黑粗线条 */
+    --rail-footer-bg: #ffffff;
+    --rail-footer-border: #e2e8f0;
+    --rail-btn-text: #334155;
+    --rail-btn-border: #e2e8f0;
+
     box-shadow: 1px 0 3px rgba(15, 23, 42, 0.03);
-
-    .console-shell__brand {
-      background: #ffffff;
-      border-bottom: 1px solid var(--sb-border-subtle, #e2e8f0);
-    }
-
-    .console-shell__cluster-title,
-    .console-shell__group-title {
-      color: #94a3b8;
-      border-bottom-color: #f1f5f9;
-    }
-
-    .console-shell__rail-app {
-      color: #475569;
-
-      &:hover {
-        background: #f1f5f9;
-        color: #0f172a;
-
-        .console-shell__rail-icon {
-          color: #2563eb;
-        }
-
-        .console-shell__rail-arrow {
-          color: #64748b;
-        }
-      }
-
-      &.is-active {
-        background: #eff6ff;
-        color: #2563eb;
-        font-weight: 600;
-
-        &::before {
-          background: #2563eb;
-          box-shadow: none;
-        }
-
-        .console-shell__rail-icon {
-          color: #2563eb;
-        }
-      }
-    }
-
-    .console-shell__submenu {
-      background: #f8fafc;
-    }
-
-    .console-shell__submenu-item {
-      color: #64748b;
-
-      &:hover {
-        background: #f1f5f9;
-        color: #0f172a;
-      }
-
-      &.is-active {
-        color: #2563eb;
-        font-weight: 600;
-      }
-    }
-
-    .console-shell__rail-footer {
-      background: #ffffff;
-      border-top: 1px solid var(--sb-border-subtle, #e2e8f0);
-    }
-
-    .console-shell__directory-trigger,
-    .console-shell__footer-layout-btn,
-    .console-shell__collapse-trigger {
-      color: #64748b;
-      border-color: #e2e8f0;
-
-      &:hover {
-        background: #f1f5f9;
-        color: #0f172a;
-        border-color: #cbd5e1;
-      }
-    }
   }
 }
 
@@ -1483,8 +1450,9 @@ onMounted(() => {
   gap: 10px;
   height: 52px;
   padding: 0 14px;
-  border-bottom: 1px solid var(--sb-shell-rail-border, #1a2236);
-  background: var(--sb-shell-rail-soft, #060913);
+  border-bottom: 1px solid var(--rail-brand-border);
+  background: var(--rail-brand-bg);
+  transition: background 150ms ease, border-color 150ms ease;
 
   &--top {
     height: 100%;
@@ -1564,11 +1532,11 @@ onMounted(() => {
 .console-shell__cluster-title {
   padding: 8px 8px 6px;
   margin-bottom: 4px;
-  border-bottom: 1px solid var(--sb-shell-rail-border, #1a2236);
-  font-size: 10.5px;
+  border-bottom: 1px solid var(--rail-tree-line);
+  font-size: 11px;
   font-weight: 700;
-  color: #64748b;
-  letter-spacing: 0.08em;
+  color: var(--rail-text-cluster);
+  letter-spacing: 0.05em;
   font-family: var(--sb-font-mono, monospace);
   text-transform: uppercase;
 }
@@ -1601,37 +1569,52 @@ onMounted(() => {
   border-radius: 6px;
   border: none;
   background: transparent;
-  color: #94a3b8;
+  color: var(--rail-text-cluster);
   font-family: inherit;
   font-size: 13px;
-  font-weight: 550;
+  font-weight: 600;
   text-align: left;
   cursor: pointer;
   transition: all 120ms ease;
 
+  .cluster-parent-icon {
+    color: var(--rail-icon-color);
+  }
+
+  .cluster-parent-title {
+    color: inherit;
+    font-size: 13px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+  }
+
+  .cluster-parent-arrow {
+    color: var(--rail-arrow-color);
+  }
+
   &:hover {
-    background: rgba(255, 255, 255, 0.06);
-    color: #ffffff;
+    background: var(--rail-app-bg-hover);
+    color: var(--rail-text-cluster-hover);
 
     .cluster-parent-icon {
-      color: #38bdf8;
+      color: var(--rail-icon-active);
     }
 
     .cluster-parent-arrow {
-      color: #cbd5e1;
+      color: var(--rail-text-cluster-hover);
     }
   }
 
   &.is-active {
-    color: #38bdf8;
+    color: var(--rail-text-cluster-active);
 
     .cluster-parent-icon {
-      color: #38bdf8;
+      color: var(--rail-icon-active);
     }
 
     .cluster-parent-title {
-      color: #ffffff;
-      font-weight: 650;
+      color: var(--rail-text-cluster-active);
+      font-weight: 700;
     }
   }
 
@@ -1639,8 +1622,8 @@ onMounted(() => {
     font-weight: 500;
 
     &.is-active {
-      background: rgba(37, 99, 235, 0.25);
-      color: #ffffff;
+      background: var(--rail-app-bg-active);
+      color: var(--rail-text-app-active);
       font-weight: 600;
 
       &::before {
@@ -1651,12 +1634,17 @@ onMounted(() => {
         bottom: 4px;
         width: 3px;
         border-radius: 0 2px 2px 0;
-        background: #38bdf8;
-        box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+        background: var(--rail-indicator);
+        box-shadow: var(--rail-indicator-glow);
       }
 
       .cluster-parent-icon {
-        color: #38bdf8;
+        color: var(--rail-icon-active);
+      }
+
+      .cluster-parent-title {
+        color: var(--rail-text-app-active);
+        font-weight: 600;
       }
     }
   }
@@ -1672,7 +1660,7 @@ onMounted(() => {
   background: transparent;
   border: none;
   box-shadow: none;
-  color: #64748b;
+  color: var(--rail-icon-color);
   font-size: 16px;
   transition: color 120ms ease;
 
@@ -1699,14 +1687,14 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #94a3b8;
+  color: var(--rail-arrow-color);
   font-size: 11px;
   margin-left: auto;
   transition: transform 160ms cubic-bezier(0.4, 0, 0.2, 1), color 120ms ease;
 
   &.is-open {
     transform: rotate(90deg);
-    color: #475569;
+    color: var(--rail-icon-active);
   }
 
   svg {
@@ -1721,7 +1709,7 @@ onMounted(() => {
   gap: 1px;
   margin: 1px 0 3px 15px;
   padding-left: 8px;
-  border-left: 1px solid var(--sb-shell-rail-border, #1a2236);
+  border-left: 1px solid var(--rail-tree-line);
 }
 
 .cluster-slide-enter-active,
@@ -1767,27 +1755,41 @@ onMounted(() => {
   padding: 0 8px;
   border-radius: 6px;
   background: transparent;
-  color: #94a3b8;
+  color: var(--rail-text-app);
   font-size: 13px;
   font-weight: 500;
   text-align: left;
 
+  .console-shell__rail-icon {
+    color: var(--rail-icon-color);
+  }
+
+  .console-shell__rail-title {
+    color: inherit;
+    font-size: 13px;
+    font-weight: inherit;
+  }
+
+  .console-shell__rail-arrow {
+    color: var(--rail-arrow-color);
+  }
+
   &:hover {
-    background: rgba(255, 255, 255, 0.06);
-    color: #ffffff;
+    background: var(--rail-app-bg-hover);
+    color: var(--rail-text-app-hover);
 
     .console-shell__rail-icon {
-      color: #38bdf8;
+      color: var(--rail-icon-active);
     }
 
     .console-shell__rail-arrow {
-      color: #cbd5e1;
+      color: var(--rail-text-app-hover);
     }
   }
 
   &.is-active {
-    background: rgba(37, 99, 235, 0.25);
-    color: #ffffff;
+    background: var(--rail-app-bg-active);
+    color: var(--rail-text-app-active);
     font-weight: 600;
 
     &::before {
@@ -1798,12 +1800,12 @@ onMounted(() => {
       bottom: 4px;
       width: 3px;
       border-radius: 0 2px 2px 0;
-      background: #38bdf8;
-      box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+      background: var(--rail-indicator);
+      box-shadow: var(--rail-indicator-glow);
     }
 
     .console-shell__rail-icon {
-      color: #38bdf8;
+      color: var(--rail-icon-active);
       background: transparent;
       border: none;
       box-shadow: none;
@@ -1811,11 +1813,11 @@ onMounted(() => {
 
     .console-shell__rail-title {
       font-weight: 600;
-      color: #ffffff;
+      color: var(--rail-text-app-active);
     }
 
     .console-shell__rail-arrow {
-      color: #38bdf8;
+      color: var(--rail-icon-active);
     }
   }
 }
@@ -1830,7 +1832,7 @@ onMounted(() => {
   background: transparent;
   border: none;
   box-shadow: none;
-  color: #64748b;
+  color: var(--rail-icon-color);
   font-size: 15px;
   transition: color 120ms ease;
 
@@ -1857,14 +1859,14 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #94a3b8;
+  color: var(--rail-arrow-color);
   font-size: 11px;
   margin-left: auto;
   transition: transform 160ms cubic-bezier(0.4, 0, 0.2, 1), color 120ms ease;
 
   &.is-open {
     transform: rotate(90deg);
-    color: #475569;
+    color: var(--rail-icon-active);
   }
 
   svg {
@@ -1878,7 +1880,7 @@ onMounted(() => {
   gap: 1px;
   margin: 1px 0 3px 15px;
   padding-left: 8px;
-  border-left: 1px solid var(--sb-shell-rail-border, #1a2236);
+  border-left: 1px solid var(--rail-tree-line);
 }
 
 .submenu-slide-enter-active,
@@ -1902,63 +1904,67 @@ onMounted(() => {
   padding: 0 8px;
   border-radius: 5px;
   background: transparent;
-  color: #94a3b8;
+  color: var(--rail-text-app);
   font-size: 12.5px;
-  font-weight: 400;
+  font-weight: 450;
   text-align: left;
   border: none;
   cursor: pointer;
   transition: all 120ms ease;
 
+  .console-shell__submenu-dot {
+    width: 4px;
+    height: 4px;
+    flex: 0 0 4px;
+    border-radius: 50%;
+    background: var(--rail-icon-color);
+    transition: all 120ms ease;
+  }
+
+  .console-shell__submenu-icon {
+    font-size: 13px;
+    width: 13px;
+    height: 13px;
+    flex: 0 0 13px;
+    color: var(--rail-icon-color);
+    transition: color 120ms ease;
+  }
+
+  .console-shell__submenu-text {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: inherit;
+  }
+
   &:hover {
-    background: rgba(255, 255, 255, 0.05);
-    color: #ffffff;
+    background: var(--rail-app-bg-hover);
+    color: var(--rail-text-app-hover);
 
     .console-shell__submenu-dot {
-      background: #cbd5e1;
+      background: var(--rail-icon-active);
+    }
+
+    .console-shell__submenu-icon {
+      color: var(--rail-icon-active);
     }
   }
 
   &.is-active {
-    background: rgba(37, 99, 235, 0.22);
-    color: #ffffff;
+    background: var(--rail-app-bg-active);
+    color: var(--rail-text-app-active);
     font-weight: 600;
 
     .console-shell__submenu-dot {
-      background: #38bdf8;
-      box-shadow: 0 0 6px rgba(56, 189, 248, 0.8);
+      background: var(--rail-indicator);
     }
 
     .console-shell__submenu-icon {
-      color: #38bdf8;
+      color: var(--rail-icon-active);
     }
   }
-}
-
-.console-shell__submenu-dot {
-  width: 4px;
-  height: 4px;
-  flex: 0 0 4px;
-  border-radius: 50%;
-  background: #475569;
-  transition: all 120ms ease;
-}
-
-.console-shell__submenu-icon {
-  font-size: 13px;
-  width: 13px;
-  height: 13px;
-  flex: 0 0 13px;
-  color: #64748b;
-  transition: color 120ms ease;
-}
-
-.console-shell__submenu-text {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .console-shell__nav-state {
@@ -1967,7 +1973,7 @@ onMounted(() => {
   justify-content: space-between;
   gap: 8px;
   padding: 8px 12px;
-  border-top: 1px solid var(--sb-shell-rail-border, #1a2236);
+  border-top: 1px solid var(--rail-footer-border);
   color: var(--sb-warning-color);
   font-size: 12px;
 }
@@ -1977,15 +1983,15 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-top: 1px solid var(--sb-shell-rail-border, #1a2236);
-  background: var(--sb-shell-rail-soft, #060913);
+  border-top: 1px solid var(--rail-footer-border);
+  background: var(--rail-footer-bg);
   padding: 0 6px;
   gap: 4px;
 }
 
 .console-shell__directory-trigger {
   min-width: 0;
-  height: 32px;
+  height: 30px;
   flex: 1;
   display: flex;
   align-items: center;
@@ -1993,16 +1999,18 @@ onMounted(() => {
   padding: 0 8px;
   border-radius: 6px;
   background: transparent;
-  color: #94a3b8;
+  color: var(--rail-btn-text);
   font-size: 12px;
   font-weight: 500;
   text-align: left;
-  border: none;
+  border: 1px solid var(--rail-btn-border);
   cursor: pointer;
+  transition: all 120ms ease;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.08);
-    color: #ffffff;
+    background: var(--rail-app-bg-hover);
+    color: var(--rail-text-app-hover);
+    border-color: var(--rail-icon-active);
   }
 }
 
@@ -2014,18 +2022,18 @@ onMounted(() => {
   gap: 5px;
   border-radius: 6px;
   background: transparent;
-  color: #94a3b8;
+  color: var(--rail-btn-text);
   font-size: 11px;
   font-weight: 500;
-  border: 1px solid #1a2236;
+  border: 1px solid var(--rail-btn-border);
   cursor: pointer;
   white-space: nowrap;
   transition: all 120ms ease;
 
   &:hover {
-    background: rgba(37, 99, 235, 0.2);
-    border-color: #38bdf8;
-    color: #ffffff;
+    background: var(--rail-app-bg-hover);
+    border-color: var(--rail-icon-active);
+    color: var(--rail-text-app-hover);
   }
 
   .footer-layout-icon {
@@ -2038,26 +2046,22 @@ onMounted(() => {
 }
 
 .console-shell__collapse-trigger {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   display: grid;
-  flex: 0 0 32px;
+  flex: 0 0 30px;
   place-items: center;
   border-radius: 6px;
-  border: none;
+  border: 1px solid var(--rail-btn-border);
   background: transparent;
-  color: #94a3b8;
+  color: var(--rail-btn-text);
   cursor: pointer;
   transition: all 120ms ease;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.08);
-    color: #ffffff;
-  }
-
-  svg {
-    width: 15px;
-    height: 15px;
+    background: var(--rail-app-bg-hover);
+    color: var(--rail-text-app-hover);
+    border-color: var(--rail-icon-active);
   }
 }
 
