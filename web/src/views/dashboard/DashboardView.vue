@@ -33,6 +33,11 @@ const users = ref<IamUserRow[]>([]);
 const deptNodeCount = ref(4);
 const operationLogs = ref<OperationLog[]>([]);
 
+const recentOperationLogs = computed(() => {
+  if (!Array.isArray(operationLogs.value)) return [];
+  return operationLogs.value.slice(0, 5);
+});
+
 const isolationLabels: Record<string, string> = {
   PLATFORM: "平台级多租户",
   SHARED_SCHEMA: "共享 Schema (行级隔离)",
@@ -161,9 +166,9 @@ async function loadDashboardData() {
       fetchIamDepartments().catch(() => []),
       fetchOperationLogs().catch(() => [])
     ]);
-    tenants.value = tenantsRes;
-    users.value = usersRes;
-    operationLogs.value = opLogsRes;
+    tenants.value = Array.isArray(tenantsRes) ? tenantsRes : [];
+    users.value = Array.isArray(usersRes) ? usersRes : [];
+    operationLogs.value = Array.isArray(opLogsRes) ? opLogsRes : ((opLogsRes as any)?.data || []);
     deptNodeCount.value = deptsRes.length || 4;
 
     // Update quota
@@ -470,7 +475,7 @@ onMounted(() => {
             </el-button>
           </div>
           <div class="ep-table-wrap">
-            <el-table :data="operationLogs.slice(0, 5)" size="default" stripe style="width: 100%;">
+            <el-table :data="recentOperationLogs" size="default" stripe style="width: 100%;">
               <el-table-column prop="occurredAt" label="操作时间" width="170">
                 <template #default="{ row }">
                   <span class="ep-text-mono">{{ row.occurredAt?.replace('T', ' ')?.substring(0, 19) }}</span>

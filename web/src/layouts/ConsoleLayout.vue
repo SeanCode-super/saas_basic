@@ -80,7 +80,7 @@ const settingsDrawerVisible = ref(false);
 const commandPaletteVisible = ref(false);
 const enableWatermark = ref(localStorage.getItem("sb_enable_watermark") === "true");
 const railTheme = ref<"dark" | "light">(
-  (localStorage.getItem("sb_rail_theme") as "dark" | "light") || "dark"
+  (localStorage.getItem("sb_rail_theme") as "dark" | "light") || "light"
 );
 
 function toggleRailTheme() {
