@@ -42,7 +42,7 @@ export const APP_TAXONOMY: Record<string, AppMeta> = {
     description: "统一处理租户注册、审批、配额、隔离升级和生命周期治理。",
     sections: {
       overview: { label: "租户总览", description: "从平台视角看租户分布、试用窗口和隔离模型。" },
-      apps: { label: "应用矩阵与订阅", description: "两层商业化授权，各应用订阅开通与试用管理。" },
+      apps: { label: "租户应用授权", description: "顶级应用权限管控，授予或回收租户应用权限；未获授权的应用在菜单管理、角色分配及导航中完全隐形。" },
       onboarding: { label: "开通治理", description: "配置注册方式、审批模式、试用期和控制台开通规则。" },
       package: { label: "套餐配额", description: "配置套餐、席位、存储与 API 限流的默认基线。" },
       isolation: { label: "隔离升级", description: "规划共享、独 Schema、独库和读写分离升级路径。" },
@@ -109,6 +109,9 @@ export const APP_TAXONOMY: Record<string, AppMeta> = {
     description: "收口数据源、HTTP 集成、Webhook 回调、凭证轮换和集成健康信号。",
     sections: {
       overview: { label: "集成总览", description: "查看集成底座的连接安全、回调策略和接入规模。" },
+      pay: { label: "聚合支付中心", description: "聚合微信支付 Native 扫码、支付宝当面付与聚合收银台沙箱体验。" },
+      message: { label: "消息与通知网关", description: "多渠道短信网关与企业微信、钉钉、飞书机器人通知调度及审计。" },
+      openapp: { label: "企业开放平台", description: "企业 Open API 应用接入、凭据托管与 HMAC-SHA256 签名鉴权网关。" },
       connection: { label: "连接治理", description: "管理超时、网络边界、检测要求和凭证加密。" },
       callback: { label: "回调策略", description: "管理签名、重试、去重和死信队列策略。" },
       health: { label: "健康检测", description: "查看连通性、凭证异常和回调健康信号。" },
@@ -189,6 +192,26 @@ export const APP_TAXONOMY: Record<string, AppMeta> = {
     description: "商品主数据、多级仓储库存出入库调度与采销订单流转履约。",
     sections: {
       erp: { label: "ERP 进销存管理", description: "物料清单、仓储调度与采销进销存履约台账。" }
+    }
+  },
+  report: {
+    title: "套打与报表中心",
+    cluster: "runtime",
+    badge: "套打报表",
+    summary: "增值税发票、采购单、出入库单与物流面单高精度套打与条形码二维码打印中枢。",
+    description: "企业级多格式单据高精度预览、国家税务总局防伪印章、条形码生成与一键真实打印。",
+    sections: {
+      print: { label: "单据套打预览", description: "发票与单据高精度套打、发票防伪章与真实打印。" }
+    }
+  },
+  report_print: {
+    title: "套打与报表中心",
+    cluster: "runtime",
+    badge: "套打报表",
+    summary: "增值税发票、采购单、出入库单与物流面单高精度套打与条形码二维码打印中枢。",
+    description: "企业级多格式单据高精度预览、国家税务总局防伪印章、条形码生成与一键真实打印。",
+    sections: {
+      print: { label: "单据套打预览", description: "发票与单据高精度套打、发票防伪章与真实打印。" }
     }
   }
 };

@@ -2,13 +2,17 @@
 import { computed, nextTick, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import {
+  Bell,
   Briefcase,
   Cpu,
+  CreditCard,
   DataBoard,
   Document,
+  Grid,
   Key,
   Monitor,
   Operation,
+  Printer,
   Search,
   Setting,
   SwitchButton,
@@ -100,6 +104,38 @@ const allCommands: CommandItem[] = [
     subtitle: "流程定义、节点拖拽设计器、待办与审批历史",
     icon: Operation,
     action: () => router.push("/workflow")
+  },
+  {
+    id: "app-print",
+    category: "APPS",
+    title: "单据套打与报表中心 (Print)",
+    subtitle: "增值税发票、采购单、物流面单套打，防伪印章与一键打印",
+    icon: Printer,
+    action: () => router.push("/print")
+  },
+  {
+    id: "app-pay",
+    category: "APPS",
+    title: "统一聚合支付中台 (Pay Center)",
+    subtitle: "微信支付 Native 扫码、支付宝当面付与聚合收银台全景沙箱体验",
+    icon: CreditCard,
+    action: () => router.push("/integration/pay")
+  },
+  {
+    id: "app-message",
+    category: "APPS",
+    title: "多渠道消息与通知网关 (Notify)",
+    subtitle: "企业微信、钉钉、飞书机器人群推送，短信与邮件统一调度及审计",
+    icon: Bell,
+    action: () => router.push("/integration/message")
+  },
+  {
+    id: "app-tenant-apps",
+    category: "PLATFORM",
+    title: "租户应用授权体系 (App Entitlements)",
+    subtitle: "顶级管理员控制租户应用权限，未授权应用在系统内完全隐形",
+    icon: Grid,
+    action: () => router.push("/tenant/apps")
   },
   // 平台底座
   {

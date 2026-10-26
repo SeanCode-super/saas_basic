@@ -65,7 +65,7 @@ const railCollapsed = ref(false);
 
 // Dual-Nav (Top-Side Mix) vs Classic Full Sidebar vs Top Menu Layout
 const layoutMode = ref<LayoutMode>(
-  (localStorage.getItem("sb_layout_mode") as LayoutMode) || "mix"
+  (localStorage.getItem("sb_layout_mode") as LayoutMode) || "side"
 );
 const showBreadcrumbs = ref<boolean>(
   localStorage.getItem("sb_show_breadcrumbs") !== "false"
