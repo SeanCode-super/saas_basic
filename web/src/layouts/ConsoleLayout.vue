@@ -1017,6 +1017,12 @@ onMounted(() => {
             </el-autocomplete>
           </div>
 
+          <!-- 云原生 SLA 运行状态指示器 -->
+          <div class="console-shell__sla-pill" title="全平台多租户微服务与基础设施健康：正常 (99.99% SLA)">
+            <span class="sla-dot-pulse" />
+            <span class="sla-text">99.99% SLA</span>
+          </div>
+
           <!-- 数字大屏驾驶舱快捷按钮 -->
           <el-tooltip content="企业级数字大屏驾驶舱" placement="bottom">
             <button class="console-shell__icon-btn" aria-label="数字驾驶舱" @click="openDataScreen">
@@ -1524,8 +1530,19 @@ onMounted(() => {
 
     &.is-active {
       background: #eff6ff;
-      color: #2563eb;
+      color: #1d4ed8;
       font-weight: 600;
+
+      &::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 4px;
+        bottom: 4px;
+        width: 3px;
+        border-radius: 0 2px 2px 0;
+        background: #2563eb;
+      }
 
       .cluster-parent-icon {
         color: #2563eb;
@@ -1659,8 +1676,19 @@ onMounted(() => {
 
   &.is-active {
     background: #eff6ff;
-    color: #2563eb;
+    color: #1d4ed8;
     font-weight: 600;
+
+    &::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 4px;
+      bottom: 4px;
+      width: 3px;
+      border-radius: 0 2px 2px 0;
+      background: #2563eb;
+    }
 
     .console-shell__rail-icon {
       color: #2563eb;
@@ -1671,7 +1699,7 @@ onMounted(() => {
 
     .console-shell__rail-title {
       font-weight: 600;
-      color: #2563eb;
+      color: #1d4ed8;
     }
 
     .console-shell__rail-arrow {
@@ -2417,6 +2445,43 @@ onMounted(() => {
 
 .console-shell__locale {
   width: 84px;
+}
+
+.console-shell__sla-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 9px;
+  border-radius: var(--sb-radius-xs, 4px);
+  background: rgba(5, 150, 105, 0.08);
+  border: 1px solid rgba(5, 150, 105, 0.25);
+  color: #047857;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--sb-font-mono, monospace);
+  user-select: none;
+  white-space: nowrap;
+
+  .sla-dot-pulse {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+    animation: slaPulse 2.4s infinite ease-in-out;
+  }
+}
+
+@keyframes slaPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.85);
+  }
 }
 
 .console-shell__ai-btn {

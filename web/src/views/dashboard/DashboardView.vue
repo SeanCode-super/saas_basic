@@ -780,6 +780,13 @@ onMounted(() => {
   border: 1px solid var(--sb-border-color);
   border-radius: var(--sb-radius-md);
   box-shadow: var(--sb-shadow-xs);
+  transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+
+  &:hover {
+    border-color: #93c5fd;
+    box-shadow: 0 4px 12px -2px rgba(37, 99, 235, 0.1);
+    transform: translateY(-1px);
+  }
 }
 
 .ep-stat-card__head {
@@ -895,12 +902,12 @@ onMounted(() => {
   transition: all 0.2s ease;
 
   &:hover {
-    border-color: #0284c7;
-    background: #f0f9ff;
+    border-color: var(--sb-primary-color, #2563eb);
+    background: #eff6ff;
     transform: translateY(-1px);
 
     .ep-workspace-item__arrow {
-      color: #0284c7;
+      color: var(--sb-primary-color, #2563eb);
       transform: translateX(3px);
     }
   }
@@ -914,8 +921,8 @@ onMounted(() => {
   height: 36px;
   border-radius: var(--sb-radius-sm);
   background: #fff;
-  border: 1px solid var(--sb-border-color);
-  color: #0284c7;
+  border: 1px solid var(--sb-border-subtle);
+  color: var(--sb-primary-color, #2563eb);
   flex-shrink: 0;
 }
 

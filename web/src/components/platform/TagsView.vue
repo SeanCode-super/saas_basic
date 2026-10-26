@@ -191,11 +191,11 @@ function closeAllTags() {
 
 <style scoped>
 .tags-view-container {
-  height: 38px;
+  height: 36px;
   width: 100%;
-  background: #fff;
-  border-bottom: 1px solid var(--sb-border-color, #cbd5e1);
-  box-shadow: 0 1px 3px rgb(15 23 42 / 0.04);
+  background: #ffffff;
+  border-bottom: 1px solid var(--sb-border-subtle, #e2e8f0);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
   display: flex;
   align-items: center;
   position: relative;
@@ -206,8 +206,8 @@ function closeAllTags() {
 .tags-view-scroll {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 16px;
+  gap: 5px;
+  padding: 0 14px;
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -221,37 +221,38 @@ function closeAllTags() {
   align-items: center;
   height: 26px;
   line-height: 26px;
-  border: 1px solid var(--sb-border-color, #cbd5e1);
-  color: #334155;
-  background: #fff;
-  padding: 0 10px;
+  border: 1px solid var(--sb-border-subtle, #e2e8f0);
+  color: #475569;
+  background: #ffffff;
+  padding: 0 9px;
   font-size: 12px;
   font-weight: 500;
   border-radius: 4px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.12s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
   gap: 6px;
-}
 
-.tags-view-item:hover {
-  color: #2563eb;
-  background: #eff6ff;
-  border-color: #93c5fd;
-}
+  &:hover {
+    color: var(--sb-text-primary, #090d16);
+    background: #f8fafc;
+    border-color: var(--sb-border-color, #cbd5e1);
+  }
 
-.tags-view-item.is-active {
-  background: #eff6ff;
-  color: #1d4ed8;
-  border-color: #2563eb;
-  font-weight: 600;
+  &.is-active {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-color: rgba(37, 99, 235, 0.35);
+    font-weight: 600;
+  }
 }
 
 .tag-dot {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
 }
 
 .tag-title {
@@ -263,15 +264,15 @@ function closeAllTags() {
 
 .tag-close-btn {
   font-size: 11px;
-  border-radius: 50%;
+  border-radius: 4px;
   padding: 1px;
-  color: #64748b;
-  transition: all 0.15s;
-}
+  color: #94a3b8;
+  transition: all 0.12s ease;
 
-.tag-close-btn:hover {
-  background: #dbeafe;
-  color: #1d4ed8;
+  &:hover {
+    background: #dbeafe;
+    color: #1d4ed8;
+  }
 }
 
 .context-menu {

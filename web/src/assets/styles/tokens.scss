@@ -4,67 +4,89 @@
     "Microsoft YaHei", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
   --sb-font-mono: ui-monospace, "SFMono-Regular", "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
 
-  /* Primary Enterprise Palette (Refined Royal Blue) */
+  /* ==========================================================================
+     天枢极核设计系统 (Tianshu Core Design System - TCDS v2.0)
+     色彩哲学：钛金冷灰基底 (严谨工业) + 科技钴蓝聚焦 (数字中枢) + 极光青微光 (高阶状态)
+     ========================================================================== */
+
+  /* 核心主色阶 (Tianshu Polaris Cobalt) */
   --sb-primary-color: #2563eb;
   --sb-primary-hover: #1d4ed8;
   --sb-primary-strong: #1e40af;
-  --sb-primary-weak: rgb(37 99 235 / 0.08);
-  --sb-primary-border: rgb(37 99 235 / 0.25);
+  --sb-primary-weak: rgba(37, 99, 235, 0.08);
+  --sb-primary-border: rgba(37, 99, 235, 0.25);
+  --sb-primary-glow: rgba(37, 99, 235, 0.16);
 
-  /* Accents & Statuses */
+  /* 辅色与极光青微光 (Aurora Cyan & Indigo) */
   --sb-accent-color: #0284c7;
-  --sb-accent-weak: rgb(2 132 199 / 0.08);
+  --sb-accent-weak: rgba(2, 132, 199, 0.08);
+  --sb-accent-border: rgba(2, 132, 199, 0.25);
+  --sb-cyan-accent: #0ea5e9;
+
+  /* 状态指标色 (严格收敛，拒绝刺眼七彩) */
   --sb-success-color: #059669;
-  --sb-success-weak: rgb(5 150 105 / 0.08);
+  --sb-success-weak: rgba(5, 150, 105, 0.08);
+  --sb-success-border: rgba(5, 150, 105, 0.25);
+
   --sb-warning-color: #d97706;
-  --sb-warning-weak: rgb(217 119 6 / 0.08);
+  --sb-warning-weak: rgba(217, 119, 6, 0.08);
+  --sb-warning-border: rgba(217, 119, 6, 0.25);
+
   --sb-danger-color: #dc2626;
-  --sb-danger-weak: rgb(220 38 38 / 0.08);
+  --sb-danger-weak: rgba(220, 38, 38, 0.08);
+  --sb-danger-border: rgba(220, 38, 38, 0.25);
 
-  /* Neutral Slate Texts - Production High-Contrast Scale */
-  --sb-text-primary: #090d16;
-  --sb-text-secondary: #1e293b;
-  --sb-text-tertiary: #475569;
-  --sb-text-disabled: #64748b;
+  --sb-info-color: #475569;
+  --sb-info-weak: rgba(71, 85, 105, 0.08);
+  --sb-info-border: rgba(71, 85, 105, 0.22);
 
-  /* Architectural Borders - Crisp Contrast */
-  --sb-border-color: #cbd5e1;
-  --sb-border-strong: #94a3b8;
-  --sb-border-subtle: #e2e8f0;
+  /* 文字对比标尺 (Slate Obsidian Contrast Scale) */
+  --sb-text-primary: #090d16;    /* 核心大标题与关键数值，深邃沉稳 */
+  --sb-text-secondary: #1e293b;  /* 主正文字符，清晰易读 */
+  --sb-text-tertiary: #475569;   /* 次要辅助信息与表头 */
+  --sb-text-muted: #64748b;      /* 占位符、修饰词与不可操作元素 */
+  --sb-text-disabled: #94a3b8;
 
-  /* Surfaces & Canvas - Slate Ground for High Card Pop */
-  --sb-surface-color: #fff;
-  --sb-surface-strong: #fff;
-  --sb-surface-soft: #f8fafc;
-  --sb-surface-contrast: #f1f5f9;
-  --sb-page-shell: #f1f5f9;
+  /* 精密发丝微边框 (Hairline Structural Borders) */
+  --sb-border-color: #cbd5e1;    /* 标准结构微边框 (Slate-300) */
+  --sb-border-subtle: #e2e8f0;   /* 浅层内容分割线 (Slate-200) */
+  --sb-border-strong: #94a3b8;   /* 悬浮/聚焦外沿增强线 */
+
+  /* 底座画布与表面层级 (Titanium Slate Ground) */
+  --sb-page-shell: #f1f5f9;       /* 全局冷灰画布底板 (Slate-100) */
   --sb-page-shell-strong: #e2e8f0;
+  --sb-surface-color: #ffffff;    /* 核心操作卡片与表格白底 */
+  --sb-surface-strong: #ffffff;
+  --sb-surface-soft: #f8fafc;     /* 表头与次级面板冷白背景 */
+  --sb-surface-contrast: #f1f5f9;
 
-  /* Modern Clean Light Sidebar Navigation */
-  --sb-shell-rail: #fff;
+  /* 导航导轨专用 (Console Rail) */
+  --sb-shell-rail: #ffffff;
   --sb-shell-rail-soft: #f8fafc;
-  --sb-shell-rail-border: #cbd5e1;
-  --sb-shell-rail-text: #090d16;
-  --sb-shell-rail-muted: #475569;
+  --sb-shell-rail-border: #e2e8f0;
+  --sb-shell-rail-text: #1e293b;
+  --sb-shell-rail-muted: #64748b;
   --sb-shell-rail-hover: #f1f5f9;
   --sb-shell-rail-active: #eff6ff;
+  --sb-shell-rail-indicator: #2563eb;
   --sb-shell-main: #f1f5f9;
   --sb-panel-muted: #f8fafc;
 
-  /* Elevation Shadows (Layered Ambient + Contact Occlusion) */
-  --sb-shadow-xs: 0 1px 2px 0 rgb(15 23 42 / 0.05);
-  --sb-shadow-sm: 0 1px 3px 0 rgb(15 23 42 / 0.08), 0 1px 2px -1px rgb(15 23 42 / 0.08);
-  --sb-shadow-md: 0 4px 6px -1px rgb(15 23 42 / 0.09), 0 2px 4px -2px rgb(15 23 42 / 0.06);
-  --sb-shadow-lg: 0 10px 15px -3px rgb(15 23 42 / 0.10), 0 4px 6px -4px rgb(15 23 42 / 0.06);
+  /* 严谨工程微阴影 (触点微投影，拒绝大面积糊状阴影) */
+  --sb-shadow-xs: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
+  --sb-shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.07), 0 1px 2px -1px rgba(15, 23, 42, 0.06);
+  --sb-shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.05);
+  --sb-shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.10), 0 4px 6px -4px rgba(15, 23, 42, 0.06);
 
-  /* Radius Scales */
+  /* 几何导角体系 (严谨工业导角，告别夸张大圆角) */
+  --sb-radius-xs: 4px;
   --sb-radius-sm: 6px;
-  --sb-radius-md: 8px;
-  --sb-radius-lg: 10px;
-  --sb-radius-xl: 14px;
-  --sb-content-max: 1600px;
+  --sb-radius-md: 6px;
+  --sb-radius-lg: 8px;
+  --sb-radius-xl: 10px;
+  --sb-content-max: 1680px;
 
-  /* Element Plus Component Design System Overrides */
+  /* Element Plus 全局组件设计系统覆写 */
   --el-color-primary: #2563eb;
   --el-color-primary-light-3: #60a5fa;
   --el-color-primary-light-5: #93c5fd;
@@ -72,32 +94,42 @@
   --el-color-primary-light-8: #dbeafe;
   --el-color-primary-light-9: #eff6ff;
   --el-color-primary-dark-2: #1e40af;
+
+  --el-color-success: #059669;
+  --el-color-warning: #d97706;
+  --el-color-danger: #dc2626;
+  --el-color-info: #475569;
+
   --el-text-color-primary: #090d16;
   --el-text-color-regular: #1e293b;
   --el-text-color-secondary: #475569;
   --el-text-color-placeholder: #94a3b8;
   --el-text-color-disabled: #94a3b8;
+
   --el-border-color: #cbd5e1;
   --el-border-color-light: #e2e8f0;
   --el-border-color-lighter: #f1f5f9;
   --el-border-color-extra-light: #f8fafc;
   --el-border-color-dark: #94a3b8;
   --el-border-color-darker: #64748b;
+
   --el-fill-color: #f1f5f9;
   --el-fill-color-light: #f8fafc;
-  --el-fill-color-lighter: #fff;
+  --el-fill-color-lighter: #ffffff;
   --el-fill-color-extra-light: #fafafa;
   --el-fill-color-dark: #e2e8f0;
   --el-fill-color-darker: #cbd5e1;
-  --el-fill-color-blank: #fff;
-  --el-bg-color: #fff;
+  --el-fill-color-blank: #ffffff;
+
+  --el-bg-color: #ffffff;
   --el-bg-color-page: #f1f5f9;
-  --el-bg-color-overlay: #fff;
+  --el-bg-color-overlay: #ffffff;
+
+  /* 表格系统深度调优 */
   --el-table-header-bg-color: #f8fafc;
   --el-table-header-text-color: #090d16;
   --el-table-text-color: #1e293b;
   --el-table-border-color: #e2e8f0;
   --el-table-row-hover-bg-color: #eff6ff;
-  --el-card-border-color: #cbd5e1;
-  --el-card-bg-color: #fff;
+  --el-table-current-row-bg-color: #eff6ff;
 }

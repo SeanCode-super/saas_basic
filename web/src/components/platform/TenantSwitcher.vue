@@ -31,11 +31,28 @@ const { currentTenant, tenantOptions } = storeToRefs(tenantStore);
 .tenant-switcher {
   flex: 0 0 160px;
   width: 160px;
+
+  :deep(.el-select__wrapper) {
+    height: 30px;
+    padding: 0 10px;
+    font-size: 12.5px;
+    font-weight: 600;
+    background: #f8fafc;
+    border-radius: var(--sb-radius-sm, 6px);
+    box-shadow: 0 0 0 1px var(--sb-border-subtle, #e2e8f0) inset;
+    transition: all 0.12s ease;
+
+    &:hover {
+      background: #ffffff;
+      box-shadow: 0 0 0 1px var(--sb-border-color, #cbd5e1) inset;
+    }
+  }
 }
 
 .tenant-switcher__icon {
-  color: var(--sb-primary-color);
-  font-size: 14px;
+  color: var(--sb-primary-color, #2563eb);
+  font-size: 13px;
+  margin-right: 2px;
 }
 
 @media (max-width: 900px) {

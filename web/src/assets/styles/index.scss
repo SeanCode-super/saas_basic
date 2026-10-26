@@ -18,6 +18,7 @@ a {
 h1, h2, h3, h4, h5, h6 {
   color: var(--sb-text-primary);
   font-weight: 700;
+  letter-spacing: -0.015em;
 }
 
 .el-button,
@@ -27,33 +28,87 @@ h1, h2, h3, h4, h5, h6 {
   font-family: var(--sb-font-family);
 }
 
-/* Card Elevation & Crisp Border */
-.el-card {
+/* ==========================================================================
+   1. 全局轻量工程级滚动条 (Slim Slate Scrollbars)
+   ========================================================================== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--sb-border-color);
+  border-radius: 9999px;
+  transition: background 0.15s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--sb-border-strong);
+}
+
+/* ==========================================================================
+   2. 卡片与结构容器体系 (Card & Command Surfaces)
+   ========================================================================== */
+.el-card,
+.base-card,
+.ep-card {
   border: 1px solid var(--sb-border-color);
   border-radius: var(--sb-radius-md);
   background: var(--sb-surface-strong);
   box-shadow: var(--sb-shadow-xs);
-  transition: box-shadow 160ms ease, border-color 160ms ease;
+  transition: box-shadow 160ms cubic-bezier(0.16, 1, 0.3, 1), border-color 160ms ease;
 
-  .el-card__header {
-    padding: 14px 18px;
+  .el-card__header,
+  .ep-card__header {
+    padding: 12px 18px;
     border-bottom: 1px solid var(--sb-border-subtle);
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 650;
     color: var(--sb-text-primary);
+    background: var(--sb-surface-soft);
+  }
+
+  .el-card__body {
+    padding: 16px 18px;
   }
 }
 
-/* Button Elevation & Contrast */
-.el-button {
+/* 单层指挥台工具条 (Command Surface / Filter Bar) */
+.command-surface,
+.filter-toolbar,
+.table-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: #ffffff;
+  border: 1px solid var(--sb-border-color);
   border-radius: var(--sb-radius-md);
-  font-weight: 500;
-  transition: all 150ms ease;
+  margin-bottom: 14px;
+}
 
+/* ==========================================================================
+   3. 工业级高对比度操作按钮 (Engineered Buttons)
+   ========================================================================== */
+.el-button {
+  border-radius: var(--sb-radius-sm);
+  font-weight: 550;
+  font-size: 13px;
+  height: 32px;
+  padding: 0 14px;
+  transition: all 120ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* 默认次级按钮 (白底微灰边框) */
   &:not(.el-button--primary, .el-button--success, .el-button--warning, .el-button--danger, .is-link, .is-text) {
     border: 1px solid var(--sb-border-color);
-    background: #fff;
+    background: #ffffff;
     color: var(--sb-text-secondary);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 
     &:hover {
       background: #f8fafc;
@@ -66,8 +121,15 @@ h1, h2, h3, h4, h5, h6 {
       border-color: var(--sb-text-tertiary);
     }
   }
+
+  &--small {
+    height: 28px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
 }
 
+/* 主操作按钮 (天枢钴蓝科技按钮) */
 .el-button--primary {
   --el-button-bg-color: var(--sb-primary-color);
   --el-button-border-color: var(--sb-primary-color);
@@ -76,15 +138,21 @@ h1, h2, h3, h4, h5, h6 {
   --el-button-active-bg-color: var(--sb-primary-strong);
   --el-button-active-border-color: var(--sb-primary-strong);
 
-  box-shadow: 0 1px 2px rgb(37 99 235 / 0.2);
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.25);
+
+  &:hover {
+    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);
+  }
 }
 
-/* Form Controls with Crisp Slate-300 Outline and Focus Ring */
+/* ==========================================================================
+   4. 表单输入与选择控件 (Form Inputs & Focus Halo)
+   ========================================================================== */
 .el-input__wrapper,
 .el-select__wrapper,
 .el-textarea__inner {
-  border-radius: var(--sb-radius-md);
-  background: #fff;
+  border-radius: var(--sb-radius-sm);
+  background: #ffffff;
   box-shadow: 0 0 0 1px var(--sb-border-color) inset;
   transition: all 140ms ease;
 
@@ -94,37 +162,53 @@ h1, h2, h3, h4, h5, h6 {
 
   &.is-focus,
   &:focus-within {
-    box-shadow: 0 0 0 1.5px var(--sb-primary-color) inset, 0 0 0 3.5px rgb(37 99 235 / 0.15) !important;
+    box-shadow: 0 0 0 1.5px var(--sb-primary-color) inset, 0 0 0 3.5px rgba(37, 99, 235, 0.15) !important;
   }
 }
 
-/* Production-Grade High-Contrast Table Styling */
+.el-input__inner {
+  font-size: 13px;
+  color: var(--sb-text-secondary);
+}
+
+/* ==========================================================================
+   5. 高密度工程数据表格 (High-Density Tabular Engine)
+   ========================================================================== */
 .el-table {
   --el-table-border: 1px solid var(--sb-border-subtle);
 
   border: 1px solid var(--sb-border-color);
   border-radius: var(--sb-radius-md);
-  background: #fff;
+  background: #ffffff;
   color: var(--sb-text-secondary);
   font-size: 13px;
 
+  /* 表头：工业冷灰底色 + 粗体深色文字 + 坚固下分割线 */
   th.el-table__cell {
     background-color: #f8fafc !important;
     color: var(--sb-text-primary) !important;
     font-weight: 650 !important;
-    font-size: 13px !important;
+    font-size: 12.5px !important;
     border-bottom: 1.5px solid var(--sb-border-color) !important;
-    padding: 10px 0;
+    padding: 9px 0 !important;
+    letter-spacing: -0.01em;
   }
 
+  /* 行级单元格：紧凑高度，保证高信息密度 */
   td.el-table__cell {
     border-bottom: 1px solid var(--sb-border-subtle) !important;
-    padding: 10px 0;
+    padding: 8px 0 !important;
     color: var(--sb-text-secondary);
   }
 
+  /* 悬浮行：柔和科技钴蓝微光底色 */
   .el-table__row:hover > td.el-table__cell {
     background-color: #eff6ff !important;
+  }
+
+  /* 斑马条纹交替微底色 */
+  &--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
+    background-color: #fbfcfd;
   }
 
   .el-table__inner-wrapper::before {
@@ -132,15 +216,20 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
-/* Global Tag & Badge Centering & High Contrast */
+/* ==========================================================================
+   6. 状态徽标与标签系统 (Status Pills & Tags)
+   ========================================================================== */
 .el-tag {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   vertical-align: middle !important;
   line-height: 1 !important;
-  font-weight: 500 !important;
+  font-weight: 550 !important;
+  font-size: 11.5px !important;
   border-radius: 4px !important;
+  padding: 0 7px !important;
+  height: 22px !important;
   box-sizing: border-box !important;
 
   .el-tag__content {
@@ -150,52 +239,156 @@ h1, h2, h3, h4, h5, h6 {
     line-height: 1 !important;
     white-space: nowrap !important;
   }
+
+  /* 细边框与柔和透明度底色 */
+  &--primary {
+    background: rgba(37, 99, 235, 0.08) !important;
+    border-color: rgba(37, 99, 235, 0.28) !important;
+    color: #1d4ed8 !important;
+  }
+  &--success {
+    background: rgba(5, 150, 105, 0.08) !important;
+    border-color: rgba(5, 150, 105, 0.28) !important;
+    color: #047857 !important;
+  }
+  &--warning {
+    background: rgba(217, 119, 6, 0.08) !important;
+    border-color: rgba(217, 119, 6, 0.28) !important;
+    color: #b45309 !important;
+  }
+  &--danger {
+    background: rgba(220, 38, 38, 0.08) !important;
+    border-color: rgba(220, 38, 38, 0.28) !important;
+    color: #b91c1c !important;
+  }
+  &--info {
+    background: rgba(71, 85, 105, 0.08) !important;
+    border-color: rgba(71, 85, 105, 0.25) !important;
+    color: #334155 !important;
+  }
 }
 
-/* Descriptions Border & Contrast */
-.el-descriptions {
-  --el-descriptions-table-border: 1px solid var(--sb-border-color);
-
-  .el-descriptions__label {
-    background: #f8fafc !important;
-    color: var(--sb-text-primary) !important;
-    font-weight: 600 !important;
-  }
-
-  .el-descriptions__content {
-    color: var(--sb-text-secondary) !important;
-  }
-}
-
-/* Dialog & Drawer Depth */
+/* ==========================================================================
+   7. 对话框与抽屉 (天枢标志性 Top Accent Bar)
+   ========================================================================== */
 .el-dialog {
   border-radius: var(--sb-radius-lg);
   border: 1px solid var(--sb-border-color);
   box-shadow: var(--sb-shadow-lg);
+  overflow: hidden;
+  position: relative;
+
+  /* 天枢标志性顶部 2.5px 极核钴蓝强调线 */
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2.5px;
+    background: linear-gradient(90deg, #1d4ed8 0%, #2563eb 50%, #0ea5e9 100%);
+    z-index: 10;
+  }
 
   .el-dialog__header {
-    padding: 16px 20px;
+    padding: 16px 20px 14px;
     margin-right: 0;
     border-bottom: 1px solid var(--sb-border-subtle);
+    background: #ffffff;
 
     .el-dialog__title {
-      font-size: 16px;
+      font-size: 15.5px;
       font-weight: 700;
       color: var(--sb-text-primary);
+      letter-spacing: -0.01em;
     }
+  }
+
+  .el-dialog__body {
+    padding: 20px;
   }
 
   .el-dialog__footer {
     padding: 12px 20px;
     border-top: 1px solid var(--sb-border-subtle);
+    background: #f8fafc;
   }
 }
 
-/* Enterprise Tabular Numerals for metrics, dates, and tables */
+.el-drawer {
+  .el-drawer__header {
+    padding: 16px 20px 14px;
+    margin-bottom: 0;
+    border-bottom: 1px solid var(--sb-border-subtle);
+    color: var(--sb-text-primary);
+    font-weight: 700;
+  }
+
+  .el-drawer__footer {
+    padding: 12px 20px;
+    border-top: 1px solid var(--sb-border-subtle);
+    background: #f8fafc;
+  }
+}
+
+/* ==========================================================================
+   8. 选项卡体系 (Tabs with Precision Underline)
+   ========================================================================== */
+.el-tabs__nav-wrap::after {
+  height: 1px !important;
+  background-color: var(--sb-border-color) !important;
+}
+
+.el-tabs__item {
+  font-size: 13.5px !important;
+  font-weight: 550 !important;
+  color: var(--sb-text-tertiary) !important;
+  transition: color 120ms ease;
+
+  &:hover {
+    color: var(--sb-text-primary) !important;
+  }
+
+  &.is-active {
+    color: var(--sb-primary-color) !important;
+    font-weight: 650 !important;
+  }
+}
+
+.el-tabs__active-bar {
+  height: 2px !important;
+  background-color: var(--sb-primary-color) !important;
+  border-radius: 2px;
+}
+
+/* ==========================================================================
+   9. 分页控件 (Precision Pagination)
+   ========================================================================== */
+.el-pagination {
+  margin-top: 14px;
+  justify-content: flex-end;
+
+  .el-pager li {
+    border-radius: var(--sb-radius-xs);
+    font-size: 12.5px;
+    font-weight: 550;
+    font-family: var(--sb-font-mono);
+
+    &.is-active {
+      background-color: var(--sb-primary-color) !important;
+      color: #ffffff !important;
+    }
+  }
+}
+
+/* ==========================================================================
+   10. 等宽排版与微调 (Tabular Numerals)
+   ========================================================================== */
 .tabular-nums,
 .el-table,
 .dashboard__stat strong,
-.pro-stat-card strong {
+.pro-stat-card strong,
+.ep-stat-card__value {
   font-variant-numeric: tabular-nums;
 }
 
@@ -204,7 +397,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 ::selection {
-  background: rgb(37 99 235 / 0.16);
+  background: rgba(37, 99, 235, 0.16);
 }
 
 *,
@@ -212,5 +405,3 @@ h1, h2, h3, h4, h5, h6 {
 *::after {
   letter-spacing: 0;
 }
-
-

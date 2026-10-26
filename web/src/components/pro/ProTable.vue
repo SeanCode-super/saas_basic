@@ -223,9 +223,9 @@ function exportRows(rows: object[], mode: "selected" | "current") {
   gap: 16px;
   margin: 12px 14px;
   padding: 9px 12px;
-  border: 1px solid rgb(30 94 255 / 0.12);
-  border-radius: 5px;
-  background: #f5f8ff;
+  border: 1px solid rgba(37, 99, 235, 0.25);
+  border-radius: var(--sb-radius-sm, 6px);
+  background: #eff6ff;
 }
 
 .pro-table__bulkcopy {
