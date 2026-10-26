@@ -22,7 +22,9 @@ import {
   User,
   Promotion,
   DocumentChecked,
-  Switch as SwitchIcon
+  Switch as SwitchIcon,
+  Sunny,
+  Moon
 } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
 import { useRoute, useRouter } from "vue-router";
@@ -77,6 +79,15 @@ const sidebarAccordion = ref<boolean>(
 const settingsDrawerVisible = ref(false);
 const commandPaletteVisible = ref(false);
 const enableWatermark = ref(localStorage.getItem("sb_enable_watermark") === "true");
+const railTheme = ref<"dark" | "light">(
+  (localStorage.getItem("sb_rail_theme") as "dark" | "light") || "dark"
+);
+
+function toggleRailTheme() {
+  railTheme.value = railTheme.value === "dark" ? "light" : "dark";
+  localStorage.setItem("sb_rail_theme", railTheme.value);
+  ElMessage.success(`已切换侧栏风格为「${railTheme.value === "dark" ? "深钛金灰" : "极简雅白"}」`);
+}
 
 const watermarkContent = computed(() => {
   if (!enableWatermark.value) return "";
@@ -507,14 +518,14 @@ onMounted(() => {
 <template>
   <div class="console-shell" :class="{ 'console-shell--collapsed': railCollapsed, [`layout--${layoutMode}`]: true }">
     <!-- 左侧主导航（仅在非顶部模式时显示） -->
-    <aside v-if="layoutMode !== 'top'" class="console-shell__rail">
+    <aside v-if="layoutMode !== 'top'" class="console-shell__rail" :class="`rail-theme--${railTheme}`">
       <div class="console-shell__brand">
         <TianshuLogo
           :size="26"
           :show-text="!railCollapsed"
           show-badge
           badge-text="PaaS"
-          theme="dark"
+          :theme="railTheme"
         />
       </div>
 
@@ -680,6 +691,17 @@ onMounted(() => {
           >
             <el-icon class="footer-layout-icon"><SwitchIcon /></el-icon>
             <span class="footer-layout-text">{{ layoutMode === 'side' ? '顶层在左' : '顶层置顶' }}</span>
+          </button>
+        </el-tooltip>
+
+        <!-- 侧栏风格切换 (深钛金灰 vs 极简雅白) -->
+        <el-tooltip :content="railTheme === 'dark' ? '点击切换为「极简雅白」侧栏' : '点击切换为「深钛金灰」侧栏'" placement="top">
+          <button
+            class="console-shell__footer-layout-btn"
+            @click="toggleRailTheme"
+          >
+            <el-icon class="footer-layout-icon"><component :is="railTheme === 'dark' ? Sunny : Moon" /></el-icon>
+            <span class="footer-layout-text">{{ railTheme === 'dark' ? '雅白' : '深灰' }}</span>
           </button>
         </el-tooltip>
 
@@ -1367,6 +1389,92 @@ onMounted(() => {
   background: var(--sb-shell-rail);
   color: var(--sb-shell-rail-text);
   box-shadow: 1px 0 3px rgb(0 0 0 / 0.02);
+
+  &.rail-theme--light {
+    background: #ffffff;
+    border-right: 1px solid var(--sb-border-subtle, #e2e8f0);
+    color: #1e293b;
+    box-shadow: 1px 0 3px rgba(15, 23, 42, 0.03);
+
+    .console-shell__brand {
+      background: #ffffff;
+      border-bottom: 1px solid var(--sb-border-subtle, #e2e8f0);
+    }
+
+    .console-shell__cluster-title,
+    .console-shell__group-title {
+      color: #94a3b8;
+      border-bottom-color: #f1f5f9;
+    }
+
+    .console-shell__rail-app {
+      color: #475569;
+
+      &:hover {
+        background: #f1f5f9;
+        color: #0f172a;
+
+        .console-shell__rail-icon {
+          color: #2563eb;
+        }
+
+        .console-shell__rail-arrow {
+          color: #64748b;
+        }
+      }
+
+      &.is-active {
+        background: #eff6ff;
+        color: #2563eb;
+        font-weight: 600;
+
+        &::before {
+          background: #2563eb;
+          box-shadow: none;
+        }
+
+        .console-shell__rail-icon {
+          color: #2563eb;
+        }
+      }
+    }
+
+    .console-shell__submenu {
+      background: #f8fafc;
+    }
+
+    .console-shell__submenu-item {
+      color: #64748b;
+
+      &:hover {
+        background: #f1f5f9;
+        color: #0f172a;
+      }
+
+      &.is-active {
+        color: #2563eb;
+        font-weight: 600;
+      }
+    }
+
+    .console-shell__rail-footer {
+      background: #ffffff;
+      border-top: 1px solid var(--sb-border-subtle, #e2e8f0);
+    }
+
+    .console-shell__directory-trigger,
+    .console-shell__footer-layout-btn,
+    .console-shell__collapse-trigger {
+      color: #64748b;
+      border-color: #e2e8f0;
+
+      &:hover {
+        background: #f1f5f9;
+        color: #0f172a;
+        border-color: #cbd5e1;
+      }
+    }
+  }
 }
 
 .console-shell__brand {

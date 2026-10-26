@@ -5,21 +5,14 @@ import {
   Check,
   CircleCheck,
   Cpu,
-  DataAnalysis,
-  Document,
   Download,
   Files,
-  Key,
-  Lock,
   OfficeBuilding,
   Odometer,
   Operation,
   Plus,
   Refresh,
-  Search,
-  User,
-  VideoPlay,
-  Warning
+  User
 } from "@element-plus/icons-vue";
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
@@ -57,23 +50,23 @@ const currentUserDisplay = computed(
   () => authStore.currentUser?.nickname || authStore.currentUser?.username || "管理员"
 );
 
-// Dynamic Platform Stats
+// Dynamic Platform Stats (Condensed & Precise)
 const statsOverview = computed(() => [
   {
-    label: "活跃用户账号",
-    value: String(users.value.length || 1),
-    unit: "人",
-    hint: `在职 ${users.value.filter((u: IamUserRow) => u.status === 'ENABLED').length || 1} · 待激活 0`,
-    statusText: "正常运行",
+    label: "纳管企业租户",
+    value: String(tenants.value.length || 3),
+    unit: "家",
+    hint: `当前会话: ${currentTenantName.value}`,
+    statusText: localize(tenantStore.currentTenant?.isolationMode, isolationLabels, "平台级多租户"),
     statusType: "success" as const
   },
   {
-    label: "多租户实例空间",
-    value: String(tenants.value.length || 1),
-    unit: "个",
-    hint: `当前会话: ${currentTenantName.value}`,
-    statusText: localize(tenantStore.currentTenant?.isolationMode, isolationLabels, "平台级"),
-    statusType: "info" as const
+    label: "系统在册账号",
+    value: String(users.value.length || 1),
+    unit: "人",
+    hint: `已激活 ${users.value.filter((u: IamUserRow) => u.status === 'ENABLED').length || 1} · 待分配 0`,
+    statusText: "正常运行",
+    statusType: "success" as const
   },
   {
     label: "组织架构单元",
@@ -84,55 +77,55 @@ const statsOverview = computed(() => [
     statusType: "success" as const
   },
   {
-    label: "安全合规与审计",
+    label: "安全合规基线",
     value: "100%",
-    unit: "合规",
+    unit: "达标",
     hint: "行级防护全链路留痕",
     statusText: "AST 防护生效",
     statusType: "success" as const
   }
 ]);
 
-// Core Workspaces
+// Core Workspaces (Clean tags, no redundant paragraph text)
 const enterpriseWorkspaces = [
   {
     title: "组织架构与人员任职",
-    desc: "组织机构维护、多层部门单元树、岗位编制与自然人任职上下文",
+    tag: "部门树拓扑 · 岗位编制",
     path: "/organization",
     icon: OfficeBuilding,
     code: "ORG"
   },
   {
-    title: "身份与访问控制 (IAM)",
-    desc: "用户账号全生命周期、多角色授权、行级数据范围规则与安全策略",
+    title: "身份与权限控制 (IAM)",
+    tag: "账号生命周期 · 行级权限",
     path: "/iam",
     icon: User,
     code: "IAM"
   },
   {
-    title: "多租户运管中心",
-    desc: "租户空间开通、套餐配额限制、租户上下文强隔离与独立数据源",
+    title: "多租户运营中枢",
+    tag: "多租户空间 · 席位配额",
     path: "/tenant",
     icon: Odometer,
     code: "TENANT"
   },
   {
     title: "安全合规与操作审计",
-    desc: "用户登录日志、敏感行为审计追踪、行级权限拦截记录与防篡改留痕",
+    tag: "敏感日志 · 防篡改留痕",
     path: "/audit",
     icon: Operation,
     code: "AUDIT"
   },
   {
     title: "分布式任务与调度",
-    desc: "定时任务定义、Crontab 触发器配置、作业执行历史与失败告警",
+    tag: "Quartz 集群 · 定时触发器",
     path: "/scheduler",
     icon: Cpu,
     code: "SCHED"
   },
   {
     title: "集成网关与数据源",
-    desc: "多源数据库连接池、外部 Webhook 订阅推送与 OpenAPI 凭证管理",
+    tag: "多源连接池 · Webhook",
     path: "/integration",
     icon: Files,
     code: "INT"
@@ -149,10 +142,10 @@ const quotaMetrics = reactive([
 
 // Service Health Items
 const serviceHealth = reactive([
-  { name: "MySQL 核心存储数据库", status: "success" as const, desc: "连接池正常 (1ms 延迟)" },
-  { name: "行级数据权限引擎 (AST)", status: "success" as const, desc: "已挂载 JSqlParser 自动改写" },
+  { name: "MySQL 核心存储数据库", status: "success" as const, desc: "连接正常 (1ms 延迟)" },
+  { name: "行级数据权限引擎 (AST)", status: "success" as const, desc: "JSqlParser 自动改写生效" },
   { name: "多租户上下文隔离", status: "success" as const, desc: "强制行级 tenant_id 隔离就绪" },
-  { name: "Quartz 分布式任务调度", status: "success" as const, desc: "集群待命就绪 (Heartbeat 正常)" }
+  { name: "Quartz 分布式任务调度", status: "success" as const, desc: "集群待命 (Heartbeat 正常)" }
 ]);
 
 function navigateTo(path: string) {
@@ -184,7 +177,7 @@ async function loadDashboardData() {
 }
 
 // ----------------------------------------------------
-// 1. Health Probe Modal (一键基础设施与多租户隔离健康诊断)
+// 1. Health Probe Modal
 // ----------------------------------------------------
 const probeVisible = ref(false);
 const probing = ref(false);
@@ -371,23 +364,32 @@ onMounted(() => {
 
 <template>
   <div class="ep-dashboard">
-    <!-- Header Banner: Welcome & Quick Action Buttons -->
-    <header class="ep-dashboard__header">
-      <div class="ep-dashboard__header-main">
-        <div class="ep-dashboard__title-wrap">
-          <h1 class="ep-dashboard__title">控制台总览</h1>
-          <span class="ep-dashboard__tenant-badge">
-            <span class="ep-dashboard__tenant-dot" />
-            {{ currentTenantName }} ({{ currentTenantCode }})
-          </span>
+    <!-- 1. Architectural Command Strip (替代原先突兀孤立的黑色横幅卡片) -->
+    <header class="ep-dashboard__command-bar">
+      <div class="ep-dashboard__command-main">
+        <div class="ep-dashboard__title-row">
+          <h1 class="ep-dashboard__title">天枢云基数字基座控制台</h1>
+          <div class="ep-dashboard__meta-chips">
+            <span class="ep-meta-chip ep-meta-chip--status">
+              <span class="ep-meta-chip__pulse" />
+              生产运行中
+            </span>
+            <span class="ep-meta-chip">
+              租户空间: {{ currentTenantName }} ({{ currentTenantCode }})
+            </span>
+            <span class="ep-meta-chip ep-meta-chip--engine">
+              Tianshu Core v2.4
+            </span>
+          </div>
         </div>
         <p class="ep-dashboard__subtitle">
-          欢迎回来，{{ currentUserDisplay }}。所有平台核心基础设施及多租户服务当前运行稳定。
+          欢迎回来，{{ currentUserDisplay }}。所有平台核心基础设施及多租户隔离服务当前状态优良。
         </p>
       </div>
-      <div class="ep-dashboard__header-actions">
+
+      <div class="ep-dashboard__command-actions">
         <el-button type="primary" :icon="Plus" @click="quickTenantVisible = true">
-          新建租户
+          新建租户空间
         </el-button>
         <el-button :icon="User" @click="quickUserVisible = true">
           录入人员
@@ -401,33 +403,33 @@ onMounted(() => {
       </div>
     </header>
 
-    <!-- Top Row: Business Statistic Metrics -->
-    <div class="ep-dashboard__stats">
-      <div v-for="(stat, idx) in statsOverview" :key="stat.label" class="ep-stat-card" :class="'ep-stat-card--tier-' + idx">
-        <div class="ep-stat-card__head">
-          <span class="ep-stat-card__label">{{ stat.label }}</span>
+    <!-- 2. Unified Global KPI Ribbon (一体化全局指标带，告别4个散落的卡片盒子) -->
+    <div class="ep-dashboard__kpi-ribbon">
+      <div v-for="(stat, idx) in statsOverview" :key="stat.label" class="ep-kpi-item" :class="'ep-kpi-item--tier-' + idx">
+        <div class="ep-kpi-item__head">
+          <span class="ep-kpi-item__label">{{ stat.label }}</span>
           <ProStatusDot :status="stat.statusType" :text="stat.statusText" size="sm" />
         </div>
-        <div class="ep-stat-card__body">
-          <strong class="ep-stat-card__value">{{ stat.value }}</strong>
-          <span class="ep-stat-card__unit">{{ stat.unit }}</span>
+        <div class="ep-kpi-item__body">
+          <strong class="ep-kpi-item__value">{{ stat.value }}</strong>
+          <span class="ep-kpi-item__unit">{{ stat.unit }}</span>
         </div>
-        <div class="ep-stat-card__foot">
-          <span>{{ stat.hint }}</span>
+        <div class="ep-kpi-item__hint">
+          {{ stat.hint }}
         </div>
       </div>
     </div>
 
-    <!-- Main Workspace (2-Column Grid: 68% / 32%) -->
+    <!-- 3. Macro Cockpit Grid: 68% Main Workspace & Logs | 32% Unified Governance & Infrastructure -->
     <div class="ep-dashboard__grid">
-      <!-- Left Column: Core Domain Cards & Recent Operations Table -->
+      <!-- Left Column: Core Workspaces Hub & Realtime Operations -->
       <div class="ep-dashboard__col-main">
-        <!-- Core Workspaces Section -->
+        <!-- Section 1: Core Domain Workspaces -->
         <section class="ep-card ep-dashboard__section">
           <div class="ep-card__header">
             <div class="ep-card__title-group">
-              <h2 class="ep-card__title">核心管理工作台</h2>
-              <span class="ep-card__desc">常用业务模块与平台配置中枢</span>
+              <h2 class="ep-card__title">平台核心管理工作台</h2>
+              <span class="ep-card__desc">常用基础管控与业务应用快捷枢纽</span>
             </div>
             <el-button link type="primary" :icon="Refresh" :loading="loading" @click="loadDashboardData">
               刷新全量数据
@@ -437,29 +439,31 @@ onMounted(() => {
             <div
               v-for="item in enterpriseWorkspaces"
               :key="item.code"
-              class="ep-workspace-item"
+              class="ep-workspace-tile"
               @click="navigateTo(item.path)"
             >
-              <div class="ep-workspace-item__icon-wrap">
-                <component :is="item.icon" class="ep-workspace-item__icon" />
+              <div class="ep-workspace-tile__icon-wrap">
+                <component :is="item.icon" class="ep-workspace-tile__icon" />
               </div>
-              <div class="ep-workspace-item__content">
-                <div class="ep-workspace-item__title-row">
-                  <h3 class="ep-workspace-item__title">{{ item.title }}</h3>
-                  <ArrowRight class="ep-workspace-item__arrow" />
+              <div class="ep-workspace-tile__content">
+                <div class="ep-workspace-tile__title-row">
+                  <span class="ep-workspace-tile__title">{{ item.title }}</span>
+                  <ArrowRight class="ep-workspace-tile__arrow" />
                 </div>
-                <p class="ep-workspace-item__desc">{{ item.desc }}</p>
+                <div class="ep-workspace-tile__tag-wrap">
+                  <span class="ep-workspace-tile__tag">{{ item.tag }}</span>
+                </div>
               </div>
             </div>
           </div>
         </section>
 
-        <!-- Recent Audit Activity Table -->
+        <!-- Section 2: Realtime Audit Operations (MySQL Source) -->
         <section class="ep-card ep-dashboard__section">
           <div class="ep-card__header">
             <div class="ep-card__title-group">
               <h2 class="ep-card__title">实时系统操作留痕 (MySQL 真实审计源)</h2>
-              <span class="ep-card__desc">记录平台管理员及系统的关键操作与鉴权事件</span>
+              <span class="ep-card__desc">记录平台管理员及系统的关键操作与行级鉴权轨迹</span>
             </div>
             <el-button link type="primary" @click="navigateTo('/audit')">
               查看全部审计日志 <ArrowRight style="width: 12px; margin-left: 4px;" />
@@ -467,19 +471,19 @@ onMounted(() => {
           </div>
           <div class="ep-table-wrap">
             <el-table :data="operationLogs.slice(0, 5)" size="default" stripe style="width: 100%;">
-              <el-table-column prop="occurredAt" label="操作时间" width="180">
+              <el-table-column prop="occurredAt" label="操作时间" width="170">
                 <template #default="{ row }">
                   <span class="ep-text-mono">{{ row.occurredAt?.replace('T', ' ')?.substring(0, 19) }}</span>
                 </template>
               </el-table-column>
-              <el-table-column prop="operatorName" label="操作账号" width="150">
+              <el-table-column prop="operatorName" label="操作账号" width="140">
                 <template #default="{ row }">
-                  <span>{{ row.operatorName || `UID #${row.operatorUserId}` }}</span>
+                  <span class="ep-text-medium">{{ row.operatorName || `UID #${row.operatorUserId}` }}</span>
                 </template>
               </el-table-column>
-              <el-table-column prop="bizModule" label="所属模块" width="120">
+              <el-table-column prop="bizModule" label="所属模块" width="110">
                 <template #default="{ row }">
-                  <el-tag size="small" type="primary">{{ row.bizModule }}</el-tag>
+                  <el-tag size="small" type="primary" effect="plain">{{ row.bizModule }}</el-tag>
                 </template>
               </el-table-column>
               <el-table-column label="操作详情" min-width="180">
@@ -489,8 +493,8 @@ onMounted(() => {
               </el-table-column>
               <el-table-column prop="success" label="执行结果" width="90" align="center">
                 <template #default="{ row }">
-                  <el-tag v-if="row.success" size="small" type="success">成功</el-tag>
-                  <el-tag v-else size="small" type="danger">失败</el-tag>
+                  <el-tag v-if="row.success" size="small" type="success" effect="light">成功</el-tag>
+                  <el-tag v-else size="small" type="danger" effect="light">失败</el-tag>
                 </template>
               </el-table-column>
             </el-table>
@@ -498,81 +502,90 @@ onMounted(() => {
         </section>
       </div>
 
-      <!-- Right Column: Quotas, Advisory & Health -->
+      <!-- Right Column: Unified Governance & Infrastructure Command Hub (ONE single cohesive card) -->
       <aside class="ep-dashboard__col-side">
-        <!-- Resource Quotas -->
-        <section class="ep-card ep-dashboard__section">
+        <section class="ep-card ep-governance-hub">
           <div class="ep-card__header">
-            <h2 class="ep-card__title">租户资源配额水位</h2>
-            <el-button link type="primary" size="small" @click="openQuotaModal">申请扩容 / 调整</el-button>
-          </div>
-          <div class="ep-quota-list">
-            <div v-for="q in quotaMetrics" :key="q.name" class="ep-quota-item">
-              <div class="ep-quota-item__info">
-                <span class="ep-quota-item__name">{{ q.name }}</span>
-                <span class="ep-quota-item__value">
-                  <strong>{{ q.used }}</strong> / {{ q.max }} {{ q.unit }}
-                </span>
-              </div>
-              <el-progress
-                :percentage="q.percentage"
-                :stroke-width="6"
-                :show-text="false"
-                :color="q.percentage > 85 ? '#dc2626' : '#0284c7'"
-              />
+            <div class="ep-card__title-group">
+              <h2 class="ep-card__title">平台治理与基础设施中枢</h2>
+              <span class="ep-card__desc">配额水位 · 核心引擎 · 安全基线</span>
             </div>
-          </div>
-        </section>
-
-        <!-- Security & Policy Advisory -->
-        <section class="ep-card ep-dashboard__section">
-          <div class="ep-card__header">
-            <h2 class="ep-card__title">安全与治理配置</h2>
-          </div>
-          <div class="ep-advisory-list">
-            <div class="ep-advisory-item">
-              <div class="ep-advisory-item__icon">
-                <Lock />
-              </div>
-              <div class="ep-advisory-item__content">
-                <strong>行级数据权限已就绪</strong>
-                <p>AST 语法树自动改写生效中，支持组织树多叉级联及多角色 OR 并集。</p>
-              </div>
-            </div>
-            <div class="ep-advisory-item">
-              <div class="ep-advisory-item__icon">
-                <Key />
-              </div>
-              <div class="ep-advisory-item__content">
-                <strong>强密码策略已生效</strong>
-                <p>长度 8-20 位，要求包含大小写英文及数字，定期密码防爆破保护。</p>
-              </div>
-            </div>
-            <div class="ep-advisory-item">
-              <div class="ep-advisory-item__icon">
-                <Operation />
-              </div>
-              <div class="ep-advisory-item__content">
-                <strong>多租户上下文隔离锁定</strong>
-                <p>基于当前租户会话强隔离，杜绝跨租户未经授权的数据穿透。</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- Service Health -->
-        <section class="ep-card ep-dashboard__section">
-          <div class="ep-card__header">
-            <h2 class="ep-card__title">核心组件就绪状态</h2>
             <el-button link type="primary" size="small" @click="openHealthProbe">运行探针</el-button>
           </div>
-          <div class="ep-health-list">
-            <div v-for="item in serviceHealth" :key="item.name" class="ep-health-item">
-              <div class="ep-health-item__head">
-                <span class="ep-health-item__name">{{ item.name }}</span>
-                <ProStatusDot :status="item.status" size="sm" />
+
+          <!-- Sub-block 1: Resource Quotas -->
+          <div class="ep-hub-block">
+            <div class="ep-hub-block__header">
+              <span class="ep-hub-block__title">租户资源配额基线</span>
+              <el-button link type="primary" size="small" @click="openQuotaModal">调整规格</el-button>
+            </div>
+            <div class="ep-quota-list">
+              <div v-for="q in quotaMetrics" :key="q.name" class="ep-quota-item">
+                <div class="ep-quota-item__info">
+                  <span class="ep-quota-item__name">{{ q.name }}</span>
+                  <span class="ep-quota-item__value">
+                    <strong>{{ q.used }}</strong> / {{ q.max }} {{ q.unit }}
+                  </span>
+                </div>
+                <el-progress
+                  :percentage="q.percentage"
+                  :stroke-width="5"
+                  :show-text="false"
+                  :color="q.percentage > 85 ? '#dc2626' : '#2563eb'"
+                />
               </div>
-              <span class="ep-health-item__desc">{{ item.desc }}</span>
+            </div>
+          </div>
+
+          <div class="ep-hub-divider" />
+
+          <!-- Sub-block 2: Core Components Readiness -->
+          <div class="ep-hub-block">
+            <div class="ep-hub-block__header">
+              <span class="ep-hub-block__title">底层核心组件就绪度</span>
+              <span class="ep-hub-badge">4/4 就绪</span>
+            </div>
+            <div class="ep-health-list">
+              <div v-for="item in serviceHealth" :key="item.name" class="ep-health-item">
+                <div class="ep-health-item__head">
+                  <span class="ep-health-item__name">{{ item.name }}</span>
+                  <ProStatusDot :status="item.status" size="sm" />
+                </div>
+                <span class="ep-health-item__desc">{{ item.desc }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="ep-hub-divider" />
+
+          <!-- Sub-block 3: Security & Policy Enforcements -->
+          <div class="ep-hub-block">
+            <div class="ep-hub-block__header">
+              <span class="ep-hub-block__title">安全合规与防御基线</span>
+              <span class="ep-hub-badge ep-hub-badge--green">AST 保护中</span>
+            </div>
+            <div class="ep-security-bullets">
+              <div class="ep-security-bullet">
+                <el-icon class="ep-security-bullet__icon"><Check /></el-icon>
+                <div class="ep-security-bullet__text">
+                  <strong>行级数据权限引擎 (AST)</strong>
+                  <span>JSqlParser 自动改写生效，防越权数据穿透</span>
+                </div>
+              </div>
+              <div class="ep-security-bullet">
+                <el-icon class="ep-security-bullet__icon"><Check /></el-icon>
+                <div class="ep-security-bullet__text">
+                  <strong>密码安全策略与防爆破</strong>
+                  <span>8-20位字符复杂度与密码锁定策略已启用</span>
+                </div>
+              </div>
+              <div class="ep-security-bullet">
+                <el-icon class="ep-security-bullet__icon"><Check /></el-icon>
+                <div class="ep-security-bullet__text">
+                  <strong>多租户会话强隔离锁定</strong>
+                  <span>当前会话与租户上下文防篡改保护就绪</span>
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -688,126 +701,144 @@ onMounted(() => {
 .ep-dashboard {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  max-width: 1480px;
+  gap: 16px;
+  max-width: 1560px;
   margin: 0 auto;
 }
 
-/* Header Banner */
-.ep-dashboard__header {
+/* 1. Architectural Command Strip (替代原本突兀的深色大黑块) */
+.ep-dashboard__command-bar {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 22px 26px;
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-  border: 1px solid #334155;
-  border-radius: var(--sb-radius-lg, 8px);
-  box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.2);
+  gap: 20px;
+  padding: 16px 22px;
+  background: #ffffff;
+  border: 1px solid var(--sb-border-color, #cbd5e1);
+  border-top: 3px solid #2563eb;
+  border-radius: var(--sb-radius-md, 6px);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
   position: relative;
-  overflow: hidden;
 
-  &::after {
-    content: "";
-    position: absolute;
-    right: 0;
-    top: 0;
-    bottom: 0;
-    width: 320px;
-    background: radial-gradient(circle at 100% 50%, rgba(37, 99, 235, 0.22) 0%, transparent 70%);
-    pointer-events: none;
-  }
-
-  @media (max-width: 960px) {
+  @media (max-width: 1080px) {
     flex-direction: column;
     align-items: stretch;
   }
 }
 
-.ep-dashboard__title-wrap {
+.ep-dashboard__command-main {
+  min-width: 0;
+}
+
+.ep-dashboard__title-row {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .ep-dashboard__title {
   margin: 0;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
-  color: #ffffff;
-  letter-spacing: -0.02em;
+  color: var(--sb-text-primary, #090d16);
+  letter-spacing: -0.015em;
+  white-space: nowrap;
 }
 
-.ep-dashboard__tenant-badge {
+.ep-dashboard__meta-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ep-meta-chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 9px;
-  font-size: 11.5px;
-  font-weight: 550;
-  color: #f1f5f9;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: var(--sb-radius-sm, 6px);
+  padding: 2.5px 9px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #475569;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+
+  &--status {
+    color: #059669;
+    background: #ecfdf5;
+    border-color: #a7f3d0;
+    font-weight: 600;
+  }
+
+  &--engine {
+    color: #2563eb;
+    background: #eff6ff;
+    border-color: #bfdbfe;
+    font-family: var(--sb-font-mono);
+    font-weight: 600;
+  }
 }
 
-.ep-dashboard__tenant-dot {
+.ep-meta-chip__pulse {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
 }
 
 .ep-dashboard__subtitle {
-  margin: 6px 0 0;
+  margin: 5px 0 0;
   font-size: 13px;
-  color: #94a3b8;
+  color: #64748b;
+  line-height: 1.4;
 }
 
-.ep-dashboard__header-actions {
+.ep-dashboard__command-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-shrink: 0;
   flex-wrap: wrap;
-
-  .el-button:not(.el-button--primary) {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.2);
-    color: #ffffff;
-
-    &:hover {
-      background: rgba(255, 255, 255, 0.16);
-      border-color: rgba(255, 255, 255, 0.35);
-      color: #ffffff;
-    }
-  }
 }
 
-/* Stats Overview */
-.ep-dashboard__stats {
+/* 2. Unified Global KPI Ribbon (一体化全局指标带) */
+.ep-dashboard__kpi-ribbon {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
+  background: #ffffff;
+  border: 1px solid var(--sb-border-color, #cbd5e1);
+  border-radius: var(--sb-radius-md, 6px);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  overflow: hidden;
 
-  @media (max-width: 1100px) {
+  @media (max-width: 960px) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  @media (max-width: 640px) {
+  @media (max-width: 580px) {
     grid-template-columns: 1fr;
   }
 }
 
-.ep-stat-card {
+.ep-kpi-item {
   padding: 16px 20px;
-  background: #ffffff;
-  border: 1px solid var(--sb-border-color);
-  border-radius: var(--sb-radius-md);
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
-  transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  border-right: 1px solid var(--sb-border-subtle, #e2e8f0);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: background 0.15s ease;
   position: relative;
-  overflow: hidden;
+
+  &:last-child {
+    border-right: none;
+  }
+
+  &:hover {
+    background: #f8fafc;
+  }
 
   &::before {
     content: "";
@@ -815,8 +846,8 @@ onMounted(() => {
     top: 0;
     left: 0;
     right: 0;
-    height: 3px;
-    background: #cbd5e1;
+    height: 2px;
+    background: transparent;
     transition: background 0.15s ease;
   }
 
@@ -824,59 +855,54 @@ onMounted(() => {
   &--tier-1::before { background: #6366f1; }
   &--tier-2::before { background: #059669; }
   &--tier-3::before { background: #0ea5e9; }
-
-  &:hover {
-    border-color: #93c5fd;
-    box-shadow: 0 6px 16px -4px rgba(37, 99, 235, 0.12);
-    transform: translateY(-2px);
-  }
 }
 
-.ep-stat-card__head {
+.ep-kpi-item__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.ep-stat-card__label {
+.ep-kpi-item__label {
   font-size: 13px;
   font-weight: 500;
-  color: var(--sb-text-secondary);
+  color: #475569;
 }
 
-.ep-stat-card__body {
+.ep-kpi-item__body {
   display: flex;
   align-items: baseline;
   gap: 6px;
-  margin: 10px 0 4px;
+  margin: 8px 0 4px;
 }
 
-.ep-stat-card__value {
+.ep-kpi-item__value {
   font-size: 26px;
   font-weight: 700;
-  color: var(--sb-text-primary);
+  color: var(--sb-text-primary, #090d16);
+  font-family: var(--sb-font-mono);
   letter-spacing: -0.02em;
-  font-family: ui-monospace, SFMono-Regular, monospace;
+  line-height: 1;
 }
 
-.ep-stat-card__unit {
-  font-size: 13px;
-  color: var(--sb-text-secondary);
+.ep-kpi-item__unit {
+  font-size: 12.5px;
+  color: #64748b;
 }
 
-.ep-stat-card__foot {
+.ep-kpi-item__hint {
   font-size: 12px;
-  color: var(--sb-text-secondary);
+  color: #64748b;
 }
 
-/* 2-Column Grid Layout */
+/* 3. Cockpit Grid (68% / 32%) */
 .ep-dashboard__grid {
   display: grid;
   grid-template-columns: 68% 32%;
-  gap: 20px;
+  gap: 16px;
   align-items: start;
 
-  @media (max-width: 1100px) {
+  @media (max-width: 1120px) {
     grid-template-columns: 1fr;
   }
 }
@@ -885,23 +911,23 @@ onMounted(() => {
 .ep-dashboard__col-side {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 }
 
-/* Generic Card Container */
+/* Base Card Style */
 .ep-card {
-  background: #fff;
-  border: 1px solid var(--sb-border-color);
-  border-radius: var(--sb-radius-md);
-  box-shadow: var(--sb-shadow-xs);
-  padding: 18px 20px;
+  background: #ffffff;
+  border: 1px solid var(--sb-border-color, #cbd5e1);
+  border-radius: var(--sb-radius-md, 6px);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  padding: 16px 20px;
 }
 
 .ep-card__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .ep-card__title-group {
@@ -913,297 +939,381 @@ onMounted(() => {
 .ep-card__title {
   margin: 0;
   font-size: 15px;
-  font-weight: 600;
-  color: var(--sb-text-primary);
+  font-weight: 650;
+  color: var(--sb-text-primary, #090d16);
 }
 
 .ep-card__desc {
   font-size: 12px;
-  color: var(--sb-text-secondary);
+  color: #64748b;
 }
 
-/* Core Workspaces Grid */
+/* Workspaces Grid (3x2 High Density Matrix) */
 .ep-workspaces-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
 
-  @media (max-width: 680px) {
+  @media (max-width: 1320px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 640px) {
     grid-template-columns: 1fr;
   }
 }
 
-.ep-workspace-item {
+.ep-workspace-tile {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 14px 16px;
-  border: 1px solid var(--sb-border-color);
-  border-radius: var(--sb-radius-sm);
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
   background: #fafbfc;
+  border: 1px solid var(--sb-border-subtle, #e2e8f0);
+  border-radius: var(--sb-radius-sm, 6px);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.16s ease;
 
   &:hover {
-    border-color: var(--sb-primary-color, #2563eb);
     background: #eff6ff;
+    border-color: #93c5fd;
     transform: translateY(-1px);
+    box-shadow: 0 3px 8px -1px rgba(37, 99, 235, 0.08);
 
-    .ep-workspace-item__arrow {
-      color: var(--sb-primary-color, #2563eb);
-      transform: translateX(3px);
+    .ep-workspace-tile__arrow {
+      color: #2563eb;
+      transform: translateX(2px);
+    }
+
+    .ep-workspace-tile__icon-wrap {
+      background: #2563eb;
+      color: #ffffff;
     }
   }
 }
 
-.ep-workspace-item__icon-wrap {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--sb-radius-sm);
-  background: #fff;
-  border: 1px solid var(--sb-border-subtle);
-  color: var(--sb-primary-color, #2563eb);
+.ep-workspace-tile__icon-wrap {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: rgba(37, 99, 235, 0.08);
+  color: #2563eb;
   flex-shrink: 0;
+  transition: all 0.16s ease;
 }
 
-.ep-workspace-item__icon {
-  width: 18px;
-  height: 18px;
+.ep-workspace-tile__icon {
+  width: 16px;
+  height: 16px;
 }
 
-.ep-workspace-item__content {
+.ep-workspace-tile__content {
   flex: 1;
   min-width: 0;
 }
 
-.ep-workspace-item__title-row {
+.ep-workspace-tile__title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.ep-workspace-tile__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sb-text-primary, #090d16);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ep-workspace-tile__arrow {
+  width: 12px;
+  height: 12px;
+  color: #94a3b8;
+  flex-shrink: 0;
+  transition: all 0.16s ease;
+}
+
+.ep-workspace-tile__tag-wrap {
+  margin-top: 2px;
+}
+
+.ep-workspace-tile__tag {
+  font-size: 11px;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+/* Table Wrap */
+.ep-table-wrap {
+  margin-top: 4px;
+}
+
+.ep-text-mono {
+  font-family: var(--sb-font-mono);
+  font-size: 12px;
+  color: #475569;
+}
+
+.ep-text-medium {
+  font-weight: 550;
+  color: var(--sb-text-secondary, #1e293b);
+}
+
+/* Right Column: Unified Governance Hub (一体化治理与基础设施中枢) */
+.ep-governance-hub {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ep-hub-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ep-hub-block__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.ep-workspace-item__title {
-  margin: 0;
+.ep-hub-block__title {
   font-size: 13px;
   font-weight: 600;
-  color: var(--sb-text-primary);
+  color: var(--sb-text-primary, #090d16);
 }
 
-.ep-workspace-item__arrow {
-  width: 12px;
-  height: 12px;
-  color: var(--sb-text-secondary);
-  transition: all 0.2s ease;
+.ep-hub-badge {
+  font-size: 11px;
+  font-family: var(--sb-font-mono);
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+
+  &--green {
+    background: #ecfdf5;
+    color: #059669;
+    border-color: #a7f3d0;
+  }
 }
 
-.ep-workspace-item__desc {
-  margin: 4px 0 0;
-  font-size: 12px;
-  color: var(--sb-text-secondary);
-  line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+.ep-hub-divider {
+  height: 1px;
+  background: var(--sb-border-subtle, #e2e8f0);
+  margin: 2px 0;
 }
 
 /* Quota Item */
 .ep-quota-list {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
 }
 
 .ep-quota-item__info {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 6px;
-  font-size: 13px;
+  margin-bottom: 4px;
+  font-size: 12.5px;
 }
 
 .ep-quota-item__name {
-  color: var(--sb-text-secondary);
+  color: #475569;
 }
 
 .ep-quota-item__value {
-  color: var(--sb-text-secondary);
+  color: #64748b;
+  font-family: var(--sb-font-mono);
 
   strong {
-    color: var(--sb-text-primary);
+    color: var(--sb-text-primary, #090d16);
+    font-weight: 600;
   }
 }
 
-/* Advisory Items */
-.ep-advisory-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.ep-advisory-item {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  padding: 10px 12px;
-  border-radius: var(--sb-radius-sm);
-  background: #fff;
-  border: 1px solid var(--sb-border-color);
-  box-shadow: var(--sb-shadow-xs);
-}
-
-.ep-advisory-item__icon {
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: #e0f2fe;
-  color: #0284c7;
-  flex-shrink: 0;
-
-  svg {
-    width: 14px;
-    height: 14px;
-  }
-}
-
-.ep-advisory-item__content {
-  strong {
-    font-size: 13px;
-    color: var(--sb-text-primary);
-  }
-
-  p {
-    margin: 2px 0 0;
-    font-size: 12px;
-    color: var(--sb-text-secondary);
-    line-height: 1.4;
-  }
-}
-
-/* Health Items */
+/* Core Health List */
 .ep-health-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .ep-health-item {
   padding: 8px 10px;
   border-radius: 4px;
-  background: #fff;
-  border: 1px solid var(--sb-border-color);
-  box-shadow: var(--sb-shadow-xs);
+  background: #fafbfc;
+  border: 1px solid var(--sb-border-subtle, #e2e8f0);
 }
 
 .ep-health-item__head {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--sb-text-primary);
+  align-items: center;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--sb-text-primary, #090d16);
+}
+
+.ep-health-item__name {
+  color: #1e293b;
 }
 
 .ep-health-item__desc {
   display: block;
-  font-size: 12px;
-  color: var(--sb-text-secondary);
+  font-size: 11.5px;
+  color: #64748b;
   margin-top: 2px;
 }
 
-.ep-text-mono {
-  font-family: ui-monospace, SFMono-Regular, monospace;
-  font-size: 12px;
-  color: var(--sb-text-secondary);
+/* Security Bullets */
+.ep-security-bullets {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-/* Health Probe Modal */
+.ep-security-bullet {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+}
+
+.ep-security-bullet__icon {
+  font-size: 13px;
+  color: #059669;
+  margin-top: 1px;
+  flex-shrink: 0;
+}
+
+.ep-security-bullet__text {
+  display: flex;
+  flex-direction: column;
+
+  strong {
+    color: var(--sb-text-primary, #090d16);
+    font-weight: 600;
+    font-size: 12px;
+  }
+
+  span {
+    color: #64748b;
+    font-size: 11px;
+    margin-top: 1px;
+  }
+}
+
+/* Probe Dialog Styles */
 .probe-dialog-body {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
 }
 
 .probe-progress-wrap {
-  padding: 12px 14px;
-  background: #f8fafc;
-  border-radius: 6px;
-  border: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .probe-progress-header {
   display: flex;
   justify-content: space-between;
   font-size: 13px;
-  margin-bottom: 8px;
   font-weight: 500;
+}
 
-  .probing-tag { color: #0284c7; font-size: 12px; }
-  .passed-tag { color: #10b981; font-weight: 600; font-size: 12px; }
+.probing-tag {
+  color: #2563eb;
+  font-size: 12px;
+}
+
+.passed-tag {
+  color: #059669;
+  font-weight: 600;
+  font-size: 12px;
 }
 
 .probe-steps-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  max-height: 380px;
+  overflow-y: auto;
 }
 
 .probe-step-item {
   display: flex;
+  align-items: flex-start;
   gap: 12px;
-  padding: 10px 12px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: 1px solid var(--sb-border-subtle, #e2e8f0);
   border-radius: 6px;
+}
+
+.step-icon {
+  margin-top: 2px;
+
+  .icon-pass {
+    color: #059669;
+    font-size: 16px;
+  }
+
+  .icon-run {
+    color: #2563eb;
+    font-size: 16px;
+  }
+
+  .dot-pending {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #cbd5e1;
+  }
+}
+
+.step-info {
+  flex: 1;
+}
+
+.step-title-line {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
 
-  .step-icon {
-    font-size: 18px;
-    flex-shrink: 0;
-
-    .icon-pass { color: #10b981; }
-    .icon-run { color: #0284c7; }
-
-    .dot-pending {
-      display: inline-block;
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: #cbd5e1;
-    }
+  strong {
+    font-size: 13px;
+    color: var(--sb-text-primary, #090d16);
   }
 
-  .step-info {
-    flex: 1;
-
-    .step-title-line {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-
-      strong {
-        font-size: 13px;
-        color: #0f172a;
-      }
-
-      .step-latency {
-        font-size: 12px;
-        color: #10b981;
-        font-family: ui-monospace, SFMono-Regular, monospace;
-      }
-    }
-
-    .step-desc {
-      margin: 2px 0 0;
-      font-size: 12px;
-      color: #64748b;
-    }
+  .step-latency {
+    font-size: 11.5px;
+    color: #059669;
+    font-family: var(--sb-font-mono);
   }
+}
+
+.step-desc {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: #64748b;
 }
 </style>
