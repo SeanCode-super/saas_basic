@@ -308,4 +308,10 @@ function closeAllTags() {
   color: #dc2626;
   background: #fef2f2;
 }
+
+@media (max-width: 760px) {
+  .tags-view-container {
+    display: none !important;
+  }
+}
 </style>

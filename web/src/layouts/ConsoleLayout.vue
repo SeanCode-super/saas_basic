@@ -5,6 +5,7 @@ import {
   ArrowRight,
   Bell,
   Check,
+  Close,
   Expand,
   Fold,
   Grid,
@@ -64,6 +65,7 @@ const localeStore = useLocaleStore();
 const menuStore = useMenuStore();
 const tenantStore = useTenantStore();
 const directoryVisible = ref(false);
+const mobileDrawerVisible = ref(false);
 const railCollapsed = ref(false);
 
 // Dual-Nav (Top-Side Mix) vs Classic Full Sidebar vs Top Menu Layout
@@ -490,9 +492,13 @@ function handleQuickSelect(item: Record<string, unknown>) {
   }
 }
 
-function handleAtlasSelect(item: NavigableTarget) {
+function handleAtlasSelect(item: any) {
   directoryVisible.value = false;
-  router.push({ path: item.path, query: item.query });
+  mobileDrawerVisible.value = false;
+  const target = item.path ? item : (item.children?.find((c: any) => c.path) ?? item);
+  if (target?.path) {
+    router.push({ path: target.path, query: target.query });
+  }
 }
 
 async function handleLogout() {
@@ -718,6 +724,16 @@ onMounted(() => {
 
     <div class="console-shell__main">
       <header class="console-shell__topbar">
+        <!-- 移动端汉堡导航菜单按钮 (<760px 显示) -->
+        <button
+          class="console-shell__mobile-menu-btn"
+          aria-label="打开移动端导航抽屉"
+          title="打开导航"
+          @click="mobileDrawerVisible = true"
+        >
+          <el-icon class="mobile-menu-icon"><Fold /></el-icon>
+        </button>
+
         <!-- 顶部菜单模式下的品牌展示 -->
         <div v-if="layoutMode === 'top'" class="console-shell__brand console-shell__brand--top">
           <TianshuLogo
@@ -1319,6 +1335,64 @@ onMounted(() => {
 
     <!-- 全局 ⌘K 盲打搜索与指令中心 -->
     <CommandPaletteDialog v-model:visible="commandPaletteVisible" />
+
+    <!-- 移动端侧滑导航抽屉 -->
+    <el-drawer
+      v-model="mobileDrawerVisible"
+      direction="ltr"
+      size="300px"
+      :with-header="false"
+      class="console-shell__mobile-drawer"
+    >
+      <div class="mobile-drawer__content">
+        <div class="mobile-drawer__header">
+          <TianshuLogo :size="24" show-text show-badge badge-text="PaaS" />
+          <button
+            class="mobile-drawer__close-btn"
+            aria-label="关闭导航"
+            @click="mobileDrawerVisible = false"
+          >
+            <el-icon><Close /></el-icon>
+          </button>
+        </div>
+
+        <div class="mobile-drawer__user-card">
+          <span class="mobile-drawer__user-avatar">{{ userInitial }}</span>
+          <div class="mobile-drawer__user-info">
+            <span class="mobile-drawer__user-name">
+              {{ authStore.currentUser?.nickname || authStore.currentUser?.username || "用户" }}
+            </span>
+            <span class="mobile-drawer__tenant-badge">
+              {{ tenantStore.currentTenant?.name || "当前空间" }}
+            </span>
+          </div>
+        </div>
+
+        <div class="mobile-drawer__body">
+          <NavigationAtlas
+            :apps="apps"
+            :active-code="currentApp?.code"
+            compact
+            @select="handleAtlasSelect"
+          />
+        </div>
+
+        <div class="mobile-drawer__footer">
+          <button class="mobile-drawer__footer-btn" @click="mobileDrawerVisible = false; router.push('/profile')">
+            <el-icon><User /></el-icon>
+            <span>个人中心</span>
+          </button>
+          <button class="mobile-drawer__footer-btn" @click="mobileDrawerVisible = false; settingsDrawerVisible = true">
+            <el-icon><Setting /></el-icon>
+            <span>偏好设置</span>
+          </button>
+          <button class="mobile-drawer__footer-btn is-logout" @click="mobileDrawerVisible = false; handleLogout()">
+            <el-icon><SwitchButton /></el-icon>
+            <span>退出</span>
+          </button>
+        </div>
+      </div>
+    </el-drawer>
   </div>
 </template>
 
@@ -3153,6 +3227,156 @@ onMounted(() => {
   padding: 16px;
 }
 
+.console-shell__mobile-menu-btn {
+  display: none;
+}
+
+/* 移动端侧滑导航抽屉 */
+.console-shell__mobile-drawer {
+  :deep(.el-drawer__body) {
+    padding: 0 !important;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #ffffff;
+    overflow: hidden;
+  }
+}
+
+.mobile-drawer__content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.mobile-drawer__header {
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border-bottom: 1px solid #f1f5f9;
+  flex-shrink: 0;
+}
+
+.mobile-drawer__close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  border-radius: 6px;
+  cursor: pointer;
+
+  &:hover,
+  &:active {
+    background: #f1f5f9;
+    color: #0f172a;
+  }
+}
+
+.mobile-drawer__user-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: #f8fafc;
+  border-bottom: 1px solid #f1f5f9;
+  flex-shrink: 0;
+}
+
+.mobile-drawer__user-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #2563eb, #38bdf8);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+}
+
+.mobile-drawer__user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mobile-drawer__user-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-drawer__tenant-badge {
+  font-size: 11px;
+  color: #2563eb;
+  font-weight: 500;
+  background: #eff6ff;
+  padding: 1px 6px;
+  border-radius: 4px;
+  display: inline-block;
+  width: fit-content;
+}
+
+.mobile-drawer__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobile-drawer__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-top: 1px solid #f1f5f9;
+  background: #fafafa;
+  flex-shrink: 0;
+}
+
+.mobile-drawer__footer-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #475569;
+  cursor: pointer;
+
+  &:hover,
+  &:active {
+    background: #f1f5f9;
+    color: #0f172a;
+  }
+
+  &.is-logout {
+    color: #ef4444;
+
+    &:hover,
+    &:active {
+      background: #fef2f2;
+      color: #dc2626;
+    }
+  }
+}
+
 @media (max-width: 1120px) {
   .console-shell {
     grid-template-columns: 64px minmax(0, 1fr);
@@ -3211,8 +3435,40 @@ onMounted(() => {
   }
 
   .console-shell__topbar {
-    gap: 12px;
-    padding: 0 12px;
+    gap: 8px;
+    padding: 0 10px;
+    height: 48px;
+    flex: 0 0 48px;
+  }
+
+  .console-shell__mobile-menu-btn {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border-radius: 6px;
+    border: 1px solid var(--sb-border-subtle, #e2e8f0);
+    background: #ffffff;
+    color: var(--sb-text-primary, #0f172a);
+    cursor: pointer;
+    flex-shrink: 0;
+
+    &:active {
+      background: #f1f5f9;
+    }
+
+    .mobile-menu-icon {
+      font-size: 16px;
+    }
+  }
+
+  .console-shell__breadcrumb-bar {
+    font-size: 13px;
+    max-width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .console-shell__title-block {
@@ -3220,16 +3476,25 @@ onMounted(() => {
     flex: 1;
 
     h1 {
-      font-size: 14px;
+      font-size: 13.5px;
     }
+  }
+
+  .console-shell__top-domains,
+  .console-shell__top-menu-bar {
+    display: none !important;
   }
 
   .console-shell__topbar-actions {
     flex: 0 0 auto;
+    gap: 6px;
   }
 
   .console-shell__quick-jump,
-  .console-shell__locale {
+  .console-shell__locale,
+  .console-shell__sla-pill,
+  .console-shell__icon-btn,
+  .console-shell__ai-btn {
     display: none !important;
   }
 
@@ -3237,14 +3502,23 @@ onMounted(() => {
     order: 1;
   }
 
-  .console-shell__workspace {
-    --sb-workspace-x: 12px;
+  :deep(.tags-view-container) {
+    display: none !important;
+  }
 
-    padding: 12px;
+  .console-shell__workspace {
+    --sb-workspace-x: 10px;
+    padding: 10px;
   }
 
   .console-shell__user-details {
     display: none;
+  }
+
+  .console-shell__user-avatar {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
   }
 }
 </style>

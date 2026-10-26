@@ -61,4 +61,16 @@ const { currentTenant, tenantOptions } = storeToRefs(tenantStore);
     width: 120px;
   }
 }
+
+@media (max-width: 760px) {
+  .tenant-switcher {
+    flex-basis: 105px;
+    width: 105px;
+
+    :deep(.el-select__wrapper) {
+      padding: 0 6px;
+      font-size: 11.5px;
+    }
+  }
+}
 </style>
