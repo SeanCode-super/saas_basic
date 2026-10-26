@@ -15,9 +15,11 @@ import {
   DataLine,
   Document,
   Files,
+  Grid,
   Key,
   Lock,
   MagicStick,
+  Menu,
   OfficeBuilding,
   PriceTag,
   Printer,
@@ -78,6 +80,16 @@ const selectedTenantId = ref<number | undefined>(
   props.tenantId || (route.query.tenantId ? Number(route.query.tenantId) : undefined)
 );
 
+// View Mode: Table matrix (default, high efficiency) vs Refined compact cards
+const viewMode = ref<"table" | "card">(
+  (localStorage.getItem("sb_app_store_view_mode") as "table" | "card") || "table"
+);
+
+function setViewMode(mode: "table" | "card") {
+  viewMode.value = mode;
+  localStorage.setItem("sb_app_store_view_mode", mode);
+}
+
 const searchKeyword = ref("");
 const selectedCategory = ref("ALL");
 const selectedStatus = ref("ALL");
@@ -118,28 +130,9 @@ const categoryLabelMap: Record<string, string> = {
   COLLABORATION: "协同引擎",
   BUSINESS: "业务中台",
   INFRA: "基础工具",
-  SECURITY: "安全合规",
+  SECURITY: "安全风控",
   INTEGRATION: "开放集成",
   DEV: "开发运维"
-};
-
-const categoryTagTypeMap: Record<string, "primary" | "success" | "warning" | "info" | "danger"> = {
-  SYSTEM: "primary",
-  CORE: "primary",
-  COLLABORATION: "warning",
-  BUSINESS: "success",
-  INFRA: "info",
-  SECURITY: "danger",
-  INTEGRATION: "warning",
-  DEV: "info"
-};
-
-const tierLabelMap: Record<string, string> = {
-  BASIC: "基础版",
-  PROFESSIONAL: "专业版",
-  ENTERPRISE: "企业版",
-  SUPREME: "至尊版",
-  PLATFORM: "平台旗舰版"
 };
 
 const appRouteMap: Record<string, string> = {
@@ -205,16 +198,13 @@ const filteredCatalog = computed(() => {
 const stats = computed(() => {
   const total = catalog.value.length;
   const enabled = catalog.value.filter((a) => a.status === "ENABLED").length;
-  const trial = catalog.value.filter((a) => a.status === "TRIAL").length;
   const disabled = catalog.value.filter((a) => a.status === "DISABLED").length;
-  const expired = catalog.value.filter((a) => a.status === "EXPIRED").length;
-  return { total, enabled, trial, disabled, expired };
+  return { total, enabled, disabled };
 });
 
 async function fetchCatalog() {
   catalogLoading.value = true;
   try {
-    // 1. Ensure tenants list is ready
     if (tenants.value.length === 0) {
       if (props.tenants && props.tenants.length > 0) {
         tenants.value = props.tenants;
@@ -224,7 +214,6 @@ async function fetchCatalog() {
       }
     }
 
-    // 2. Fallback to active workspace tenant or first tenant if not set
     if (!selectedTenantId.value && tenants.value.length > 0) {
       const currentId = tenantStore.currentTenant?.id;
       const matched = tenants.value.find((t) => t.id === currentId);
@@ -234,7 +223,6 @@ async function fetchCatalog() {
       });
     }
 
-    // 3. Load catalog for target tenant
     const catalogData = await fetchTenantAppCatalog(selectedTenantId.value);
     catalog.value = catalogData;
   } catch (error: any) {
@@ -261,15 +249,15 @@ async function handleToggleAppAuthorization(app: TenantAppCatalogItem, targetEna
   const tenantName = currentTenantMeta.value?.tenantName || "当前租户";
   const actionText = targetEnabled ? "授权开通" : "停用回收";
   const impactText = targetEnabled
-    ? `授权后，企业【${tenantName}】将立即获得【${app.appName}】的所有默认菜单和功能权限，并在该企业的【菜单管理】中呈现。`
-    : `停用后，企业【${tenantName}】在【菜单管理】、【角色分配】及【侧边栏导航】中将彻底隐藏【${app.appName}】的所有菜单与按钮！`;
+    ? `确认将【${app.appName}】授权给企业「${tenantName}」使用？授权后该企业将即时获得对应菜单与接口权限。`
+    : `确认回收企业「${tenantName}」的【${app.appName}】权限？停用后该应用在企业端将彻底隐藏屏蔽。`;
 
   try {
     await ElMessageBox.confirm(
-      `${impactText}\n\n确定要为企业【${tenantName}】${actionText}【${app.appName}】的应用权限吗？`,
-      `确认${actionText}应用权限`,
+      impactText,
+      `企业应用${actionText}`,
       {
-        confirmButtonText: `确定${actionText}`,
+        confirmButtonText: `确认${actionText}`,
         cancelButtonText: "取消",
         type: targetEnabled ? "success" : "warning"
       }
@@ -285,7 +273,7 @@ async function handleToggleAppAuthorization(app: TenantAppCatalogItem, targetEna
       selectedTenantId.value
     );
 
-    ElMessage.success(`应用【${app.appName}】已成功为企业【${tenantName}】${targetEnabled ? "授权开启" : "回收停用"}！`);
+    ElMessage.success(`应用【${app.appName}】已成功为「${tenantName}」${targetEnabled ? "授权开启" : "回收停用"}！`);
     await fetchCatalog();
   } catch (e: any) {
     if (e !== "cancel") {
@@ -302,10 +290,8 @@ async function handleBatchAuthorize(targetEnabled: boolean) {
   const tenantName = currentTenantMeta.value?.tenantName || "当前租户";
   try {
     await ElMessageBox.confirm(
-      `确定为企业【${tenantName}】执行${actionText}操作吗？\n${
-        targetEnabled
-          ? "授权后该企业将获得平台全部可用业务应用的菜单与接口使用权。"
-          : "回收后除底座核心服务外，其余应用将对该租户在菜单和导航中彻底物理屏蔽。"
+      `确定为企业「${tenantName}」执行【${actionText}】吗？${
+        targetEnabled ? "授权后该企业将获得全部可用业务应用。" : "回收后除底座核心外，其余应用将对该租户彻底屏蔽。"
       }`,
       `确认${actionText}`,
       {
@@ -324,7 +310,7 @@ async function handleBatchAuthorize(targetEnabled: boolean) {
       },
       selectedTenantId.value
     );
-    ElMessage.success(`企业【${tenantName}】已成功完成全部应用${actionText}！`);
+    ElMessage.success(`企业「${tenantName}」已完成全部应用${actionText}！`);
     await fetchCatalog();
   } catch (e: any) {
     if (e !== "cancel") {
@@ -341,7 +327,7 @@ async function handleAlignWithPackage() {
   const pkgName = currentTenantMeta.value?.packageName || "默认套餐";
   try {
     await ElMessageBox.confirm(
-      `确定将企业【${tenantName}】的应用权限重置并对齐其订阅套餐【${pkgName}】基线吗？\n该操作将清除针对该租户的所有个性化增删覆盖，严格还原为套餐预设应用矩阵。`,
+      `确定将企业「${tenantName}」的应用权限重置并对齐其套餐【${pkgName}】基线吗？\n将清除所有单独设定的覆盖，严格恢复为套餐预设应用。`,
       "对齐套餐基线确认",
       {
         confirmButtonText: "确认对齐",
@@ -351,7 +337,7 @@ async function handleAlignWithPackage() {
     );
     catalogLoading.value = true;
     await resetTenantPackageBaseline(selectedTenantId.value);
-    ElMessage.success(`企业【${tenantName}】已成功重置并对齐【${pkgName}】基线！`);
+    ElMessage.success(`企业「${tenantName}」已成功对齐【${pkgName}】基线！`);
     await fetchCatalog();
   } catch (e: any) {
     if (e !== "cancel") {
@@ -359,29 +345,6 @@ async function handleAlignWithPackage() {
     }
   } finally {
     catalogLoading.value = false;
-  }
-}
-
-function openSubscribeDialog(app: TenantAppCatalogItem, defaultDays = 14) {
-  currentApp.value = app;
-  subscribeForm.appCode = app.appCode;
-  subscribeForm.trialDays = defaultDays;
-  subscribeForm.remark = `控制台申请 ${app.appName} 试用`;
-  subscribeDialogVisible.value = true;
-}
-
-async function handleSubscribe() {
-  if (!subscribeForm.appCode) return;
-  subscribing.value = true;
-  try {
-    await subscribeTenantApp(subscribeForm, selectedTenantId.value);
-    ElMessage.success(`应用【${currentApp.value?.appName}】开通成功，权限即刻生效！`);
-    subscribeDialogVisible.value = false;
-    await fetchCatalog();
-  } catch (error: any) {
-    ElMessage.error(error?.response?.data?.message ?? "开通应用失败");
-  } finally {
-    subscribing.value = false;
   }
 }
 
@@ -434,117 +397,74 @@ onMounted(() => {
 
 <template>
   <div class="tenant-app-store-section">
-    <!-- Hero Target Tenant Authorization Banner -->
-    <BaseCard class="target-tenant-hero-card">
-      <div class="hero-top-bar">
-        <div class="hero-title-group">
-          <div class="title-row">
-            <span class="hero-main-title">租户应用授权中心</span>
-            <el-tag type="danger" effect="dark" round class="hero-badge">
-              顶级应用权限管控
-            </el-tag>
+    <!-- Unified Enterprise Entitlement Command Surface -->
+    <div class="command-surface">
+      <!-- Top Row: Target Tenant Selector + Meta Badges + Actions -->
+      <div class="command-top-row">
+        <div class="tenant-focus-cluster">
+          <div class="tenant-select-box">
+            <span class="tenant-select-label">
+              <el-icon class="mr-1 text-primary"><OfficeBuilding /></el-icon>
+              目标企业 / 租户
+            </span>
+            <el-select
+              v-model="selectedTenantId"
+              placeholder="选择企业租户..."
+              filterable
+              class="tenant-select"
+              @change="handleTenantChange"
+            >
+              <el-option
+                v-for="t in tenants"
+                :key="t.id"
+                :label="`${t.tenantName} (${t.tenantCode})`"
+                :value="t.id"
+              >
+                <div class="tenant-option-row">
+                  <span class="option-name">{{ t.tenantName }}</span>
+                  <span class="option-code">{{ t.tenantCode }}</span>
+                  <el-tag size="small" type="info" effect="plain">{{ t.packageName || '默认套餐' }}</el-tag>
+                </div>
+              </el-option>
+            </el-select>
           </div>
-          <p class="hero-subtitle">
-            平台管理员专属控制台：精准决定各企业租户可拥有的应用矩阵与功能范围。未获授权的应用对该租户在菜单管理、角色分配及系统导航中彻底隐形。
-          </p>
+
+          <div v-if="currentTenantMeta" class="tenant-meta-strip">
+            <span class="meta-tag package-pill">
+              {{ currentTenantMeta.packageName || '默认套餐' }}
+            </span>
+            <span class="meta-tag isolation-pill">
+              {{ isolationLabelMap[currentTenantMeta.isolationMode] || currentTenantMeta.isolationMode }}
+            </span>
+            <span
+              class="status-chip"
+              :class="{ 'is-active': currentTenantMeta.status === 'ACTIVE' }"
+            >
+              <span class="status-dot" />
+              {{ currentTenantMeta.status === 'ACTIVE' ? '正常履约' : currentTenantMeta.status }}
+            </span>
+          </div>
         </div>
 
-        <div class="hero-actions-group">
+        <div class="command-actions-cluster">
           <el-button-group>
-            <el-button type="success" :icon="CircleCheck" @click="handleBatchAuthorize(true)">
-              一键全量授权
+            <el-button type="primary" size="default" :icon="CircleCheck" @click="handleBatchAuthorize(true)">
+              全量授权
             </el-button>
-            <el-button type="primary" plain :icon="MagicStick" @click="handleAlignWithPackage">
+            <el-button size="default" :icon="MagicStick" @click="handleAlignWithPackage">
               对齐套餐基线
             </el-button>
-            <el-button type="warning" plain :icon="Close" @click="handleBatchAuthorize(false)">
-              一键全部回收
+            <el-button size="default" :icon="Close" @click="handleBatchAuthorize(false)">
+              全部回收
             </el-button>
           </el-button-group>
-          <el-button :icon="Refresh" circle :loading="catalogLoading" @click="fetchCatalog" />
+          <el-button :icon="Refresh" circle size="default" :loading="catalogLoading" @click="fetchCatalog" />
         </div>
       </div>
 
-      <!-- Prominent Enterprise/Tenant Selector -->
-      <div class="enterprise-selector-panel">
-        <div class="selector-field">
-          <span class="selector-title">
-            <el-icon class="mr-1 text-primary"><OfficeBuilding /></el-icon>
-            当前正在授权配置的目标企业 / 租户：
-          </span>
-          <el-select
-            v-model="selectedTenantId"
-            placeholder="请选择要授权的企业租户..."
-            filterable
-            class="tenant-primary-select"
-            @change="handleTenantChange"
-          >
-            <el-option
-              v-for="t in tenants"
-              :key="t.id"
-              :label="`${t.tenantName} (${t.tenantCode}) · [${t.packageName || '默认套餐'}]`"
-              :value="t.id"
-            >
-              <div class="tenant-option-row">
-                <span class="option-name">{{ t.tenantName }}</span>
-                <span class="option-code">编码: {{ t.tenantCode }}</span>
-                <el-tag size="small" type="success" effect="plain">{{ t.packageName || '默认套餐' }}</el-tag>
-                <el-tag size="small" type="info" effect="light">{{ isolationLabelMap[t.isolationMode] || t.isolationMode }}</el-tag>
-              </div>
-            </el-option>
-          </el-select>
-        </div>
-
-        <!-- Active Tenant Meta Tags -->
-        <div v-if="currentTenantMeta" class="active-tenant-meta-pills">
-          <el-tag type="info" effect="plain" class="meta-pill">
-            企业编码：<strong>{{ currentTenantMeta.tenantCode }}</strong>
-          </el-tag>
-          <el-tag type="success" effect="dark" class="meta-pill">
-            订购套餐：<strong>{{ currentTenantMeta.packageName || '默认套餐' }}</strong>
-          </el-tag>
-          <el-tag type="warning" effect="plain" class="meta-pill">
-            隔离模式：<strong>{{ isolationLabelMap[currentTenantMeta.isolationMode] || currentTenantMeta.isolationMode }}</strong>
-          </el-tag>
-          <el-tag :type="currentTenantMeta.status === 'ACTIVE' ? 'success' : 'info'" effect="plain" class="meta-pill">
-            生命周期：<strong>{{ currentTenantMeta.status === 'ACTIVE' ? '正常履约' : currentTenantMeta.status }}</strong>
-          </el-tag>
-          <el-tag v-if="currentTenantMeta.daysRemaining != null" type="primary" effect="plain" class="meta-pill">
-            服务有效期：<strong>{{ currentTenantMeta.daysRemaining }} 天</strong>
-          </el-tag>
-        </div>
-      </div>
-
-      <!-- Enterprise Isolation Callout Notice -->
-      <div class="isolation-notice-strip">
-        <el-icon :size="16" class="notice-icon"><Warning /></el-icon>
-        <span class="notice-text">
-          <strong>企业独立应用授权隔离机制：</strong>
-          您当前正在对企业<strong>【{{ currentTenantMeta?.tenantName || '当前选中租户' }}】</strong>配置应用授权。下方每个应用的<strong>【开关】</strong>拨动后<strong>即刻针对该企业生效</strong>。未获授权的应用将在该企业的【菜单管理】、【角色授权】及【系统侧边栏】中<strong>彻底隐藏</strong>，杜绝越权。
-        </span>
-      </div>
-
-      <!-- Stat Badges Row -->
-      <div class="stats-row">
-        <div class="stat-item total">
-          <span class="stat-num">{{ stats.total }}</span>
-          <span class="stat-label">矩阵应用总数</span>
-        </div>
-        <div class="stat-divider" />
-        <div class="stat-item enabled">
-          <span class="stat-num">{{ stats.enabled }}</span>
-          <span class="stat-label">已为该企业授权</span>
-        </div>
-        <div class="stat-divider" />
-        <div class="stat-item disabled">
-          <span class="stat-num">{{ stats.disabled }}</span>
-          <span class="stat-label">未授权 / 已隔离回收</span>
-        </div>
-      </div>
-
-      <!-- Filter Controls -->
-      <div class="filter-row">
-        <el-radio-group v-model="selectedCategory" size="default" class="category-radio">
+      <!-- Bottom Row: Filter Tabs + Counter + View Switcher + Search -->
+      <div class="command-filter-row">
+        <el-radio-group v-model="selectedCategory" size="small" class="category-radio-group">
           <el-radio-button
             v-for="opt in categoryOptions"
             :key="opt.value"
@@ -554,107 +474,167 @@ onMounted(() => {
           </el-radio-button>
         </el-radio-group>
 
-        <div class="filter-inputs">
-          <el-select v-model="selectedStatus" placeholder="权限状态筛选" style="width: 150px">
+        <div class="filter-right-cluster">
+          <!-- Compact Metric Chip -->
+          <div class="metric-chip">
+            <span class="chip-label">已授权应用</span>
+            <span class="chip-val"><strong>{{ stats.enabled }}</strong> / {{ stats.total }}</span>
+          </div>
+
+          <!-- View Mode Switcher -->
+          <div class="view-mode-tabs">
+            <button
+              type="button"
+              class="view-mode-btn"
+              :class="{ 'is-active': viewMode === 'table' }"
+              title="切换为矩阵清单表格"
+              @click="setViewMode('table')"
+            >
+              <el-icon><Menu /></el-icon>
+              <span>清单矩阵</span>
+            </button>
+            <button
+              type="button"
+              class="view-mode-btn"
+              :class="{ 'is-active': viewMode === 'card' }"
+              title="切换为精简卡片视图"
+              @click="setViewMode('card')"
+            >
+              <el-icon><Grid /></el-icon>
+              <span>精简卡片</span>
+            </button>
+          </div>
+
+          <el-select v-model="selectedStatus" placeholder="状态" size="small" style="width: 110px">
             <el-option label="全部状态" value="ALL" />
-            <el-option label="已授权 (生效)" value="ENABLED" />
-            <el-option label="未授权 (停用)" value="DISABLED" />
+            <el-option label="已授权" value="ENABLED" />
+            <el-option label="未授权" value="DISABLED" />
           </el-select>
 
           <el-input
             v-model="searchKeyword"
-            placeholder="搜索应用名称 / App Code..."
+            placeholder="搜索应用..."
             :prefix-icon="Search"
             clearable
-            style="width: 260px"
+            size="small"
+            style="width: 180px"
           />
         </div>
       </div>
-    </BaseCard>
+    </div>
 
-    <!-- App Cards Grid -->
-    <div v-loading="catalogLoading" class="app-grid">
+    <!-- VIEW A: Enterprise Matrix Table (Default, Clean & Rigorous) -->
+    <div v-if="viewMode === 'table'" v-loading="catalogLoading" class="matrix-table-container">
+      <el-table
+        :data="filteredCatalog"
+        row-key="appCode"
+        size="default"
+        class="clean-matrix-table"
+      >
+        <!-- Col 1: App Identity -->
+        <el-table-column label="应用服务" min-width="240">
+          <template #default="{ row }">
+            <div class="table-app-cell">
+              <div class="app-icon-badge" :class="`icon-${row.category.toLowerCase()}`">
+                <el-icon :size="18">
+                  <component :is="getAppIcon(row.icon)" />
+                </el-icon>
+              </div>
+              <div class="app-info-block">
+                <span class="app-title-text">{{ row.appName }}</span>
+                <span class="app-category-badge">{{ categoryLabelMap[row.category] || row.category }}</span>
+              </div>
+            </div>
+          </template>
+        </el-table-column>
+
+        <!-- Col 2: Core Capability / Position -->
+        <el-table-column label="核心功能定位" min-width="320">
+          <template #default="{ row }">
+            <span class="app-summary-desc">{{ row.description }}</span>
+          </template>
+        </el-table-column>
+
+        <!-- Col 3: Package Baseline Status -->
+        <el-table-column label="套餐预设" width="130" align="center">
+          <template #default="{ row }">
+            <span v-if="row.isIncludedInPlan" class="package-included-pill">
+              <el-icon class="mr-1 text-success"><Check /></el-icon> 套餐标配
+            </span>
+            <span v-else class="package-addon-pill">
+              增购 / 特许
+            </span>
+          </template>
+        </el-table-column>
+
+        <!-- Col 4: Authorization Switch (Instant Trigger) -->
+        <el-table-column label="企业授权状态" width="160" align="center">
+          <template #default="{ row }">
+            <div class="switch-cell-wrapper">
+              <el-switch
+                :model-value="row.status === 'ENABLED'"
+                active-text="已授权"
+                inactive-text="未授权"
+                inline-prompt
+                :loading="catalogLoading"
+                @change="(val: any) => handleToggleAppAuthorization(row, Boolean(val))"
+              />
+            </div>
+          </template>
+        </el-table-column>
+
+        <!-- Col 5: Direct Launch / Action -->
+        <el-table-column label="操作" width="120" align="center">
+          <template #default="{ row }">
+            <el-button
+              v-if="row.status === 'ENABLED'"
+              type="primary"
+              link
+              size="small"
+              @click="navigateToApp(row)"
+            >
+              进入 <el-icon class="ml-1"><ArrowRight /></el-icon>
+            </el-button>
+            <span v-else class="text-disabled-cell">--</span>
+          </template>
+        </el-table-column>
+      </el-table>
+    </div>
+
+    <!-- VIEW B: Refined Compact Tech Cards (Minimalist & Clean) -->
+    <div v-else v-loading="catalogLoading" class="compact-card-grid">
       <div
         v-for="app in filteredCatalog"
         :key="app.appCode"
-        class="app-card"
-        :class="[`status-${app.status.toLowerCase()}`, { 'in-plan': app.isIncludedInPlan }]"
+        class="compact-app-card"
+        :class="{ 'is-authorized': app.status === 'ENABLED' }"
       >
-        <!-- Card Top Bar: Icon, Name, Category & Status -->
-        <div class="card-header">
-          <div class="app-icon-wrapper" :class="`icon-${app.category.toLowerCase()}`">
-            <el-icon :size="24">
+        <div class="card-head">
+          <div class="card-icon-box" :class="`icon-${app.category.toLowerCase()}`">
+            <el-icon :size="18">
               <component :is="getAppIcon(app.icon)" />
             </el-icon>
           </div>
-
-          <div class="app-title-box">
-            <div class="app-name-row">
-              <span class="app-name">{{ app.appName }}</span>
-              <el-tag
-                :type="categoryTagTypeMap[app.category] || 'info'"
-                size="small"
-                effect="plain"
-                class="category-tag"
-              >
-                {{ categoryLabelMap[app.category] || app.category }}
-              </el-tag>
+          <div class="card-title-box">
+            <div class="card-name-line">
+              <span class="card-app-title">{{ app.appName }}</span>
+              <span class="card-cat-chip">{{ categoryLabelMap[app.category] || app.category }}</span>
             </div>
-            <span class="app-code-badge">app_code: {{ app.appCode }}</span>
-          </div>
-
-          <div class="status-indicator">
-            <el-tag
-              v-if="app.status === 'ENABLED'"
-              type="success"
-              effect="dark"
-              round
-              size="small"
-            >
-              <el-icon class="mr-1"><CircleCheck /></el-icon> 已授权使用
-            </el-tag>
-            <el-tag
-              v-else
-              type="info"
-              effect="plain"
-              round
-              size="small"
-            >
-              未授权 / 已停用
-            </el-tag>
+            <span class="card-desc-line">{{ app.description }}</span>
           </div>
         </div>
 
-        <!-- Description -->
-        <p class="app-desc">{{ app.description }}</p>
-
-        <!-- Entitlement Context Pills -->
-        <div class="entitlement-meta">
-          <div class="meta-row">
-            <span class="meta-label">套餐归属状态:</span>
-            <span v-if="app.isIncludedInPlan" class="plan-included-text">
-              <el-icon><Check /></el-icon> 属于套餐预设权益
+        <div class="card-foot">
+          <div class="card-foot-left">
+            <span v-if="app.isIncludedInPlan" class="package-included-pill">
+              <el-icon class="mr-1 text-success"><Check /></el-icon> 标配
             </span>
-            <span v-else class="addon-text">
-              <el-icon><Close /></el-icon> 套餐外独立增购 / 特许
+            <span v-else class="package-addon-pill">
+              特许
             </span>
           </div>
 
-          <div class="meta-row">
-            <span class="meta-label">租户端生效表现:</span>
-            <span v-if="app.status === 'ENABLED'" class="plan-included-text">
-              <el-icon><Check /></el-icon> 菜单管理可见 · 角色可用
-            </span>
-            <span v-else class="addon-text">
-              <el-icon><Close /></el-icon> 菜单完全隐形 · 访问物理拦截
-            </span>
-          </div>
-        </div>
-
-        <!-- Card Footer Actions: DIRECT AUTHORIZATION SWITCH -->
-        <div class="card-footer">
-          <div class="auth-toggle-group">
-            <span class="auth-toggle-label">授权状态:</span>
+          <div class="card-foot-right">
             <el-switch
               :model-value="app.status === 'ENABLED'"
               active-text="已授权"
@@ -664,346 +644,255 @@ onMounted(() => {
               @change="(val: any) => handleToggleAppAuthorization(app, Boolean(val))"
             />
           </div>
-
-          <div class="card-action-links">
-            <el-button
-              v-if="app.status === 'ENABLED'"
-              type="primary"
-              link
-              size="small"
-              @click="navigateToApp(app)"
-            >
-              进入应用 <el-icon class="ml-1"><ArrowRight /></el-icon>
-            </el-button>
-            <el-button
-              v-else
-              type="primary"
-              size="small"
-              plain
-              @click="handleToggleAppAuthorization(app, true)"
-            >
-              直接授权
-            </el-button>
-          </div>
         </div>
       </div>
     </div>
-
-    <!-- Self-service Subscribe / Trial Modal -->
-    <el-dialog
-      v-model="subscribeDialogVisible"
-      :title="`开通/升级应用【${currentApp?.appName}】`"
-      width="520px"
-      :close-on-click-modal="false"
-    >
-      <el-form label-position="top">
-        <el-alert
-          type="info"
-          :closable="false"
-          show-icon
-          class="mb-4"
-          title="商业化授权生效说明"
-          description="开通后系统将立即刷新租户 Redis 特权缓存。对应菜单将对租户开放，租户管理员可进一步在 IAM 中授权给下属角色。"
-        />
-
-        <el-form-item label="开通应用编码">
-          <el-input :model-value="subscribeForm.appCode" disabled />
-        </el-form-item>
-
-        <el-form-item label="订阅 / 试用期限">
-          <el-radio-group v-model="subscribeForm.trialDays">
-            <el-radio :label="7">7 天体验</el-radio>
-            <el-radio :label="14">14 天标准试用</el-radio>
-            <el-radio :label="30">30 天全功能测试</el-radio>
-            <el-radio :label="365">1 年商业授权</el-radio>
-            <el-radio :label="0">永久授权 (不过期)</el-radio>
-          </el-radio-group>
-        </el-form-item>
-
-        <el-form-item label="开通备注 / 商务单号">
-          <el-input
-            v-model="subscribeForm.remark"
-            type="textarea"
-            :rows="3"
-            placeholder="填写商务合同单号、开通原因或支持人员姓名..."
-          />
-        </el-form-item>
-      </el-form>
-
-      <template #footer>
-        <el-button @click="subscribeDialogVisible = false">取消</el-button>
-        <el-button
-          type="primary"
-          :loading="subscribing"
-          @click="handleSubscribe"
-        >
-          确认开通生效
-        </el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .tenant-app-store-section {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-}
-
-.target-tenant-hero-card {
-  padding: 18px 24px;
-  background: var(--el-bg-color);
-  border: 1px solid var(--el-border-color);
-  border-radius: 12px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
-}
-
-.hero-top-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
   gap: 16px;
-  flex-wrap: wrap;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
 }
 
-.hero-title-group {
-  max-width: 680px;
-}
-
-.title-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.hero-main-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--el-text-color-primary);
-}
-
-.hero-badge {
-  font-size: 12px;
-}
-
-.hero-subtitle {
-  margin: 8px 0 0;
-  font-size: 13px;
-  color: var(--el-text-color-secondary);
-  line-height: 1.5;
-}
-
-.hero-actions-group {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.enterprise-selector-panel {
+/* Unified Command Surface */
+.command-surface {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px 18px;
+  box-shadow: 0 1px 3px 0 rgb(15 23 42 / 0.05);
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin: 16px 0;
-  padding: 16px;
-  background: var(--el-fill-color-light);
-  border-radius: 10px;
-  border: 1px solid var(--el-color-primary-light-8);
 }
 
-.selector-field {
+.command-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.tenant-focus-cluster {
   display: flex;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
 }
 
-.selector-title {
-  font-size: 14px;
+.tenant-select-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tenant-select-label {
+  font-size: 13px;
   font-weight: 600;
-  color: var(--el-text-color-primary);
+  color: #334155;
+  white-space: nowrap;
   display: flex;
   align-items: center;
 }
 
-.tenant-primary-select {
-  width: 420px;
+.tenant-select {
+  width: 280px;
 }
 
 .tenant-option-row {
   display: flex;
   align-items: center;
-  gap: 8px;
   justify-content: space-between;
   width: 100%;
+  gap: 8px;
+
+  .option-name {
+    font-weight: 600;
+    color: #0f172a;
+  }
+
+  .option-code {
+    font-size: 11px;
+    color: #64748b;
+    font-family: ui-monospace, monospace;
+  }
 }
 
-.option-name {
-  font-weight: 600;
-  color: var(--el-text-color-primary);
+.tenant-meta-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  .meta-tag {
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-weight: 500;
+  }
+
+  .package-pill {
+    background: #ecfdf5;
+    color: #059669;
+    border: 1px solid #a7f3d0;
+  }
+
+  .isolation-pill {
+    background: #f8fafc;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+  }
+
+  .status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: #64748b;
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #94a3b8;
+    }
+
+    &.is-active {
+      color: #059669;
+      .status-dot {
+        background: #10b981;
+      }
+    }
+  }
 }
 
-.option-code {
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-  font-family: monospace;
+.command-actions-cluster {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.active-tenant-meta-pills {
+.command-filter-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.category-radio-group {
+  :deep(.el-radio-button__inner) {
+    font-size: 12px;
+    padding: 6px 14px;
+  }
+}
+
+.filter-right-cluster {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
 }
 
-.meta-pill {
-  font-size: 12px;
-}
-
-.isolation-notice-strip {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  background: var(--el-color-primary-light-9);
-  border-left: 4px solid var(--el-color-primary);
+.metric-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
   border-radius: 6px;
-  padding: 10px 14px;
-  margin-bottom: 16px;
-}
-
-.notice-icon {
-  color: var(--el-color-primary);
-  margin-top: 2px;
-  flex-shrink: 0;
-}
-
-.notice-text {
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--el-color-primary-dark-2);
-}
-
-.stats-row {
-  display: flex;
-  align-items: center;
-  background: var(--el-fill-color-lighter);
-  border-radius: 8px;
-  padding: 12px 20px;
-  margin-bottom: 16px;
-  gap: 24px;
-}
-
-.stat-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  flex: 1;
-}
-
-.stat-num {
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.stat-label {
+  padding: 4px 10px;
   font-size: 12px;
-  color: var(--el-text-color-secondary);
-  margin-top: 4px;
+
+  .chip-label {
+    color: #64748b;
+  }
+
+  .chip-val {
+    color: #0f172a;
+    strong {
+      color: #2563eb;
+    }
+  }
 }
 
-.stat-item.total .stat-num {
-  color: var(--el-color-primary);
+/* View Mode Switcher Button Group */
+.view-mode-tabs {
+  display: inline-flex;
+  background: #f1f5f9;
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+
+  .view-mode-btn {
+    border: none;
+    background: transparent;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #64748b;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.15s ease;
+
+    &:hover {
+      color: #0f172a;
+    }
+
+    &.is-active {
+      background: #ffffff;
+      color: #0f172a;
+      font-weight: 600;
+      box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+    }
+  }
 }
 
-.stat-item.enabled .stat-num {
-  color: var(--el-color-success);
-}
-
-.stat-item.trial .stat-num {
-  color: var(--el-color-warning);
-}
-
-.stat-item.disabled .stat-num {
-  color: var(--el-text-color-placeholder);
-}
-
-.stat-item.expired .stat-num {
-  color: var(--el-color-danger);
-}
-
-.stat-divider {
-  width: 1px;
-  height: 28px;
-  background: var(--el-border-color-lighter);
-}
-
-.filter-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-
-.filter-inputs {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
-.app-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: 20px;
-}
-
-.app-card {
-  background: var(--el-bg-color);
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 12px;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  transition: all 0.25s ease;
-  position: relative;
-  overflow: hidden;
-}
-
-.app-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.08);
-  border-color: var(--el-color-primary-light-5);
-}
-
-.app-card.status-enabled {
-  border-top: 4px solid var(--el-color-success);
-}
-
-.app-card.status-trial {
-  border-top: 4px solid var(--el-color-warning);
-}
-
-.app-card.status-expired {
-  border-top: 4px solid var(--el-color-danger);
-}
-
-.app-card.status-disabled {
-  border-top: 4px solid var(--el-border-color);
-}
-
-.card-header {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-}
-
-.app-icon-wrapper {
-  width: 48px;
-  height: 48px;
+/* VIEW A: Matrix Table */
+.matrix-table-container {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px 0 rgb(15 23 42 / 0.05);
+}
+
+.clean-matrix-table {
+  width: 100%;
+
+  :deep(.el-table__header-wrapper th) {
+    background: #f8fafc;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 600;
+    height: 44px;
+  }
+
+  :deep(.el-table__row) {
+    height: 54px;
+    &:hover {
+      background: #f8fafc !important;
+    }
+  }
+}
+
+.table-app-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-icon-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1012,140 +901,172 @@ onMounted(() => {
 
 .icon-system,
 .icon-core {
-  background: var(--el-color-primary-light-9);
-  color: var(--el-color-primary);
+  background: #eff6ff;
+  color: #2563eb;
 }
 
 .icon-collaboration {
-  background: var(--el-color-warning-light-9);
-  color: var(--el-color-warning);
+  background: #fef3c7;
+  color: #d97706;
 }
 
 .icon-business {
-  background: var(--el-color-success-light-9);
-  color: var(--el-color-success);
+  background: #ecfdf5;
+  color: #059669;
 }
 
 .icon-infra,
 .icon-dev {
-  background: var(--el-color-info-light-9);
-  color: var(--el-color-info);
+  background: #f1f5f9;
+  color: #475569;
 }
 
 .icon-security {
-  background: var(--el-color-danger-light-9);
-  color: var(--el-color-danger);
+  background: #fee2e2;
+  color: #dc2626;
 }
 
 .icon-integration {
-  background: var(--el-color-warning-light-9);
-  color: var(--el-color-warning);
+  background: #fef3c7;
+  color: #d97706;
 }
 
-.app-title-box {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.app-name-row {
+.app-info-block {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 6px;
 }
 
-.app-name {
-  font-size: 16px;
+.app-title-text {
+  font-size: 14px;
   font-weight: 600;
-  color: var(--el-text-color-primary);
+  color: #0f172a;
 }
 
-.category-tag {
+.app-category-badge {
   font-size: 11px;
+  color: #64748b;
+  background: #f1f5f9;
+  border-radius: 4px;
+  padding: 1px 5px;
 }
 
-.app-code-badge {
-  font-size: 11px;
-  font-family: monospace;
-  color: var(--el-text-color-secondary);
-}
-
-.app-desc {
+.app-summary-desc {
   font-size: 13px;
-  color: var(--el-text-color-secondary);
-  line-height: 1.6;
-  margin: 14px 0;
-  min-height: 42px;
+  color: #475569;
+  line-height: 1.4;
+}
+
+.package-included-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 500;
+  color: #059669;
+}
+
+.package-addon-pill {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.switch-cell-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.text-disabled-cell {
+  color: #cbd5e1;
+}
+
+/* VIEW B: Compact Tech Cards */
+.compact-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.compact-app-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: all 0.15s ease;
+  min-height: 110px;
+
+  &:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 4px 12px rgb(15 23 42 / 0.06);
+  }
+
+  &.is-authorized {
+    border-left: 3px solid #10b981;
+  }
+}
+
+.card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.card-icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.card-title-box {
+  flex: 1;
+  min-width: 0;
+}
+
+.card-name-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.card-app-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.card-cat-chip {
+  font-size: 10px;
+  color: #64748b;
+  background: #f1f5f9;
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+
+.card-desc-line {
+  font-size: 12px;
+  color: #64748b;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  line-height: 1.4;
 }
 
-.entitlement-meta {
-  background: var(--el-fill-color-lighter);
-  border-radius: 8px;
-  padding: 10px 12px;
+.card-foot {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 16px;
-  font-size: 12px;
-}
-
-.meta-row {
-  display: flex;
-  align-items: center;
   justify-content: space-between;
-}
-
-.meta-label {
-  color: var(--el-text-color-secondary);
-}
-
-.plan-included-text {
-  color: var(--el-color-success);
-  font-weight: 500;
-  display: flex;
   align-items: center;
-  gap: 4px;
-}
-
-.addon-text {
-  color: var(--el-text-color-placeholder);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.card-footer {
-  margin-top: auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding-top: 10px;
-  border-top: 1px dashed var(--el-border-color-lighter);
-}
-
-.auth-toggle-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.auth-toggle-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--el-text-color-primary);
-}
-
-.card-action-links {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #f1f5f9;
 }
 
 .mr-1 {
@@ -1156,11 +1077,11 @@ onMounted(() => {
   margin-left: 4px;
 }
 
-.mb-4 {
-  margin-bottom: 16px;
+.text-primary {
+  color: #2563eb;
 }
 
-.text-primary {
-  color: var(--el-color-primary);
+.text-success {
+  color: #10b981;
 }
 </style>
