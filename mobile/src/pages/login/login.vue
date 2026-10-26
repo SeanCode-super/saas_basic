@@ -1,9 +1,9 @@
 <template>
   <view class="mobile-login-shell">
     <view class="brand-box">
-      <view class="brand-logo"><text>🚀</text></view>
-      <text class="brand-title">Antigravity SaaS</text>
-      <text class="brand-desc">跨端移动数字化中枢</text>
+      <view class="brand-logo"><text>💠</text></view>
+      <text class="brand-title">天枢云基</text>
+      <text class="brand-desc">Enterprise PaaS · 跨端多平台协同移动工作台</text>
     </view>
 
     <view class="login-card">

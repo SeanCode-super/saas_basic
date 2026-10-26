@@ -3,7 +3,12 @@
  * 支持多租户 Header 注入、Bearer Token 拦截与 401 自动重连
  */
 
+// #ifdef H5
+const BASE_URL = "";
+// #endif
+// #ifndef H5
 const BASE_URL = "http://localhost:8080";
+// #endif
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -17,6 +22,7 @@ export function request<T = any>(options: {
   method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
   data?: any;
   params?: Record<string, any>;
+  silent?: boolean;
 }): Promise<T> {
   return new Promise((resolve, reject) => {
     const token = uni.getStorageSync("sb_access_token") || "";
@@ -52,16 +58,21 @@ export function request<T = any>(options: {
           }
         } else if (res.statusCode === 401) {
           uni.removeStorageSync("sb_access_token");
-          uni.showToast({ title: "登录已过期，请重新登录", icon: "none" });
-          uni.navigateTo({ url: "/pages/login/login" });
+          if (!options.silent) {
+            uni.showToast({ title: "登录已过期，请重新登录", icon: "none" });
+          }
           reject(new Error("UNAUTHORIZED"));
         } else {
-          uni.showToast({ title: body.message || `网络异常: ${res.statusCode}`, icon: "none" });
-          reject(new Error(body.message || String(res.statusCode)));
+          if (!options.silent) {
+            uni.showToast({ title: body?.message || `网络异常: ${res.statusCode}`, icon: "none" });
+          }
+          reject(new Error(body?.message || String(res.statusCode)));
         }
       },
       fail: (err) => {
-        uni.showToast({ title: "网络连接失败，请检查服务状态", icon: "none" });
+        if (!options.silent) {
+          uni.showToast({ title: "网络连接失败，请检查服务状态", icon: "none" });
+        }
         reject(err);
       }
     });

@@ -23,6 +23,9 @@ web/coverage/
 web/.vite/
 web/playwright-report/
 web/test-results/
+mobile/node_modules/
+mobile/dist/
+mobile/.vite/
 *.tsbuildinfo
 
 # Local environment and credentials

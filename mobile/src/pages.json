@@ -3,21 +3,28 @@
     {
       "path": "pages/index/index",
       "style": {
-        "navigationBarTitleText": "移动数字化工作台",
+        "navigationBarTitleText": "天枢云基移动工作台",
         "enablePullDownRefresh": true
       }
     },
     {
       "path": "pages/workflow/list",
       "style": {
-        "navigationBarTitleText": "审批待办中心",
+        "navigationBarTitleText": "移动审批待办中心",
         "enablePullDownRefresh": true
       }
     },
     {
-      "path": "pages/erp/inventory",
+      "path": "pages/crm/customers",
       "style": {
-        "navigationBarTitleText": "多仓库存与扫码",
+        "navigationBarTitleText": "客户公海与销售外勤",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/contact/index",
+      "style": {
+        "navigationBarTitleText": "企业组织通讯录",
         "enablePullDownRefresh": true
       }
     },
@@ -28,22 +35,47 @@
       }
     },
     {
+      "path": "pages/workflow/apply",
+      "style": {
+        "navigationBarTitleText": "发起业务审批"
+      }
+    },
+    {
+      "path": "pages/crm/follow-up",
+      "style": {
+        "navigationBarTitleText": "外勤拜访跟进记录"
+      }
+    },
+    {
+      "path": "pages/erp/inventory",
+      "style": {
+        "navigationBarTitleText": "多仓库存与扫码核销",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/notify/index",
+      "style": {
+        "navigationBarTitleText": "消息与系统公告"
+      }
+    },
+    {
       "path": "pages/login/login",
       "style": {
-        "navigationBarTitleText": "租户登录",
+        "navigationBarTitleText": "企业多租户登录",
         "navigationStyle": "custom"
       }
     }
   ],
   "globalStyle": {
     "navigationBarTextStyle": "white",
-    "navigationBarTitleText": "Antigravity",
+    "navigationBarTitleText": "天枢云基",
     "navigationBarBackgroundColor": "#0f172a",
     "backgroundColor": "#f8fafc"
   },
   "tabBar": {
     "color": "#64748b",
-    "selectedColor": "#0284c7",
+    "selectedColor": "#2563eb",
     "borderStyle": "black",
     "backgroundColor": "#ffffff",
     "list": [
@@ -56,8 +88,12 @@
         "text": "待办审批"
       },
       {
-        "pagePath": "pages/erp/inventory",
-        "text": "移动库存"
+        "pagePath": "pages/crm/customers",
+        "text": "客户外勤"
+      },
+      {
+        "pagePath": "pages/contact/index",
+        "text": "通讯录"
       },
       {
         "pagePath": "pages/profile/profile",
