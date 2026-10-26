@@ -33,6 +33,7 @@ import CommandPaletteDialog from "@/components/platform/CommandPaletteDialog.vue
 import TagsView from "@/components/platform/TagsView.vue";
 import TenantSwitcher from "@/components/platform/TenantSwitcher.vue";
 import ProStatusDot from "@/components/pro/ProStatusDot.vue";
+import TianshuLogo from "@/components/brand/TianshuLogo.vue";
 import { resolveAppIcon } from "@/config/app-icons";
 import { resolveAppMeta, resolveSectionMeta } from "@/config/app-taxonomy";
 import { useAuthStore } from "@/stores/modules/auth";
@@ -508,17 +509,12 @@ onMounted(() => {
     <!-- 左侧主导航（仅在非顶部模式时显示） -->
     <aside v-if="layoutMode !== 'top'" class="console-shell__rail">
       <div class="console-shell__brand">
-        <span class="console-shell__brand-mark">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </span>
-        <div class="console-shell__brand-text">
-          <strong>{{ localeStore.t("shell.brandTitle") }}</strong>
-          <span class="console-shell__brand-badge">v0.1</span>
-        </div>
+        <TianshuLogo
+          :size="26"
+          :show-text="!railCollapsed"
+          show-badge
+          badge-text="PaaS"
+        />
       </div>
 
       <nav class="console-shell__navigation" aria-label="主导航">
@@ -701,17 +697,12 @@ onMounted(() => {
       <header class="console-shell__topbar">
         <!-- 顶部菜单模式下的品牌展示 -->
         <div v-if="layoutMode === 'top'" class="console-shell__brand console-shell__brand--top">
-          <span class="console-shell__brand-mark">
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </span>
-          <div class="console-shell__brand-text">
-            <strong>{{ localeStore.t("shell.brandTitle") }}</strong>
-            <span class="console-shell__brand-badge">v0.1</span>
-          </div>
+          <TianshuLogo
+            :size="26"
+            show-text
+            show-badge
+            badge-text="PaaS"
+          />
         </div>
 
         <!-- 侧栏/混合模式下的面包屑导航 -->

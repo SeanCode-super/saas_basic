@@ -17,6 +17,7 @@ import { fetchPortalEntry, type PortalEntry } from "@/api/modules/portal";
 import { useAuthStore } from "@/stores/modules/auth";
 import { rememberPortalContext, resolvePortalContext } from "@/utils/portal-context";
 import loginBg from "@/assets/login-bg-light.jpg";
+import TianshuLogo from "@/components/brand/TianshuLogo.vue";
 
 const form = reactive({
   tenantCode: "platform",
@@ -197,12 +198,9 @@ onMounted(() => {
     <!-- Top Navigation Header -->
     <header class="login-page__header">
       <div class="login-page__brand">
-        <div class="login-page__logo">
-          <img v-if="portal?.logoUrl" :src="portal.logoUrl" alt="" />
-          <span v-else>{{ (portal?.portalTitle || "SB").slice(0, 2) }}</span>
-        </div>
+        <TianshuLogo :size="32" />
         <div class="login-page__brand-meta">
-          <strong>{{ portal?.portalTitle || "SaaS 基础底座平台" }}</strong>
+          <strong>{{ portal?.portalTitle || "天枢云基 Tianshu PaaS" }}</strong>
           <span class="login-page__brand-badge">Enterprise Edition</span>
         </div>
       </div>
@@ -225,16 +223,16 @@ onMounted(() => {
         <section class="login-hero" aria-label="底座特性介绍">
           <div class="login-hero__tag">
             <el-icon><Cpu /></el-icon>
-            <span>NEXT-GEN CLOUD FOUNDATION</span>
+            <span>TIANSHU CLOUD FOUNDATION</span>
           </div>
 
           <h1 class="login-hero__title">
-            统一数字化底座<br />
-            <span class="login-hero__title--gradient">高隔离企业级多租户引擎</span>
+            天枢云基数字中枢<br />
+            <span class="login-hero__title--gradient">高隔离企业级多租户底座</span>
           </h1>
 
           <p class="login-hero__desc">
-            基于微内核架构打造的标准云原生底座，提供全链路租户生命周期隔离、行级数据权限规则与商业化配额治理能力。
+            以天枢为核，执掌万企。提供金融级多租户物理与逻辑隔离、BPMN 可视化审批流引擎、细粒度数据权限与企业业务中台矩阵。
           </p>
 
           <div class="login-hero__features">

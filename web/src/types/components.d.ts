@@ -88,6 +88,7 @@ declare module 'vue' {
     SchemaForm: typeof import('./../components/pro/SchemaForm.vue')['default']
     TagsView: typeof import('./../components/platform/TagsView.vue')['default']
     TenantSwitcher: typeof import('./../components/platform/TenantSwitcher.vue')['default']
+    TianshuLogo: typeof import('./../components/brand/TianshuLogo.vue')['default']
   }
   export interface GlobalDirectives {
     vLoading: typeof import('element-plus/es')['ElLoadingDirective']
