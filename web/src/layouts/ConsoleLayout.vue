@@ -76,7 +76,7 @@ const sidebarAccordion = ref<boolean>(
 );
 const settingsDrawerVisible = ref(false);
 const commandPaletteVisible = ref(false);
-const enableWatermark = ref(localStorage.getItem("sb_enable_watermark") !== "false");
+const enableWatermark = ref(localStorage.getItem("sb_enable_watermark") === "true");
 
 const watermarkContent = computed(() => {
   if (!enableWatermark.value) return "";
@@ -514,6 +514,7 @@ onMounted(() => {
           :show-text="!railCollapsed"
           show-badge
           badge-text="PaaS"
+          theme="dark"
         />
       </div>
 
@@ -1108,7 +1109,7 @@ onMounted(() => {
       <!-- 多标签页 TagsView 导航条 -->
       <TagsView />
 
-      <el-watermark class="console-shell__watermark-wrap" :content="watermarkContent" :font="{ color: 'rgba(0, 0, 0, 0.05)', fontSize: 13 }">
+      <el-watermark class="console-shell__watermark-wrap" :content="watermarkContent" :font="{ color: 'rgba(0, 0, 0, 0.015)', fontSize: 13 }">
         <main class="console-shell__workspace">
           <!-- 顶部模式下的页头面包屑导航条 -->
           <div v-if="layoutMode === 'top' && showBreadcrumbs" class="console-shell__page-header-bar">
@@ -1374,8 +1375,8 @@ onMounted(() => {
   gap: 10px;
   height: 52px;
   padding: 0 14px;
-  border-bottom: 1px solid var(--sb-shell-rail-border);
-  background: #fff;
+  border-bottom: 1px solid var(--sb-shell-rail-border, #1a2236);
+  background: var(--sb-shell-rail-soft, #060913);
 
   &--top {
     height: 100%;
@@ -1453,13 +1454,14 @@ onMounted(() => {
 
 /* 顶层主域名称 (Top-Side Mix 模式侧栏模块列表标题) */
 .console-shell__cluster-title {
-  padding: 4px 8px 8px;
+  padding: 8px 8px 6px;
   margin-bottom: 4px;
-  border-bottom: 1px solid var(--sb-border-subtle, #f1f5f9);
-  font-size: 11px;
+  border-bottom: 1px solid var(--sb-shell-rail-border, #1a2236);
+  font-size: 10.5px;
   font-weight: 700;
   color: #64748b;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
+  font-family: var(--sb-font-mono, monospace);
   text-transform: uppercase;
 }
 
@@ -1491,36 +1493,36 @@ onMounted(() => {
   border-radius: 6px;
   border: none;
   background: transparent;
-  color: #334155;
+  color: #94a3b8;
   font-family: inherit;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 550;
   text-align: left;
   cursor: pointer;
   transition: all 120ms ease;
 
   &:hover {
-    background: #f1f5f9;
-    color: #090d16;
+    background: rgba(255, 255, 255, 0.06);
+    color: #ffffff;
 
     .cluster-parent-icon {
-      color: #090d16;
+      color: #38bdf8;
     }
 
     .cluster-parent-arrow {
-      color: #334155;
+      color: #cbd5e1;
     }
   }
 
   &.is-active {
-    color: #2563eb;
+    color: #38bdf8;
 
     .cluster-parent-icon {
-      color: #2563eb;
+      color: #38bdf8;
     }
 
     .cluster-parent-title {
-      color: #2563eb;
+      color: #ffffff;
       font-weight: 650;
     }
   }
@@ -1529,8 +1531,8 @@ onMounted(() => {
     font-weight: 500;
 
     &.is-active {
-      background: #eff6ff;
-      color: #1d4ed8;
+      background: rgba(37, 99, 235, 0.25);
+      color: #ffffff;
       font-weight: 600;
 
       &::before {
@@ -1541,11 +1543,12 @@ onMounted(() => {
         bottom: 4px;
         width: 3px;
         border-radius: 0 2px 2px 0;
-        background: #2563eb;
+        background: #38bdf8;
+        box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
       }
 
       .cluster-parent-icon {
-        color: #2563eb;
+        color: #38bdf8;
       }
     }
   }
@@ -1610,7 +1613,7 @@ onMounted(() => {
   gap: 1px;
   margin: 1px 0 3px 15px;
   padding-left: 8px;
-  border-left: 1px solid var(--sb-border-subtle, #e2e8f0);
+  border-left: 1px solid var(--sb-shell-rail-border, #1a2236);
 }
 
 .cluster-slide-enter-active,
@@ -1656,27 +1659,27 @@ onMounted(() => {
   padding: 0 8px;
   border-radius: 6px;
   background: transparent;
-  color: #475569;
+  color: #94a3b8;
   font-size: 13px;
   font-weight: 500;
   text-align: left;
 
   &:hover {
-    background: #f1f5f9;
-    color: #090d16;
+    background: rgba(255, 255, 255, 0.06);
+    color: #ffffff;
 
     .console-shell__rail-icon {
-      color: #090d16;
+      color: #38bdf8;
     }
 
     .console-shell__rail-arrow {
-      color: #334155;
+      color: #cbd5e1;
     }
   }
 
   &.is-active {
-    background: #eff6ff;
-    color: #1d4ed8;
+    background: rgba(37, 99, 235, 0.25);
+    color: #ffffff;
     font-weight: 600;
 
     &::before {
@@ -1687,11 +1690,12 @@ onMounted(() => {
       bottom: 4px;
       width: 3px;
       border-radius: 0 2px 2px 0;
-      background: #2563eb;
+      background: #38bdf8;
+      box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
     }
 
     .console-shell__rail-icon {
-      color: #2563eb;
+      color: #38bdf8;
       background: transparent;
       border: none;
       box-shadow: none;
@@ -1699,11 +1703,11 @@ onMounted(() => {
 
     .console-shell__rail-title {
       font-weight: 600;
-      color: #1d4ed8;
+      color: #ffffff;
     }
 
     .console-shell__rail-arrow {
-      color: #2563eb;
+      color: #38bdf8;
     }
   }
 }
@@ -1766,7 +1770,7 @@ onMounted(() => {
   gap: 1px;
   margin: 1px 0 3px 15px;
   padding-left: 8px;
-  border-left: 1px solid var(--sb-border-subtle, #e2e8f0);
+  border-left: 1px solid var(--sb-shell-rail-border, #1a2236);
 }
 
 .submenu-slide-enter-active,
@@ -1790,7 +1794,7 @@ onMounted(() => {
   padding: 0 8px;
   border-radius: 5px;
   background: transparent;
-  color: #475569;
+  color: #94a3b8;
   font-size: 12.5px;
   font-weight: 400;
   text-align: left;
@@ -1799,26 +1803,26 @@ onMounted(() => {
   transition: all 120ms ease;
 
   &:hover {
-    background: #f8fafc;
-    color: #090d16;
+    background: rgba(255, 255, 255, 0.05);
+    color: #ffffff;
 
     .console-shell__submenu-dot {
-      background: #475569;
+      background: #cbd5e1;
     }
   }
 
   &.is-active {
-    background: #eff6ff;
-    color: #2563eb;
+    background: rgba(37, 99, 235, 0.22);
+    color: #ffffff;
     font-weight: 600;
 
     .console-shell__submenu-dot {
-      background: #2563eb;
-      box-shadow: 0 0 0 2px rgb(37 99 235 / 0.2);
+      background: #38bdf8;
+      box-shadow: 0 0 6px rgba(56, 189, 248, 0.8);
     }
 
     .console-shell__submenu-icon {
-      color: #2563eb;
+      color: #38bdf8;
     }
   }
 }
@@ -1828,7 +1832,7 @@ onMounted(() => {
   height: 4px;
   flex: 0 0 4px;
   border-radius: 50%;
-  background: #94a3b8;
+  background: #475569;
   transition: all 120ms ease;
 }
 
@@ -1855,7 +1859,7 @@ onMounted(() => {
   justify-content: space-between;
   gap: 8px;
   padding: 8px 12px;
-  border-top: 1px solid var(--sb-border-color);
+  border-top: 1px solid var(--sb-shell-rail-border, #1a2236);
   color: var(--sb-warning-color);
   font-size: 12px;
 }
@@ -1865,8 +1869,8 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-top: 1px solid var(--sb-border-color);
-  background: #fff;
+  border-top: 1px solid var(--sb-shell-rail-border, #1a2236);
+  background: var(--sb-shell-rail-soft, #060913);
   padding: 0 6px;
   gap: 4px;
 }
@@ -1881,16 +1885,16 @@ onMounted(() => {
   padding: 0 8px;
   border-radius: 6px;
   background: transparent;
-  color: #475569;
-  font-size: 12.5px;
+  color: #94a3b8;
+  font-size: 12px;
   font-weight: 500;
   text-align: left;
   border: none;
   cursor: pointer;
 
   &:hover {
-    background: #f1f5f9;
-    color: #090d16;
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
   }
 }
 
@@ -1902,18 +1906,18 @@ onMounted(() => {
   gap: 5px;
   border-radius: 6px;
   background: transparent;
-  color: #475569;
-  font-size: 11.5px;
+  color: #94a3b8;
+  font-size: 11px;
   font-weight: 500;
-  border: 1px solid var(--sb-border-subtle, #e2e8f0);
+  border: 1px solid #1a2236;
   cursor: pointer;
   white-space: nowrap;
   transition: all 120ms ease;
 
   &:hover {
-    background: #eff6ff;
-    border-color: #bfdbfe;
-    color: #2563eb;
+    background: rgba(37, 99, 235, 0.2);
+    border-color: #38bdf8;
+    color: #ffffff;
   }
 
   .footer-layout-icon {
@@ -1934,13 +1938,13 @@ onMounted(() => {
   border-radius: 6px;
   border: none;
   background: transparent;
-  color: #475569;
+  color: #94a3b8;
   cursor: pointer;
   transition: all 120ms ease;
 
   &:hover {
-    background: #f1f5f9;
-    color: #090d16;
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
   }
 
   svg {

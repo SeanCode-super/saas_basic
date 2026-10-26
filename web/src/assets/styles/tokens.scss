@@ -60,15 +60,15 @@
   --sb-surface-soft: #f8fafc;     /* 表头与次级面板冷白背景 */
   --sb-surface-contrast: #f1f5f9;
 
-  /* 导航导轨专用 (Console Rail) */
-  --sb-shell-rail: #ffffff;
-  --sb-shell-rail-soft: #f8fafc;
-  --sb-shell-rail-border: #e2e8f0;
-  --sb-shell-rail-text: #1e293b;
-  --sb-shell-rail-muted: #64748b;
-  --sb-shell-rail-hover: #f1f5f9;
-  --sb-shell-rail-active: #eff6ff;
-  --sb-shell-rail-indicator: #2563eb;
+  /* 导航导轨专用 (Console Rail - Deep Midnight Obsidian 标志性深空导轨) */
+  --sb-shell-rail: #0a0f1d;
+  --sb-shell-rail-soft: #060913;
+  --sb-shell-rail-border: #1a2236;
+  --sb-shell-rail-text: #f8fafc;
+  --sb-shell-rail-muted: #94a3b8;
+  --sb-shell-rail-hover: rgba(255, 255, 255, 0.05);
+  --sb-shell-rail-active: rgba(37, 99, 235, 0.22);
+  --sb-shell-rail-indicator: #38bdf8;
   --sb-shell-main: #f1f5f9;
   --sb-panel-muted: #f8fafc;
 

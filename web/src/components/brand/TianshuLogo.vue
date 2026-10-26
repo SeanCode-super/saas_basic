@@ -6,19 +6,21 @@ withDefaults(
     showBadge?: boolean;
     badgeText?: string;
     variant?: "star" | "monolith" | "orbit";
+    theme?: "light" | "dark";
   }>(),
   {
     size: 26,
     showText: false,
     showBadge: false,
     badgeText: "PaaS",
-    variant: "star"
+    variant: "star",
+    theme: "light"
   }
 );
 </script>
 
 <template>
-  <div class="tianshu-brand-emblem" :class="{ 'with-text': showText }">
+  <div class="tianshu-brand-emblem" :class="[`theme--${theme}`, { 'with-text': showText }]">
     <!-- VARIANT 1: 天枢极星中枢 (The Polaris Pivot - Snowflake / Linear 纯几何矢量风格) -->
     <svg
       v-if="variant === 'star'"
@@ -31,18 +33,18 @@ withDefaults(
     >
       <!-- 4 Engineered Chevron Wings (Four Pillars converging on Pivot) -->
       <!-- Top Wing -->
-      <path d="M24 4L34 14H27.5L24 10.5L20.5 14H14L24 4Z" fill="#1D4ED8" />
+      <path d="M24 4L34 14H27.5L24 10.5L20.5 14H14L24 4Z" :fill="theme === 'dark' ? '#3B82F6' : '#1D4ED8'" />
       <!-- Bottom Wing -->
-      <path d="M24 44L14 34H20.5L24 37.5L27.5 34H34L24 44Z" fill="#1D4ED8" />
+      <path d="M24 44L14 34H20.5L24 37.5L27.5 34H34L24 44Z" :fill="theme === 'dark' ? '#3B82F6' : '#1D4ED8'" />
       <!-- Left Wing -->
-      <path d="M4 24L14 14V20.5L10.5 24L14 27.5V34L4 24Z" fill="#2563EB" />
+      <path d="M4 24L14 14V20.5L10.5 24L14 27.5V34L4 24Z" :fill="theme === 'dark' ? '#60A5FA' : '#2563EB'" />
       <!-- Right Wing -->
-      <path d="M44 24L34 34V27.5L37.5 24L34 20.5V14L44 24Z" fill="#2563EB" />
+      <path d="M44 24L34 34V27.5L37.5 24L34 20.5V14L44 24Z" :fill="theme === 'dark' ? '#60A5FA' : '#2563EB'" />
 
       <!-- Center Precision Pivot Diamond (Perfect 4-Axis Symmetry) -->
-      <path d="M24 17L31 24L24 31L17 24L24 17Z" fill="#0F172A" />
+      <path d="M24 17L31 24L24 31L17 24L24 17Z" :fill="theme === 'dark' ? '#FFFFFF' : '#0F172A'" />
       <!-- Core Anchor Point -->
-      <circle cx="24" cy="24" r="2.5" fill="#FFFFFF" />
+      <circle cx="24" cy="24" r="2.5" :fill="theme === 'dark' ? '#0A0F1D' : '#FFFFFF'" />
     </svg>
 
     <!-- VARIANT 2: 天枢基石 T (The Monolith Foundation - HashiCorp / Docker 工业级等轴测) -->
@@ -55,15 +57,10 @@ withDefaults(
       xmlns="http://www.w3.org/2000/svg"
       class="brand-vector-mark"
     >
-      <!-- Horizontal Crossbar (Top Face) -->
       <path d="M24 5L42 14L34 18.5L14 8.5L24 5Z" fill="#3B82F6" />
-      <!-- Horizontal Crossbar (Left Face) -->
       <path d="M6 18.5L24 9.5L24 18.5L6 27.5V18.5Z" fill="#2563EB" />
-      <!-- Horizontal Crossbar (Right Face) -->
       <path d="M42 14L24 23V32L42 23V14Z" fill="#1D4ED8" />
-      <!-- Pillar (Left Face) -->
       <path d="M15 23L24 27.5V43L15 38.5V23Z" fill="#1E40AF" />
-      <!-- Pillar (Right Face) -->
       <path d="M33 23L24 27.5V43L33 38.5V23Z" fill="#0F172A" />
     </svg>
 
@@ -77,11 +74,8 @@ withDefaults(
       xmlns="http://www.w3.org/2000/svg"
       class="brand-vector-mark"
     >
-      <!-- Outer Precision Structural Ring -->
-      <circle cx="24" cy="24" r="18" stroke="#0F172A" stroke-width="3.5" />
-      <!-- 4 Convergence Axes -->
+      <circle cx="24" cy="24" r="18" :stroke="theme === 'dark' ? '#334155' : '#0F172A'" stroke-width="3.5" />
       <path d="M24 6V18M24 30V42M6 24H18M30 24H42" stroke="#2563EB" stroke-width="3.5" stroke-linecap="round" />
-      <!-- Center Anchor -->
       <circle cx="24" cy="24" r="5" fill="#2563EB" />
       <circle cx="24" cy="24" r="2" fill="#FFFFFF" />
     </svg>
@@ -133,6 +127,7 @@ withDefaults(
     color: #0f172a;
     letter-spacing: -0.01em;
     white-space: nowrap;
+    transition: color 0.15s ease;
   }
 
   .brand-name-en {
@@ -142,6 +137,7 @@ withDefaults(
     letter-spacing: 0.1em;
     font-family: ui-monospace, "SF Mono", "Roboto Mono", monospace;
     text-transform: uppercase;
+    transition: color 0.15s ease;
   }
 }
 
@@ -155,5 +151,22 @@ withDefaults(
   font-size: 10px;
   font-weight: 700;
   line-height: 1.2;
+}
+
+/* Dark Theme Overrides for Obsidian Sidebar */
+.theme--dark {
+  .brand-name-zh {
+    color: #ffffff !important;
+  }
+
+  .brand-name-en {
+    color: #38bdf8 !important;
+  }
+
+  .brand-badge-pill {
+    background: rgba(37, 99, 235, 0.25) !important;
+    border-color: rgba(56, 189, 248, 0.4) !important;
+    color: #93c5fd !important;
+  }
 }
 </style>

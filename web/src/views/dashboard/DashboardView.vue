@@ -403,7 +403,7 @@ onMounted(() => {
 
     <!-- Top Row: Business Statistic Metrics -->
     <div class="ep-dashboard__stats">
-      <div v-for="stat in statsOverview" :key="stat.label" class="ep-stat-card">
+      <div v-for="(stat, idx) in statsOverview" :key="stat.label" class="ep-stat-card" :class="'ep-stat-card--tier-' + idx">
         <div class="ep-stat-card__head">
           <span class="ep-stat-card__label">{{ stat.label }}</span>
           <ProStatusDot :status="stat.statusType" :text="stat.statusText" size="sm" />
@@ -699,11 +699,24 @@ onMounted(() => {
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  padding: 20px 24px;
-  background: #fff;
-  border: 1px solid var(--sb-border-color);
-  border-radius: var(--sb-radius-md);
-  box-shadow: var(--sb-shadow-xs);
+  padding: 22px 26px;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  border: 1px solid #334155;
+  border-radius: var(--sb-radius-lg, 8px);
+  box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.2);
+  position: relative;
+  overflow: hidden;
+
+  &::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 320px;
+    background: radial-gradient(circle at 100% 50%, rgba(37, 99, 235, 0.22) 0%, transparent 70%);
+    pointer-events: none;
+  }
 
   @media (max-width: 960px) {
     flex-direction: column;
@@ -719,36 +732,36 @@ onMounted(() => {
 
 .ep-dashboard__title {
   margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--sb-text-primary);
-  letter-spacing: -0.01em;
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.02em;
 }
 
 .ep-dashboard__tenant-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 2px 8px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--sb-text-secondary);
-  background: var(--sb-surface-soft);
-  border: 1px solid var(--sb-border-color);
-  border-radius: var(--sb-radius-sm);
+  padding: 3px 9px;
+  font-size: 11.5px;
+  font-weight: 550;
+  color: #f1f5f9;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--sb-radius-sm, 6px);
 }
 
 .ep-dashboard__tenant-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--sb-success-color);
+  background: #10b981;
 }
 
 .ep-dashboard__subtitle {
   margin: 6px 0 0;
   font-size: 13px;
-  color: var(--sb-text-secondary);
+  color: #94a3b8;
 }
 
 .ep-dashboard__header-actions {
@@ -757,6 +770,18 @@ onMounted(() => {
   gap: 10px;
   flex-shrink: 0;
   flex-wrap: wrap;
+
+  .el-button:not(.el-button--primary) {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.16);
+      border-color: rgba(255, 255, 255, 0.35);
+      color: #ffffff;
+    }
+  }
 }
 
 /* Stats Overview */
@@ -775,17 +800,35 @@ onMounted(() => {
 }
 
 .ep-stat-card {
-  padding: 16px 18px;
-  background: #fff;
+  padding: 16px 20px;
+  background: #ffffff;
   border: 1px solid var(--sb-border-color);
   border-radius: var(--sb-radius-md);
-  box-shadow: var(--sb-shadow-xs);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
   transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: #cbd5e1;
+    transition: background 0.15s ease;
+  }
+
+  &--tier-0::before { background: #2563eb; }
+  &--tier-1::before { background: #6366f1; }
+  &--tier-2::before { background: #059669; }
+  &--tier-3::before { background: #0ea5e9; }
 
   &:hover {
     border-color: #93c5fd;
-    box-shadow: 0 4px 12px -2px rgba(37, 99, 235, 0.1);
-    transform: translateY(-1px);
+    box-shadow: 0 6px 16px -4px rgba(37, 99, 235, 0.12);
+    transform: translateY(-2px);
   }
 }
 
