@@ -1,5 +1,7 @@
 package com.saasbasics.platform.config;
 
+import java.util.ArrayList;
+import java.util.List;
 import com.saasbasics.platform.security.PermissionGuardInterceptor;
 import com.saasbasics.platform.security.DataPermissionInterceptor;
 import com.saasbasics.platform.security.TenantFeatureGuardInterceptor;
@@ -30,8 +32,21 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
+        List<String> origins = new ArrayList<>();
+        if (securityProperties.getCorsAllowedOrigins() != null) {
+            origins.addAll(securityProperties.getCorsAllowedOrigins());
+        }
+        // Always support local dev & mobile preview patterns
+        origins.add("http://localhost:*");
+        origins.add("http://127.0.0.1:*");
+        origins.add("http://[::1]:*");
+        origins.add("https://localhost:*");
+        origins.add("https://127.0.0.1:*");
+        origins.add("http://192.168.*.*:*");
+        origins.add("http://10.*.*.*:*");
+
         registry.addMapping("/**")
-                .allowedOrigins(securityProperties.getCorsAllowedOrigins().toArray(String[]::new))
+                .allowedOriginPatterns(origins.toArray(String[]::new))
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true);
