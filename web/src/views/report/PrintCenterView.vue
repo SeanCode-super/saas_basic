@@ -391,7 +391,7 @@ function handlePrint() {
             <div class="party-col party-buyer">
               <div class="party-label">购<br>买<br>方</div>
               <div class="party-content">
-                <div class="line"><span>名　　　　称：</span><strong>{{ vatInvoiceData.buyer.name }}</strong></div>
+                <div class="line"><span>名&#x3000;&#x3000;&#x3000;&#x3000;称：</span><strong>{{ vatInvoiceData.buyer.name }}</strong></div>
                 <div class="line"><span>纳税人识别号：</span><strong>{{ vatInvoiceData.buyer.taxId }}</strong></div>
                 <div class="line"><span>地 址、电 话：</span><span>{{ vatInvoiceData.buyer.addrTel }}</span></div>
                 <div class="line"><span>开户行及账号：</span><span>{{ vatInvoiceData.buyer.bankAccount }}</span></div>
@@ -437,7 +437,7 @@ function handlePrint() {
                 </tr>
                 <!-- 小计行 -->
                 <tr class="vat-subtotal-tr">
-                  <td colspan="5" class="text-center font-bold">合　　　　　计</td>
+                  <td colspan="5" class="text-center font-bold">合&#x3000;&#x3000;&#x3000;&#x3000;&#x3000;计</td>
                   <td class="text-right font-bold font-mono">¥{{ totalVatGoodsAmount.toFixed(2) }}</td>
                   <td></td>
                   <td class="text-right font-bold font-mono">¥{{ totalVatTaxAmount.toFixed(2) }}</td>
@@ -461,7 +461,7 @@ function handlePrint() {
             <div class="party-col party-buyer">
               <div class="party-label">销<br>售<br>方</div>
               <div class="party-content">
-                <div class="line"><span>名　　　　称：</span><strong>{{ vatInvoiceData.seller.name }}</strong></div>
+                <div class="line"><span>名&#x3000;&#x3000;&#x3000;&#x3000;称：</span><strong>{{ vatInvoiceData.seller.name }}</strong></div>
                 <div class="line"><span>纳税人识别号：</span><strong>{{ vatInvoiceData.seller.taxId }}</strong></div>
                 <div class="line"><span>地 址、电 话：</span><span>{{ vatInvoiceData.seller.addrTel }}</span></div>
                 <div class="line"><span>开户行及账号：</span><span>{{ vatInvoiceData.seller.bankAccount }}</span></div>
