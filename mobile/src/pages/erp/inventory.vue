@@ -34,7 +34,7 @@
         </view>
 
         <view v-if="item.isLowStock" class="warning-bar">
-          <text class="warning-text">⚠️ 库存低于安全警戒线 ({{ item.minStock }})，请及时补货</text>
+          <text class="warning-text">库存偏低 · 低于安全警戒线 ({{ item.minStock }})，请及时补货</text>
         </view>
       </view>
     </view>

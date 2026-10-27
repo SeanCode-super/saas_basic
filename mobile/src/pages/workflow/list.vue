@@ -43,7 +43,7 @@
     </view>
 
     <view v-else-if="currentList.length === 0" class="state-box">
-      <text class="state-icon">☕</text>
+      <AppIcon name="clipboard" :size="36" color="#94a3b8" />
       <text class="state-text">{{ activeTab === 'pending' ? '当前暂无待您审批的任务' : '暂无相关审批记录' }}</text>
     </view>
 
@@ -74,6 +74,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import AppIcon from "../../components/ui/AppIcon.vue";
 import { apiGetPendingTasks, apiGetCompletedTasks, apiGetMyInstances, apiHandleTask } from "../../api/workflow";
 
 const activeTab = ref<"pending" | "my" | "completed">("pending");

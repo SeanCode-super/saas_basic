@@ -42,7 +42,7 @@
     </view>
 
     <view v-else-if="filteredList.length === 0" class="state-box">
-      <text class="state-icon">🏢</text>
+      <AppIcon name="building" :size="36" color="#94a3b8" />
       <text class="state-text">暂无符合条件的客户记录</text>
     </view>
 
@@ -64,7 +64,10 @@
           </view>
           <view class="meta-row" @click="makeCall(item.phone)">
             <text class="meta-label">联系电话：</text>
-            <text class="meta-value phone-value">📞 {{ item.phone || '13800138000' }}</text>
+            <view class="meta-phone-wrap" style="display: inline-flex; align-items: center; gap: 4px;">
+              <AppIcon name="phone" :size="12" color="#0284c7" />
+              <text class="meta-value phone-value">{{ item.phone || '13800138000' }}</text>
+            </view>
           </view>
           <view class="meta-row">
             <text class="meta-label">所属行业：</text>
@@ -80,15 +83,15 @@
         <view class="card-actions">
           <template v-if="item.inPool">
             <button class="action-btn is-claim" @click="handleClaim(item)">
-              ⚡ 立即认领抢单
+              立即认领抢单
             </button>
           </template>
           <template v-else>
             <button class="action-btn is-follow" @click="goFollowUp(item)">
-              📝 写跟进拜访
+              写跟进拜访
             </button>
             <button class="action-btn is-return" @click="handleReturn(item)">
-              ↩️ 退回公海
+              退回公海
             </button>
           </template>
         </view>
@@ -105,6 +108,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import AppIcon from "../../components/ui/AppIcon.vue";
 import { apiGetCustomers, apiClaimCustomer, apiReturnCustomerToPool, apiCreateCustomer } from "../../api/crm";
 
 const activeTab = ref<"all" | "mine" | "pool">("all");

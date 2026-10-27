@@ -191,11 +191,13 @@ function closeAllTags() {
 
 <style scoped>
 .tags-view-container {
-  height: 36px;
+  height: 38px;
   width: 100%;
-  background: #ffffff;
-  border-bottom: 1px solid var(--sb-border-subtle, #e2e8f0);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.65);
+  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.8), 0 2px 8px rgba(15, 23, 42, 0.02);
   display: flex;
   align-items: center;
   position: relative;
@@ -206,8 +208,8 @@ function closeAllTags() {
 .tags-view-scroll {
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 0 14px;
+  gap: 6px;
+  padding: 0 16px;
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -221,28 +223,33 @@ function closeAllTags() {
   align-items: center;
   height: 26px;
   line-height: 26px;
-  border: 1px solid var(--sb-border-subtle, #e2e8f0);
+  border: 1px solid rgba(226, 232, 240, 0.8);
   color: #475569;
-  background: #ffffff;
-  padding: 0 9px;
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 0 10px;
   font-size: 12px;
   font-weight: 500;
-  border-radius: 4px;
+  border-radius: 8px;
+  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.9);
   cursor: pointer;
-  transition: all 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
   gap: 6px;
 
   &:hover {
     color: var(--sb-text-primary, #090d16);
-    background: #f8fafc;
-    border-color: var(--sb-border-color, #cbd5e1);
+    background: rgba(255, 255, 255, 0.95);
+    border-color: rgba(203, 213, 225, 0.9);
+    box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 1), 0 2px 6px rgba(15, 23, 42, 0.05);
   }
 
   &.is-active {
-    background: #eff6ff;
+    background: rgba(37, 99, 235, 0.12);
     color: #1d4ed8;
     border-color: rgba(37, 99, 235, 0.35);
+    box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.8), 0 2px 8px rgba(37, 99, 235, 0.15);
     font-weight: 600;
   }
 }

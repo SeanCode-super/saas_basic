@@ -6,13 +6,13 @@
         <view class="tenant-pill" @click="navTo('/pages/profile/profile')">
           <text class="tenant-dot" />
           <text class="tenant-name">{{ currentTenantName }}</text>
-          <text class="tenant-arrow">▼</text>
+          <AppIcon name="chevron-right" :size="11" color="#94a3b8" style="transform: rotate(90deg); margin-left: 2px;" />
         </view>
         <text class="greeting-text">你好，{{ userName }}</text>
       </view>
       <view class="header-right" @click="navTo('/pages/notify/index')">
         <view class="bell-btn">
-          <text class="bell-icon">🔔</text>
+          <AppIcon name="bell" :size="18" color="#38bdf8" />
           <text v-if="unreadCount > 0" class="bell-badge">{{ unreadCount }}</text>
         </view>
       </view>
@@ -22,7 +22,7 @@
     <view class="notice-bar" @click="navTo('/pages/notify/index')">
       <text class="notice-tag">公告</text>
       <text class="notice-text">天枢云基数字基座运行稳健 · 全链路SLA达标率 99.99%</text>
-      <text class="notice-arrow">&gt;</text>
+      <AppIcon name="chevron-right" :size="14" color="#64748b" />
     </view>
 
     <!-- 关键指标卡片 (4格微仪表盘) -->
@@ -59,44 +59,58 @@
       <view class="grid-box">
         <view class="grid-item" @click="navTo('/pages/workflow/list')">
           <view class="icon-circle icon-blue">
-            <text>📝</text>
+            <AppIcon name="workflow" :size="22" color="#2563eb" />
             <text v-if="pendingCount > 0" class="badge-dot" />
           </view>
           <text class="grid-label">移动审批</text>
         </view>
 
         <view class="grid-item" @click="navTo('/pages/workflow/apply')">
-          <view class="icon-circle icon-indigo"><text>⚡</text></view>
+          <view class="icon-circle icon-indigo">
+            <AppIcon name="flash" :size="22" color="#4f46e5" />
+          </view>
           <text class="grid-label">发起流程</text>
         </view>
 
         <view class="grid-item" @click="navTo('/pages/crm/customers')">
-          <view class="icon-circle icon-emerald"><text>🏢</text></view>
+          <view class="icon-circle icon-emerald">
+            <AppIcon name="building" :size="22" color="#059669" />
+          </view>
           <text class="grid-label">客户公海</text>
         </view>
 
         <view class="grid-item" @click="navTo('/pages/crm/follow-up')">
-          <view class="icon-circle icon-orange"><text>🤝</text></view>
+          <view class="icon-circle icon-orange">
+            <AppIcon name="visit" :size="22" color="#ea580c" />
+          </view>
           <text class="grid-label">外勤拜访</text>
         </view>
 
         <view class="grid-item" @click="navTo('/pages/erp/inventory')">
-          <view class="icon-circle icon-cyan"><text>📦</text></view>
+          <view class="icon-circle icon-cyan">
+            <AppIcon name="box" :size="22" color="#0284c7" />
+          </view>
           <text class="grid-label">多仓库存</text>
         </view>
 
         <view class="grid-item" @click="handleScanCode">
-          <view class="icon-circle icon-purple"><text>📷</text></view>
+          <view class="icon-circle icon-purple">
+            <AppIcon name="scan" :size="22" color="#9333ea" />
+          </view>
           <text class="grid-label">条码核销</text>
         </view>
 
         <view class="grid-item" @click="navTo('/pages/contact/index')">
-          <view class="icon-circle icon-rose"><text>👥</text></view>
+          <view class="icon-circle icon-rose">
+            <AppIcon name="contacts" :size="22" color="#e11d48" />
+          </view>
           <text class="grid-label">组织通讯录</text>
         </view>
 
         <view class="grid-item" @click="navTo('/pages/profile/profile')">
-          <view class="icon-circle icon-slate"><text>⚙️</text></view>
+          <view class="icon-circle icon-slate">
+            <AppIcon name="settings" :size="22" color="#475569" />
+          </view>
           <text class="grid-label">租户中枢</text>
         </view>
       </view>
@@ -105,13 +119,13 @@
     <!-- 最新待办速览卡片 -->
     <view class="recent-tasks-section">
       <view class="section-title-row">
-        <text class="section-title">🔥 待处理审批任务</text>
+        <text class="section-title">待处理审批任务</text>
         <text class="more-link" @click="navTo('/pages/workflow/list')">查看全部 &gt;</text>
       </view>
 
       <view v-if="tasks.length === 0" class="empty-box">
-        <text class="empty-icon">☕</text>
-        <text class="empty-text">太棒了，当前暂无积压待办事项！</text>
+        <AppIcon name="workflow" :size="32" color="#64748b" />
+        <text class="empty-text">当前暂无积压待办事项</text>
       </view>
 
       <view v-else class="task-list">
@@ -135,6 +149,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
+import AppIcon from "../../components/ui/AppIcon.vue";
 import { apiGetPendingTasks, apiHandleTask } from "../../api/workflow";
 import { apiGetInventory } from "../../api/erp";
 import { apiGetCustomers } from "../../api/crm";

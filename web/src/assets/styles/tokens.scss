@@ -52,25 +52,62 @@
   --sb-border-subtle: #e2e8f0;   /* 浅层内容分割线 (Slate-200) */
   --sb-border-strong: #94a3b8;   /* 悬浮/聚焦外沿增强线 */
 
-  /* 底座画布与表面层级 (Titanium Slate Ground) */
-  --sb-page-shell: #f1f5f9;       /* 全局冷灰画布底板 (Slate-100) */
+  /* ==========================================================================
+     iOS 27 / visionOS 晶透液态玻璃系统 (Liquid Aether Glass Tokens)
+     ========================================================================== */
+  --sb-glass-blur: blur(28px) saturate(190%);
+  --sb-glass-blur-sm: blur(16px) saturate(180%);
+  --sb-glass-blur-lg: blur(40px) saturate(200%);
+
+  /* 晶透表面材质（亮色通透与暗夜黑曜石双模式） */
+  --sb-glass-bg: rgba(255, 255, 255, 0.72);
+  --sb-glass-bg-hover: rgba(255, 255, 255, 0.85);
+  --sb-glass-bg-active: rgba(255, 255, 255, 0.92);
+  --sb-glass-bg-soft: rgba(255, 255, 255, 0.52);
+
+  /* 暗夜极光毛玻璃 */
+  --sb-glass-dark-bg: rgba(15, 23, 42, 0.72);
+  --sb-glass-dark-hover: rgba(30, 41, 59, 0.78);
+  --sb-glass-dark-active: rgba(37, 99, 235, 0.28);
+
+  /* 物理高光微倒角与外缘水晶发丝边框 (Specular Highlights & Crystal Hairlines) */
+  --sb-glass-border: 1px solid rgba(255, 255, 255, 0.70);
+  --sb-glass-border-dark: 1px solid rgba(255, 255, 255, 0.12);
+  --sb-glass-border-subtle: 1px solid rgba(226, 232, 240, 0.60);
+
+  /* 模拟光线在玻璃顶边缘折射的物理内高光 */
+  --sb-glass-specular: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.95), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.03);
+  --sb-glass-specular-dark: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.25), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.35);
+
+  /* 悬浮柔态大投影 */
+  --sb-glass-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.08), 0 4px 12px -2px rgba(15, 23, 42, 0.04);
+  --sb-glass-shadow-lg: 0 20px 48px -10px rgba(15, 23, 42, 0.12), 0 8px 20px -4px rgba(15, 23, 42, 0.06);
+  --sb-glass-shadow-glow: 0 0 24px -2px rgba(37, 99, 235, 0.25);
+
+  /* 悬浮晶体圆角规范 */
+  --sb-radius-glass: 14px;
+  --sb-radius-glass-sm: 10px;
+  --sb-radius-glass-pill: 9999px;
+
+  /* 底座画布与表面层级 (Titanium Slate Ground & Liquid Glass) */
+  --sb-page-shell: transparent;
   --sb-page-shell-strong: #e2e8f0;
-  --sb-surface-color: #ffffff;    /* 核心操作卡片与表格白底 */
-  --sb-surface-strong: #ffffff;
-  --sb-surface-soft: #f8fafc;     /* 表头与次级面板冷白背景 */
+  --sb-surface-color: rgba(255, 255, 255, 0.75);
+  --sb-surface-strong: rgba(255, 255, 255, 0.85);
+  --sb-surface-soft: rgba(248, 250, 252, 0.60);
   --sb-surface-contrast: #f1f5f9;
 
-  /* 导航导轨专用 (Console Rail - Modern Titanium Slate Navy 雅致钛金深冷灰蓝，告别突兀纯死黑) */
-  --sb-shell-rail: #0f172a;
-  --sb-shell-rail-soft: #0b1120;
-  --sb-shell-rail-border: #1e293b;
+  /* 导航导轨专用 (Console Rail - Glassmorphism Ready) */
+  --sb-shell-rail: rgba(15, 23, 42, 0.75);
+  --sb-shell-rail-soft: rgba(11, 17, 32, 0.8);
+  --sb-shell-rail-border: rgba(255, 255, 255, 0.12);
   --sb-shell-rail-text: #f8fafc;
   --sb-shell-rail-muted: #94a3b8;
-  --sb-shell-rail-hover: rgba(255, 255, 255, 0.06);
-  --sb-shell-rail-active: rgba(37, 99, 235, 0.25);
+  --sb-shell-rail-hover: rgba(255, 255, 255, 0.08);
+  --sb-shell-rail-active: rgba(37, 99, 235, 0.28);
   --sb-shell-rail-indicator: #38bdf8;
-  --sb-shell-main: #f1f5f9;
-  --sb-panel-muted: #f8fafc;
+  --sb-shell-main: transparent;
+  --sb-panel-muted: rgba(248, 250, 252, 0.7);
 
   /* 严谨工程微阴影 (触点微投影，拒绝大面积糊状阴影) */
   --sb-shadow-xs: 0 1px 2px 0 rgba(15, 23, 42, 0.05);

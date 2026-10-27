@@ -86,10 +86,10 @@ const submitting = ref(false);
 const records = ref<any[]>([]);
 
 const contactTypes = [
-  { key: "VISIT", label: "现场面访", icon: "🤝" },
-  { key: "PHONE", label: "电话沟通", icon: "📞" },
-  { key: "WECHAT", label: "微信沟通", icon: "💬" },
-  { key: "MAIL", label: "商务邮件", icon: "✉️" }
+  { key: "VISIT", label: "现场面访" },
+  { key: "PHONE", label: "电话沟通" },
+  { key: "WECHAT", label: "企微沟通" },
+  { key: "MAIL", label: "商务邮件" }
 ];
 
 const form = reactive({
@@ -108,7 +108,7 @@ onLoad((query: any) => {
 
 function getContactTypeLabel(type: string) {
   const match = contactTypes.find((t) => t.key === type);
-  return match ? `${match.icon} ${match.label}` : "🤝 沟通跟进";
+  return match ? match.label : "商务沟通跟进";
 }
 
 async function loadRecords() {

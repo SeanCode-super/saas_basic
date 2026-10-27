@@ -4,7 +4,7 @@
     <view class="profile-card">
       <view class="avatar-lg"><text>{{ userInitial }}</text></view>
       <text class="user-name">{{ userName }}</text>
-      <text class="user-account">账号：{{ userAccount }}</text>
+      <text class="user-account">员工账号：{{ userAccount }}</text>
       <view class="badge-row">
         <text class="role-badge">{{ userRoleLabel }}</text>
         <text class="tenant-badge">{{ currentTenantName }}</text>
@@ -14,14 +14,19 @@
     <!-- 租户空间管理卡片 -->
     <view class="section-card">
       <view class="section-card-head">
-        <text class="section-card-title">🏢 多租户空间中枢</text>
+        <view class="head-title-wrap">
+          <AppIcon name="tenant" :size="16" color="#38bdf8" />
+          <text class="section-card-title">多租户空间中枢</text>
+        </view>
         <text class="section-card-action" @click="handleSwitchTenant">切换租户 &gt;</text>
       </view>
       <view class="tenant-display-box" @click="handleSwitchTenant">
-        <view class="tenant-icon">🌐</view>
+        <view class="tenant-icon">
+          <AppIcon name="globe" :size="20" color="#38bdf8" />
+        </view>
         <view class="tenant-info">
           <text class="tenant-title">当前会话空间</text>
-          <text class="tenant-val">{{ currentTenantName }} (tenant_id: {{ currentTenantId }})</text>
+          <text class="tenant-val">{{ currentTenantName }} (ID: {{ currentTenantId }})</text>
         </view>
         <text class="switch-hint">点击更换</text>
       </view>
@@ -31,31 +36,39 @@
     <view class="setting-list">
       <view class="setting-item" @click="navTo('/pages/workflow/list')">
         <view class="item-left">
-          <text class="item-icon">📝</text>
+          <view class="setting-icon-box bg-blue">
+            <AppIcon name="workflow" :size="16" color="#2563eb" />
+          </view>
           <text class="item-title">我的审批代办</text>
         </view>
-        <text class="item-arrow">&gt;</text>
+        <AppIcon name="chevron-right" :size="14" color="#64748b" />
       </view>
 
       <view class="setting-item" @click="navTo('/pages/crm/customers')">
         <view class="item-left">
-          <text class="item-icon">💼</text>
+          <view class="setting-icon-box bg-emerald">
+            <AppIcon name="building" :size="16" color="#059669" />
+          </view>
           <text class="item-title">我的私海客户与公海</text>
         </view>
-        <text class="item-arrow">&gt;</text>
+        <AppIcon name="chevron-right" :size="14" color="#64748b" />
       </view>
 
       <view class="setting-item" @click="navTo('/pages/notify/index')">
         <view class="item-left">
-          <text class="item-icon">🔔</text>
+          <view class="setting-icon-box bg-indigo">
+            <AppIcon name="bell" :size="16" color="#4f46e5" />
+          </view>
           <text class="item-title">消息与系统公告</text>
         </view>
-        <text class="item-arrow">&gt;</text>
+        <AppIcon name="chevron-right" :size="14" color="#64748b" />
       </view>
 
       <view class="setting-item" @click="clearCache">
         <view class="item-left">
-          <text class="item-icon">🧹</text>
+          <view class="setting-icon-box bg-rose">
+            <AppIcon name="clean" :size="16" color="#e11d48" />
+          </view>
           <text class="item-title">清理本地离线缓存</text>
         </view>
         <text class="item-val">2.4 MB</text>
@@ -63,15 +76,19 @@
 
       <view class="setting-item">
         <view class="item-left">
-          <text class="item-icon">⚡</text>
+          <view class="setting-icon-box bg-cyan">
+            <AppIcon name="cpu" :size="16" color="#0284c7" />
+          </view>
           <text class="item-title">跨端移动引擎架构</text>
         </view>
-        <text class="item-val">Vue 3 + uni-app (跨端输出)</text>
+        <text class="item-val">Vue 3 + uni-app</text>
       </view>
 
       <view class="setting-item">
         <view class="item-left">
-          <text class="item-icon">🛡️</text>
+          <view class="setting-icon-box bg-purple">
+            <AppIcon name="shield" :size="16" color="#9333ea" />
+          </view>
           <text class="item-title">基座核心版本</text>
         </view>
         <text class="item-val">天枢云基 v2.4 (Enterprise)</text>
@@ -87,6 +104,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
+import AppIcon from "../../components/ui/AppIcon.vue";
 import { apiGetTenants } from "../../api/tenant";
 import { apiGetUserInfo } from "../../api/auth";
 
@@ -287,6 +305,12 @@ onMounted(() => {
   margin-bottom: 10px;
 }
 
+.head-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .section-card-title {
   font-size: 13.5px;
   font-weight: 700;
@@ -310,7 +334,13 @@ onMounted(() => {
 }
 
 .tenant-icon {
-  font-size: 20px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: #e0f2fe;
 }
 
 .tenant-info {
@@ -362,11 +392,40 @@ onMounted(() => {
 .item-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
-.item-icon {
-  font-size: 16px;
+.setting-icon-box {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bg-blue {
+  background: #eff6ff;
+}
+
+.bg-emerald {
+  background: #ecfdf5;
+}
+
+.bg-indigo {
+  background: #eef2ff;
+}
+
+.bg-rose {
+  background: #fff1f2;
+}
+
+.bg-cyan {
+  background: #ecfeff;
+}
+
+.bg-purple {
+  background: #faf5ff;
 }
 
 .item-title {

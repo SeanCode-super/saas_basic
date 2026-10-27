@@ -17,7 +17,7 @@
     </view>
 
     <view v-else-if="filteredList.length === 0" class="state-view">
-      <text class="state-icon">🔕</text>
+      <AppIcon name="bell" :size="36" color="#94a3b8" />
       <text class="state-text">暂无此类未读消息</text>
     </view>
 
@@ -30,7 +30,7 @@
         @click="handleClickMsg(msg)"
       >
         <view class="card-icon-box" :class="'cat-' + msg.category?.toLowerCase()">
-          <text>{{ getIcon(msg.category) }}</text>
+          <AppIcon :name="getIconName(msg.category)" :size="18" :color="getIconColor(msg.category)" />
         </view>
 
         <view class="card-body">
@@ -47,6 +47,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import AppIcon from "../../components/ui/AppIcon.vue";
 import { apiGetMyNotifications, apiMarkNotificationRead } from "../../api/notify";
 
 const activeCategory = ref("ALL");
@@ -65,10 +66,16 @@ const filteredList = computed(() => {
   return messages.value.filter((m) => m.category === activeCategory.value);
 });
 
-function getIcon(cat?: string) {
-  if (cat === "WORKFLOW") return "📝";
-  if (cat === "SECURITY") return "🛡️";
-  return "📢";
+function getIconName(cat?: string) {
+  if (cat === "WORKFLOW") return "workflow";
+  if (cat === "SECURITY") return "shield";
+  return "bell";
+}
+
+function getIconColor(cat?: string) {
+  if (cat === "WORKFLOW") return "#2563eb";
+  if (cat === "SECURITY") return "#dc2626";
+  return "#0284c7";
 }
 
 async function loadData() {

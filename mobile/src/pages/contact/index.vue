@@ -49,11 +49,11 @@
 
           <view class="contact-actions">
             <view class="action-item" @click="handleCall(user.phone)">
-              <text class="action-icon">📞</text>
+              <AppIcon name="phone" :size="13" color="#0284c7" />
               <text class="action-val">{{ user.phone || '13800000000' }}</text>
             </view>
             <view class="action-item" @click="handleCopyEmail(user.email)">
-              <text class="action-icon">✉️</text>
+              <AppIcon name="mail" :size="13" color="#64748b" />
               <text class="action-val">{{ user.email || 'user@tianshu.io' }}</text>
             </view>
           </view>
@@ -65,6 +65,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import AppIcon from "../../components/ui/AppIcon.vue";
 import { apiGetContactUsers, type ContactUser } from "../../api/contact";
 
 const keyword = ref("");

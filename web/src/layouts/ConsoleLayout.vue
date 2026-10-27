@@ -1467,62 +1467,64 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  box-shadow: 1px 0 3px rgb(0 0 0 / 0.02);
+  backdrop-filter: var(--sb-glass-blur);
+  -webkit-backdrop-filter: var(--sb-glass-blur);
 
-  /* 主题 A：默认深钛金冷灰蓝 (Classic Dark Slate) */
-  --rail-bg: #0f172a;
-  --rail-border: #1e293b;
-  --rail-brand-bg: #0b1120;
-  --rail-brand-border: #1e293b;
+  /* 主题 A：深钛金黑曜石毛玻璃 (Classic Dark Slate Obsidian Glass) */
+  --rail-bg: rgba(15, 23, 42, 0.75);
+  --rail-border: rgba(255, 255, 255, 0.10);
+  --rail-brand-bg: rgba(11, 17, 32, 0.45);
+  --rail-brand-border: rgba(255, 255, 255, 0.08);
   --rail-text-cluster: #94a3b8;
   --rail-text-cluster-hover: #ffffff;
   --rail-text-cluster-active: #38bdf8;
   --rail-text-app: #cbd5e1;
   --rail-text-app-hover: #ffffff;
   --rail-text-app-active: #ffffff;
-  --rail-app-bg-hover: rgba(255, 255, 255, 0.06);
-  --rail-app-bg-active: rgba(37, 99, 235, 0.25);
+  --rail-app-bg-hover: rgba(255, 255, 255, 0.08);
+  --rail-app-bg-active: rgba(37, 99, 235, 0.32);
   --rail-icon-color: #64748b;
   --rail-icon-active: #38bdf8;
   --rail-indicator: #38bdf8;
-  --rail-indicator-glow: 0 0 8px rgba(56, 189, 248, 0.6);
+  --rail-indicator-glow: 0 0 12px rgba(56, 189, 248, 0.7);
   --rail-arrow-color: #64748b;
-  --rail-tree-line: #1e293b;
-  --rail-footer-bg: #0b1120;
-  --rail-footer-border: #1e293b;
+  --rail-tree-line: rgba(255, 255, 255, 0.1);
+  --rail-footer-bg: rgba(11, 17, 32, 0.45);
+  --rail-footer-border: rgba(255, 255, 255, 0.08);
   --rail-btn-text: #94a3b8;
-  --rail-btn-border: #1e293b;
+  --rail-btn-border: rgba(255, 255, 255, 0.1);
 
   background: var(--rail-bg);
   border-right: 1px solid var(--rail-border);
   color: var(--rail-text-app);
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.06), 4px 0 24px rgba(0, 0, 0, 0.12);
 
-  /* 主题 B：极简雅白 (Unified Light Slate - 超高对比度，黑白严谨，绝对清晰) */
+  /* 主题 B：iOS 27 晶透雅白 (Unified Liquid Glass - 超高透光，光学倒角高光) */
   &.rail-theme--light {
-    --rail-bg: #ffffff;
-    --rail-border: #e2e8f0;
-    --rail-brand-bg: #ffffff;
-    --rail-brand-border: #e2e8f0;
+    --rail-bg: rgba(255, 255, 255, 0.65);
+    --rail-border: rgba(226, 232, 240, 0.75);
+    --rail-brand-bg: rgba(255, 255, 255, 0.45);
+    --rail-brand-border: rgba(226, 232, 240, 0.6);
     --rail-text-cluster: #0f172a;       /* 顶层主域大字：深邃 Slate-900，极高对比度，绝不发虚 */
     --rail-text-cluster-hover: #2563eb; /* 悬浮科技钴蓝 */
     --rail-text-cluster-active: #2563eb;
     --rail-text-app: #1e293b;           /* 二级功能文字：高对比度 Slate-800，清晰锐利 */
     --rail-text-app-hover: #0f172a;
-    --rail-text-app-active: #2563eb;    /* 激活项纯正钴蓝 */
-    --rail-app-bg-hover: #f1f5f9;       /* 雅灰悬浮背景 */
-    --rail-app-bg-active: #eff6ff;      /* 清爽浅蓝激活底色 */
+    --rail-text-app-active: #1d4ed8;    /* 激活项纯正钴蓝 */
+    --rail-app-bg-hover: rgba(255, 255, 255, 0.65);       /* 晶白悬浮背景 */
+    --rail-app-bg-active: rgba(37, 99, 235, 0.12);      /* 清爽微蓝激活底色 */
     --rail-icon-color: #475569;         /* 图标清晰易辨 */
     --rail-icon-active: #2563eb;
     --rail-indicator: #2563eb;
-    --rail-indicator-glow: none;
+    --rail-indicator-glow: 0 0 10px rgba(37, 99, 235, 0.4);
     --rail-arrow-color: #94a3b8;
-    --rail-tree-line: #cbd5e1;          /* 细腻雅灰引导发丝线，告别黑粗线条 */
-    --rail-footer-bg: #ffffff;
-    --rail-footer-border: #e2e8f0;
+    --rail-tree-line: rgba(203, 213, 225, 0.6);          /* 细腻雅灰引导发丝线 */
+    --rail-footer-bg: rgba(255, 255, 255, 0.45);
+    --rail-footer-border: rgba(226, 232, 240, 0.6);
     --rail-btn-text: #334155;
-    --rail-btn-border: #e2e8f0;
+    --rail-btn-border: rgba(226, 232, 240, 0.8);
 
-    box-shadow: 1px 0 3px rgba(15, 23, 42, 0.03);
+    box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.85), 2px 0 20px rgba(15, 23, 42, 0.04);
   }
 }
 
@@ -2168,9 +2170,11 @@ onMounted(() => {
   justify-content: space-between;
   gap: 16px;
   padding: 0 20px;
-  border-bottom: 1px solid var(--sb-border-color);
-  background: rgb(255 255 255 / 0.96);
-  backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.75);
+  background: rgba(255, 255, 255, 0.68);
+  backdrop-filter: var(--sb-glass-blur);
+  -webkit-backdrop-filter: var(--sb-glass-blur);
+  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.95), 0 4px 20px rgba(15, 23, 42, 0.03);
 }
 
 .console-shell__watermark-wrap {
@@ -2721,17 +2725,22 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 9px;
-  padding: 3px 10px 3px 5px;
-  border: 1px solid var(--sb-border-color);
-  border-radius: 8px;
-  background: #fff;
+  padding: 3px 12px 3px 6px;
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.95), 0 2px 8px rgba(15, 23, 42, 0.03);
   color: var(--sb-text-primary);
   text-align: left;
-  transition: all 140ms ease;
+  transition: all 160ms cubic-bezier(0.16, 1, 0.3, 1);
 
   &:hover {
-    background: #f8fafc;
-    border-color: var(--sb-border-strong);
+    background: rgba(255, 255, 255, 0.95);
+    border-color: rgba(203, 213, 225, 0.95);
+    box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 1), 0 4px 12px rgba(15, 23, 42, 0.06);
+    transform: translateY(-0.5px);
   }
 }
 

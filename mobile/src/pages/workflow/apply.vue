@@ -84,7 +84,7 @@ const templates = [
 const priorities = [
   { key: "NORMAL", label: "普通" },
   { key: "URGENT", label: "紧急" },
-  { key: "CRITICAL", label: "特急 ⚡" }
+  { key: "CRITICAL", label: "特急" }
 ];
 
 const form = reactive({

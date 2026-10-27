@@ -5,7 +5,13 @@
 body {
   color: var(--sb-text-secondary);
   font-family: var(--sb-font-family);
-  background: var(--sb-page-shell);
+  background:
+    radial-gradient(ellipse 80% 50% at 10% 10%, rgba(56, 189, 248, 0.12), transparent 60%),
+    radial-gradient(ellipse 60% 60% at 90% 15%, rgba(99, 102, 241, 0.10), transparent 60%),
+    radial-gradient(ellipse 70% 60% at 50% 90%, rgba(14, 165, 233, 0.09), transparent 65%),
+    linear-gradient(180deg, #f1f5fa 0%, #e6eef8 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -41,43 +47,52 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--sb-border-color);
+  background: rgba(148, 163, 184, 0.45);
   border-radius: 9999px;
+  backdrop-filter: blur(4px);
   transition: background 0.15s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--sb-border-strong);
+  background: rgba(100, 116, 139, 0.65);
 }
 
 /* ==========================================================================
-   2. 卡片与结构容器体系 (Card & Command Surfaces)
+   2. iOS 27 / visionOS 晶透液态玻璃卡片容器 (Aether Liquid Glass Surfaces)
    ========================================================================== */
 .el-card,
 .base-card,
 .ep-card {
-  border: 1px solid var(--sb-border-color);
-  border-radius: var(--sb-radius-md);
-  background: var(--sb-surface-strong);
-  box-shadow: var(--sb-shadow-xs);
-  transition: box-shadow 160ms cubic-bezier(0.16, 1, 0.3, 1), border-color 160ms ease;
+  border: var(--sb-glass-border);
+  border-radius: var(--sb-radius-glass);
+  background: var(--sb-glass-bg);
+  backdrop-filter: var(--sb-glass-blur);
+  -webkit-backdrop-filter: var(--sb-glass-blur);
+  box-shadow: var(--sb-glass-specular), var(--sb-glass-shadow);
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 180ms ease, border-color 180ms ease;
+
+  &:hover {
+    box-shadow: var(--sb-glass-specular), var(--sb-glass-shadow-lg);
+  }
 
   .el-card__header,
   .ep-card__header {
-    padding: 12px 18px;
-    border-bottom: 1px solid var(--sb-border-subtle);
+    padding: 13px 20px;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.7);
     font-size: 14px;
     font-weight: 650;
     color: var(--sb-text-primary);
-    background: var(--sb-surface-soft);
+    background: rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(12px);
+    border-radius: var(--sb-radius-glass) var(--sb-radius-glass) 0 0;
   }
 
   .el-card__body {
-    padding: 16px 18px;
+    padding: 18px 20px;
   }
 }
 
-/* 单层指挥台工具条 (Command Surface / Filter Bar) */
+/* 晶透单层指挥台工具条 (Command Surface / Filter Bar) */
 .command-surface,
 .filter-toolbar,
 .table-toolbar {
@@ -85,11 +100,14 @@ h1, h2, h3, h4, h5, h6 {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 16px;
-  background: #ffffff;
-  border: 1px solid var(--sb-border-color);
-  border-radius: var(--sb-radius-md);
-  margin-bottom: 14px;
+  padding: 12px 18px;
+  background: var(--sb-glass-bg);
+  backdrop-filter: var(--sb-glass-blur);
+  -webkit-backdrop-filter: var(--sb-glass-blur);
+  border: var(--sb-glass-border);
+  border-radius: var(--sb-radius-glass);
+  box-shadow: var(--sb-glass-specular), var(--sb-glass-shadow);
+  margin-bottom: 16px;
 }
 
 /* ==========================================================================
@@ -146,23 +164,27 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ==========================================================================
-   4. 表单输入与选择控件 (Form Inputs & Focus Halo)
+   4. 晶透表单输入与微倒角光晕 (Glass Form Inputs & Focus Halo)
    ========================================================================== */
 .el-input__wrapper,
 .el-select__wrapper,
 .el-textarea__inner {
-  border-radius: var(--sb-radius-sm);
-  background: #ffffff;
-  box-shadow: 0 0 0 1px var(--sb-border-color) inset;
-  transition: all 140ms ease;
+  border-radius: var(--sb-radius-glass-sm);
+  background: rgba(255, 255, 255, 0.70) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.9), 0 0 0 1px rgba(203, 213, 225, 0.7) inset !important;
+  transition: all 160ms cubic-bezier(0.16, 1, 0.3, 1);
 
   &:hover {
-    box-shadow: 0 0 0 1px var(--sb-border-strong) inset;
+    background: rgba(255, 255, 255, 0.85) !important;
+    box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 1), 0 0 0 1px rgba(148, 163, 184, 0.9) inset !important;
   }
 
   &.is-focus,
   &:focus-within {
-    box-shadow: 0 0 0 1.5px var(--sb-primary-color) inset, 0 0 0 3.5px rgba(37, 99, 235, 0.15) !important;
+    background: rgba(255, 255, 255, 0.95) !important;
+    box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 1), 0 0 0 1.5px var(--sb-primary-color) inset, 0 0 0 4px rgba(37, 99, 235, 0.18) !important;
   }
 }
 
@@ -172,43 +194,50 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ==========================================================================
-   5. 高密度工程数据表格 (High-Density Tabular Engine)
+   5. iOS 27 / visionOS 晶透数据表格 (Aether Specular Tabular Engine)
    ========================================================================== */
 .el-table {
-  --el-table-border: 1px solid var(--sb-border-subtle);
+  --el-table-border: 1px solid rgba(226, 232, 240, 0.6);
 
-  border: 1px solid var(--sb-border-color);
-  border-radius: var(--sb-radius-md);
-  background: #ffffff;
+  border: var(--sb-glass-border);
+  border-radius: var(--sb-radius-glass);
+  background: var(--sb-glass-bg) !important;
+  backdrop-filter: var(--sb-glass-blur);
+  -webkit-backdrop-filter: var(--sb-glass-blur);
+  box-shadow: var(--sb-glass-specular), var(--sb-glass-shadow);
   color: var(--sb-text-secondary);
   font-size: 13px;
+  overflow: hidden;
 
-  /* 表头：工业冷灰底色 + 粗体深色文字 + 坚固下分割线 */
+  /* 表头：液态毛玻璃底色 + 粗体深色文字 */
   th.el-table__cell {
-    background-color: #f8fafc !important;
+    background: rgba(248, 250, 252, 0.75) !important;
+    backdrop-filter: blur(14px);
     color: var(--sb-text-primary) !important;
     font-weight: 650 !important;
     font-size: 12.5px !important;
-    border-bottom: 1.5px solid var(--sb-border-color) !important;
-    padding: 9px 0 !important;
+    border-bottom: 1px solid rgba(203, 213, 225, 0.7) !important;
+    padding: 10px 0 !important;
     letter-spacing: -0.01em;
   }
 
-  /* 行级单元格：紧凑高度，保证高信息密度 */
+  /* 行级单元格：透光微边 */
   td.el-table__cell {
-    border-bottom: 1px solid var(--sb-border-subtle) !important;
-    padding: 8px 0 !important;
+    background: transparent !important;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.55) !important;
+    padding: 9px 0 !important;
     color: var(--sb-text-secondary);
   }
 
-  /* 悬浮行：柔和科技钴蓝微光底色 */
+  /* 悬浮行：高光微蓝晶板 */
   .el-table__row:hover > td.el-table__cell {
-    background-color: #eff6ff !important;
+    background: rgba(239, 246, 255, 0.75) !important;
+    backdrop-filter: blur(8px);
   }
 
   /* 斑马条纹交替微底色 */
   &--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
-    background-color: #fbfcfd;
+    background-color: rgba(248, 250, 252, 0.4);
   }
 
   .el-table__inner-wrapper::before {
