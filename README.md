@@ -59,6 +59,31 @@
 
 ---
 
+## 📸 系统全景实机截图 (System Previews)
+
+### 🖥️ PC 端企业级控制台 (iOS 27 / visionOS 流光毛玻璃视觉体系)
+
+| 企业全景大屏与流光毛玻璃驾驶舱 | Flowable BPMN 2.0 流程审批中心 |
+| :---: | :---: |
+| <img src="docs/images/pc_dashboard_glass.png" width="480" alt="企业全景大屏与流光毛玻璃驾驶舱" /> | <img src="docs/images/pc_workflow_flowable.png" width="480" alt="Flowable BPMN 2.0 流程审批中心" /> |
+| **ERP 进销存与物料仓储中枢** | **CRM 客户全生命周期与商机漏斗** |
+| <img src="docs/images/pc_erp_inventory.png" width="480" alt="ERP 进销存与物料仓储中枢" /> | <img src="docs/images/pc_crm_customer.png" width="480" alt="CRM 客户全生命周期与商机漏斗" /> |
+| **集团多层级组织架构与权限矩阵** | **多租户动态 URL 空间隔离认证** |
+| <img src="docs/images/pc_iam_permissions.png" width="480" alt="集团多层级组织架构与权限矩阵" /> | <img src="docs/images/pc_tenant_login.png" width="480" alt="多租户动态 URL 空间隔离认证" /> |
+
+<br/>
+
+### 📱 跨端移动工作台 (uni-app · 悬浮灵动岛毛玻璃 TabBar)
+
+| 移动工作台与悬浮灵动岛 | Flowable 移动审批中心 | 移动 CRM 客户公海 |
+| :---: | :---: | :---: |
+| <img src="docs/images/mobile_index_island.png" width="260" alt="移动工作台与悬浮灵动岛" /> | <img src="docs/images/mobile_workflow_approval.png" width="260" alt="Flowable 移动审批中心" /> | <img src="docs/images/mobile_crm_leads.png" width="260" alt="移动 CRM 客户公海" /> |
+| **移动 ERP 云仓库存** | **专属空间数据隔离中心** | **移动端多租户独立登录** |
+| <img src="docs/images/mobile_erp_stock.png" width="260" alt="移动 ERP 云仓库存" /> | <img src="docs/images/mobile_profile_space.png" width="260" alt="专属空间数据隔离中心" /> | <img src="docs/images/mobile_tenant_login.png" width="260" alt="移动端多租户独立登录" /> |
+
+
+---
+
 ## 💎 核心技术特色与深度能力
 
 ### 1. 🏢 多租户体系与动态 URL 空间隔离 (Multi-Tenancy & URL Routing)

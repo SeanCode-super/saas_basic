@@ -60,6 +60,22 @@
 | **持久层 & 隔离** | MyBatis-Plus + Flyway | MP 3.5.7+ / Flyway 10+ | 行级租户自动拦截器注入 (`tenant_id`)、版本化平滑数据库迁移 |
 | **数据与缓存** | MySQL + Redis | 8.3+ / 7.2+ Alpine | 事务 ACID 保障、租户元数据分片、分布式高并发会话控制 |
 
+### 1.3 核心生产端实机视觉呈现 (UI Showcase)
+
+#### PC 控制台视觉体验 (iOS 27 / visionOS 流光毛玻璃)
+* **企业数据大屏与中枢驾驶舱**：`docs/images/pc_dashboard_glass.png`
+* **Flowable BPMN 2.0 流程审批中心**：`docs/images/pc_workflow_flowable.png`
+* **ERP 进销存与物料仓储中枢**：`docs/images/pc_erp_inventory.png`
+* **CRM 客户全生命周期与商机漏斗**：`docs/images/pc_crm_customer.png`
+* **多租户动态 URL 空间隔离认证**：`docs/images/pc_tenant_login.png`
+
+#### 跨端移动工作台视觉体验 (uni-app 悬浮灵动岛 TabBar)
+* **移动工作台与灵动岛导航**：`docs/images/mobile_index_island.png`
+* **Flowable 移动审批待办**：`docs/images/mobile_workflow_approval.png`
+* **移动 CRM 客户公海池**：`docs/images/mobile_crm_leads.png`
+* **专属空间数据安全隔离中心**：`docs/images/mobile_profile_space.png`
+* **移动端专属租户空间直连登录**：`docs/images/mobile_tenant_login.png`
+
 ---
 
 ## 二、 多租户体系与生产路由架构 (Multi-Tenancy Routing)
