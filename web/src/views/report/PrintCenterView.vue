@@ -29,7 +29,7 @@ const vatInvoiceData = ref({
     bankAccount: "中国建设银行苏州独墅湖支行 3220198888005291"
   },
   items: [
-    { name: "*信息技术服务* Antigravity PaaS 企业级平台授权", spec: "旗舰版 v2.0", unit: "套", qty: 1, price: 180000.0, amount: 180000.0, taxRate: "6%", taxAmount: 10800.0 },
+    { name: "*信息技术服务* 天枢企业协同数字化平台系统授权", spec: "标准企业版", unit: "套", qty: 1, price: 180000.0, amount: 180000.0, taxRate: "6%", taxAmount: 10800.0 },
     { name: "*技术咨询服务* 多租户微服务与 BPMN 工作流定制开发", spec: "实施周期 30人天", unit: "项", qty: 1, price: 45000.0, amount: 45000.0, taxRate: "6%", taxAmount: 2700.0 },
     { name: "*运维保障服务* 7x24 小时高可用容灾与安全加固", spec: "年度维保 SLA 99.99%", unit: "年", qty: 1, price: 20000.0, amount: 20000.0, taxRate: "6%", taxAmount: 1200.0 }
   ],

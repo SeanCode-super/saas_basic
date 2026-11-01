@@ -6,6 +6,7 @@ export interface ContactUser {
   nickname: string;
   email?: string;
   phone?: string;
+  mobile?: string;
   avatar?: string;
   deptId?: number;
   deptName?: string;

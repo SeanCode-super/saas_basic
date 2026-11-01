@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import type { TableInstance } from "element-plus";
 import { Download } from "@element-plus/icons-vue";
 import BaseCard from "@/components/base/BaseCard.vue";
@@ -26,22 +26,52 @@ const props = withDefaults(
     emptyTitle?: string;
     emptyDescription?: string;
     compact?: boolean;
+    pagination?: boolean;
+    pageSize?: number;
   }>(),
   {
     selectable: false,
     rowKey: "id",
     emptyTitle: "当前暂无记录",
     emptyDescription: "调整筛选条件或新增记录。",
-    compact: false
+    compact: false,
+    pagination: true,
+    pageSize: 10
   }
 );
 
 const emit = defineEmits<{
   selectionChange: [object[]];
   rowClick: [object];
+  pageChange: [number];
+  sizeChange: [number];
 }>();
 
+const currentPage = ref(1);
+const currentPageSize = ref(props.pageSize ?? 10);
+
 const total = computed(() => props.count ?? props.data.length);
+
+const paginatedData = computed(() => {
+  if (!props.pagination) return props.data;
+  // If count is explicitly provided and different from data.length, it's server-side pagination, don't slice
+  if (props.count !== undefined && props.count !== props.data.length) {
+    return props.data;
+  }
+  const start = (currentPage.value - 1) * currentPageSize.value;
+  return props.data.slice(start, start + currentPageSize.value);
+});
+
+watch(
+  () => props.data.length,
+  () => {
+    const maxPage = Math.max(1, Math.ceil(total.value / currentPageSize.value));
+    if (currentPage.value > maxPage) {
+      currentPage.value = 1;
+    }
+  }
+);
+
 const selectedRows = ref<object[]>([]);
 const tableRef = ref<TableInstance>();
 
@@ -52,6 +82,17 @@ function handleSelectionChange(rows: object[]) {
 
 function handleRowClick(row: object) {
   emit("rowClick", row);
+}
+
+function handlePageChange(page: number) {
+  currentPage.value = page;
+  emit("pageChange", page);
+}
+
+function handleSizeChange(size: number) {
+  currentPageSize.value = size;
+  currentPage.value = 1;
+  emit("sizeChange", size);
 }
 
 function clearSelection() {
@@ -130,21 +171,22 @@ function exportRows(rows: object[], mode: "selected" | "current") {
 
     <el-table
       ref="tableRef"
-      :data="data"
+      :data="paginatedData"
       :loading="loading"
       :row-key="resolveRowKey"
       class="pro-table__grid"
+      stripe
       @selection-change="handleSelectionChange"
       @row-click="handleRowClick"
     >
-      <el-table-column v-if="props.selectable" type="selection" width="48" fixed="left" reserve-selection />
+      <el-table-column v-if="props.selectable" type="selection" width="48" reserve-selection />
       <el-table-column
         v-for="column in columns"
         :key="column.prop"
         :prop="column.prop"
         :label="column.label"
         :min-width="column.minWidth ?? 120"
-        :fixed="column.fixed ?? (column.prop === 'actions' ? 'right' : undefined)"
+        :fixed="column.fixed"
       >
         <template v-if="column.slot" #default="scope">
           <slot :name="column.slot" v-bind="scope" />
@@ -162,6 +204,19 @@ function exportRows(rows: object[], mode: "selected" | "current") {
         </slot>
       </template>
     </el-table>
+
+    <!-- 内置通用分页器 -->
+    <div v-if="pagination && total > 0" class="pro-table__pagination">
+      <el-pagination
+        v-model:current-page="currentPage"
+        v-model:page-size="currentPageSize"
+        :page-sizes="[10, 20, 50, 100]"
+        :total="total"
+        layout="total, sizes, prev, pager, next, jumper"
+        @size-change="handleSizeChange"
+        @current-change="handlePageChange"
+      />
+    </div>
   </BaseCard>
 </template>
 
@@ -225,7 +280,8 @@ function exportRows(rows: object[], mode: "selected" | "current") {
   padding: 9px 12px;
   border: 1px solid rgba(37, 99, 235, 0.25);
   border-radius: var(--sb-radius-sm, 6px);
-  background: #eff6ff;
+  background: rgba(239, 246, 255, 0.65);
+  backdrop-filter: blur(14px);
 }
 
 .pro-table__bulkcopy {
@@ -249,22 +305,97 @@ function exportRows(rows: object[], mode: "selected" | "current") {
   justify-content: flex-end;
 }
 
+.pro-table__grid :deep(.el-table) {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 .pro-table__grid :deep(.el-table__header th) {
   height: 42px;
-  background: #f8fafc !important;
+  background: rgba(248, 250, 252, 0.65) !important;
+  backdrop-filter: blur(24px) saturate(210%) contrast(104%);
+  -webkit-backdrop-filter: blur(24px) saturate(210%) contrast(104%);
   color: var(--sb-text-primary) !important;
   font-size: 13px;
   font-weight: 650;
-  border-bottom: 1.5px solid var(--sb-border-color) !important;
+  border-bottom: 1.5px solid rgba(203, 213, 225, 0.7) !important;
+  border-right: none !important;
+  border-left: none !important;
+}
+
+.pro-table__grid :deep(.el-table__header th.el-table-fixed-column--right),
+.pro-table__grid :deep(.el-table__header th.el-table-fixed-column--left) {
+  background: rgba(248, 250, 252, 0.68) !important;
+  backdrop-filter: blur(24px) saturate(210%) contrast(104%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(210%) contrast(104%) !important;
+  z-index: 5 !important;
+  box-shadow: none !important;
+  border-right: none !important;
+  border-left: none !important;
+}
+
+.pro-table__grid :deep(.el-table-fixed-column--right::before),
+.pro-table__grid :deep(.el-table-fixed-column--right::after),
+.pro-table__grid :deep(.el-table-fixed-column--left::before),
+.pro-table__grid :deep(.el-table-fixed-column--left::after) {
+  display: none !important;
+  content: none !important;
+  box-shadow: none !important;
+}
+
+.pro-table__grid :deep(.el-table__body tr:nth-child(odd) > td.el-table-fixed-column--right),
+.pro-table__grid :deep(.el-table__body tr:nth-child(odd) > td.el-table-fixed-column--left) {
+  background: rgba(255, 255, 255, 0.35) !important;
+  backdrop-filter: blur(24px) saturate(210%) contrast(104%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(210%) contrast(104%) !important;
+  box-shadow: none !important;
+  border-right: none !important;
+  border-left: none !important;
+}
+
+.pro-table__grid :deep(.el-table__body tr:nth-child(even) > td.el-table-fixed-column--right),
+.pro-table__grid :deep(.el-table__body tr:nth-child(even) > td.el-table-fixed-column--left) {
+  background: rgba(241, 245, 249, 0.65) !important;
+  backdrop-filter: blur(24px) saturate(210%) contrast(104%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(210%) contrast(104%) !important;
+  box-shadow: none !important;
+  border-right: none !important;
+  border-left: none !important;
+}
+
+.pro-table__grid :deep(.el-table__body tr:hover > td.el-table-fixed-column--right),
+.pro-table__grid :deep(.el-table__body tr:hover > td.el-table-fixed-column--left) {
+  background: rgba(219, 234, 254, 0.75) !important;
+  backdrop-filter: blur(24px) saturate(210%) contrast(104%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(210%) contrast(104%) !important;
+  box-shadow: none !important;
+  border-right: none !important;
+  border-left: none !important;
 }
 
 .pro-table__grid :deep(.el-table td),
 .pro-table__grid :deep(.el-table th.el-table__cell) {
   padding: 10px 0;
+  border-right: none !important;
+  border-left: none !important;
 }
 
 .pro-table__grid :deep(.el-table__row:hover > td.el-table__cell) {
-  background: #eff6ff !important;
+  background: rgba(219, 234, 254, 0.75) !important;
+  backdrop-filter: blur(8px);
+}
+
+.pro-table__pagination {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 12px 16px;
+  border-top: 1px solid rgba(226, 232, 240, 0.6);
+  background: rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(10px);
 }
 
 .pro-table__empty {
@@ -305,6 +436,11 @@ function exportRows(rows: object[], mode: "selected" | "current") {
   .pro-table__bulkactions {
     width: 100%;
     justify-content: flex-start;
+  }
+
+  .pro-table__pagination {
+    justify-content: center;
+    overflow-x: auto;
   }
 }
 </style>

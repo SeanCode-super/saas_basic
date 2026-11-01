@@ -1,5 +1,6 @@
 package com.saasbasics.platform.modules.iam.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.saasbasics.platform.common.exception.BizException;
 import com.saasbasics.platform.common.tenant.TenantAccessContext;
 import com.saasbasics.platform.common.tenant.TenantAccessContextHolder;
@@ -16,6 +17,8 @@ import com.saasbasics.platform.modules.iam.mapper.LoginPolicyMapper;
 import com.saasbasics.platform.modules.iam.mapper.PasswordPolicyMapper;
 import com.saasbasics.platform.modules.iam.mapper.PortalClientMapper;
 import com.saasbasics.platform.modules.iam.mapper.PortalTerminalMapper;
+import com.saasbasics.platform.modules.tenant.entity.TenantEntity;
+import com.saasbasics.platform.modules.tenant.mapper.TenantMapper;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -32,27 +35,110 @@ public class PortalEntryService {
     private final ObjectProvider<PortalTerminalMapper> portalTerminalMapperProvider;
     private final ObjectProvider<LoginPolicyMapper> loginPolicyMapperProvider;
     private final ObjectProvider<PasswordPolicyMapper> passwordPolicyMapperProvider;
+    private final ObjectProvider<TenantMapper> tenantMapperProvider;
 
     public PortalEntryService(ObjectProvider<PortalClientMapper> portalClientMapperProvider,
                               ObjectProvider<PortalTerminalMapper> portalTerminalMapperProvider,
                               ObjectProvider<LoginPolicyMapper> loginPolicyMapperProvider,
                               ObjectProvider<PasswordPolicyMapper> passwordPolicyMapperProvider) {
+        this(portalClientMapperProvider, portalTerminalMapperProvider, loginPolicyMapperProvider, passwordPolicyMapperProvider, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public PortalEntryService(ObjectProvider<PortalClientMapper> portalClientMapperProvider,
+                              ObjectProvider<PortalTerminalMapper> portalTerminalMapperProvider,
+                              ObjectProvider<LoginPolicyMapper> loginPolicyMapperProvider,
+                              ObjectProvider<PasswordPolicyMapper> passwordPolicyMapperProvider,
+                              ObjectProvider<TenantMapper> tenantMapperProvider) {
         this.portalClientMapperProvider = portalClientMapperProvider;
         this.portalTerminalMapperProvider = portalTerminalMapperProvider;
         this.loginPolicyMapperProvider = loginPolicyMapperProvider;
         this.passwordPolicyMapperProvider = passwordPolicyMapperProvider;
+        this.tenantMapperProvider = tenantMapperProvider;
     }
 
     public PortalEntryResponse resolveEntry(String clientId, String terminalCode) {
+        return resolveEntry(clientId, terminalCode, null);
+    }
+
+    public PortalEntryResponse resolveEntry(String clientId, String terminalCode, String tenantCode) {
         PortalClientMapper clientMapper = requiredClientMapper();
-        PortalClientEntity client;
-        try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openSystemBypass(
-                TenantAccessContext.BypassOperation.PUBLIC_PORTAL_RESOLUTION,
-                "Resolve the tenant that owns a globally unique portal client")) {
-            client = clientId == null || clientId.isBlank()
-                    ? clientMapper.selectDefaultClient()
-                    : clientMapper.selectByClientId(clientId.trim());
+        PortalClientEntity client = null;
+        String normalizedTenantCode = tenantCode != null && !tenantCode.isBlank() ? tenantCode.trim() : null;
+
+        if (normalizedTenantCode != null) {
+            try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openSystemBypass(
+                    TenantAccessContext.BypassOperation.PUBLIC_PORTAL_RESOLUTION,
+                    "Resolve portal client by tenant code globally")) {
+                client = clientMapper.selectByTenantCode(normalizedTenantCode);
+            }
+            if (client == null) {
+                // If there's no dedicated client configured for this tenant, look up the tenant in plat_tenant
+                TenantEntity tenant = null;
+                TenantMapper tenantMapper = tenantMapperProvider != null ? tenantMapperProvider.getIfAvailable() : null;
+                if (tenantMapper != null) {
+                    try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openSystemBypass(
+                            TenantAccessContext.BypassOperation.PUBLIC_PORTAL_RESOLUTION,
+                            "Resolve tenant by tenant code globally")) {
+                        tenant = tenantMapper.selectOne(new LambdaQueryWrapper<TenantEntity>()
+                                .eq(TenantEntity::getTenantCode, normalizedTenantCode)
+                                .eq(TenantEntity::getDeleted, 0)
+                                .last("LIMIT 1"));
+                    }
+                }
+                if (tenant == null) {
+                    throw new BizException("TENANT_NOT_FOUND", "指定的企业空间不存在或已注销");
+                }
+                if ("DISABLED".equalsIgnoreCase(tenant.getStatus()) || "SUSPENDED".equalsIgnoreCase(tenant.getStatus())) {
+                    throw new BizException("TENANT_DISABLED", "该企业空间已暂停服务");
+                }
+
+                // Synthesize client from default client template
+                PortalClientEntity defaultClient = null;
+                try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openSystemBypass(
+                        TenantAccessContext.BypassOperation.PUBLIC_PORTAL_RESOLUTION,
+                        "Resolve default portal client template")) {
+                    defaultClient = clientMapper.selectDefaultClient();
+                }
+
+                client = new PortalClientEntity();
+                if (defaultClient != null) {
+                    client.setId(defaultClient.getId());
+                    client.setClientId(defaultClient.getClientId());
+                    client.setThemeCode(defaultClient.getThemeCode());
+                    client.setBackgroundColor(defaultClient.getBackgroundColor());
+                    client.setBackgroundImageUrl(defaultClient.getBackgroundImageUrl());
+                    client.setLogoUrl(defaultClient.getLogoUrl());
+                    client.setFilingInfo(defaultClient.getFilingInfo());
+                    client.setCaptchaMode(defaultClient.getCaptchaMode());
+                    client.setSliderReserved(defaultClient.getSliderReserved());
+                    client.setLoginPolicyId(defaultClient.getLoginPolicyId());
+                    client.setPasswordPolicyId(defaultClient.getPasswordPolicyId());
+                } else {
+                    client.setClientId("tenant-" + tenant.getTenantCode());
+                    client.setThemeCode("TIANSHU_GLASS");
+                    client.setBackgroundColor("#0b1f33");
+                    client.setCaptchaMode("IMAGE");
+                    client.setSliderReserved(true);
+                }
+                client.setTenantId(tenant.getId());
+                client.setTenantCode(tenant.getTenantCode());
+                client.setClientName(tenant.getTenantName() + " 专属门户");
+                client.setPortalTitle(tenant.getTenantName() + " · 企业控制台");
+                client.setWelcomeTitle("欢迎登录 " + tenant.getTenantName());
+                client.setWelcomeText("欢迎访问 " + tenant.getTenantName() + " 企业数字化协同与业务管理中心");
+                client.setStatus("ENABLED");
+            }
+        } else {
+            try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openSystemBypass(
+                    TenantAccessContext.BypassOperation.PUBLIC_PORTAL_RESOLUTION,
+                    "Resolve the tenant that owns a globally unique portal client")) {
+                client = clientId == null || clientId.isBlank()
+                        ? clientMapper.selectDefaultClient()
+                        : clientMapper.selectByClientId(clientId.trim());
+            }
         }
+
         if (client == null || !"ENABLED".equalsIgnoreCase(client.getStatus())) {
             if (clientId == null || clientId.isBlank()) {
                 throw new BizException("PORTAL_DEFAULT_CLIENT_NOT_FOUND", "未配置可用的默认门户");
@@ -104,16 +190,41 @@ public class PortalEntryService {
 
     public PortalClientEntity requireActiveClient(String clientId) {
         PortalClientMapper mapper = requiredClientMapper();
-        PortalClientEntity client = mapper.selectByClientId(normalizeClientId(clientId));
+        PortalClientEntity client;
+        try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openSystemBypass(
+                TenantAccessContext.BypassOperation.PUBLIC_PORTAL_RESOLUTION,
+                "Resolve portal client globally")) {
+            client = mapper.selectByClientId(normalizeClientId(clientId));
+        }
         if (client == null || !"ENABLED".equalsIgnoreCase(client.getStatus())) {
             throw new BizException("PORTAL_CLIENT_NOT_FOUND", "Portal client is not available");
         }
         return client;
     }
 
+    public PortalClientEntity findActiveClient(String clientId) {
+        if (clientId == null || clientId.isBlank()) {
+            return null;
+        }
+        PortalClientMapper mapper = requiredClientMapper();
+        try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openSystemBypass(
+                TenantAccessContext.BypassOperation.PUBLIC_PORTAL_RESOLUTION,
+                "Find portal client globally")) {
+            PortalClientEntity client = mapper.selectByClientId(normalizeClientId(clientId));
+            return (client != null && "ENABLED".equalsIgnoreCase(client.getStatus())) ? client : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     public PortalTerminalEntity requireActiveTerminal(Long portalClientId, String terminalCode) {
         PortalTerminalMapper mapper = requiredTerminalMapper();
-        PortalTerminalEntity terminal = resolveTerminal(mapper, portalClientId, terminalCode);
+        PortalTerminalEntity terminal;
+        try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openSystemBypass(
+                TenantAccessContext.BypassOperation.PUBLIC_PORTAL_RESOLUTION,
+                "Resolve portal terminal globally")) {
+            terminal = resolveTerminal(mapper, portalClientId, terminalCode);
+        }
         if (terminal == null || !"ENABLED".equalsIgnoreCase(terminal.getStatus())) {
             throw new BizException("PORTAL_TERMINAL_NOT_FOUND", "Portal terminal is not available");
         }
@@ -208,23 +319,60 @@ public class PortalEntryService {
 
     private PortalTerminalEntity resolveTerminal(PortalTerminalMapper mapper, Long portalClientId, String terminalCode) {
         String normalizedTerminalCode = normalizeTerminalCode(terminalCode);
-        PortalTerminalEntity terminal = mapper.selectByClientAndTerminalCode(portalClientId, normalizedTerminalCode);
-        if (terminal != null) {
-            return terminal;
+        PortalTerminalEntity terminal = null;
+        if (portalClientId != null) {
+            terminal = mapper.selectByClientAndTerminalCode(portalClientId, normalizedTerminalCode);
+            if (terminal != null) {
+                return terminal;
+            }
+            terminal = mapper.selectDefaultTerminal(portalClientId);
+            if (terminal != null) {
+                return terminal;
+            }
         }
-        return mapper.selectDefaultTerminal(portalClientId);
+        // Fallback: If this client has no specific terminal row, borrow the default terminal from the default portal client
+        try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openSystemBypass(
+                TenantAccessContext.BypassOperation.PUBLIC_PORTAL_RESOLUTION,
+                "Resolve default portal client for fallback terminal")) {
+            PortalClientEntity defaultClient = requiredClientMapper().selectDefaultClient();
+            if (defaultClient != null) {
+                terminal = mapper.selectByClientAndTerminalCode(defaultClient.getId(), normalizedTerminalCode);
+                if (terminal != null) {
+                    return terminal;
+                }
+                return mapper.selectDefaultTerminal(defaultClient.getId());
+            }
+        }
+        return null;
     }
 
     private LoginPolicyEntity resolveLoginPolicy(PortalClientEntity client, PortalTerminalEntity terminal) {
         LoginPolicyMapper mapper = requiredLoginPolicyMapper();
         Long policyId = terminal.getLoginPolicyId() != null ? terminal.getLoginPolicyId() : client.getLoginPolicyId();
         if (policyId != null && policyId > 0) {
-            LoginPolicyEntity policy = mapper.selectById(policyId);
-            if (policy != null && !Objects.equals(policy.getDeleted(), 1) && "ENABLED".equalsIgnoreCase(policy.getStatus())) {
-                return policy;
+            try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openSystemBypass(
+                    TenantAccessContext.BypassOperation.PUBLIC_PORTAL_RESOLUTION,
+                    "Resolve specified login policy")) {
+                LoginPolicyEntity policy = mapper.selectById(policyId);
+                if (policy != null && !Objects.equals(policy.getDeleted(), 1) && "ENABLED".equalsIgnoreCase(policy.getStatus())) {
+                    return policy;
+                }
             }
         }
         LoginPolicyEntity policy = mapper.selectActivePolicy(client.getTenantId());
+        if (policy == null) {
+            try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openSystemBypass(
+                    TenantAccessContext.BypassOperation.PUBLIC_PORTAL_RESOLUTION,
+                    "Resolve fallback system login policy")) {
+                policy = mapper.selectActivePolicy(1L);
+                if (policy == null) {
+                    policy = mapper.selectActivePolicy(0L);
+                }
+                if (policy == null) {
+                    policy = mapper.selectById(1L);
+                }
+            }
+        }
         if (policy == null) {
             throw new BizException("LOGIN_POLICY_NOT_FOUND", "No active login policy is configured for this tenant");
         }
@@ -235,12 +383,29 @@ public class PortalEntryService {
         PasswordPolicyMapper mapper = requiredPasswordPolicyMapper();
         Long policyId = terminal.getPasswordPolicyId() != null ? terminal.getPasswordPolicyId() : client.getPasswordPolicyId();
         if (policyId != null && policyId > 0) {
-            PasswordPolicyEntity policy = mapper.selectById(policyId);
-            if (policy != null && !Objects.equals(policy.getDeleted(), 1) && "ENABLED".equalsIgnoreCase(policy.getStatus())) {
-                return policy;
+            try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openSystemBypass(
+                    TenantAccessContext.BypassOperation.PUBLIC_PORTAL_RESOLUTION,
+                    "Resolve specified password policy")) {
+                PasswordPolicyEntity policy = mapper.selectById(policyId);
+                if (policy != null && !Objects.equals(policy.getDeleted(), 1) && "ENABLED".equalsIgnoreCase(policy.getStatus())) {
+                    return policy;
+                }
             }
         }
         PasswordPolicyEntity policy = mapper.selectActivePolicy(client.getTenantId());
+        if (policy == null) {
+            try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openSystemBypass(
+                    TenantAccessContext.BypassOperation.PUBLIC_PORTAL_RESOLUTION,
+                    "Resolve fallback system password policy")) {
+                policy = mapper.selectActivePolicy(1L);
+                if (policy == null) {
+                    policy = mapper.selectActivePolicy(0L);
+                }
+                if (policy == null) {
+                    policy = mapper.selectById(1L);
+                }
+            }
+        }
         if (policy == null) {
             throw new BizException("PASSWORD_POLICY_NOT_FOUND", "No active password policy is configured for this tenant");
         }

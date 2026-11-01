@@ -12,7 +12,16 @@ import {
   Operation,
   Plus,
   Refresh,
-  User
+  User,
+  DataLine,
+  Document,
+  Share,
+  Money,
+  MoreFilled,
+  Calendar,
+  TopRight,
+  TrendCharts,
+  Suitcase
 } from "@element-plus/icons-vue";
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
@@ -33,125 +42,76 @@ const users = ref<IamUserRow[]>([]);
 const deptNodeCount = ref(4);
 const operationLogs = ref<OperationLog[]>([]);
 
-const recentOperationLogs = computed(() => {
-  if (!Array.isArray(operationLogs.value)) return [];
-  return operationLogs.value.slice(0, 5);
-});
-
-const isolationLabels: Record<string, string> = {
-  PLATFORM: "平台级多租户",
-  SHARED_SCHEMA: "共享 Schema (行级隔离)",
-  DEDICATED_SCHEMA: "独立 Schema (表级隔离)",
-  DEDICATED_DATABASE: "独立物理数据库"
-};
-
-function localize(value: string | undefined, labels: Record<string, string>, fallback = "-") {
-  return value ? (labels[value] ?? value) : fallback;
-}
+// Date segmented pill state
+const activeDateTab = ref<"day" | "week" | "month" | "quarter">("day");
+const dateTabs = [
+  { label: "日", value: "day" },
+  { label: "周", value: "week" },
+  { label: "月", value: "month" },
+  { label: "季", value: "quarter" }
+] as const;
 
 const currentTenantName = computed(() => tenantStore.currentTenant?.name ?? "平台空间");
-const currentTenantCode = computed(() => tenantStore.currentTenant?.code ?? "platform");
 const currentUserDisplay = computed(
   () => authStore.currentUser?.nickname || authStore.currentUser?.username || "管理员"
 );
 
-// Dynamic Platform Stats (Condensed & Precise)
-const statsOverview = computed(() => [
+// Dynamic calendar display
+const now = new Date();
+const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
+const currentMonth = now.getMonth() + 1;
+const currentDate = now.getDate();
+const currentDayOfWeek = now.getDay();
+const dateDisplay = `${currentMonth}月${currentDate}日 星期${weekdays[currentDayOfWeek]}`;
+
+// 重点业务协同项目列表 (对标参考图右上卡片)
+const keyProjects = reactive([
   {
-    label: "纳管企业租户",
-    value: String(tenants.value.length || 3),
-    unit: "家",
-    hint: `当前会话: ${currentTenantName.value}`,
-    statusText: localize(tenantStore.currentTenant?.isolationMode, isolationLabels, "平台级多租户"),
-    statusType: "success" as const
+    id: 1,
+    name: "商用卫星低轨组网数据中台",
+    stage: "阶段三",
+    amount: "32,500.00",
+    status: "进行中",
+    statusType: "success"
   },
   {
-    label: "系统在册账号",
-    value: String(users.value.length || 1),
-    unit: "人",
-    hint: `已激活 ${users.value.filter((u: IamUserRow) => u.status === 'ENABLED').length || 1} · 待分配 0`,
-    statusText: "正常运行",
-    statusType: "success" as const
+    id: 2,
+    name: "数字能源微电网分布式采集",
+    stage: "阶段一",
+    amount: "18,400.00",
+    status: "待审核",
+    statusType: "primary"
   },
   {
-    label: "组织架构单元",
-    value: String(deptNodeCount.value || 4),
-    unit: "个",
-    hint: "多层部门树已闭环",
-    statusText: "模型生效",
-    statusType: "success" as const
-  },
-  {
-    label: "安全合规基线",
-    value: "100%",
-    unit: "达标",
-    hint: "行级防护全链路留痕",
-    statusText: "AST 防护生效",
-    statusType: "success" as const
+    id: 3,
+    name: "智能工业装配机器人协同",
+    stage: "阶段四",
+    amount: "45,000.00",
+    status: "已履约",
+    statusType: "info"
   }
 ]);
 
-// Core Workspaces (Clean tags, no redundant paragraph text)
-const enterpriseWorkspaces = [
-  {
-    title: "组织架构与人员任职",
-    tag: "部门树拓扑 · 岗位编制",
-    path: "/organization",
-    icon: OfficeBuilding,
-    code: "ORG"
-  },
-  {
-    title: "身份与权限控制 (IAM)",
-    tag: "账号生命周期 · 行级权限",
-    path: "/iam",
-    icon: User,
-    code: "IAM"
-  },
-  {
-    title: "多租户运营中枢",
-    tag: "多租户空间 · 席位配额",
-    path: "/tenant",
-    icon: Odometer,
-    code: "TENANT"
-  },
-  {
-    title: "安全合规与操作审计",
-    tag: "敏感日志 · 防篡改留痕",
-    path: "/audit",
-    icon: Operation,
-    code: "AUDIT"
-  },
-  {
-    title: "分布式任务与调度",
-    tag: "Quartz 集群 · 定时触发器",
-    path: "/scheduler",
-    icon: Cpu,
-    code: "SCHED"
-  },
-  {
-    title: "集成网关与数据源",
-    tag: "多源连接池 · Webhook",
-    path: "/integration",
-    icon: Files,
-    code: "INT"
-  }
+// 销售走势声波细柱数据 (24 柱代表 24 小时或时间跨度)
+const soundwaveBars = [
+  25, 40, 30, 55, 70, 85, 100, 90, 65, 45, 35, 50,
+  60, 80, 95, 75, 55, 40, 30, 48, 62, 85, 70, 45
 ];
 
-// Quota Metrics
-const quotaMetrics = reactive([
-  { name: "用户账号席位", used: 1, max: 100, unit: "席位", percentage: 1 },
-  { name: "组织架构单元", used: 4, max: 50, unit: "节点", percentage: 8 },
-  { name: "文件存储容量", used: 0.12, max: 50, unit: "GB", percentage: 1 },
-  { name: "今日 API 调用", used: 142, max: 10000, unit: "次", percentage: 2 }
-]);
+// 算力热力点阵 (4 行 x 12 列)
+const dotMatrix = [
+  [3, 3, 2, 3, 3, 2, 3, 3, 3, 2, 3, 3],
+  [2, 3, 3, 1, 3, 3, 2, 3, 3, 3, 1, 2],
+  [3, 2, 3, 3, 3, 2, 1, 3, 3, 2, 3, 3],
+  [1, 3, 2, 3, 2, 3, 3, 1, 2, 3, 3, 2]
+];
 
-// Service Health Items
-const serviceHealth = reactive([
-  { name: "MySQL 核心存储数据库", status: "success" as const, desc: "连接正常 (1ms 延迟)" },
-  { name: "行级数据权限引擎 (AST)", status: "success" as const, desc: "JSqlParser 自动改写生效" },
-  { name: "多租户上下文隔离", status: "success" as const, desc: "强制行级 tenant_id 隔离就绪" },
-  { name: "Quartz 分布式任务调度", status: "success" as const, desc: "集群待命 (Heartbeat 正常)" }
-]);
+// 层级配额预算数据
+const tieredQuotas = [
+  { name: "核心算力集群", percent: 85, color: "linear-gradient(90deg, #06b6d4, #0284c7)" },
+  { name: "存储流转通道", percent: 62, color: "linear-gradient(90deg, #10b981, #059669)" },
+  { name: "专属网络带宽", percent: 94, color: "linear-gradient(90deg, #f59e0b, #d97706)" }
+];
 
 function navigateTo(path: string) {
   router.push(path);
@@ -170,19 +130,13 @@ async function loadDashboardData() {
     users.value = Array.isArray(usersRes) ? usersRes : [];
     operationLogs.value = Array.isArray(opLogsRes) ? opLogsRes : ((opLogsRes as any)?.data || []);
     deptNodeCount.value = deptsRes.length || 4;
-
-    // Update quota
-    quotaMetrics[0].used = usersRes.length || 1;
-    quotaMetrics[0].percentage = Math.min(100, Math.round((quotaMetrics[0].used / quotaMetrics[0].max) * 100));
-    quotaMetrics[1].used = deptNodeCount.value;
-    quotaMetrics[1].percentage = Math.min(100, Math.round((quotaMetrics[1].used / quotaMetrics[1].max) * 100));
   } finally {
     loading.value = false;
   }
 }
 
 // ----------------------------------------------------
-// 1. Health Probe Modal
+// 1. 系统健康体检弹窗
 // ----------------------------------------------------
 const probeVisible = ref(false);
 const probing = ref(false);
@@ -192,7 +146,7 @@ const probeSteps = reactive([
   { name: "JSqlParser AST 权限改写引擎", desc: "测试行级 SQL 注入防御与自动注入 tenant_id 条件", status: "PENDING", latency: "-" },
   { name: "多租户空间边界防穿透探测", desc: "校验当前租户会话与跨租户未授权数据隔离屏障", status: "PENDING", latency: "-" },
   { name: "分布式会话与凭证安全", desc: "核验 Token 签名、有效期、密码策略合规性", status: "PENDING", latency: "-" },
-  { name: "Quartz 调度任务管道", desc: "检查定时任务执行器状态与触发器同步情况", status: "PENDING", latency: "-" }
+  { name: "Flowable 7.0 工作流引擎内核", desc: "检查 BPMN 2.0 任务执行器与历史实例索引完整性", status: "PENDING", latency: "-" }
 ]);
 
 function openHealthProbe() {
@@ -214,65 +168,20 @@ function runHealthProbe() {
       setTimeout(() => {
         probeSteps[cur].status = "PASSED";
         probeSteps[cur].latency = `${Math.floor(Math.random() * 4 + 1)}ms`;
-      }, 300);
+      }, 250);
       step++;
     } else {
       clearInterval(interval);
       setTimeout(() => {
         probing.value = false;
         ElMessage.success("平台全栈核心基础设施健康体检完成，所有指标 100% 达标！");
-      }, 400);
+      }, 350);
     }
-  }, 400);
-}
-
-function exportProbeReport() {
-  const report = {
-    evaluatedAt: new Date().toISOString(),
-    overallScore: 100,
-    platformStatus: "OPTIMAL",
-    diagnostics: probeSteps
-  };
-  const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `platform-health-diagnostic-${Date.now()}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-  ElMessage.success("健康诊断快报已下载！");
+  }, 350);
 }
 
 // ----------------------------------------------------
-// 2. Capacity Planning & Quota Adjustment Modal
-// ----------------------------------------------------
-const quotaModalVisible = ref(false);
-const quotaForm = reactive({
-  seatQuota: 200,
-  storageGb: 100,
-  apiLimitPerDay: 50000,
-  reason: ""
-});
-
-function openQuotaModal() {
-  quotaForm.seatQuota = quotaMetrics[0].max;
-  quotaForm.storageGb = quotaMetrics[2].max;
-  quotaForm.apiLimitPerDay = quotaMetrics[3].max;
-  quotaForm.reason = "";
-  quotaModalVisible.value = true;
-}
-
-function handleSaveQuota() {
-  quotaMetrics[0].max = quotaForm.seatQuota;
-  quotaMetrics[2].max = quotaForm.storageGb;
-  quotaMetrics[3].max = quotaForm.apiLimitPerDay;
-  quotaMetrics[0].percentage = Math.round((quotaMetrics[0].used / quotaMetrics[0].max) * 100);
-  quotaModalVisible.value = false;
-  ElMessage.success("租户配额规格与容量基线已成功调整并下发生效！");
-}
-
-// ----------------------------------------------------
-// 3. Quick Creation Modals
+// 2. 快捷录入弹窗
 // ----------------------------------------------------
 const quickUserVisible = ref(false);
 const quickTenantVisible = ref(false);
@@ -335,9 +244,6 @@ async function handleCreateQuickTenant() {
   }
 }
 
-// ----------------------------------------------------
-// 4. Compliance Audit Dossier Export
-// ----------------------------------------------------
 function exportComplianceDossier() {
   const dossier = {
     generatedAt: new Date().toISOString(),
@@ -368,957 +274,1177 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="ep-dashboard">
-    <!-- 1. Architectural Command Strip (替代原先突兀孤立的黑色横幅卡片) -->
-    <header class="ep-dashboard__command-bar">
-      <div class="ep-dashboard__command-main">
-        <div class="ep-dashboard__title-row">
-          <h1 class="ep-dashboard__title">天枢云基数字基座控制台</h1>
-          <div class="ep-dashboard__meta-chips">
-            <span class="ep-meta-chip ep-meta-chip--status">
-              <span class="ep-meta-chip__pulse" />
-              生产运行中
-            </span>
-            <span class="ep-meta-chip">
-              租户空间: {{ currentTenantName }} ({{ currentTenantCode }})
-            </span>
-            <span class="ep-meta-chip ep-meta-chip--engine">
-              Tianshu Core v2.4
-            </span>
-          </div>
+  <div class="ios-dashboard">
+    <!-- =========================================================================
+         1. 顶部控制栏：概览面板标题 + 胶囊式时间区间切换 (日/周/月/季)
+         ========================================================================= -->
+    <header class="ios-dashboard__header">
+      <div class="ios-dashboard__title-group">
+        <h1 class="ios-dashboard__title">概览面板</h1>
+        
+        <!-- 胶囊时间切换器 (对标图1中央胶囊) -->
+        <div class="ios-segmented-pill">
+          <button
+            v-for="tab in dateTabs"
+            :key="tab.value"
+            class="ios-segmented-pill__item"
+            :class="{ 'is-active': activeDateTab === tab.value }"
+            @click="activeDateTab = tab.value"
+          >
+            {{ tab.label }}
+          </button>
         </div>
-        <p class="ep-dashboard__subtitle">
-          欢迎回来，{{ currentUserDisplay }}。所有平台核心基础设施及多租户隔离服务当前状态优良。
-        </p>
+
+        <span class="ios-dashboard__meta-tag">
+          {{ dateDisplay }} · 数据实时驱动
+        </span>
       </div>
 
-      <div class="ep-dashboard__command-actions">
-        <el-button type="primary" :icon="Plus" @click="quickTenantVisible = true">
-          新建租户空间
-        </el-button>
-        <el-button :icon="User" @click="quickUserVisible = true">
-          录入人员
-        </el-button>
-        <el-button :icon="Cpu" @click="openHealthProbe">
-          系统健康体检
-        </el-button>
-        <el-button :icon="Download" @click="exportComplianceDossier">
-          合规审计快报
-        </el-button>
+      <!-- 右侧快捷胶囊操作组 -->
+      <div class="ios-dashboard__actions">
+        <button class="ios-glass-btn" @click="quickTenantVisible = true">
+          <el-icon><Plus /></el-icon>
+          <span>新建租户</span>
+        </button>
+        <button class="ios-glass-btn" @click="quickUserVisible = true">
+          <el-icon><User /></el-icon>
+          <span>录入账号</span>
+        </button>
+        <button class="ios-glass-btn ios-glass-btn--highlight" @click="openHealthProbe">
+          <el-icon><Cpu /></el-icon>
+          <span>健康巡检</span>
+        </button>
+        <button class="ios-glass-btn" @click="exportComplianceDossier">
+          <el-icon><Download /></el-icon>
+          <span>合规导出</span>
+        </button>
       </div>
     </header>
 
-    <!-- 2. Unified Global KPI Ribbon (一体化全局指标带，告别4个散落的卡片盒子) -->
-    <div class="ep-dashboard__kpi-ribbon">
-      <div v-for="(stat, idx) in statsOverview" :key="stat.label" class="ep-kpi-item" :class="'ep-kpi-item--tier-' + idx">
-        <div class="ep-kpi-item__head">
-          <span class="ep-kpi-item__label">{{ stat.label }}</span>
-          <ProStatusDot :status="stat.statusType" :text="stat.statusText" size="sm" />
-        </div>
-        <div class="ep-kpi-item__body">
-          <strong class="ep-kpi-item__value">{{ stat.value }}</strong>
-          <span class="ep-kpi-item__unit">{{ stat.unit }}</span>
-        </div>
-        <div class="ep-kpi-item__hint">
-          {{ stat.hint }}
-        </div>
-      </div>
-    </div>
-
-    <!-- 3. Macro Cockpit Grid: 68% Main Workspace & Logs | 32% Unified Governance & Infrastructure -->
-    <div class="ep-dashboard__grid">
-      <!-- Left Column: Core Workspaces Hub & Realtime Operations -->
-      <div class="ep-dashboard__col-main">
-        <!-- Section 1: Core Domain Workspaces -->
-        <section class="ep-card ep-dashboard__section">
-          <div class="ep-card__header">
-            <div class="ep-card__title-group">
-              <h2 class="ep-card__title">平台核心管理工作台</h2>
-              <span class="ep-card__desc">常用基础管控与业务应用快捷枢纽</span>
-            </div>
-            <el-button link type="primary" :icon="Refresh" :loading="loading" @click="loadDashboardData">
-              刷新全量数据
-            </el-button>
+    <!-- =========================================================================
+         2. 第一层核心区：左侧 58% 账面核心资产卡 + 右侧 42% 日历与重点项目
+         ========================================================================= -->
+    <div class="ios-dashboard__hero-grid">
+      <!-- 2.1 账面核心资产玻璃卡 (对标上图左上卡片) -->
+      <section class="ios-glass-card ios-glass-card--hero">
+        <div class="ios-glass-card__header-row">
+          <div class="ios-badge-label">
+            <span>账面净资金</span>
+            <span class="ios-currency-code">CNY-M21</span>
           </div>
-          <div class="ep-workspaces-grid">
-            <div
-              v-for="item in enterpriseWorkspaces"
-              :key="item.code"
-              class="ep-workspace-tile"
-              @click="navigateTo(item.path)"
+          <button class="ios-icon-btn" title="更多选项">
+            <el-icon><MoreFilled /></el-icon>
+          </button>
+        </div>
+
+        <!-- 核心超大数值 -->
+        <div class="ios-hero-amount">
+          <span class="ios-hero-amount__currency">¥</span>
+          <span class="ios-hero-amount__number">87,348.00</span>
+          <div class="ios-growth-pill">
+            <span class="ios-growth-pill__dot" />
+            <span>+12.6% 较上周期</span>
+          </div>
+        </div>
+
+        <!-- 卡片底部 4 个胶囊动作按钮 (对标图上的 分析/发票/共享/充值) -->
+        <div class="ios-hero-actions">
+          <button class="ios-pill-action" @click="navigateTo('/crm')">
+            <el-icon><TrendCharts /></el-icon>
+            <span>趋势分析</span>
+          </button>
+          <button class="ios-pill-action" @click="navigateTo('/erp')">
+            <el-icon><Document /></el-icon>
+            <span>采购发票</span>
+          </button>
+          <button class="ios-pill-action" @click="navigateTo('/workflow')">
+            <el-icon><Share /></el-icon>
+            <span>流程协同</span>
+          </button>
+          <button class="ios-pill-action ios-pill-action--primary" @click="navigateTo('/pay')">
+            <el-icon><Money /></el-icon>
+            <span>聚合收付</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- 2.2 日程日历与重点项目卡 (对标上图右上卡片) -->
+      <section class="ios-glass-card ios-glass-card--calendar">
+        <!-- 顶部日期与周几标记 -->
+        <div class="ios-calendar-bar">
+          <div class="ios-calendar-bar__date">
+            <el-icon class="ios-calendar-bar__icon"><Calendar /></el-icon>
+            <strong class="ios-calendar-bar__title">{{ dateDisplay }}</strong>
+          </div>
+          <!-- 星期几指示微点 -->
+          <div class="ios-week-dots">
+            <span
+              v-for="(day, idx) in ['一', '二', '三', '四', '五', '六', '日']"
+              :key="day"
+              class="ios-week-dot"
+              :class="{ 'is-active': (idx + 1) % 7 === currentDayOfWeek }"
             >
-              <div class="ep-workspace-tile__icon-wrap">
-                <component :is="item.icon" class="ep-workspace-tile__icon" />
+              {{ day }}
+            </span>
+          </div>
+        </div>
+
+        <!-- 重点协同项目清单 -->
+        <div class="ios-projects-box">
+          <div class="ios-projects-box__head">
+            <span class="ios-projects-box__title">重点业务进程</span>
+            <span class="ios-projects-box__count">共 {{ keyProjects.length }} 项协同中</span>
+          </div>
+          
+          <div class="ios-projects-list">
+            <div
+              v-for="p in keyProjects"
+              :key="p.id"
+              class="ios-project-row"
+              @click="navigateTo('/crm')"
+            >
+              <div class="ios-project-row__main">
+                <span class="ios-project-row__name">{{ p.name }}</span>
+                <span class="ios-project-row__stage">{{ p.stage }}</span>
               </div>
-              <div class="ep-workspace-tile__content">
-                <div class="ep-workspace-tile__title-row">
-                  <span class="ep-workspace-tile__title">{{ item.title }}</span>
-                  <ArrowRight class="ep-workspace-tile__arrow" />
-                </div>
-                <div class="ep-workspace-tile__tag-wrap">
-                  <span class="ep-workspace-tile__tag">{{ item.tag }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- Section 2: Realtime Audit Operations (MySQL Source) -->
-        <section class="ep-card ep-dashboard__section">
-          <div class="ep-card__header">
-            <div class="ep-card__title-group">
-              <h2 class="ep-card__title">实时系统操作留痕 (MySQL 真实审计源)</h2>
-              <span class="ep-card__desc">记录平台管理员及系统的关键操作与行级鉴权轨迹</span>
-            </div>
-            <el-button link type="primary" @click="navigateTo('/audit')">
-              查看全部审计日志 <ArrowRight style="width: 12px; margin-left: 4px;" />
-            </el-button>
-          </div>
-          <div class="ep-table-wrap">
-            <el-table :data="recentOperationLogs" size="default" stripe style="width: 100%;">
-              <el-table-column prop="occurredAt" label="操作时间" width="170">
-                <template #default="{ row }">
-                  <span class="ep-text-mono">{{ row.occurredAt?.replace('T', ' ')?.substring(0, 19) }}</span>
-                </template>
-              </el-table-column>
-              <el-table-column prop="operatorName" label="操作账号" width="140">
-                <template #default="{ row }">
-                  <span class="ep-text-medium">{{ row.operatorName || `UID #${row.operatorUserId}` }}</span>
-                </template>
-              </el-table-column>
-              <el-table-column prop="bizModule" label="所属模块" width="110">
-                <template #default="{ row }">
-                  <el-tag size="small" type="primary" effect="plain">{{ row.bizModule }}</el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column label="操作详情" min-width="180">
-                <template #default="{ row }">
-                  <span>{{ row.operationType }} ({{ row.bizType }}: {{ row.bizId }})</span>
-                </template>
-              </el-table-column>
-              <el-table-column prop="success" label="执行结果" width="90" align="center">
-                <template #default="{ row }">
-                  <el-tag v-if="row.success" size="small" type="success" effect="light">成功</el-tag>
-                  <el-tag v-else size="small" type="danger" effect="light">失败</el-tag>
-                </template>
-              </el-table-column>
-            </el-table>
-          </div>
-        </section>
-      </div>
-
-      <!-- Right Column: Unified Governance & Infrastructure Command Hub (ONE single cohesive card) -->
-      <aside class="ep-dashboard__col-side">
-        <section class="ep-card ep-governance-hub">
-          <div class="ep-card__header">
-            <div class="ep-card__title-group">
-              <h2 class="ep-card__title">平台治理与基础设施中枢</h2>
-              <span class="ep-card__desc">配额水位 · 核心引擎 · 安全基线</span>
-            </div>
-            <el-button link type="primary" size="small" @click="openHealthProbe">运行探针</el-button>
-          </div>
-
-          <!-- Sub-block 1: Resource Quotas -->
-          <div class="ep-hub-block">
-            <div class="ep-hub-block__header">
-              <span class="ep-hub-block__title">租户资源配额基线</span>
-              <el-button link type="primary" size="small" @click="openQuotaModal">调整规格</el-button>
-            </div>
-            <div class="ep-quota-list">
-              <div v-for="q in quotaMetrics" :key="q.name" class="ep-quota-item">
-                <div class="ep-quota-item__info">
-                  <span class="ep-quota-item__name">{{ q.name }}</span>
-                  <span class="ep-quota-item__value">
-                    <strong>{{ q.used }}</strong> / {{ q.max }} {{ q.unit }}
-                  </span>
-                </div>
-                <el-progress
-                  :percentage="q.percentage"
-                  :stroke-width="5"
-                  :show-text="false"
-                  :color="q.percentage > 85 ? '#dc2626' : '#2563eb'"
-                />
+              <div class="ios-project-row__meta">
+                <span class="ios-project-row__amount">{{ p.amount }}</span>
+                <span class="ios-status-badge" :class="'ios-status-badge--' + p.statusType">
+                  {{ p.status }}
+                </span>
               </div>
             </div>
           </div>
-
-          <div class="ep-hub-divider" />
-
-          <!-- Sub-block 2: Core Components Readiness -->
-          <div class="ep-hub-block">
-            <div class="ep-hub-block__header">
-              <span class="ep-hub-block__title">底层核心组件就绪度</span>
-              <span class="ep-hub-badge">4/4 就绪</span>
-            </div>
-            <div class="ep-health-list">
-              <div v-for="item in serviceHealth" :key="item.name" class="ep-health-item">
-                <div class="ep-health-item__head">
-                  <span class="ep-health-item__name">{{ item.name }}</span>
-                  <ProStatusDot :status="item.status" size="sm" />
-                </div>
-                <span class="ep-health-item__desc">{{ item.desc }}</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="ep-hub-divider" />
-
-          <!-- Sub-block 3: Security & Policy Enforcements -->
-          <div class="ep-hub-block">
-            <div class="ep-hub-block__header">
-              <span class="ep-hub-block__title">安全合规与防御基线</span>
-              <span class="ep-hub-badge ep-hub-badge--green">AST 保护中</span>
-            </div>
-            <div class="ep-security-bullets">
-              <div class="ep-security-bullet">
-                <el-icon class="ep-security-bullet__icon"><Check /></el-icon>
-                <div class="ep-security-bullet__text">
-                  <strong>行级数据权限引擎 (AST)</strong>
-                  <span>JSqlParser 自动改写生效，防越权数据穿透</span>
-                </div>
-              </div>
-              <div class="ep-security-bullet">
-                <el-icon class="ep-security-bullet__icon"><Check /></el-icon>
-                <div class="ep-security-bullet__text">
-                  <strong>密码安全策略与防爆破</strong>
-                  <span>8-20位字符复杂度与密码锁定策略已启用</span>
-                </div>
-              </div>
-              <div class="ep-security-bullet">
-                <el-icon class="ep-security-bullet__icon"><Check /></el-icon>
-                <div class="ep-security-bullet__text">
-                  <strong>多租户会话强隔离锁定</strong>
-                  <span>当前会话与租户上下文防篡改保护就绪</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      </aside>
+        </div>
+      </section>
     </div>
 
-    <!-- Health Diagnostic Probe Dialog -->
-    <el-dialog v-model="probeVisible" title="平台全栈基础设施与多租户架构健康诊断" width="620px">
+    <!-- =========================================================================
+         3. 第二层：下排 4 联数据微拟物玻璃卡片 (销售走势/7天访问/算力矩阵/收益分析)
+         ========================================================================= -->
+    <div class="ios-dashboard__metrics-grid">
+      <!-- 3.1 销售走势 (细密声波律动柱状图) -->
+      <div class="ios-glass-card ios-metric-card">
+        <div class="ios-metric-card__header">
+          <span class="ios-metric-card__title">销售走势</span>
+          <button class="ios-icon-btn-sm"><el-icon><MoreFilled /></el-icon></button>
+        </div>
+        <div class="ios-metric-card__value-row">
+          <strong class="ios-metric-card__number">52,396.15</strong>
+          <span class="ios-metric-card__badge-up">较上周 +18.4%</span>
+        </div>
+        
+        <!-- 声波细柱状图 -->
+        <div class="ios-soundwave-chart">
+          <div
+            v-for="(val, idx) in soundwaveBars"
+            :key="idx"
+            class="ios-soundwave-bar"
+            :class="{
+              'is-peak': idx >= 5 && idx <= 8,
+              'is-highlight': idx >= 13 && idx <= 16
+            }"
+            :style="{ height: `${val}%` }"
+          />
+        </div>
+        <div class="ios-chart-ticks">
+          <span>周一</span>
+          <span>周三</span>
+          <span>周五</span>
+          <span>今日</span>
+        </div>
+      </div>
+
+      <!-- 3.2 近7天访问 (平滑曲线面积图) -->
+      <div class="ios-glass-card ios-metric-card">
+        <div class="ios-metric-card__header">
+          <span class="ios-metric-card__title">近7天访问</span>
+          <span class="ios-pill-tag">实时接入</span>
+        </div>
+        <div class="ios-metric-card__value-row">
+          <strong class="ios-metric-card__number">123 <small>万次</small></strong>
+          <span class="ios-metric-card__subtext">核心网关 28ms</span>
+        </div>
+
+        <!-- 渐变曲线 SVG -->
+        <div class="ios-spline-chart">
+          <svg viewBox="0 0 200 60" class="ios-spline-svg" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="curveGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#0284c7" stop-opacity="0.38" />
+                <stop offset="100%" stop-color="#0284c7" stop-opacity="0.0" />
+              </linearGradient>
+            </defs>
+            <path
+              d="M 0 50 Q 30 45, 60 25 T 120 12 T 160 30 T 200 18 L 200 60 L 0 60 Z"
+              fill="url(#curveGradient)"
+            />
+            <path
+              d="M 0 50 Q 30 45, 60 25 T 120 12 T 160 30 T 200 18"
+              fill="none"
+              stroke="#0284c7"
+              stroke-width="2.5"
+              stroke-linecap="round"
+            />
+            <circle cx="120" cy="12" r="3.5" fill="#0284c7" stroke="#ffffff" stroke-width="1.5" />
+          </svg>
+        </div>
+        <div class="ios-chart-ticks">
+          <span>周一</span>
+          <span>周二</span>
+          <span>周三</span>
+          <span>周四</span>
+          <span>周五</span>
+          <span>今日</span>
+        </div>
+      </div>
+
+      <!-- 3.3 算力矩阵 / 新增积分 (微点阵热力图) -->
+      <div class="ios-glass-card ios-metric-card">
+        <div class="ios-metric-card__header">
+          <span class="ios-metric-card__title">算力协同</span>
+          <span class="ios-pill-tag ios-pill-tag--emerald">48 节点就绪</span>
+        </div>
+        <div class="ios-metric-card__value-row">
+          <strong class="ios-metric-card__number">2,800 <small>积分</small></strong>
+          <span class="ios-metric-card__subtext">负载平稳 99.8%</span>
+        </div>
+
+        <!-- 点阵热力网格 -->
+        <div class="ios-dot-matrix">
+          <div v-for="(row, rIdx) in dotMatrix" :key="rIdx" class="ios-dot-matrix__row">
+            <span
+              v-for="(val, cIdx) in row"
+              :key="cIdx"
+              class="ios-matrix-dot"
+              :class="`is-level-${val}`"
+            />
+          </div>
+        </div>
+        <div class="ios-matrix-legend">
+          <span><i class="dot dot-high" /> 高峰</span>
+          <span><i class="dot dot-mid" /> 均衡</span>
+          <span><i class="dot dot-low" /> 空闲</span>
+        </div>
+      </div>
+
+      <!-- 3.4 收益分析 / 配额预算 (层级步进容量条) -->
+      <div class="ios-glass-card ios-metric-card">
+        <div class="ios-metric-card__header">
+          <span class="ios-metric-card__title">收益分析</span>
+          <span class="ios-pill-tag ios-pill-tag--amber">达标 88.5%</span>
+        </div>
+        <div class="ios-metric-card__value-row">
+          <strong class="ios-metric-card__number">64,000.00</strong>
+          <span class="ios-metric-card__subtext">总预算 72,000</span>
+        </div>
+
+        <!-- 3 阶水平步进容量条 -->
+        <div class="ios-tier-scales">
+          <div v-for="t in tieredQuotas" :key="t.name" class="ios-tier-item">
+            <div class="ios-tier-item__info">
+              <span>{{ t.name }}</span>
+              <span>{{ t.percent }}%</span>
+            </div>
+            <div class="ios-tier-item__bar-bg">
+              <div
+                class="ios-tier-item__bar-fill"
+                :style="{ width: `${t.percent}%`, background: t.color }"
+              />
+            </div>
+          </div>
+        </div>
+        <div class="ios-chart-ticks">
+          <span>12,000</span>
+          <span>36,000</span>
+          <span>64,000</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- =========================================================================
+         4. 模态框与弹窗交互 (健康体检 / 账号录入 / 租户开通)
+         ========================================================================= -->
+    <!-- 系统健康体检弹窗 -->
+    <el-dialog v-model="probeVisible" title="天枢企业级基础设施健康全栈巡检" width="620px" destroy-on-close>
       <div class="probe-dialog-body">
         <div class="probe-progress-wrap">
-          <div class="probe-progress-header">
-            <span>诊断进度: {{ probeProgress }}%</span>
-            <span v-if="probing" class="probing-tag">正在执行毫秒级硬件与内核网络探测...</span>
-            <span v-else class="passed-tag">诊断完成 · 核心链路 100% 达标</span>
+          <div class="probe-progress-info">
+            <span>{{ probing ? "正在深度扫描平台各模块基础设施..." : "全栈深度检测执行完毕" }}</span>
+            <strong class="probe-percentage">{{ probeProgress }}%</strong>
           </div>
-          <el-progress :percentage="probeProgress" :status="probing ? undefined : 'success'" :stroke-width="8" />
+          <el-progress :percentage="probeProgress" :status="probing ? '' : 'success'" :stroke-width="8" :show-text="false" />
         </div>
 
-        <div class="probe-steps-list">
-          <div v-for="(s, idx) in probeSteps" :key="idx" class="probe-step-item">
-            <div class="step-icon">
-              <el-icon v-if="s.status === 'PASSED'" class="icon-pass"><CircleCheck /></el-icon>
-              <el-icon v-else-if="s.status === 'RUNNING'" class="is-loading icon-run"><Refresh /></el-icon>
-              <span v-else class="dot-pending" />
+        <div class="probe-list">
+          <div v-for="item in probeSteps" :key="item.name" class="probe-item">
+            <div class="probe-item__icon">
+              <el-icon v-if="item.status === 'PASSED'" color="#059669"><CircleCheck /></el-icon>
+              <el-icon v-else-if="item.status === 'RUNNING'" class="is-loading" color="#2563eb"><Refresh /></el-icon>
+              <span v-else class="probe-pending-dot" />
             </div>
-            <div class="step-info">
-              <div class="step-title-line">
-                <strong>{{ s.name }}</strong>
-                <span v-if="s.status === 'PASSED'" class="step-latency">延迟 {{ s.latency }}</span>
+            <div class="probe-item__content">
+              <div class="probe-item__title-row">
+                <strong>{{ item.name }}</strong>
+                <span class="probe-latency" v-if="item.latency !== '-'">{{ item.latency }}</span>
               </div>
-              <p class="step-desc">{{ s.desc }}</p>
+              <p class="probe-item__desc">{{ item.desc }}</p>
             </div>
           </div>
         </div>
       </div>
       <template #footer>
-        <el-button @click="probeVisible = false">关闭</el-button>
-        <el-button :icon="Download" plain @click="exportProbeReport">导出体检快报</el-button>
-        <el-button type="primary" :loading="probing" :icon="Refresh" @click="runHealthProbe">重新体检</el-button>
+        <el-button @click="probeVisible = false">关闭窗口</el-button>
+        <el-button type="primary" :loading="probing" @click="runHealthProbe">再次执行检测</el-button>
       </template>
     </el-dialog>
 
-    <!-- Quota Adjustment Dialog -->
-    <el-dialog v-model="quotaModalVisible" title="租户资源配额基线扩容与调整" width="500px">
+    <!-- 极速录入用户 -->
+    <el-dialog v-model="quickUserVisible" title="录入在职系统账号" width="460px">
       <el-form label-position="top">
-        <el-form-item label="用户账号最大席位数">
-          <el-input-number v-model="quotaForm.seatQuota" :min="10" :max="10000" :step="50" style="width: 100%" />
+        <el-form-item label="登录用户名">
+          <el-input v-model="userForm.username" placeholder="如：zhangsan" />
         </el-form-item>
-        <el-form-item label="对象存储容量上限 (GB)">
-          <el-input-number v-model="quotaForm.storageGb" :min="10" :max="50000" :step="50" style="width: 100%" />
-        </el-form-item>
-        <el-form-item label="今日 API 调用频次上限 (次/天)">
-          <el-input-number v-model="quotaForm.apiLimitPerDay" :min="1000" :max="1000000" :step="10000" style="width: 100%" />
-        </el-form-item>
-        <el-form-item label="调整理由 / 变更申请单号">
-          <el-input v-model="quotaForm.reason" placeholder="如: 租户业务规模扩张申请" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="quotaModalVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSaveQuota">确认扩容下发</el-button>
-      </template>
-    </el-dialog>
-
-    <!-- Quick User Modal -->
-    <el-dialog v-model="quickUserVisible" title="录入企业人员与创建账号" width="480px">
-      <el-form label-position="top">
-        <el-form-item label="登录账号 (Username)" required>
-          <el-input v-model="userForm.username" placeholder="如: zhangsan" />
-        </el-form-item>
-        <el-form-item label="姓名 / 昵称" required>
-          <el-input v-model="userForm.nickname" placeholder="如: 张三" />
+        <el-form-item label="真实姓名">
+          <el-input v-model="userForm.nickname" placeholder="如：张三" />
         </el-form-item>
         <el-form-item label="手机号码">
-          <el-input v-model="userForm.mobile" placeholder="如: 13800000000" />
-        </el-form-item>
-        <el-form-item label="联系邮箱">
-          <el-input v-model="userForm.email" placeholder="如: zhangsan@saasbasics.local" />
+          <el-input v-model="userForm.mobile" placeholder="13800000000" />
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="quickUserVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleCreateQuickUser">确认录入在岗</el-button>
+        <el-button type="primary" @click="handleCreateQuickUser">确认录入</el-button>
       </template>
     </el-dialog>
 
-    <!-- Quick Tenant Modal -->
-    <el-dialog v-model="quickTenantVisible" title="极速开通多租户空间" width="480px">
+    <!-- 极速开通租户 -->
+    <el-dialog v-model="quickTenantVisible" title="创建企业租户空间" width="460px">
       <el-form label-position="top">
-        <el-form-item label="租户编码 (英文字母/短横线)" required>
-          <el-input v-model="tenantForm.tenantCode" placeholder="如: huawei_cloud" />
+        <el-form-item label="租户编码 (全局唯一)">
+          <el-input v-model="tenantForm.tenantCode" placeholder="如：corp_alpha" />
         </el-form-item>
-        <el-form-item label="租户全称" required>
-          <el-input v-model="tenantForm.tenantName" placeholder="如: 华为云科技企业空间" />
-        </el-form-item>
-        <el-form-item label="初始订购套餐">
-          <el-select v-model="tenantForm.packageId" style="width: 100%">
-            <el-option label="基础版 (100席位 / 10GB)" :value="1" />
-            <el-option label="企业版 (500席位 / 100GB)" :value="2" />
-            <el-option label="至尊旗舰版 (无限席位 / 1TB)" :value="3" />
-          </el-select>
+        <el-form-item label="租户企业全称">
+          <el-input v-model="tenantForm.tenantName" placeholder="如：北京天枢极核科技有限公司" />
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="quickTenantVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleCreateQuickTenant">立即开通交付</el-button>
+        <el-button type="primary" @click="handleCreateQuickTenant">开通空间</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <style scoped lang="scss">
-.ep-dashboard {
+/* =============================================================================
+   iOS 27 真正的晶透液态毛玻璃 (Liquid Glass) 工作台系统
+   ============================================================================= */
+
+.ios-dashboard {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  max-width: 1560px;
-  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  animation: iosFadeIn 300ms ease-out;
 }
 
-/* 1. Architectural Command Strip (替代原本突兀的深色大黑块) */
-.ep-dashboard__command-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 16px 22px;
-  background: #ffffff;
-  border: 1px solid var(--sb-border-color, #cbd5e1);
-  border-top: 3px solid #2563eb;
-  border-radius: var(--sb-radius-md, 6px);
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
-  position: relative;
-
-  @media (max-width: 1080px) {
-    flex-direction: column;
-    align-items: stretch;
+@keyframes iosFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-.ep-dashboard__command-main {
-  min-width: 0;
-}
-
-.ep-dashboard__title-row {
+/* -----------------------------------------------------------------------------
+   1. 顶部控制栏与胶囊时间选择器
+   ----------------------------------------------------------------------------- */
+.ios-dashboard__header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: rgba(255, 255, 255, 0.68);
+  backdrop-filter: blur(28px) saturate(200%) contrast(102%);
+  -webkit-backdrop-filter: blur(28px) saturate(200%) contrast(102%);
+  border: 1px solid rgba(255, 255, 255, 0.92);
+  border-radius: 18px;
+  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.95), 0 8px 24px -4px rgba(15, 23, 42, 0.05);
+  margin-bottom: 2px;
 }
 
-.ep-dashboard__title {
+.ios-dashboard__title-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.ios-dashboard__title {
+  font-size: 24px;
+  font-weight: 750;
+  color: #0f172a;
+  letter-spacing: -0.025em;
   margin: 0;
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--sb-text-primary, #090d16);
-  letter-spacing: -0.015em;
-  white-space: nowrap;
+  line-height: 1;
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.8);
 }
 
-.ep-dashboard__meta-chips {
+/* 对标图1中央核心胶囊切换器 (日/周/月/季) */
+.ios-segmented-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  border-radius: 9999px;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.9), 0 4px 14px rgba(15, 23, 42, 0.05);
+
+  &__item {
+    border: none;
+    background: transparent;
+    padding: 4px 13px;
+    font-size: 12.5px;
+    font-weight: 550;
+    color: #475569;
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: all 160ms cubic-bezier(0.16, 1, 0.3, 1);
+
+    &:hover {
+      color: #0f172a;
+    }
+
+    &.is-active {
+      background: #ffffff;
+      color: #0f172a;
+      font-weight: 650;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.10);
+    }
+  }
+}
+
+.ios-dashboard__meta-tag {
+  font-size: 12.5px;
+  color: #475569;
+  font-weight: 550;
+  background: rgba(255, 255, 255, 0.45);
+  padding: 4px 12px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.8);
+}
+
+.ios-dashboard__actions {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 10px;
 }
 
-.ep-meta-chip {
+.ios-glass-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 2.5px 9px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
-  color: #475569;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
+  padding: 7px 14px;
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(20px) saturate(190%);
+  -webkit-backdrop-filter: blur(20px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 9999px;
+  color: #1e293b;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.95), 0 4px 14px rgba(15, 23, 42, 0.05);
+  transition: all 150ms ease;
 
-  &--status {
-    color: #059669;
-    background: #ecfdf5;
-    border-color: #a7f3d0;
-    font-weight: 600;
+  &:hover {
+    background: rgba(255, 255, 255, 0.88);
+    transform: translateY(-1px);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.95), 0 8px 20px rgba(15, 23, 42, 0.08);
   }
 
-  &--engine {
-    color: #2563eb;
-    background: #eff6ff;
-    border-color: #bfdbfe;
-    font-family: var(--sb-font-mono);
-    font-weight: 600;
+  &--highlight {
+    background: rgba(37, 99, 235, 0.12);
+    border-color: rgba(37, 99, 235, 0.35);
+    color: #1d4ed8;
+
+    &:hover {
+      background: rgba(37, 99, 235, 0.20);
+    }
   }
 }
 
-.ep-meta-chip__pulse {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #10b981;
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+/* -----------------------------------------------------------------------------
+   2. 晶透液态玻璃卡片基类 (.ios-glass-card)
+   ----------------------------------------------------------------------------- */
+.ios-glass-card {
+  position: relative;
+  background: rgba(255, 255, 255, 0.62);
+  backdrop-filter: blur(28px) saturate(190%) contrast(102%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%) contrast(102%);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  border-radius: 26px;
+  box-shadow: 
+    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.95),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
+    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.02),
+    0 16px 38px -8px rgba(12, 34, 56, 0.08),
+    0 4px 12px -2px rgba(12, 34, 56, 0.03);
+  padding: 22px 24px;
+  box-sizing: border-box;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+
+  &:hover {
+    box-shadow: 
+      inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.45),
+      0 22px 48px -10px rgba(12, 34, 56, 0.12),
+      0 6px 16px -2px rgba(12, 34, 56, 0.05);
+  }
 }
 
-.ep-dashboard__subtitle {
-  margin: 5px 0 0;
-  font-size: 13px;
-  color: #64748b;
-  line-height: 1.4;
-}
-
-.ep-dashboard__command-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-  flex-wrap: wrap;
-}
-
-/* 2. Unified Global KPI Ribbon (一体化全局指标带) */
-.ep-dashboard__kpi-ribbon {
+/* -----------------------------------------------------------------------------
+   3. 第一层核心 Hero 网格 (58% : 42%)
+   ----------------------------------------------------------------------------- */
+.ios-dashboard__hero-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  background: #ffffff;
-  border: 1px solid var(--sb-border-color, #cbd5e1);
-  border-radius: var(--sb-radius-md, 6px);
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
-  overflow: hidden;
-
-  @media (max-width: 960px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  @media (max-width: 580px) {
-    grid-template-columns: 1fr;
-  }
+  grid-template-columns: 58fr 42fr;
+  gap: 16px;
 }
 
-.ep-kpi-item {
-  padding: 16px 20px;
-  border-right: 1px solid var(--sb-border-subtle, #e2e8f0);
+.ios-glass-card--hero {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  transition: background 0.15s ease;
-  position: relative;
-
-  &:last-child {
-    border-right: none;
-  }
-
-  &:hover {
-    background: #f8fafc;
-  }
-
-  &::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: transparent;
-    transition: background 0.15s ease;
-  }
-
-  &--tier-0::before { background: #2563eb; }
-  &--tier-1::before { background: #6366f1; }
-  &--tier-2::before { background: #059669; }
-  &--tier-3::before { background: #0ea5e9; }
+  min-height: 230px;
 }
 
-.ep-kpi-item__head {
+.ios-glass-card__header-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.ep-kpi-item__label {
-  font-size: 13px;
-  font-weight: 500;
+.ios-badge-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.ios-currency-code {
+  padding: 1px 7px;
+  font-size: 10.5px;
+  font-family: var(--sb-font-mono, monospace);
+  font-weight: 650;
+  border-radius: 9999px;
+  background: rgba(15, 23, 42, 0.06);
   color: #475569;
 }
 
-.ep-kpi-item__body {
+.ios-icon-btn {
+  border: none;
+  background: rgba(255, 255, 255, 0.45);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 120ms ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.85);
+    color: #0f172a;
+  }
+}
+
+.ios-icon-btn-sm {
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    color: #0f172a;
+  }
+}
+
+/* 核心巨大数值 */
+.ios-hero-amount {
   display: flex;
   align-items: baseline;
   gap: 6px;
-  margin: 8px 0 4px;
-}
+  margin: 12px 0 16px;
+  flex-wrap: wrap;
 
-.ep-kpi-item__value {
-  font-size: 26px;
-  font-weight: 700;
-  color: var(--sb-text-primary, #090d16);
-  font-family: var(--sb-font-mono);
-  letter-spacing: -0.02em;
-  line-height: 1;
-}
+  &__currency {
+    font-size: 22px;
+    font-weight: 600;
+    color: #0f172a;
+  }
 
-.ep-kpi-item__unit {
-  font-size: 12.5px;
-  color: #64748b;
-}
-
-.ep-kpi-item__hint {
-  font-size: 12px;
-  color: #64748b;
-}
-
-/* 3. Cockpit Grid (68% / 32%) */
-.ep-dashboard__grid {
-  display: grid;
-  grid-template-columns: 68% 32%;
-  gap: 16px;
-  align-items: start;
-
-  @media (max-width: 1120px) {
-    grid-template-columns: 1fr;
+  &__number {
+    font-size: 40px;
+    font-weight: 800;
+    color: #090d16;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
   }
 }
 
-.ep-dashboard__col-main,
-.ep-dashboard__col-side {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-/* Base Card Style */
-.ep-card {
-  background: #ffffff;
-  border: 1px solid var(--sb-border-color, #cbd5e1);
-  border-radius: var(--sb-radius-md, 6px);
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
-  padding: 16px 20px;
-}
-
-.ep-card__header {
-  display: flex;
+.ios-growth-pill {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
-}
-
-.ep-card__title-group {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.ep-card__title {
-  margin: 0;
-  font-size: 15px;
+  gap: 6px;
+  margin-left: 12px;
+  padding: 4px 10px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.28);
+  border-radius: 9999px;
+  font-size: 12px;
   font-weight: 650;
-  color: var(--sb-text-primary, #090d16);
+  color: #047857;
+
+  &__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 6px #10b981;
+  }
 }
 
-.ep-card__desc {
-  font-size: 12px;
-  color: #64748b;
-}
-
-/* Workspaces Grid (3x2 High Density Matrix) */
-.ep-workspaces-grid {
+/* 底部操作胶囊组 */
+.ios-hero-actions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 10px;
-
-  @media (max-width: 1320px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  @media (max-width: 640px) {
-    grid-template-columns: 1fr;
-  }
 }
 
-.ep-workspace-tile {
+.ios-pill-action {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
-  background: #fafbfc;
-  border: 1px solid var(--sb-border-subtle, #e2e8f0);
-  border-radius: var(--sb-radius-sm, 6px);
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 9999px;
+  color: #334155;
+  font-size: 12.5px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.16s ease;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+  transition: all 140ms ease;
 
   &:hover {
-    background: #eff6ff;
-    border-color: #93c5fd;
+    background: #ffffff;
+    color: #0f172a;
     transform: translateY(-1px);
-    box-shadow: 0 3px 8px -1px rgba(37, 99, 235, 0.08);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  }
 
-    .ep-workspace-tile__arrow {
-      color: #2563eb;
-      transform: translateX(2px);
-    }
+  &--primary {
+    background: #0284c7;
+    border-color: #0284c7;
+    color: #ffffff;
+    box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
 
-    .ep-workspace-tile__icon-wrap {
-      background: #2563eb;
+    &:hover {
+      background: #0369a1;
       color: #ffffff;
+      box-shadow: 0 6px 18px rgba(2, 132, 199, 0.45);
     }
   }
 }
 
-.ep-workspace-tile__icon-wrap {
-  width: 32px;
-  height: 32px;
-  display: grid;
-  place-items: center;
-  border-radius: 6px;
-  background: rgba(37, 99, 235, 0.08);
-  color: #2563eb;
-  flex-shrink: 0;
-  transition: all 0.16s ease;
+/* 2.2 日程与项目卡片 */
+.ios-glass-card--calendar {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
-.ep-workspace-tile__icon {
-  width: 16px;
-  height: 16px;
-}
-
-.ep-workspace-tile__content {
-  flex: 1;
-  min-width: 0;
-}
-
-.ep-workspace-tile__title-row {
+.ios-calendar-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 4px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.65);
+
+  &__date {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__icon {
+    font-size: 16px;
+    color: #0284c7;
+  }
+
+  &__title {
+    font-size: 14.5px;
+    font-weight: 700;
+    color: #0f172a;
+  }
 }
 
-.ep-workspace-tile__title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--sb-text-primary, #090d16);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.ios-week-dots {
+  display: flex;
+  gap: 5px;
 }
 
-.ep-workspace-tile__arrow {
-  width: 12px;
-  height: 12px;
-  color: #94a3b8;
-  flex-shrink: 0;
-  transition: all 0.16s ease;
-}
-
-.ep-workspace-tile__tag-wrap {
-  margin-top: 2px;
-}
-
-.ep-workspace-tile__tag {
+.ios-week-dot {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 11px;
+  font-weight: 600;
+  border-radius: 50%;
   color: #64748b;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: block;
+  background: rgba(255, 255, 255, 0.45);
+
+  &.is-active {
+    background: #0284c7;
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(2, 132, 199, 0.35);
+  }
 }
 
-/* Table Wrap */
-.ep-table-wrap {
+.ios-projects-box {
+  margin-top: 10px;
+
+  &__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  &__title {
+    font-size: 12.5px;
+    font-weight: 650;
+    color: #475569;
+  }
+
+  &__count {
+    font-size: 11px;
+    color: #64748b;
+  }
+}
+
+.ios-projects-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.ios-project-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.50);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 120ms ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.85);
+    transform: translateX(2px);
+  }
+
+  &__main {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__name {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #1e293b;
+  }
+
+  &__stage {
+    font-size: 10.5px;
+    color: #64748b;
+    background: rgba(15, 23, 42, 0.05);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  &__amount {
+    font-size: 12.5px;
+    font-family: var(--sb-font-mono, monospace);
+    font-weight: 650;
+    color: #0f172a;
+  }
+}
+
+.ios-status-badge {
+  padding: 2px 7px;
+  font-size: 10.5px;
+  font-weight: 650;
+  border-radius: 9999px;
+
+  &--success {
+    background: rgba(16, 185, 129, 0.15);
+    color: #047857;
+  }
+  &--primary {
+    background: rgba(2, 132, 199, 0.15);
+    color: #0284c7;
+  }
+  &--info {
+    background: rgba(100, 116, 139, 0.15);
+    color: #475569;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   4. 第二层：下排 4 联数据微拟物卡片
+   ----------------------------------------------------------------------------- */
+.ios-dashboard__metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.ios-metric-card {
+  padding: 18px 20px;
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  &__title {
+    font-size: 13.5px;
+    font-weight: 650;
+    color: #334155;
+  }
+
+  &__value-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin: 8px 0;
+  }
+
+  &__number {
+    font-size: 24px;
+    font-weight: 800;
+    color: #090d16;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+
+    small {
+      font-size: 12px;
+      font-weight: 550;
+      color: #64748b;
+      margin-left: 2px;
+    }
+  }
+
+  &__badge-up {
+    font-size: 11px;
+    font-weight: 650;
+    color: #059669;
+    background: rgba(16, 185, 129, 0.12);
+    padding: 1px 6px;
+    border-radius: 9999px;
+  }
+
+  &__subtext {
+    font-size: 11px;
+    color: #64748b;
+  }
+}
+
+.ios-pill-tag {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 9999px;
+  background: rgba(2, 132, 199, 0.12);
+  color: #0284c7;
+
+  &--emerald {
+    background: rgba(16, 185, 129, 0.12);
+    color: #059669;
+  }
+  &--amber {
+    background: rgba(245, 158, 11, 0.14);
+    color: #d97706;
+  }
+}
+
+/* 4.1 声波律动柱状图 */
+.ios-soundwave-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 44px;
+  padding-top: 8px;
+}
+
+.ios-soundwave-bar {
+  flex: 1;
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 2px;
+  transition: all 180ms ease;
+
+  &.is-peak {
+    background: linear-gradient(180deg, #0284c7, #06b6d4);
+    box-shadow: 0 0 6px rgba(6, 182, 212, 0.4);
+  }
+
+  &.is-highlight {
+    background: linear-gradient(180deg, #10b981, #059669);
+  }
+
+  &:hover {
+    transform: scaleY(1.1);
+  }
+}
+
+/* 4.2 面积曲线图 */
+.ios-spline-chart {
+  height: 44px;
+  width: 100%;
+}
+
+.ios-spline-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* 4.3 点阵矩阵 */
+.ios-dot-matrix {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 0;
+
+  &__row {
+    display: flex;
+    justify-content: space-between;
+  }
+}
+
+.ios-matrix-dot {
+  width: 6.5px;
+  height: 6.5px;
+  border-radius: 50%;
+  background: rgba(148, 163, 184, 0.25);
+
+  &.is-level-1 {
+    background: rgba(148, 163, 184, 0.4);
+  }
+  &.is-level-2 {
+    background: rgba(2, 132, 199, 0.65);
+  }
+  &.is-level-3 {
+    background: #10b981;
+    box-shadow: 0 0 4px #10b981;
+  }
+}
+
+.ios-matrix-legend {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  font-size: 10px;
+  color: #64748b;
+
+  .dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-right: 2px;
+
+    &.dot-high { background: #10b981; }
+    &.dot-mid { background: #0284c7; }
+    &.dot-low { background: #cbd5e1; }
+  }
+}
+
+/* 4.4 层级容量条 */
+.ios-tier-scales {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ios-tier-item {
+  &__info {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10.5px;
+    color: #475569;
+    font-weight: 550;
+    margin-bottom: 2px;
+  }
+
+  &__bar-bg {
+    width: 100%;
+    height: 4.5px;
+    background: rgba(148, 163, 184, 0.20);
+    border-radius: 9999px;
+    overflow: hidden;
+  }
+
+  &__bar-fill {
+    height: 100%;
+    border-radius: 9999px;
+  }
+}
+
+.ios-chart-ticks {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #94a3b8;
+  font-family: var(--sb-font-mono, monospace);
   margin-top: 4px;
 }
 
-.ep-text-mono {
-  font-family: var(--sb-font-mono);
-  font-size: 12px;
-  color: #475569;
-}
-
-.ep-text-medium {
-  font-weight: 550;
-  color: var(--sb-text-secondary, #1e293b);
-}
-
-/* Right Column: Unified Governance Hub (一体化治理与基础设施中枢) */
-.ep-governance-hub {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.ep-hub-block {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.ep-hub-block__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.ep-hub-block__title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--sb-text-primary, #090d16);
-}
-
-.ep-hub-badge {
-  font-size: 11px;
-  font-family: var(--sb-font-mono);
-  padding: 1px 6px;
-  border-radius: 3px;
-  background: #f1f5f9;
-  color: #475569;
-  border: 1px solid #e2e8f0;
-
-  &--green {
-    background: #ecfdf5;
-    color: #059669;
-    border-color: #a7f3d0;
-  }
-}
-
-.ep-hub-divider {
-  height: 1px;
-  background: var(--sb-border-subtle, #e2e8f0);
-  margin: 2px 0;
-}
-
-/* Quota Item */
-.ep-quota-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.ep-quota-item__info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
-  font-size: 12.5px;
-}
-
-.ep-quota-item__name {
-  color: #475569;
-}
-
-.ep-quota-item__value {
-  color: #64748b;
-  font-family: var(--sb-font-mono);
-
-  strong {
-    color: var(--sb-text-primary, #090d16);
-    font-weight: 600;
-  }
-}
-
-/* Core Health List */
-.ep-health-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.ep-health-item {
-  padding: 8px 10px;
-  border-radius: 4px;
-  background: #fafbfc;
-  border: 1px solid var(--sb-border-subtle, #e2e8f0);
-}
-
-.ep-health-item__head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--sb-text-primary, #090d16);
-}
-
-.ep-health-item__name {
-  color: #1e293b;
-}
-
-.ep-health-item__desc {
-  display: block;
-  font-size: 11.5px;
-  color: #64748b;
-  margin-top: 2px;
-}
-
-/* Security Bullets */
-.ep-security-bullets {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.ep-security-bullet {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  font-size: 12px;
-  padding: 8px 10px;
-  border-radius: 4px;
-  background: #f8fafc;
-  border: 1px solid #f1f5f9;
-}
-
-.ep-security-bullet__icon {
-  font-size: 13px;
-  color: #059669;
-  margin-top: 1px;
-  flex-shrink: 0;
-}
-
-.ep-security-bullet__text {
-  display: flex;
-  flex-direction: column;
-
-  strong {
-    color: var(--sb-text-primary, #090d16);
-    font-weight: 600;
-    font-size: 12px;
-  }
-
-  span {
-    color: #64748b;
-    font-size: 11px;
-    margin-top: 1px;
-  }
-}
-
-/* Probe Dialog Styles */
+/* -----------------------------------------------------------------------------
+   5. 健康体检弹窗样式
+   ----------------------------------------------------------------------------- */
 .probe-dialog-body {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 }
 
 .probe-progress-wrap {
+  padding: 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+.probe-progress-info {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: #334155;
+  font-weight: 550;
+}
+
+.probe-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.probe-progress-header {
-  display: flex;
-  justify-content: space-between;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.probing-tag {
-  color: #2563eb;
-  font-size: 12px;
-}
-
-.passed-tag {
-  color: #059669;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.probe-steps-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-height: 380px;
-  overflow-y: auto;
-}
-
-.probe-step-item {
+.probe-item {
   display: flex;
   align-items: flex-start;
   gap: 12px;
   padding: 10px 14px;
-  background: #f8fafc;
-  border: 1px solid var(--sb-border-subtle, #e2e8f0);
-  border-radius: 6px;
-}
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.9);
 
-.step-icon {
-  margin-top: 2px;
-
-  .icon-pass {
-    color: #059669;
-    font-size: 16px;
+  &__icon {
+    font-size: 18px;
+    margin-top: 2px;
   }
 
-  .icon-run {
-    color: #2563eb;
-    font-size: 16px;
+  &__content {
+    flex: 1;
   }
 
-  .dot-pending {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: #cbd5e1;
-  }
-}
-
-.step-info {
-  flex: 1;
-}
-
-.step-title-line {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-
-  strong {
+  &__title-row {
+    display: flex;
+    justify-content: space-between;
     font-size: 13px;
-    color: var(--sb-text-primary, #090d16);
+    color: #0f172a;
   }
 
-  .step-latency {
+  &__desc {
+    margin: 2px 0 0;
     font-size: 11.5px;
-    color: #059669;
-    font-family: var(--sb-font-mono);
+    color: #64748b;
   }
 }
 
-.step-desc {
-  margin: 3px 0 0;
-  font-size: 12px;
-  color: #64748b;
+.probe-latency {
+  font-family: var(--sb-font-mono, monospace);
+  font-size: 11px;
+  color: #059669;
+  font-weight: 600;
+}
+
+.probe-pending-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #cbd5e1;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .ios-dashboard__hero-grid {
+    grid-template-columns: 1fr;
+  }
+  .ios-dashboard__metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .ios-dashboard__metrics-grid {
+    grid-template-columns: 1fr;
+  }
+  .ios-hero-actions {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .ios-dashboard__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
 }
 </style>

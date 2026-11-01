@@ -266,10 +266,11 @@ function handleAutoFix() {
       display: flex;
       align-items: flex-start;
       gap: 8px;
-      background: #fff;
+      background: rgba(255, 255, 255, 0.58);
+      backdrop-filter: blur(14px);
       padding: 8px 10px;
-      border-radius: 6px;
-      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.88);
 
       .toggle-content {
         display: flex;

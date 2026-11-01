@@ -67,12 +67,16 @@ export function apiCreateFollowUpRecord(payload: {
   bizType: "CUSTOMER" | "CLUE";
   bizId: number;
   contactType: "PHONE" | "VISIT" | "WECHAT" | "MAIL";
+  followType?: string;
   content: string;
   nextFollowTime?: string;
 }) {
   return request<any>({
     url: "/api/crm/follow-up-records",
     method: "POST",
-    data: payload
+    data: {
+      ...payload,
+      followType: payload.contactType || payload.followType
+    }
   });
 }

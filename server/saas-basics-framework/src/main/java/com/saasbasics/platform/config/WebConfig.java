@@ -38,9 +38,11 @@ public class WebConfig implements WebMvcConfigurer {
         }
         // Always support local dev & mobile preview patterns
         origins.add("http://localhost:*");
+        origins.add("http://*.localhost:*");
         origins.add("http://127.0.0.1:*");
         origins.add("http://[::1]:*");
         origins.add("https://localhost:*");
+        origins.add("https://*.localhost:*");
         origins.add("https://127.0.0.1:*");
         origins.add("http://192.168.*.*:*");
         origins.add("http://10.*.*.*:*");

@@ -193,7 +193,7 @@ const columns: ProTableColumn[] = [
     formatter: (row) => isolationModeLabelMap[String(row.isolationMode ?? "")] ?? String(row.isolationMode ?? "--")
   },
   { prop: "status", label: "生命周期状态", minWidth: 120, slot: "status" },
-  { prop: "actions", label: "操作", minWidth: 260, fixed: "right", slot: "actions" }
+  { prop: "actions", label: "操作", minWidth: 260, slot: "actions" }
 ];
 
 const schema = computed(() => [

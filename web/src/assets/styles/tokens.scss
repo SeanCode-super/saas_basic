@@ -55,15 +55,15 @@
   /* ==========================================================================
      iOS 27 / visionOS 晶透液态玻璃系统 (Liquid Aether Glass Tokens)
      ========================================================================== */
-  --sb-glass-blur: blur(28px) saturate(190%);
-  --sb-glass-blur-sm: blur(16px) saturate(180%);
-  --sb-glass-blur-lg: blur(40px) saturate(200%);
+  --sb-glass-blur: blur(28px) saturate(200%) contrast(102%);
+  --sb-glass-blur-sm: blur(18px) saturate(180%) contrast(102%);
+  --sb-glass-blur-lg: blur(40px) saturate(220%) contrast(103%);
 
-  /* 晶透表面材质（亮色通透与暗夜黑曜石双模式） */
-  --sb-glass-bg: rgba(255, 255, 255, 0.72);
-  --sb-glass-bg-hover: rgba(255, 255, 255, 0.85);
-  --sb-glass-bg-active: rgba(255, 255, 255, 0.92);
-  --sb-glass-bg-soft: rgba(255, 255, 255, 0.52);
+  /* 晶透表面材质（高透液态折射） */
+  --sb-glass-bg: rgba(255, 255, 255, 0.62);
+  --sb-glass-bg-hover: rgba(255, 255, 255, 0.78);
+  --sb-glass-bg-active: rgba(255, 255, 255, 0.90);
+  --sb-glass-bg-soft: rgba(255, 255, 255, 0.45);
 
   /* 暗夜极光毛玻璃 */
   --sb-glass-dark-bg: rgba(15, 23, 42, 0.72);
@@ -71,22 +71,23 @@
   --sb-glass-dark-active: rgba(37, 99, 235, 0.28);
 
   /* 物理高光微倒角与外缘水晶发丝边框 (Specular Highlights & Crystal Hairlines) */
-  --sb-glass-border: 1px solid rgba(255, 255, 255, 0.70);
+  --sb-glass-border: 1px solid rgba(255, 255, 255, 0.75);
   --sb-glass-border-dark: 1px solid rgba(255, 255, 255, 0.12);
-  --sb-glass-border-subtle: 1px solid rgba(226, 232, 240, 0.60);
+  --sb-glass-border-subtle: 1px solid rgba(255, 255, 255, 0.50);
 
-  /* 模拟光线在玻璃顶边缘折射的物理内高光 */
-  --sb-glass-specular: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.95), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.03);
+  /* 模拟光线在玻璃顶边缘折射的物理内高光与全息反射 */
+  --sb-glass-specular: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.95), inset 0 0 0 1px rgba(255, 255, 255, 0.4), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.02);
   --sb-glass-specular-dark: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.25), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.35);
 
   /* 悬浮柔态大投影 */
-  --sb-glass-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.08), 0 4px 12px -2px rgba(15, 23, 42, 0.04);
-  --sb-glass-shadow-lg: 0 20px 48px -10px rgba(15, 23, 42, 0.12), 0 8px 20px -4px rgba(15, 23, 42, 0.06);
-  --sb-glass-shadow-glow: 0 0 24px -2px rgba(37, 99, 235, 0.25);
+  --sb-glass-shadow: 0 14px 38px -6px rgba(12, 34, 56, 0.08), 0 4px 12px -2px rgba(12, 34, 56, 0.04);
+  --sb-glass-shadow-lg: 0 24px 56px -12px rgba(12, 34, 56, 0.12), 0 8px 24px -4px rgba(12, 34, 56, 0.06);
+  --sb-glass-shadow-glow: 0 0 28px -2px rgba(37, 99, 235, 0.28);
 
-  /* 悬浮晶体圆角规范 */
-  --sb-radius-glass: 14px;
-  --sb-radius-glass-sm: 10px;
+  /* 悬浮晶体圆角规范 (iOS 27 连续大曲率) */
+  --sb-radius-glass: 26px;
+  --sb-radius-glass-md: 18px;
+  --sb-radius-glass-sm: 12px;
   --sb-radius-glass-pill: 9999px;
 
   /* 底座画布与表面层级 (Titanium Slate Ground & Liquid Glass) */
@@ -151,22 +152,24 @@
   --el-border-color-darker: #64748b;
 
   --el-fill-color: #f1f5f9;
-  --el-fill-color-light: #f8fafc;
-  --el-fill-color-lighter: #ffffff;
-  --el-fill-color-extra-light: #fafafa;
-  --el-fill-color-dark: #e2e8f0;
-  --el-fill-color-darker: #cbd5e1;
-  --el-fill-color-blank: #ffffff;
+  --el-fill-color-light: rgba(248, 250, 252, 0.50);
+  --el-fill-color-lighter: rgba(255, 255, 255, 0.70);
+  --el-fill-color-extra-light: rgba(250, 250, 250, 0.40);
+  --el-fill-color-dark: rgba(226, 232, 240, 0.60);
+  --el-fill-color-darker: rgba(203, 213, 225, 0.60);
+  --el-fill-color-blank: rgba(255, 255, 255, 0.55);
 
-  --el-bg-color: #ffffff;
-  --el-bg-color-page: #f1f5f9;
-  --el-bg-color-overlay: #ffffff;
+  --el-bg-color: rgba(255, 255, 255, 0.62);
+  --el-bg-color-page: transparent;
+  --el-bg-color-overlay: rgba(255, 255, 255, 0.82);
 
-  /* 表格系统深度调优 */
-  --el-table-header-bg-color: #f8fafc;
+  /* 表格系统深度调优 (iOS 27 Liquid Frosted Glass) */
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: transparent;
+  --el-table-header-bg-color: rgba(248, 250, 252, 0.55);
   --el-table-header-text-color: #090d16;
   --el-table-text-color: #1e293b;
-  --el-table-border-color: #e2e8f0;
-  --el-table-row-hover-bg-color: #eff6ff;
-  --el-table-current-row-bg-color: #eff6ff;
+  --el-table-border-color: rgba(226, 232, 240, 0.6);
+  --el-table-row-hover-bg-color: rgba(239, 246, 255, 0.65);
+  --el-table-current-row-bg-color: rgba(239, 246, 255, 0.75);
 }

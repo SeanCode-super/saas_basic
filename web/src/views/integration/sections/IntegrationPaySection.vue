@@ -12,7 +12,7 @@ import {
   ShoppingBag
 } from "@element-plus/icons-vue";
 import BaseCard from "@/components/base/BaseCard.vue";
-import { createPayOrder, getPayOrderStatus, mockPaySuccess } from "@/api/modules/integration/service";
+import { createPayOrder, getPayOrderStatus, mockPaySuccess, fetchPayOrders, refundPayOrder } from "@/api/modules/integration/service";
 import type { PayOrderCreatePayload, PayOrderRow } from "@/api/modules/integration/types";
 
 const loading = ref(false);
@@ -25,37 +25,29 @@ const orderForm = reactive<PayOrderCreatePayload>({
   amount: 299.00,
   channel: "WECHAT",
   subject: "企业旗舰版按月订阅服务",
-  description: "Antigravity PaaS 企业级平台技术授权与高可用服务"
+  description: "天枢企业级协同平台技术授权与维保服务"
 });
 
 // 当前展示中的支付收银台订单
 const currentOrder = ref<PayOrderRow | null>(null);
 
-// 历史支付流水台账（本地+沙箱模拟持久化）
-const tradeHistory = ref<PayOrderRow[]>([
-  {
-    payTradeNo: "PAY-9810294810294812",
-    orderNo: "PO_98210394",
-    amount: 1999.00,
-    channel: "WECHAT",
-    status: "SUCCESS",
-    payUrl: "weixin://wxpay/bizpayurl?pr=PAY-9810294810294812",
-    qrCodeUrl: "https://api.qrserver.com/v1/create-qr-code/?data=weixin://wxpay/bizpayurl",
-    expireAt: "2026-10-26 12:00:00",
-    paidAt: "2026-10-26 11:32:15"
-  },
-  {
-    payTradeNo: "PAY-7719283019284910",
-    orderNo: "PO_88192031",
-    amount: 8800.00,
-    channel: "ALIPAY",
-    status: "SUCCESS",
-    payUrl: "https://openapi.alipay.com/gateway.do?trade_no=PAY-7719283019284910",
-    qrCodeUrl: "https://api.qrserver.com/v1/create-qr-code/?data=alipay",
-    expireAt: "2026-10-26 10:00:00",
-    paidAt: "2026-10-26 09:41:02"
+// 历史支付流水台账（实时持久化落库与对账）
+const tradeHistory = ref<PayOrderRow[]>([]);
+
+async function loadOrders() {
+  try {
+    const list = await fetchPayOrders();
+    if (list && list.length > 0) {
+      tradeHistory.value = list;
+    }
+  } catch (err) {
+    console.error("加载持久化支付单据失败:", err);
   }
-]);
+}
+
+onMounted(() => {
+  loadOrders();
+});
 
 async function handleCreateOrder() {
   if (!orderForm.amount || orderForm.amount <= 0) {
@@ -66,8 +58,7 @@ async function handleCreateOrder() {
   try {
     const res = await createPayOrder(orderForm);
     currentOrder.value = res;
-    // 加入历史记录
-    tradeHistory.value.unshift(res);
+    await loadOrders();
     ElMessage.success("收银台订单创建成功，请扫码支付！");
   } catch (err: any) {
     ElMessage.error(err?.message || "创建支付订单失败");
@@ -82,11 +73,7 @@ async function handleMockSuccess() {
   try {
     const res = await mockPaySuccess(currentOrder.value.orderNo);
     currentOrder.value = res;
-    // 更新历史台账状态
-    const idx = tradeHistory.value.findIndex(item => item.orderNo === res.orderNo);
-    if (idx !== -1) {
-      tradeHistory.value[idx] = res;
-    }
+    await loadOrders();
     ElMessage.success("模拟扫码支付成功！订单状态已更新为 SUCCESS");
   } catch (err: any) {
     ElMessage.error(err?.message || "模拟支付回调失败");
@@ -101,11 +88,25 @@ async function handleRefreshCurrentStatus() {
   try {
     const res = await getPayOrderStatus(currentOrder.value.orderNo);
     currentOrder.value = res;
+    await loadOrders();
     ElMessage.info(`订单最新状态：${res.status}`);
   } catch (err: any) {
     ElMessage.error(err?.message || "查询状态失败");
   } finally {
     loading.value = false;
+  }
+}
+
+async function handleRefund(row: PayOrderRow) {
+  try {
+    await refundPayOrder(row.orderNo);
+    ElMessage.success("订单原路退款成功，状态已扭转！");
+    if (currentOrder.value && currentOrder.value.orderNo === row.orderNo) {
+      currentOrder.value.status = "REFUNDED";
+    }
+    await loadOrders();
+  } catch (err: any) {
+    ElMessage.error(err?.message || "退款申请失败");
   }
 }
 
@@ -287,8 +288,8 @@ function resetForm() {
             </el-table-column>
             <el-table-column prop="status" label="状态" width="120" align="center">
               <template #default="{ row }">
-                <el-tag size="small" :type="row.status === 'SUCCESS' ? 'success' : 'warning'">
-                  {{ row.status === 'SUCCESS' ? '支付成功' : '待付款' }}
+                <el-tag size="small" :type="row.status === 'SUCCESS' ? 'success' : row.status === 'REFUNDED' ? 'danger' : 'warning'">
+                  {{ row.status === 'SUCCESS' ? '支付成功' : row.status === 'REFUNDED' ? '已退款' : '待付款' }}
                 </el-tag>
               </template>
             </el-table-column>
@@ -296,6 +297,21 @@ function resetForm() {
             <el-table-column prop="paidAt" label="完成支付时间" min-width="180">
               <template #default="{ row }">
                 <span>{{ row.paidAt || '--' }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作与对账" min-width="140" align="center">
+              <template #default="{ row }">
+                <el-button
+                  v-if="row.status === 'SUCCESS'"
+                  size="small"
+                  type="danger"
+                  link
+                  @click="handleRefund(row)"
+                >
+                  原路退款
+                </el-button>
+                <span v-else-if="row.status === 'REFUNDED'" class="text-xs text-gray-400">已全额退款</span>
+                <span v-else class="text-xs text-gray-400">等待支付</span>
               </template>
             </el-table-column>
           </el-table>

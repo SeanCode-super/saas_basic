@@ -42,7 +42,7 @@ function asApiRows(rows: object[]) {
     </template>
     <template #actions="{ row }">
       <el-button v-button-permission="{ code: 'iam_api_resource:edit', fallback: 'iam:api-resource:write' }" link type="primary" @click="openApiEdit(row)">编辑</el-button>
-      <el-button v-button-permission="{ code: 'iam_api_resource:toggle', fallback: 'iam:api-resource:write' }" link @click="toggleApiResource(row)">{{ row.status === "ENABLED" ? "停用" : "启用" }}</el-button>
+      <el-button v-button-permission="{ code: 'iam_api_resource:toggle', fallback: 'iam:api-resource:write' }" link :type="row.status === 'ENABLED' ? 'danger' : 'success'" @click="toggleApiResource(row)">{{ row.status === "ENABLED" ? "停用" : "启用" }}</el-button>
     </template>
   </ProTable>
 </template>

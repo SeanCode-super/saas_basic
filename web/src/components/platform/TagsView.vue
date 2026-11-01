@@ -191,24 +191,28 @@ function closeAllTags() {
 
 <style scoped>
 .tags-view-container {
-  height: 38px;
+  height: 40px;
   width: 100%;
   background: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border-bottom: 1px solid rgba(226, 232, 240, 0.65);
-  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.8), 0 2px 8px rgba(15, 23, 42, 0.02);
+  backdrop-filter: blur(28px) saturate(200%);
+  -webkit-backdrop-filter: blur(28px) saturate(200%);
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow:
+    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
+    0 8px 24px -6px rgba(15, 23, 42, 0.04);
   display: flex;
   align-items: center;
   position: relative;
   z-index: 10;
   user-select: none;
+  box-sizing: border-box;
 }
 
 .tags-view-scroll {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   padding: 0 16px;
   overflow-x: auto;
   scrollbar-width: none;
@@ -221,17 +225,17 @@ function closeAllTags() {
 .tags-view-item {
   display: inline-flex;
   align-items: center;
-  height: 26px;
-  line-height: 26px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  height: 28px;
+  line-height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.75);
   color: #475569;
-  background: rgba(255, 255, 255, 0.65);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  padding: 0 10px;
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 0 12px;
   font-size: 12px;
-  font-weight: 500;
-  border-radius: 8px;
+  font-weight: 550;
+  border-radius: 9999px;
   box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.9);
   cursor: pointer;
   transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
@@ -240,17 +244,18 @@ function closeAllTags() {
 
   &:hover {
     color: var(--sb-text-primary, #090d16);
-    background: rgba(255, 255, 255, 0.95);
-    border-color: rgba(203, 213, 225, 0.9);
-    box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 1), 0 2px 6px rgba(15, 23, 42, 0.05);
+    background: rgba(255, 255, 255, 0.85);
+    border-color: rgba(255, 255, 255, 0.95);
+    box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 1), 0 2px 8px rgba(15, 23, 42, 0.06);
+    transform: translateY(-0.5px);
   }
 
   &.is-active {
-    background: rgba(37, 99, 235, 0.12);
+    background: #ffffff;
     color: #1d4ed8;
-    border-color: rgba(37, 99, 235, 0.35);
-    box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.8), 0 2px 8px rgba(37, 99, 235, 0.15);
-    font-weight: 600;
+    border-color: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.10);
+    font-weight: 650;
   }
 }
 

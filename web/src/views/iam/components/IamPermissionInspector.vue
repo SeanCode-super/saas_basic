@@ -419,8 +419,9 @@ const inspectedMenuGroups = computed(() => {
 
   :deep(.el-dialog__footer) {
     padding: 14px 24px;
-    border-top: 1px solid var(--el-border-color-lighter);
-    background: #fff;
+    border-top: 1px solid rgba(226, 232, 240, 0.6);
+    background: rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(14px);
   }
 }
 
@@ -451,9 +452,12 @@ const inspectedMenuGroups = computed(() => {
     display: flex;
     align-items: center;
     gap: 16px;
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.58);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.88);
+    box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), 0 8px 24px -6px rgba(12, 34, 56, 0.05);
+    border-radius: 18px;
     padding: 14px 18px;
 
     .user-avatar-circle {
@@ -568,9 +572,11 @@ const inspectedMenuGroups = computed(() => {
 }
 
 .module-group-box {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
   padding: 12px 16px;
 
   .module-group-title {
@@ -590,9 +596,9 @@ const inspectedMenuGroups = computed(() => {
       align-items: baseline;
       gap: 4px;
       padding: 4px 10px;
-      border-radius: 6px;
-      background: #eff6ff;
-      border: 1px solid #bfdbfe;
+      border-radius: 8px;
+      background: rgba(239, 246, 255, 0.85);
+      border: 1px solid rgba(191, 219, 254, 0.8);
 
       .chip-name {
         font-size: 12px;
@@ -611,9 +617,11 @@ const inspectedMenuGroups = computed(() => {
 
 .button-permissions-section {
   margin-top: 16px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
   padding: 14px 16px;
 
   .section-sub-title {
@@ -677,9 +685,11 @@ const inspectedMenuGroups = computed(() => {
   gap: 10px;
 
   .scope-rule-item {
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.58);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.88);
+    box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.95);
+    border-radius: 14px;
     padding: 12px 16px;
 
     .rule-top {
@@ -723,9 +733,12 @@ const inspectedMenuGroups = computed(() => {
 
 /* Simulator Tab */
 .simulator-config-box {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), 0 8px 24px -6px rgba(12, 34, 56, 0.05);
+  border-radius: 18px;
   padding: 16px 20px;
   margin-bottom: 16px;
 
@@ -755,10 +768,13 @@ const inspectedMenuGroups = computed(() => {
 }
 
 .simulation-result-card {
-  background: #fff;
-  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 18px;
   overflow: hidden;
-  border: 1px solid #e2e8f0;
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), 0 8px 24px -6px rgba(12, 34, 56, 0.05);
 
   &.pass-border {
     border-color: #86efac;

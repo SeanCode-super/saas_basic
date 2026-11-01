@@ -282,7 +282,7 @@ onMounted(() => {
         </el-table-column>
         <el-table-column prop="remark" label="备注说明" min-width="150" show-overflow-tooltip />
         <el-table-column prop="createdAt" label="接入时间" width="170" />
-        <el-table-column label="操作" width="220" fixed="right">
+        <el-table-column label="操作" min-width="220">
           <template #default="{ row }">
             <el-button link type="primary" :icon="Promotion" @click="openHmacDebugger(row)">
               联调
@@ -414,9 +414,12 @@ onMounted(() => {
 }
 
 .section-header-card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  border-radius: 18px;
+  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), 0 10px 25px -5px rgba(12, 34, 56, 0.05);
   padding: 18px 20px;
   display: flex;
   align-items: center;

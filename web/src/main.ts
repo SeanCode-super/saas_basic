@@ -28,7 +28,5 @@ registerDirectives(app);
 
 const localeStore = useLocaleStore(pinia);
 localeStore.bootstrap();
-const dictStore = useDictStore(pinia);
-void dictStore.bootstrap();
 
 app.mount("#app");

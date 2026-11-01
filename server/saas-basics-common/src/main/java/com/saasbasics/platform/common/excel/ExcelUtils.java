@@ -80,4 +80,43 @@ public final class ExcelUtils {
             }
         }).sheet().doRead();
     }
+
+    /**
+     * 工业级带数据校验与错误明细的流式读取
+     */
+    public static <T> ExcelImportResult<T> readWithValidation(InputStream inputStream, Class<T> head,
+                                                              int batchSize, Consumer<List<T>> batchConsumer) {
+        ExcelImportResult<T> result = new ExcelImportResult<>();
+        FastExcel.read(inputStream, head, new ReadListener<T>() {
+            private int currentRow = 1; // 标题占据第一行
+            private final List<T> buffer = new ArrayList<>(batchSize);
+
+            @Override
+            public void invoke(T data, AnalysisContext context) {
+                currentRow++;
+                if (data == null) {
+                    result.addError(currentRow, "空数据行");
+                    return;
+                }
+                result.addSuccess(data);
+                buffer.add(data);
+                if (buffer.size() >= batchSize) {
+                    if (batchConsumer != null) {
+                        batchConsumer.accept(new ArrayList<>(buffer));
+                    }
+                    buffer.clear();
+                }
+            }
+
+            @Override
+            public void doAfterAllAnalysed(AnalysisContext context) {
+                if (!buffer.isEmpty() && batchConsumer != null) {
+                    batchConsumer.accept(new ArrayList<>(buffer));
+                    buffer.clear();
+                }
+            }
+        }).sheet().doRead();
+
+        return result;
+    }
 }

@@ -152,7 +152,7 @@ function handleSetDefault(row: any) {
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="260" fixed="right">
+        <el-table-column label="操作" min-width="240">
           <template #default="{ row }">
             <el-button link type="primary" :icon="Edit" @click="openEditModal(row)">编辑</el-button>
             <el-button link type="success" :icon="Connection" @click="handlePingTest(row)">连通性探测</el-button>
@@ -394,9 +394,10 @@ function handleSetDefault(row: any) {
     gap: 10px;
 
     .ping-step-row {
-      background: #fff;
-      border: 1px solid #e2e8f0;
-      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.45);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.8);
+      border-radius: 12px;
       padding: 10px 14px;
 
       .step-head {

@@ -125,8 +125,11 @@ public class CodegenEngineService {
                 generateSqlMigration(module, className, bizName, request.tableName(), cols)
         ));
 
-        // 11. Optional Master-Slave sub-table artifacts
-        if ("MASTER_SLAVE".equalsIgnoreCase(request.templateType())) {
+        // 11. Optional Master-Detail / Tree architecture artifacts
+        boolean isMasterDetail = "MASTER_SLAVE".equalsIgnoreCase(request.templateType()) || "MASTER_DETAIL".equalsIgnoreCase(request.templateType());
+        boolean isTree = "TREE".equalsIgnoreCase(request.templateType());
+
+        if (isMasterDetail) {
             String subClass = request.subClassName() != null && !request.subClassName().isBlank()
                     ? request.subClassName() : className + "Item";
             String subTable = request.subTableName() != null && !request.subTableName().isBlank()
@@ -148,6 +151,24 @@ public class CodegenEngineService {
                     "Sub-Mapper",
                     "java",
                     generateMapper(basePkg, module, subClass)
+            ));
+
+            files.add(new CodegenPreviewFileResponse(
+                    String.format("server/src/main/java/%s/%s/dto/%sResponse.java", basePkg.replace('.', '/'), module, subClass),
+                    subClass + "Response.java",
+                    "Sub-DTO",
+                    "java",
+                    generateSubResponseDto(basePkg, module, subClass, subFk)
+            ));
+        }
+
+        if (isTree) {
+            files.add(new CodegenPreviewFileResponse(
+                    String.format("server/src/main/java/%s/%s/dto/%sTreeResponse.java", basePkg.replace('.', '/'), module, className),
+                    className + "TreeResponse.java",
+                    "Tree-DTO",
+                    "java",
+                    generateTreeResponseDto(basePkg, module, className)
             ));
         }
 
@@ -913,5 +934,37 @@ public class CodegenEngineService {
                 "    public LocalDateTime getCreatedAt() { return createdAt; }\n" +
                 "    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }\n" +
                 "}\n";
+    }
+
+    private String generateSubResponseDto(String basePkg, String module, String subClass, String subFk) {
+        return "package " + basePkg + "." + module + ".dto;\n\n" +
+                "import java.math.BigDecimal;\n" +
+                "import java.time.LocalDateTime;\n\n" +
+                "public record " + subClass + "Response(\n" +
+                "        Long id,\n" +
+                "        Long " + toCamelCase(subFk, false) + ",\n" +
+                "        String itemName,\n" +
+                "        Integer quantity,\n" +
+                "        BigDecimal unitPrice,\n" +
+                "        BigDecimal subtotal,\n" +
+                "        String remark,\n" +
+                "        LocalDateTime createdAt\n" +
+                ") {}\n";
+    }
+
+    private String generateTreeResponseDto(String basePkg, String module, String className) {
+        return "package " + basePkg + "." + module + ".dto;\n\n" +
+                "import java.util.List;\n" +
+                "import java.time.LocalDateTime;\n\n" +
+                "public record " + className + "TreeResponse(\n" +
+                "        Long id,\n" +
+                "        Long parentId,\n" +
+                "        String name,\n" +
+                "        String code,\n" +
+                "        Integer sortOrder,\n" +
+                "        String status,\n" +
+                "        List<" + className + "TreeResponse> children,\n" +
+                "        LocalDateTime createdAt\n" +
+                ") {}\n";
     }
 }

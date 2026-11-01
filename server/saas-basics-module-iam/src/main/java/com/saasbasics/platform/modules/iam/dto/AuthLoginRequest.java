@@ -3,7 +3,6 @@ package com.saasbasics.platform.modules.iam.dto;
 import jakarta.validation.constraints.NotBlank;
 
 public record AuthLoginRequest(
-        @NotBlank(message = "请输入租户编码")
         String tenantCode,
         String clientId,
         String terminalCode,

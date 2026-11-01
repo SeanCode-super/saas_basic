@@ -13,6 +13,8 @@ public record ProcessDefinitionResponse(
         String description,
         String formSchemaJson,
         String flowNodesJson,
+        String bpmnXml,
+        String flowableDeploymentId,
         Integer version,
         String status,
         Integer sortNo,

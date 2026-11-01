@@ -589,6 +589,19 @@ function handlePrint() {
   window.print();
 }
 
+function formatDateTime(val?: unknown) {
+  if (!val) return '-';
+  const clean = String(val).replace('T', ' ');
+  return clean.split('.')[0] || clean;
+}
+
+function resolveFieldMinWidth(field: DynamicFieldItem) {
+  if (field.componentType === 'select') return 105;
+  if (field.componentType === 'number') return 115;
+  if (field.componentType === 'date') return 115;
+  return 125;
+}
+
 watch(
   () => modelCode.value,
   () => {
@@ -826,7 +839,7 @@ onMounted(() => {
               <el-table-column
                 :prop="field.fieldCode"
                 :label="field.fieldName"
-                min-width="150"
+                :min-width="resolveFieldMinWidth(field)"
                 show-overflow-tooltip
               >
                 <template #default="{ row }">
@@ -854,14 +867,22 @@ onMounted(() => {
             </template>
 
             <!-- 审计创建时间 -->
-            <el-table-column prop="created_at" label="登记时间" width="170" align="center" />
+            <el-table-column prop="created_at" label="登记时间" width="145" align="center">
+              <template #default="{ row }">
+                <span style="font-family: var(--el-font-family-monospace, monospace); font-size: 12px; color: #475569;">
+                  {{ formatDateTime(row.created_at) }}
+                </span>
+              </template>
+            </el-table-column>
 
             <!-- 操作列 -->
-            <el-table-column label="操作" width="180" fixed="right" align="center">
+            <el-table-column label="操作" min-width="160" align="center">
               <template #default="{ row }">
-                <el-button link type="primary" :icon="View" @click="openDetailDrawer(row)">详情</el-button>
-                <el-button link type="primary" :icon="Edit" @click="openEditDialog(row)">编辑</el-button>
-                <el-button link type="danger" :icon="Delete" @click="handleDelete(row)">删除</el-button>
+                <div class="table-actions-cell">
+                  <el-button link :icon="View" @click="openDetailDrawer(row)">详情</el-button>
+                  <el-button link type="primary" :icon="Edit" @click="openEditDialog(row)">编辑</el-button>
+                  <el-button link type="danger" :icon="Delete" @click="handleDelete(row)">删除</el-button>
+                </div>
               </template>
             </el-table-column>
           </el-table>
@@ -1259,15 +1280,17 @@ onMounted(() => {
   align-items: center;
   gap: 14px;
   padding: 16px;
-  border-radius: 8px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.04);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), 0 10px 25px -5px rgba(12, 34, 56, 0.05);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgb(0 0 0 / 0.08);
+    box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 1), 0 16px 36px -8px rgba(12, 34, 56, 0.10);
   }
 
   .kpi-icon-box {
@@ -1429,9 +1452,10 @@ onMounted(() => {
 
     .lane-header {
       padding: 12px 16px;
-      border-bottom: 1px solid #e2e8f0;
-      background: #fff;
-      border-radius: 8px 8px 0 0;
+      border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+      background: rgba(255, 255, 255, 0.5);
+      backdrop-filter: blur(14px);
+      border-radius: 18px 18px 0 0;
 
       .lane-title {
         display: flex;
@@ -1460,12 +1484,14 @@ onMounted(() => {
   }
 
   .kanban-card {
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.58);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.88);
+    border-radius: 14px;
     padding: 12px;
     cursor: pointer;
-    box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+    box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.95), 0 4px 12px rgba(12, 34, 56, 0.05);
     transition: all 0.2s ease;
 
     &:hover {

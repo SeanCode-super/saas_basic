@@ -4,6 +4,7 @@ import { ElMessage } from "element-plus";
 import { APP_TITLE } from "@/constants/app";
 import ConsoleLayout from "@/layouts/ConsoleLayout.vue";
 import { useAuthStore } from "@/stores/modules/auth";
+import { useDictStore } from "@/stores/modules/dict";
 import { useMenuStore } from "@/stores/modules/menu";
 import { useTenantStore } from "@/stores/modules/tenant";
 import { buildPortalLoginQuery } from "@/utils/portal-context";
@@ -85,6 +86,7 @@ router.beforeEach(async (to) => {
 
   if (authStore.isAuthenticated && !menuStore.bootstrapped) {
     await menuStore.bootstrap();
+    void useDictStore().bootstrap();
   }
 
   if (authStore.isAuthenticated && !menuStore.routesReady) {
@@ -133,11 +135,11 @@ router.afterEach(() => {
 
 function toDefaultRoute(menuStore: ReturnType<typeof useMenuStore>) {
   const defaultEntry = menuStore.firstEntry;
-  if (defaultEntry) {
+  if (defaultEntry && defaultEntry.path) {
     return {
-      path: defaultEntry.path || "/dashboard",
+      path: defaultEntry.path,
       query: defaultEntry.query
     };
   }
-  return { path: "/login" };
+  return { path: "/dashboard" };
 }

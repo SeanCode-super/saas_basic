@@ -199,7 +199,7 @@ function handleDownload(row: any) {
             <el-tag type="success" size="small"><el-icon><CircleCheck /></el-icon> 正常</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="220" fixed="right">
+        <el-table-column label="操作" min-width="220">
           <template #default="{ row }">
             <el-button link type="primary" :icon="View" @click="handlePreview(row)">预览</el-button>
             <el-button link type="primary" :icon="CopyDocument" @click="handleCopyUrl(row)">复制直链</el-button>
@@ -232,11 +232,13 @@ function handleDownload(row: any) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 16px;
-  background: #fff;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.03);
+  padding: 10px 18px;
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), 0 10px 25px -5px rgba(12, 34, 56, 0.05);
 
   .telemetry-left {
     display: flex;

@@ -3,101 +3,110 @@
     {
       "path": "pages/index/index",
       "style": {
-        "navigationBarTitleText": "天枢云基移动工作台",
+        "navigationStyle": "custom",
         "enablePullDownRefresh": true
       }
     },
     {
       "path": "pages/workflow/list",
       "style": {
-        "navigationBarTitleText": "移动审批待办中心",
+        "navigationStyle": "custom",
         "enablePullDownRefresh": true
       }
     },
     {
       "path": "pages/crm/customers",
       "style": {
-        "navigationBarTitleText": "客户公海与销售外勤",
+        "navigationStyle": "custom",
         "enablePullDownRefresh": true
       }
     },
     {
       "path": "pages/contact/index",
       "style": {
-        "navigationBarTitleText": "企业组织通讯录",
+        "navigationStyle": "custom",
         "enablePullDownRefresh": true
       }
     },
     {
       "path": "pages/profile/profile",
       "style": {
-        "navigationBarTitleText": "个人中心与多租户"
+        "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/workflow/apply",
       "style": {
-        "navigationBarTitleText": "发起业务审批"
+        "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/crm/follow-up",
       "style": {
-        "navigationBarTitleText": "外勤拜访跟进记录"
+        "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/erp/inventory",
       "style": {
-        "navigationBarTitleText": "多仓库存与扫码核销",
+        "navigationStyle": "custom",
         "enablePullDownRefresh": true
       }
     },
     {
       "path": "pages/notify/index",
       "style": {
-        "navigationBarTitleText": "消息与系统公告"
+        "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/login/login",
       "style": {
-        "navigationBarTitleText": "企业多租户登录",
         "navigationStyle": "custom"
       }
     }
   ],
   "globalStyle": {
-    "navigationBarTextStyle": "white",
-    "navigationBarTitleText": "天枢云基",
-    "navigationBarBackgroundColor": "#0f172a",
-    "backgroundColor": "#f8fafc"
+    "navigationStyle": "custom",
+    "navigationBarTextStyle": "black",
+    "navigationBarBackgroundColor": "#ffffff",
+    "backgroundColor": "#f1f5f9"
   },
   "tabBar": {
     "color": "#64748b",
     "selectedColor": "#2563eb",
-    "borderStyle": "black",
+    "borderStyle": "white",
     "backgroundColor": "#ffffff",
     "list": [
       {
         "pagePath": "pages/index/index",
-        "text": "工作台"
+        "text": "工作台",
+        "iconPath": "static/tabs/workbench.png",
+        "selectedIconPath": "static/tabs/workbench-active.png"
       },
       {
         "pagePath": "pages/workflow/list",
-        "text": "待办审批"
+        "text": "待办审批",
+        "iconPath": "static/tabs/workflow.png",
+        "selectedIconPath": "static/tabs/workflow-active.png"
       },
       {
         "pagePath": "pages/crm/customers",
-        "text": "客户外勤"
+        "text": "客户外勤",
+        "iconPath": "static/tabs/crm.png",
+        "selectedIconPath": "static/tabs/crm-active.png"
       },
       {
         "pagePath": "pages/contact/index",
-        "text": "通讯录"
+        "text": "通讯录",
+        "iconPath": "static/tabs/contact.png",
+        "selectedIconPath": "static/tabs/contact-active.png"
       },
       {
         "pagePath": "pages/profile/profile",
-        "text": "我的"
+        "text": "我的",
+        "iconPath": "static/tabs/profile.png",
+        "selectedIconPath": "static/tabs/profile-active.png"
       }
     ]
   }

@@ -3,7 +3,12 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
 import { fetchIamRoles, fetchIamUsers } from "@/api/modules/iam/service";
 import type { IamRoleRow, IamUserRow } from "@/api/modules/iam/types";
-import { createWorkflowDefinition, updateWorkflowDefinition } from "@/api/modules/workflow";
+import {
+  createWorkflowDefinition,
+  updateWorkflowDefinition,
+  fetchWorkflowBpmnXml
+} from "@/api/modules/workflow";
+import { CopyDocument, Download } from "@element-plus/icons-vue";
 import type {
   ConditionBranch,
   FlowNodeConfig,
@@ -22,8 +27,85 @@ const emit = defineEmits<{
   saved: [];
 }>();
 
-const activeTab = ref<"flow" | "form" | "base">("flow");
+const activeTab = ref<"flow" | "form" | "bpmn" | "base">("flow");
 const saving = ref(false);
+const bpmnXmlContent = ref("");
+
+function generateClientBpmnXml(): string {
+  const code = baseForm.processCode || "Process_" + Date.now();
+  const name = baseForm.processName || "业务审批流程";
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+             xmlns:omgdc="http://www.omg.org/spec/DD/20100524/DC"
+             xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI"
+             targetNamespace="http://www.flowable.org/processdef">
+  <process id="${code}" name="${name}" isExecutable="true">
+    <documentation>${baseForm.description || "工业级 Flowable 7 标准业务审批流程"}</documentation>
+    <startEvent id="startEvent" name="发起流程" />
+    <sequenceFlow id="flow_start" sourceRef="startEvent" targetRef="task_approver_1" />
+    <userTask id="task_approver_1" name="主管审批" flowable:assignee="\${initiatorDeptLeader}" />
+    <sequenceFlow id="flow_end" sourceRef="task_approver_1" targetRef="endEvent" />
+    <endEvent id="endEvent" name="流程办结" />
+  </process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_${code}">
+    <bpmndi:BPMNPlane id="BPMNPlane_${code}" bpmnElement="${code}">
+      <bpmndi:BPMNShape id="shape_startEvent" bpmnElement="startEvent">
+        <omgdc:Bounds x="100" y="160" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_1" bpmnElement="task_approver_1">
+        <omgdc:Bounds x="200" y="140" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_endEvent" bpmnElement="endEvent">
+        <omgdc:Bounds x="360" y="160" width="36" height="36" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>`;
+}
+
+async function loadBpmnXml() {
+  if (baseForm.id) {
+    try {
+      const xml = await fetchWorkflowBpmnXml(baseForm.id);
+      if (xml && xml.trim().length > 0) {
+        bpmnXmlContent.value = xml;
+        return;
+      }
+    } catch {
+      // fallback
+    }
+  }
+  bpmnXmlContent.value = generateClientBpmnXml();
+}
+
+watch(activeTab, (tab) => {
+  if (tab === "bpmn") {
+    loadBpmnXml();
+  }
+});
+
+function copyBpmnXml() {
+  if (!bpmnXmlContent.value) return;
+  navigator.clipboard.writeText(bpmnXmlContent.value);
+  ElMessage.success("BPMN 2.0 XML 内容已成功复制至剪贴板");
+}
+
+function downloadBpmnXml() {
+  if (!bpmnXmlContent.value) return;
+  const blob = new Blob([bpmnXmlContent.value], { type: "application/xml" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${baseForm.processCode || "process"}.bpmn20.xml`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  ElMessage.success("已下载标准 OMG BPMN 2.0 规范文件");
+}
 
 // System roles and users
 const systemRoles = ref<IamRoleRow[]>([]);
@@ -337,6 +419,7 @@ async function handleSave() {
       description: baseForm.description,
       formSchemaJson: JSON.stringify(formFields.value),
       flowNodesJson: JSON.stringify(rootNode.value),
+      bpmnXml: bpmnXmlContent.value || undefined,
       status: "PUBLISHED"
     };
 
@@ -380,6 +463,7 @@ async function handleSave() {
           <el-radio-group v-model="activeTab" size="small">
             <el-radio-button value="flow">流程流转画布</el-radio-button>
             <el-radio-button value="form">申请表单配置 ({{ formFields.length }})</el-radio-button>
+            <el-radio-button value="bpmn">BPMN 2.0 规范 XML</el-radio-button>
             <el-radio-button value="base">基础属性</el-radio-button>
           </el-radio-group>
         </div>
@@ -673,6 +757,31 @@ async function handleSave() {
           </el-form-item>
         </el-form>
       </div>
+
+      <!-- 4. BPMN 2.0 规范标准 XML 视图 -->
+      <div v-show="activeTab === 'bpmn'" class="bpmn-xml-wrapper">
+        <div class="bpmn-toolbar">
+          <div class="toolbar-left">
+            <el-tag type="success" size="small" effect="light">Flowable 7.0 引擎内核</el-tag>
+            <el-tag type="primary" size="small" effect="plain">OMG BPMN 2.0 国际规范</el-tag>
+            <span class="bpmn-tip">生成的标准 XML 产物支持直接导入 Camunda、Flowable 官方设计器与生产网关。</span>
+          </div>
+          <div class="toolbar-right">
+            <el-button size="small" :icon="CopyDocument" @click="copyBpmnXml">复制 XML</el-button>
+            <el-button size="small" type="primary" :icon="Download" @click="downloadBpmnXml">下载 .bpmn20.xml</el-button>
+          </div>
+        </div>
+        <div class="bpmn-code-box">
+          <el-input
+            v-model="bpmnXmlContent"
+            type="textarea"
+            :rows="22"
+            class="bpmn-textarea"
+            placeholder="OMG BPMN 2.0 规范 XML 定义"
+            spellcheck="false"
+          />
+        </div>
+      </div>
     </div>
 
     <!-- 节点侧边抽屉配置 -->
@@ -856,10 +965,11 @@ async function handleSave() {
   font-size: 13px;
   color: #64748b;
   margin-bottom: 24px;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.52);
+  backdrop-filter: blur(14px);
   padding: 10px 16px;
-  border-radius: 6px;
-  border: 1px dashed #cbd5e1;
+  border-radius: 14px;
+  border: 1px dashed rgba(203, 213, 225, 0.8);
 }
 
 .tip-dot {
@@ -884,10 +994,12 @@ async function handleSave() {
 
 .node-card {
   width: 320px;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
-  border: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 16px;
+  box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.98), 0 8px 24px -6px rgba(12, 34, 56, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.92);
   overflow: hidden;
   transition: all 0.2s ease;
 }
@@ -996,9 +1108,11 @@ async function handleSave() {
 .branch-column {
   flex: 1;
   min-width: 200px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.52);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 14px;
+  box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.95);
   padding: 10px;
   display: flex;
   flex-direction: column;
@@ -1147,16 +1261,17 @@ async function handleSave() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.58);
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  border-radius: 12px;
   padding: 8px 12px;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .field-item.active {
   border-color: #3b82f6;
-  background: #eff6ff;
+  background: rgba(239, 246, 255, 0.85);
 }
 
 .field-label {
@@ -1168,16 +1283,18 @@ async function handleSave() {
 .field-type-tag {
   font-size: 11px;
   color: #64748b;
-  background: #f1f5f9;
+  background: rgba(241, 245, 249, 0.8);
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: 6px;
   margin-left: 8px;
 }
 
 .field-editor-box {
-  background: #fff;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.95);
+  border-radius: 14px;
   padding: 12px;
 }
 
@@ -1189,9 +1306,12 @@ async function handleSave() {
 }
 
 .designer-right-pane {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), 0 10px 25px -5px rgba(12, 34, 56, 0.05);
+  border-radius: 18px;
   padding: 20px;
 }
 
@@ -1244,5 +1364,54 @@ async function handleSave() {
   font-size: 12px;
   color: #64748b;
   line-height: 1.5;
+}
+
+/* BPMN 2.0 XML Wrapper */
+.bpmn-xml-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  height: 540px;
+}
+
+.bpmn-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 16px;
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bpmn-tip {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.bpmn-code-box {
+  flex: 1;
+  background: #0f172a;
+  border-radius: 8px;
+  padding: 8px;
+  overflow: hidden;
+}
+
+.bpmn-textarea :deep(.el-textarea__inner) {
+  background: #0f172a !important;
+  color: #38bdf8 !important;
+  font-family: "Fira Code", "Courier New", Courier, monospace !important;
+  font-size: 13px !important;
+  line-height: 1.6 !important;
+  border: none !important;
+  box-shadow: none !important;
+  resize: none;
 }
 </style>

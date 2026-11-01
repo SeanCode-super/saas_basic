@@ -28,7 +28,7 @@ export interface AuthCurrentUser {
 }
 
 export interface AuthLoginRequest {
-  tenantCode: string;
+  tenantCode?: string;
   clientId?: string;
   terminalCode?: string;
   captchaCode?: string;

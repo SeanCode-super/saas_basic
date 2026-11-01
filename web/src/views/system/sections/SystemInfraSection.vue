@@ -410,7 +410,7 @@ onUnmounted(() => {
               <span>{{ row.size || "-" }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="120" align="center" fixed="right">
+          <el-table-column label="操作" min-width="120" align="center">
             <template #default="{ row }">
               <el-button
                 type="danger"
@@ -498,7 +498,7 @@ onUnmounted(() => {
           </el-table-column>
           <el-table-column prop="executedAt" label="执行发生时间" width="180" align="center" />
           <el-table-column prop="threadName" label="执行线程" width="160" />
-          <el-table-column label="详情" width="100" align="center" fixed="right">
+          <el-table-column label="详情" min-width="100" align="center">
             <template #default="{ row }">
               <el-button type="primary" link size="small" @click="openSqlDrawer(row)">
                 查看诊断
@@ -531,7 +531,7 @@ onUnmounted(() => {
           </el-table-column>
           <el-table-column prop="executedAt" label="执行发生时间" width="180" align="center" />
           <el-table-column prop="threadName" label="执行线程" width="160" />
-          <el-table-column label="详情" width="100" align="center" fixed="right">
+          <el-table-column label="详情" min-width="100" align="center">
             <template #default="{ row }">
               <el-button type="primary" link size="small" @click="openSqlDrawer(row)">
                 查看诊断

@@ -8,6 +8,7 @@ import com.saasbasics.platform.modules.iam.dto.PortalClientResponse;
 import com.saasbasics.platform.modules.iam.dto.PortalTerminalSaveRequest;
 import com.saasbasics.platform.modules.iam.dto.PortalTerminalResponse;
 import com.saasbasics.platform.modules.iam.service.PortalEntryService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,8 +32,52 @@ public class PortalController {
 
     @GetMapping("/entry")
     public ApiResponse<PortalEntryResponse> entry(@RequestParam(required = false) String clientId,
-                                                  @RequestParam(required = false) String terminalCode) {
-        return ApiResponse.success(portalEntryService.resolveEntry(clientId, terminalCode));
+                                                  @RequestParam(required = false) String terminalCode,
+                                                  @RequestParam(required = false) String tenantCode,
+                                                  HttpServletRequest request) {
+        String effectiveTenantCode = tenantCode;
+        if (effectiveTenantCode == null || effectiveTenantCode.isBlank()) {
+            effectiveTenantCode = resolveTenantFromRequest(request);
+        }
+        return ApiResponse.success(portalEntryService.resolveEntry(clientId, terminalCode, effectiveTenantCode));
+    }
+
+    private String resolveTenantFromRequest(HttpServletRequest request) {
+        if (request == null) {
+            return null;
+        }
+        String headerTenant = request.getHeader("X-Tenant-Code");
+        if (headerTenant != null && !headerTenant.isBlank()) {
+            return headerTenant.trim();
+        }
+        String host = request.getHeader("X-Forwarded-Host");
+        if (host == null || host.isBlank()) {
+            host = request.getHeader("Host");
+        }
+        if (host == null || host.isBlank()) {
+            host = request.getServerName();
+        }
+        if (host == null || host.isBlank()) {
+            return null;
+        }
+        if (host.contains(":")) {
+            host = host.substring(0, host.indexOf(":"));
+        }
+        host = host.toLowerCase().trim();
+        if (host.equals("localhost") || host.matches("^(\\d{1,3}\\.){3}\\d{1,3}$")) {
+            return null;
+        }
+        String[] parts = host.split("\\.");
+        if (parts.length >= 2) {
+            String sub = parts[0];
+            if ("platform".equals(sub) || "admin".equals(sub)) {
+                return "platform";
+            }
+            if (!List.of("localhost", "127", "www", "api", "static", "cdn").contains(sub)) {
+                return sub;
+            }
+        }
+        return null;
     }
 
     @GetMapping("/clients")

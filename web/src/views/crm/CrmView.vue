@@ -187,6 +187,30 @@ async function loadStats() {
   }
 }
 
+// 统一分页
+const crmPage = ref(1);
+const crmPageSize = ref(10);
+
+const currentCrmList = computed(() => {
+  switch (activeTab.value) {
+    case "customers": return customers.value;
+    case "clues": return clues.value;
+    case "businesses": return businesses.value;
+    case "contracts": return contracts.value;
+    case "receivables": return receivables.value;
+    default: return [];
+  }
+});
+
+const paginatedCrmList = computed(() => {
+  const start = (crmPage.value - 1) * crmPageSize.value;
+  return currentCrmList.value.slice(start, start + crmPageSize.value);
+});
+
+watch(activeTab, () => {
+  crmPage.value = 1;
+});
+
 // 加载客户列表
 async function loadCustomers() {
   loading.value = true;
@@ -564,7 +588,7 @@ onMounted(() => {
             </div>
           </div>
 
-          <el-table :data="customers" v-loading="loading" stripe border style="width: 100%">
+          <el-table :data="paginatedCrmList" v-loading="loading" stripe border style="width: 100%">
             <el-table-column prop="customerCode" label="客户编号" width="160" />
             <el-table-column prop="name" label="企业客户名称" min-width="200">
               <template #default="{ row }">
@@ -594,7 +618,7 @@ onMounted(() => {
               </template>
             </el-table-column>
             <el-table-column prop="lastContactTime" label="最后跟进时间" width="160" />
-            <el-table-column label="操作" width="240" fixed="right">
+            <el-table-column label="操作" min-width="260">
               <template #default="{ row }">
                 <el-button v-if="row.isPool === 1" link type="success" size="small" :icon="TrendCharts" @click="handleClaim(row)">抢单认领</el-button>
                 <template v-else>
@@ -627,7 +651,7 @@ onMounted(() => {
             </div>
           </div>
 
-          <el-table :data="clues" v-loading="loading" stripe border style="width: 100%">
+          <el-table :data="paginatedCrmList" v-loading="loading" stripe border style="width: 100%">
             <el-table-column prop="name" label="线索名称/项目意向" min-width="180" />
             <el-table-column prop="contactName" label="联系人" width="120" />
             <el-table-column prop="mobile" label="手机号码" width="130" />
@@ -641,7 +665,7 @@ onMounted(() => {
             </el-table-column>
             <el-table-column prop="ownerUserName" label="跟进责任人" width="120" />
             <el-table-column prop="nextContactTime" label="预约下次跟进" width="160" />
-            <el-table-column label="操作" width="220" fixed="right">
+            <el-table-column label="操作" min-width="200">
               <template #default="{ row }">
                 <el-button link type="primary" size="small" :icon="Calendar" @click="openFollowUpDrawer('CLUE', row.id, row.name)">写跟进</el-button>
                 <el-button v-if="row.status !== 'CONVERTED'" link type="success" size="small" :icon="Check" @click="handleConvertClue(row)">一键转客户</el-button>
@@ -669,7 +693,7 @@ onMounted(() => {
             </div>
           </div>
 
-          <el-table :data="businesses" v-loading="loading" stripe border style="width: 100%">
+          <el-table :data="paginatedCrmList" v-loading="loading" stripe border style="width: 100%">
             <el-table-column prop="businessCode" label="商机编号" width="160" />
             <el-table-column prop="name" label="商机名称" min-width="180" />
             <el-table-column prop="customerName" label="关联企业客户" min-width="160" />
@@ -691,7 +715,7 @@ onMounted(() => {
               </template>
             </el-table-column>
             <el-table-column prop="dealDate" label="预计结单日" width="120" />
-            <el-table-column label="操作" width="180" fixed="right">
+            <el-table-column label="操作" min-width="180">
               <template #default="{ row }">
                 <el-button link type="primary" size="small" :icon="TrendCharts" @click="openStageDialog(row)">推进阶段</el-button>
                 <el-button link type="info" size="small" :icon="Calendar" @click="openFollowUpDrawer('BUSINESS', row.id, row.name)">跟进</el-button>
@@ -718,7 +742,7 @@ onMounted(() => {
             </div>
           </div>
 
-          <el-table :data="contracts" v-loading="loading" stripe border style="width: 100%">
+          <el-table :data="paginatedCrmList" v-loading="loading" stripe border style="width: 100%">
             <el-table-column prop="contractNo" label="合同编号" width="160" />
             <el-table-column prop="name" label="合同名称" min-width="200" />
             <el-table-column prop="customerName" label="客户名录" min-width="160" />
@@ -739,7 +763,7 @@ onMounted(() => {
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="220" fixed="right">
+            <el-table-column label="操作" min-width="200">
               <template #default="{ row }">
                 <template v-if="row.status === 'APPROVING'">
                   <el-button link type="success" size="small" :icon="Check" @click="handleApproveContract(row, true)">通过</el-button>
@@ -766,7 +790,7 @@ onMounted(() => {
             </div>
           </div>
 
-          <el-table :data="receivables" v-loading="loading" stripe border style="width: 100%">
+          <el-table :data="paginatedCrmList" v-loading="loading" stripe border style="width: 100%">
             <el-table-column prop="receivableNo" label="回款单号" width="160" />
             <el-table-column prop="contractName" label="对应商务合同" min-width="180" />
             <el-table-column prop="customerName" label="付款方企业" min-width="160" />
@@ -788,7 +812,7 @@ onMounted(() => {
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="160" fixed="right">
+            <el-table-column label="操作" min-width="150">
               <template #default="{ row }">
                 <el-button v-if="row.status === 'PENDING'" link type="success" size="small" :icon="Check" @click="handleApproveReceivable(row)">确认到账</el-button>
                 <span v-else style="color: #909399; font-size: 13px">已到账归档</span>
@@ -797,6 +821,17 @@ onMounted(() => {
           </el-table>
         </el-tab-pane>
       </el-tabs>
+
+      <div class="crm-pagination-bar">
+        <el-pagination
+          v-model:current-page="crmPage"
+          v-model:page-size="crmPageSize"
+          :page-sizes="[10, 20, 50, 100]"
+          layout="total, sizes, prev, pager, next, jumper"
+          :total="currentCrmList.length"
+          background
+        />
+      </div>
     </el-card>
 
     <!-- 弹窗 1：新建客户 -->
@@ -1048,20 +1083,27 @@ onMounted(() => {
 
 <style scoped>
 .crm-container {
-  padding: 16px;
-  background-color: var(--el-bg-color-page, #f5f7fa);
+  padding: 8px 4px 20px;
+  background: transparent;
   min-height: calc(100vh - 84px);
+  box-sizing: border-box;
 }
 
+/* iOS 27 晶透遥测指令条 */
 .crm-telemetry-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 16px;
-  background: #fff;
-  border-radius: 8px;
-  border: 1px solid var(--el-border-color-light, #e4e7ed);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.03);
+  padding: 10px 20px;
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 20px;
+  box-shadow:
+    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
+    0 12px 32px -8px rgba(12, 34, 56, 0.07);
   margin-bottom: 16px;
 
   .telemetry-left {
@@ -1097,12 +1139,20 @@ onMounted(() => {
   .divider {
     width: 1px;
     height: 14px;
-    background: #e2e8f0;
+    background: rgba(203, 213, 225, 0.6);
   }
 }
 
 .main-card {
-  border-radius: 8px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.58) !important;
+  backdrop-filter: blur(28px) saturate(210%) contrast(104%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.85) !important;
+  box-shadow:
+    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
+    0 16px 40px -10px rgba(12, 34, 56, 0.08) !important;
 }
 
 .tab-toolbar {
@@ -1195,5 +1245,13 @@ onMounted(() => {
   font-size: 12px;
   color: #0284c7;
   font-weight: 500;
+}
+
+.crm-pagination-bar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 16px 8px 8px;
+  margin-top: 12px;
+  border-top: 1px solid rgba(226, 232, 240, 0.6);
 }
 </style>

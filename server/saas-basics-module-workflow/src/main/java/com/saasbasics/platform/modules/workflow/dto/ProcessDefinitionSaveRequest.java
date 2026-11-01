@@ -15,6 +15,7 @@ public record ProcessDefinitionSaveRequest(
         String description,
         String formSchemaJson,
         String flowNodesJson,
+        String bpmnXml,
         String status,
         Integer sortNo
 ) {

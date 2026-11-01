@@ -269,6 +269,9 @@ public class CrmService {
     }
 
     public CrmCustomerResponse createCustomer(CrmCustomerSaveRequest req) {
+        if (req == null || req.getName() == null || req.getName().trim().isEmpty()) {
+            throw new BizException("PARAM_ERROR", "客户名称不能为空");
+        }
         Long tenantId = getCurrentTenantId();
         CrmCustomerEntity entity = new CrmCustomerEntity();
         entity.setTenantId(tenantId);
@@ -597,12 +600,17 @@ public class CrmService {
     // ==================== 7. 全链路跟进记录 (Follow-Up Records) ====================
     public List<CrmFollowUpRecordResponse> listFollowUpRecords(String bizType, Long bizId) {
         Long tenantId = getCurrentTenantId();
-        return followUpRecordMapper.selectList(new LambdaQueryWrapper<CrmFollowUpRecordEntity>()
+        LambdaQueryWrapper<CrmFollowUpRecordEntity> wrapper = new LambdaQueryWrapper<CrmFollowUpRecordEntity>()
                 .eq(CrmFollowUpRecordEntity::getTenantId, tenantId)
-                .eq(CrmFollowUpRecordEntity::getBizType, bizType)
-                .eq(CrmFollowUpRecordEntity::getBizId, bizId)
-                .eq(CrmFollowUpRecordEntity::getDeleted, 0)
-                .orderByDesc(CrmFollowUpRecordEntity::getId)).stream().map(r -> new CrmFollowUpRecordResponse(
+                .eq(CrmFollowUpRecordEntity::getDeleted, 0);
+        if (bizType != null && !bizType.isBlank()) {
+            wrapper.eq(CrmFollowUpRecordEntity::getBizType, bizType);
+        }
+        if (bizId != null) {
+            wrapper.eq(CrmFollowUpRecordEntity::getBizId, bizId);
+        }
+        wrapper.orderByDesc(CrmFollowUpRecordEntity::getId);
+        return followUpRecordMapper.selectList(wrapper).stream().map(r -> new CrmFollowUpRecordResponse(
                 r.getId(), r.getBizType(), r.getBizId(), r.getFollowType(), r.getContent(),
                 r.getNextContactTime(), r.getContactUserName(), r.getCreatedAt()
         )).collect(Collectors.toList());

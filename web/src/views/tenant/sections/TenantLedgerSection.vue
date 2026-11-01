@@ -21,8 +21,12 @@ import {
   User,
   Warning,
   Download,
-  UploadFilled
+  UploadFilled,
+  Link,
+  CopyDocument,
+  Position
 } from "@element-plus/icons-vue";
+import { buildTenantSubdomainUrl } from "@/utils/portal-context";
 import {
   fetchTenantPackages,
   fetchTenantQuotas,
@@ -146,8 +150,47 @@ async function handleConfirmEdit() {
   }
 }
 
+function copyTenantLoginUrl(row: TenantRow) {
+  const url = buildTenantSubdomainUrl(row.tenantCode);
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(url).then(() => {
+      ElMessage.success({
+        message: `已复制「${row.tenantName}」专属独立子域名：${url}`,
+        duration: 4000
+      });
+    }).catch(() => {
+      fallbackCopyText(url, row.tenantName);
+    });
+  } else {
+    fallbackCopyText(url, row.tenantName);
+  }
+}
+
+function fallbackCopyText(text: string, tenantName: string) {
+  try {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand("copy");
+    document.body.removeChild(textarea);
+    ElMessage.success({
+      message: `已复制「${tenantName}」专属登录链接：${text}`,
+      duration: 4000
+    });
+  } catch (e) {
+    ElMessage.info(`专属登录链接为：${text}`);
+  }
+}
+
 function handleMoreCommand(cmd: string, row: TenantRow) {
-  if (cmd === "plan") {
+  if (cmd === "copyLoginUrl") {
+    copyTenantLoginUrl(row);
+  } else if (cmd === "openSubdomain") {
+    window.open(buildTenantSubdomainUrl(row.tenantCode), "_blank");
+  } else if (cmd === "plan") {
     openPlanRenewDialog(row);
   } else if (cmd === "apps") {
     openAppAuthDrawer(row);
@@ -583,6 +626,8 @@ onMounted(() => {
             </el-button>
             <template #dropdown>
               <el-dropdown-menu>
+                <el-dropdown-item command="openSubdomain" :icon="Position">打开专属空间 (新窗口)</el-dropdown-item>
+                <el-dropdown-item command="copyLoginUrl" :icon="Link">复制专属登录链接</el-dropdown-item>
                 <el-dropdown-item command="apps" :icon="Grid">应用矩阵与订阅</el-dropdown-item>
                 <el-dropdown-item command="plan" :icon="Operation">变配与续期</el-dropdown-item>
                 <el-dropdown-item command="quota" :icon="DataAnalysis">配额与画像</el-dropdown-item>
@@ -1197,15 +1242,17 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 12px;
+  padding: 12px 16px;
   transition: all 0.2s ease;
 
   &.is-enabled {
     border-left: 4px solid #10b981;
-    background: #f0fdf4;
+    background: rgba(240, 253, 244, 0.65);
   }
 }
 
@@ -1322,11 +1369,13 @@ onMounted(() => {
     gap: 14px;
 
     .quota-card {
-      background: #fff;
-      border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      padding: 14px 16px;
-      box-shadow: 0 1px 2px rgb(0 0 0 / 0.02);
+      background: rgba(255, 255, 255, 0.58);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.85);
+      border-radius: 14px;
+      padding: 16px 18px;
+      box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.95), 0 4px 12px rgba(12, 34, 56, 0.04);
 
       .quota-card-header {
         display: flex;

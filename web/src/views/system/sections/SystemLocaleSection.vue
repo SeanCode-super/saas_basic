@@ -383,7 +383,7 @@ function resolveTagCustomStyle(color?: string) {
                     </template>
                   </el-table-column>
 
-                  <el-table-column label="操作" width="160" align="center" fixed="right">
+                  <el-table-column label="操作" min-width="140" align="center">
                     <template #default="{ row }">
                       <div class="table-actions-nowrap">
                         <el-button link type="primary" size="small" @click="editDictItem(row)">编辑</el-button>
@@ -503,10 +503,13 @@ function resolveTagCustomStyle(color?: string) {
 }
 
 .locale-tabs {
-  border-radius: 10px;
+  border-radius: 20px;
   overflow: hidden;
-  border: 1px solid var(--sb-border-color, #e2e8f0);
-  background: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), 0 16px 40px -10px rgba(12, 34, 56, 0.08);
 }
 
 .tab-label {
@@ -541,8 +544,9 @@ function resolveTagCustomStyle(color?: string) {
     align-items: center;
     justify-content: space-between;
     padding: 12px 14px;
-    border-bottom: 1px solid #e2e8f0;
-    background: #fff;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+    background: rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(14px);
 
     .sidebar-title {
       display: flex;
@@ -570,8 +574,8 @@ function resolveTagCustomStyle(color?: string) {
 
   .sidebar-search {
     padding: 10px 12px;
-    background: #fff;
-    border-bottom: 1px solid #e2e8f0;
+    background: rgba(255, 255, 255, 0.35);
+    border-bottom: 1px solid rgba(226, 232, 240, 0.5);
   }
 
   .sidebar-list {
@@ -591,18 +595,20 @@ function resolveTagCustomStyle(color?: string) {
 /* Dict Type Card (Zero-Wrapping Clean Design) */
 .dict-type-card {
   position: relative;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  background: #fff;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.52);
+  backdrop-filter: blur(16px);
   padding: 10px 12px;
   cursor: pointer;
   transition: all 0.18s ease;
+  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.9);
 
   &:hover {
-    border-color: #cbd5e1;
-    background: #fdfdfe;
+    border-color: rgba(255, 255, 255, 0.98);
+    background: rgba(255, 255, 255, 0.82);
     transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgb(0 0 0 / 0.03);
+    box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 1), 0 6px 16px rgba(12, 34, 56, 0.08);
 
     .card-more-btn {
       opacity: 1;
@@ -720,7 +726,7 @@ function resolveTagCustomStyle(color?: string) {
 
 /* Right Detail Workspace */
 .dict-workspace {
-  background: #fff;
+  background: transparent;
   padding: 18px 24px;
   overflow-y: auto;
 }
@@ -737,9 +743,12 @@ function resolveTagCustomStyle(color?: string) {
   align-items: flex-start;
   justify-content: space-between;
   padding: 16px 20px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  border-radius: 18px;
+  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), 0 10px 25px -5px rgba(12, 34, 56, 0.05);
 
   &__left {
     display: flex;
@@ -826,10 +835,13 @@ function resolveTagCustomStyle(color?: string) {
 
 /* Table Container & Direct el-table */
 .dict-table-container {
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  border-radius: 20px;
   overflow: hidden;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), 0 16px 40px -10px rgba(12, 34, 56, 0.08);
 }
 
 .dict-item-table {
@@ -857,8 +869,9 @@ function resolveTagCustomStyle(color?: string) {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  background: #fff;
-  border-top: 1px solid #f1f5f9;
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(14px);
+  border-top: 1px solid rgba(226, 232, 240, 0.6);
 
   .pagination-info {
     font-size: 13px;

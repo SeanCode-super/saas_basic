@@ -304,10 +304,15 @@ const activeTab = ref("baseline");
 
 /* Tabs */
 .foundation-tabs {
-  border-radius: 8px;
+  border-radius: var(--sb-radius-glass, 24px);
   overflow: hidden;
-  border: 1px solid var(--sb-border-color, #e2e8f0);
-  background: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  box-shadow:
+    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
+    0 16px 40px -10px rgba(12, 34, 56, 0.08);
 }
 
 .tab-label {
@@ -409,10 +414,15 @@ const activeTab = ref("baseline");
 .policy-table-card {
   display: flex;
   flex-direction: column;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  border-radius: var(--sb-radius-glass, 20px);
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   overflow: hidden;
+  box-shadow:
+    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
+    0 16px 40px -10px rgba(12, 34, 56, 0.08);
 }
 
 .policy-matrix-item {
@@ -528,9 +538,9 @@ const activeTab = ref("baseline");
     .entity-pill {
       font-size: 11px;
       padding: 3px 8px;
-      background: #fff;
-      border: 1px solid #e2e8f0;
-      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.65);
+      border: 1px solid rgba(255, 255, 255, 0.85);
+      border-radius: 6px;
       color: #334155;
     }
   }
@@ -544,10 +554,13 @@ const activeTab = ref("baseline");
 }
 
 .cap-card {
-  padding: 14px 18px;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  background: #fff;
+  padding: 16px 20px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.95), 0 4px 12px rgba(12, 34, 56, 0.04);
 
   .cap-header {
     display: flex;

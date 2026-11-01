@@ -48,16 +48,21 @@ defineProps<{
 .module-workbench__summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  border: 1px solid var(--sb-border-color);
-  border-radius: var(--sb-radius-md);
-  background: #fff;
-  box-shadow: var(--sb-shadow-xs);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: var(--sb-radius-glass-md, 18px);
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  box-shadow:
+    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
+    0 12px 30px -6px rgba(12, 34, 56, 0.06);
+  overflow: hidden;
 }
 
 .module-workbench__summary-item {
   min-width: 0;
-  padding: 13px 16px;
-  border-right: 1px solid var(--sb-border-color);
+  padding: 14px 18px;
+  border-right: 1px solid rgba(226, 232, 240, 0.5);
 
   &:last-child {
     border-right: 0;

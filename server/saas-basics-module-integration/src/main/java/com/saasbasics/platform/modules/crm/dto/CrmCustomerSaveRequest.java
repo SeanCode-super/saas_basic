@@ -1,9 +1,11 @@
 package com.saasbasics.platform.modules.crm.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDateTime;
 
 public class CrmCustomerSaveRequest {
+    @NotBlank(message = "客户名称不能为空")
     private String name;
     private String industry;
     private String level;

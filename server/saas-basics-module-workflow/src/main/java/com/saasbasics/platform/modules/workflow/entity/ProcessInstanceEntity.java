@@ -47,8 +47,19 @@ public class ProcessInstanceEntity extends BaseTenantEntity {
     @TableField("current_node_name")
     private String currentNodeName;
 
+    @TableField("flowable_proc_inst_id")
+    private String flowableProcInstId;
+
     @TableField("status")
     private String status;
+
+    public String getFlowableProcInstId() {
+        return flowableProcInstId;
+    }
+
+    public void setFlowableProcInstId(String flowableProcInstId) {
+        this.flowableProcInstId = flowableProcInstId;
+    }
 
     @TableField("start_time")
     private LocalDateTime startTime;

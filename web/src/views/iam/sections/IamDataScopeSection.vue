@@ -532,6 +532,7 @@ async function batchUpdateRules(rows: IamDataPermissionRuleRow[], status: "ENABL
             v-if="canWrite"
             v-button-permission="{ code: 'iam_data_scope_rule:toggle', fallback: 'iam:data-scope:write' }"
             link
+            :type="row.status === 'ENABLED' ? 'danger' : 'success'"
             @click="toggleRule(row)"
           >{{ row.status === "ENABLED" ? "停用" : "启用" }}</el-button>
         </template>
@@ -580,6 +581,7 @@ async function batchUpdateRules(rows: IamDataPermissionRuleRow[], status: "ENABL
             v-if="canWrite"
             v-button-permission="{ code: 'iam_data_scope_template:toggle', fallback: 'iam:data-scope:write' }"
             link
+            :type="row.status === 'ENABLED' ? 'danger' : 'success'"
             @click="toggleDataScope(row)"
           >{{ row.status === "ENABLED" ? "停用" : "启用" }}</el-button>
         </template>
@@ -745,10 +747,15 @@ async function batchUpdateRules(rows: IamDataPermissionRuleRow[], status: "ENABL
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 12px 16px;
-  border-radius: var(--sb-radius-md);
-  background: #fff;
-  border: 1px solid var(--sb-border-color);
+  padding: 12px 20px;
+  border-radius: var(--sb-radius-glass-md, 18px);
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow:
+    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
+    0 10px 25px -5px rgba(12, 34, 56, 0.05);
   flex-wrap: wrap;
 }
 

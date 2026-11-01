@@ -453,11 +453,15 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 16px;
-  background: #fff;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.03);
+  padding: 10px 20px;
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  border-radius: var(--sb-radius-glass-md, 18px);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow:
+    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
+    0 10px 25px -5px rgba(12, 34, 56, 0.05);
 
   .strip-left {
     display: flex;
@@ -488,7 +492,7 @@ onMounted(() => {
 
       &.tag-active {
         color: #059669;
-        background: #ecfdf5;
+        background: rgba(5, 150, 105, 0.12);
         padding: 2px 8px;
         border-radius: 4px;
         font-size: 12px;
@@ -499,7 +503,7 @@ onMounted(() => {
   .divider {
     width: 1px;
     height: 14px;
-    background: #e2e8f0;
+    background: rgba(203, 213, 225, 0.6);
   }
 }
 
@@ -507,10 +511,15 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #fff;
-  padding: 12px 18px;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  padding: 12px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: var(--sb-radius-glass-md, 18px);
+  box-shadow:
+    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
+    0 10px 25px -5px rgba(12, 34, 56, 0.05);
 
   .toolbar-left {
     display: flex;
@@ -525,19 +534,28 @@ onMounted(() => {
   gap: 20px;
 
   .plan-card {
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    border-radius: 14px;
-    padding: 20px;
+    background: rgba(255, 255, 255, 0.60);
+    backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+    -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+    border: 1px solid rgba(255, 255, 255, 0.88);
+    border-radius: var(--sb-radius-glass, 24px);
+    padding: 22px;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 1px 3px rgb(0 0 0 / 0.04);
-    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    box-shadow:
+      inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.35),
+      0 16px 40px -10px rgba(12, 34, 56, 0.08);
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
 
     &:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgb(0 0 0 / 0.08);
-      border-color: #cbd5e1;
+      transform: translateY(-3px);
+      background: rgba(255, 255, 255, 0.72);
+      box-shadow:
+        inset 0 1.5px 2px 0 #fff,
+        inset 0 0 0 1px rgba(255, 255, 255, 0.5),
+        0 24px 50px -12px rgba(12, 34, 56, 0.12);
+      border-color: rgba(255, 255, 255, 0.98);
     }
 
     &.is-supreme {
@@ -589,9 +607,11 @@ onMounted(() => {
     }
 
     .plan-specs-box {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.45);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(226, 232, 240, 0.6);
+      border-radius: 12px;
       padding: 12px 14px;
       display: flex;
       flex-direction: column;
@@ -638,9 +658,9 @@ onMounted(() => {
 
         .feature-tag {
           font-size: 11px;
-          background: #eff6ff;
+          background: rgba(37, 99, 235, 0.10);
           color: #2563eb;
-          border-color: #bfdbfe;
+          border-color: rgba(37, 99, 235, 0.25);
         }
 
         .no-feature {
@@ -651,7 +671,7 @@ onMounted(() => {
     }
 
     .plan-card-footer {
-      border-top: 1px solid #f1f5f9;
+      border-top: 1px solid rgba(226, 232, 240, 0.5);
       padding-top: 14px;
       display: flex;
       align-items: center;

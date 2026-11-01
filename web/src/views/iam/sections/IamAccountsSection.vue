@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import {
   Check,
   CircleCheck,
   CircleClose,
   CopyDocument,
   Cpu,
+  Download,
+  Folder,
+  FolderOpened,
   Grid,
   Key,
   List,
@@ -17,6 +20,7 @@ import {
   UserFilled
 } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
+import type { TreeInstance } from "element-plus";
 import BaseCard from "@/components/base/BaseCard.vue";
 import BaseStatusTag from "@/components/base/BaseStatusTag.vue";
 import ProTable from "@/components/pro/ProTable.vue";
@@ -243,8 +247,159 @@ const userStats = computed(() => {
   };
 });
 
+interface UserDeptTreeNode {
+  id: number;
+  label: string;
+  count: number;
+  deptCode?: string;
+  isSpecial?: boolean;
+  children: UserDeptTreeNode[];
+}
+
+function getDeptAndDescendantIds(deptId: number, departments: IamDepartmentRow[] = []): Set<number> {
+  const ids = new Set<number>([deptId]);
+  let added = true;
+  while (added) {
+    added = false;
+    for (const d of departments) {
+      if (ids.has(Number(d.parentId)) && !ids.has(d.id)) {
+        ids.add(d.id);
+        added = true;
+      }
+    }
+  }
+  return ids;
+}
+
+const deptTreeRef = ref<TreeInstance>();
+const deptTreeSearch = ref("");
+const selectedDeptId = ref<number>(0);
+
+const deptUserCountMap = computed(() => {
+  const map = new Map<number, number>();
+  const empDeptMap = new Map<number, number>();
+  props.employees?.forEach((e) => {
+    if (e.deptId) empDeptMap.set(e.id, e.deptId);
+  });
+  props.users.forEach((u) => {
+    if (u.employeeId && empDeptMap.has(u.employeeId)) {
+      const dId = empDeptMap.get(u.employeeId)!;
+      map.set(dId, (map.get(dId) || 0) + 1);
+    }
+  });
+  return map;
+});
+
+const unboundUsersCount = computed(() => {
+  const empDeptMap = new Map<number, number>();
+  props.employees?.forEach((e) => {
+    if (e.deptId) empDeptMap.set(e.id, e.deptId);
+  });
+  return props.users.filter((u) => !u.employeeId || !empDeptMap.has(u.employeeId)).length;
+});
+
+const deptTreeData = computed(() => {
+  const list = props.departments || [];
+  const map = new Map<number, UserDeptTreeNode>();
+
+  list.forEach((d) => {
+    const allSubIds = getDeptAndDescendantIds(d.id, list);
+    let subTotal = 0;
+    allSubIds.forEach((id) => {
+      subTotal += deptUserCountMap.value.get(id) || 0;
+    });
+
+    map.set(d.id, {
+      id: d.id,
+      label: d.deptName,
+      deptCode: d.deptCode,
+      count: subTotal,
+      children: []
+    });
+  });
+
+  const roots: UserDeptTreeNode[] = [];
+  list.forEach((d) => {
+    const node = map.get(d.id);
+    if (!node) return;
+    const parentId = Number(d.parentId ?? 0);
+    if (parentId > 0 && map.has(parentId)) {
+      map.get(parentId)!.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  });
+
+  const allNode: UserDeptTreeNode = {
+    id: 0,
+    label: "全部组织与部门",
+    count: props.users.length,
+    isSpecial: true,
+    children: roots
+  };
+
+  const unassignedNode: UserDeptTreeNode = {
+    id: -1,
+    label: "未分配部门人员",
+    count: unboundUsersCount.value,
+    isSpecial: true,
+    children: []
+  };
+
+  return [allNode, unassignedNode];
+});
+
+function handleDeptNodeClick(node: UserDeptTreeNode) {
+  selectedDeptId.value = node.id;
+  userPage.value = 1;
+}
+
+function filterDeptTreeNode(value: string, data: any) {
+  if (!value) return true;
+  return data.label.toLowerCase().includes(value.toLowerCase());
+}
+
+watch(deptTreeSearch, (val) => {
+  deptTreeRef.value?.filter(val);
+});
+
+const selectedDeptLabel = computed(() => {
+  if (selectedDeptId.value === 0) return "全部组织与部门";
+  if (selectedDeptId.value === -1) return "未分配部门人员";
+  const d = props.departments?.find((item) => item.id === selectedDeptId.value);
+  return d ? (d.deptFullName || d.deptName) : "全部组织";
+});
+
 const filteredUsers = computed(() => {
+  let deptMatchIds: Set<number> | null = null;
+  if (selectedDeptId.value !== 0) {
+    if (selectedDeptId.value > 0) {
+      deptMatchIds = getDeptAndDescendantIds(selectedDeptId.value, props.departments || []);
+    }
+  }
+
+  const empDeptMap = new Map<number, number>();
+  props.employees?.forEach((e) => {
+    if (e.deptId) empDeptMap.set(e.id, e.deptId);
+  });
+
   return props.users.filter((user) => {
+    if (selectedDeptId.value !== 0) {
+      if (selectedDeptId.value === -1) {
+        if (user.employeeId && empDeptMap.has(user.employeeId)) {
+          return false;
+        }
+      } else if (deptMatchIds) {
+        if (!user.employeeId || !empDeptMap.has(user.employeeId)) {
+          return false;
+        }
+        const userDeptId = empDeptMap.get(user.employeeId)!;
+        if (!deptMatchIds.has(userDeptId)) {
+          return false;
+        }
+      }
+    }
+
     if (userSearchKeyword.value.trim()) {
       const kw = userSearchKeyword.value.trim().toLowerCase();
       const matchNick = (user.nickname || "").toLowerCase().includes(kw);
@@ -271,6 +426,24 @@ const filteredUsers = computed(() => {
     return true;
   });
 });
+
+// 用户端分页
+const userPage = ref(1);
+const userPageSize = ref(10);
+const paginatedUsers = computed(() => {
+  const start = (userPage.value - 1) * userPageSize.value;
+  return filteredUsers.value.slice(start, start + userPageSize.value);
+});
+
+watch(
+  () => filteredUsers.value.length,
+  (len) => {
+    const maxPage = Math.max(1, Math.ceil(len / userPageSize.value));
+    if (userPage.value > maxPage) {
+      userPage.value = 1;
+    }
+  }
+);
 
 function getEmployee(employeeId?: number | null) {
   if (!employeeId || employeeId <= 0) return null;
@@ -311,6 +484,17 @@ async function handleRoleSaved() {
     await props.refreshData();
   }
 }
+
+function handleExportUsers() {
+  const token = localStorage.getItem("sb-access-token") || "";
+  const link = document.createElement("a");
+  link.href = `/api/iam/users/export?token=${token}`;
+  link.download = `用户档案台账_${Date.now()}.xlsx`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  ElMessage.success("正在流式导出用户台账 Excel，请留意浏览器下载！");
+}
 </script>
 
 <template>
@@ -347,218 +531,300 @@ async function handleRoleSaved() {
         </div>
       </div>
 
-      <!-- Main Account Table Card -->
-      <BaseCard class="user-table-card">
-        <template #header>
-          <div class="user-toolbar">
-            <div class="toolbar-filters">
-              <el-input
-                v-model="userSearchKeyword"
-                placeholder="搜索用户名 / 显示名 / 手机 / 邮箱..."
-                :prefix-icon="Search"
-                clearable
-                style="width: 260px"
-              />
-              <el-select v-model="userTypeFilter" placeholder="账号类型" style="width: 130px">
-                <el-option label="全部类型" value="ALL" />
-                <el-option label="超级管理员" value="SUPER_ADMIN" />
-                <el-option label="系统管理" value="SYSTEM" />
-                <el-option label="业务用户" value="NORMAL" />
-              </el-select>
-              <el-select v-model="userStatusFilter" placeholder="状态筛选" style="width: 120px">
-                <el-option label="全部状态" value="ALL" />
-                <el-option label="正常启用" value="ENABLED" />
-                <el-option label="已停用" value="DISABLED" />
-              </el-select>
-              <el-select v-model="userBindingFilter" placeholder="员工绑定" style="width: 140px">
-                <el-option label="全部绑定状态" value="ALL" />
-                <el-option label="已绑定员工" value="BOUND" />
-                <el-option label="未绑定 (独立账号)" value="UNBOUND" />
-              </el-select>
-            </div>
-            <div class="toolbar-actions">
-              <el-button
-                :icon="Cpu"
-                plain
-                @click="openUserInspector(null)"
-              >
-                权限透视诊断器
-              </el-button>
-              <el-button
-                v-button-permission="{ code: 'iam_user:create', fallback: 'iam:user:write' }"
-                type="primary"
-                :icon="Plus"
-                @click="openUserCreate"
-              >
-                新增用户
-              </el-button>
-            </div>
-          </div>
-        </template>
-
-        <!-- Batch actions bar when items selected -->
-        <transition name="el-fade-in-linear">
-          <div v-if="selectedUserRows.length > 0" class="batch-selection-bar">
-            <span class="batch-hint">
-              已勾选 <strong>{{ selectedUserRows.length }}</strong> 个用户账号
-            </span>
-            <div class="batch-btn-group">
-              <el-button type="primary" size="small" @click="handleBatchEnableSelected">批量启用</el-button>
-              <el-button size="small" @click="handleBatchDisableSelected">批量停用</el-button>
-            </div>
-          </div>
-        </transition>
-
-        <!-- User Enterprise Table -->
-        <el-table
-          :data="filteredUsers"
-          row-key="id"
-          v-loading="loading"
-          class="enterprise-user-table"
-          stripe
-          @selection-change="handleUserSelectionChange"
-        >
-          <el-table-column type="selection" width="46" align="center" />
-
-          <!-- User Profile -->
-          <el-table-column label="用户账号" min-width="220">
-            <template #default="{ row }">
-              <div class="user-profile-cell">
-                <div
-                  class="user-avatar"
-                  :style="{ backgroundColor: getAvatarColor(row.nickname || row.username) }"
-                >
-                  {{ (row.nickname || row.username || "U").slice(0, 1).toUpperCase() }}
-                </div>
-                <div class="user-info-text">
-                  <div class="user-primary-row">
-                    <strong class="user-nickname">{{ row.nickname || row.username }}</strong>
-                    <span class="user-username-badge">@{{ row.username }}</span>
-                  </div>
-                  <div class="user-code-row">
-                    <button
-                      class="code-copy-btn"
-                      title="点击复制用户唯一编码"
-                      @click="copyText(row.userCode || row.publicId)"
-                    >
-                      <span>{{ row.userCode || row.publicId }}</span>
-                      <el-icon><CopyDocument /></el-icon>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </template>
-          </el-table-column>
-
-          <!-- User Type -->
-          <el-table-column label="身份类型" min-width="120">
-            <template #default="{ row }">
-              <el-tag
-                size="small"
-                :type="getUserTypeBadge(row.userType).type as any"
-                effect="light"
-                class="user-type-tag"
-              >
-                {{ getUserTypeBadge(row.userType).text }}
+      <!-- Main Split Workspace: Left Org Tree + Right User Management Table -->
+      <div class="user-workspace-split">
+        <!-- 左侧：可视化组织架构树面板 -->
+        <aside class="user-tree-panel">
+          <div class="tree-panel-header">
+            <div class="panel-title-row">
+              <span class="panel-title">组织架构树</span>
+              <el-tag size="small" type="primary" effect="plain" class="tree-count-tag">
+                {{ props.departments?.length || 0 }} 个部门
               </el-tag>
-            </template>
-          </el-table-column>
+            </div>
+            <el-input
+              v-model="deptTreeSearch"
+              :prefix-icon="Search"
+              clearable
+              placeholder="搜索部门名称..."
+              class="tree-search-input"
+            />
+          </div>
 
-          <!-- Bound Employee -->
-          <el-table-column label="实名员工归属" min-width="190">
-            <template #default="{ row }">
-              <div v-if="Number(row.employeeId) > 0" class="employee-binding-cell">
-                <el-popover placement="top" :width="260" trigger="hover">
-                  <template #reference>
-                    <div class="bound-emp-pill">
-                      <el-icon class="emp-icon"><OfficeBuilding /></el-icon>
-                      <span class="emp-name">{{ getEmployee(row.employeeId)?.employeeName || `员工ID #${row.employeeId}` }}</span>
-                      <span v-if="getEmployee(row.employeeId)?.employeeNo" class="emp-no">
-                        ({{ getEmployee(row.employeeId)?.employeeNo }})
-                      </span>
+          <div class="tree-scroll-container">
+            <el-tree
+              ref="deptTreeRef"
+              :data="deptTreeData"
+              node-key="id"
+              default-expand-all
+              highlight-current
+              :current-node-key="selectedDeptId"
+              :expand-on-click-node="false"
+              :filter-node-method="filterDeptTreeNode"
+              @node-click="handleDeptNodeClick"
+            >
+              <template #default="{ data }">
+                <div class="custom-tree-node" :class="{ 'is-selected': selectedDeptId === data.id }">
+                  <div class="node-main">
+                    <el-icon class="node-icon">
+                      <OfficeBuilding v-if="data.id === 0" />
+                      <UserFilled v-else-if="data.id === -1" />
+                      <FolderOpened v-else-if="data.children && data.children.length > 0" />
+                      <Folder v-else />
+                    </el-icon>
+                    <span class="node-label">{{ data.label }}</span>
+                  </div>
+                  <span class="node-badge">{{ data.count }}人</span>
+                </div>
+              </template>
+            </el-tree>
+          </div>
+        </aside>
+
+        <!-- 右侧：用户列表工作台与分页器 -->
+        <main class="user-content-panel">
+          <BaseCard class="user-table-card">
+            <template #header>
+              <div class="user-toolbar">
+                <div class="toolbar-filters">
+                  <el-input
+                    v-model="userSearchKeyword"
+                    placeholder="搜索用户名 / 显示名 / 手机 / 邮箱..."
+                    :prefix-icon="Search"
+                    clearable
+                    style="width: 240px"
+                  />
+                  <el-select v-model="userTypeFilter" placeholder="账号类型" style="width: 120px">
+                    <el-option label="全部类型" value="ALL" />
+                    <el-option label="超级管理员" value="SUPER_ADMIN" />
+                    <el-option label="系统管理" value="SYSTEM" />
+                    <el-option label="业务用户" value="NORMAL" />
+                  </el-select>
+                  <el-select v-model="userStatusFilter" placeholder="状态筛选" style="width: 110px">
+                    <el-option label="全部状态" value="ALL" />
+                    <el-option label="正常启用" value="ENABLED" />
+                    <el-option label="已停用" value="DISABLED" />
+                  </el-select>
+                  <el-select v-model="userBindingFilter" placeholder="员工绑定" style="width: 130px">
+                    <el-option label="全部绑定状态" value="ALL" />
+                    <el-option label="已绑定员工" value="BOUND" />
+                    <el-option label="未绑定 (独立账号)" value="UNBOUND" />
+                  </el-select>
+                  <el-tag
+                    v-if="selectedDeptId !== 0"
+                    closable
+                    type="primary"
+                    effect="light"
+                    class="active-dept-filter-tag"
+                    @close="selectedDeptId = 0"
+                  >
+                    部门：{{ selectedDeptLabel }}
+                  </el-tag>
+                </div>
+                <div class="toolbar-actions">
+                  <el-button
+                    :icon="Download"
+                    plain
+                    @click="handleExportUsers"
+                  >
+                    导出用户 Excel
+                  </el-button>
+                  <el-button
+                    :icon="Cpu"
+                    plain
+                    @click="openUserInspector(null)"
+                  >
+                    权限透视诊断器
+                  </el-button>
+                  <el-button
+                    v-button-permission="{ code: 'iam_user:create', fallback: 'iam:user:write' }"
+                    type="primary"
+                    :icon="Plus"
+                    @click="openUserCreate"
+                  >
+                    新增用户
+                  </el-button>
+                </div>
+              </div>
+            </template>
+
+            <!-- Batch actions bar when items selected -->
+            <transition name="el-fade-in-linear">
+              <div v-if="selectedUserRows.length > 0" class="batch-selection-bar">
+                <span class="batch-hint">
+                  已勾选 <strong>{{ selectedUserRows.length }}</strong> 个用户账号
+                </span>
+                <div class="batch-btn-group">
+                  <el-button type="primary" size="small" @click="handleBatchEnableSelected">批量启用</el-button>
+                  <el-button size="small" @click="handleBatchDisableSelected">批量停用</el-button>
+                </div>
+              </div>
+            </transition>
+
+            <!-- User Enterprise Table (Paginated) -->
+            <el-table
+              :data="paginatedUsers"
+              row-key="id"
+              v-loading="loading"
+              class="enterprise-user-table"
+              stripe
+              @selection-change="handleUserSelectionChange"
+            >
+              <el-table-column type="selection" width="46" align="center" />
+
+              <!-- User Profile -->
+              <el-table-column label="用户账号" min-width="220">
+                <template #default="{ row }">
+                  <div class="user-profile-cell">
+                    <div
+                      class="user-avatar"
+                      :style="{ backgroundColor: getAvatarColor(row.nickname || row.username) }"
+                    >
+                      {{ (row.nickname || row.username || "U").slice(0, 1).toUpperCase() }}
                     </div>
-                  </template>
-                  <div class="emp-popover-detail">
-                    <div class="emp-pop-title">关联组织与岗位</div>
-                    <div class="emp-pop-item">
-                      <span class="pop-label">所属部门:</span>
-                      <span class="pop-val">{{ getEmployee(row.employeeId)?.deptFullName || getEmployee(row.employeeId)?.deptName || '-' }}</span>
-                    </div>
-                    <div class="emp-pop-item">
-                      <span class="pop-label">当前岗位:</span>
-                      <span class="pop-val">{{ getEmployee(row.employeeId)?.positionName || '-' }}</span>
-                    </div>
-                    <div class="emp-pop-item">
-                      <span class="pop-label">联系电话:</span>
-                      <span class="pop-val">{{ getEmployee(row.employeeId)?.mobile || '-' }}</span>
+                    <div class="user-info-text">
+                      <div class="user-primary-row">
+                        <strong class="user-nickname">{{ row.nickname || row.username }}</strong>
+                        <span class="user-username-badge">@{{ row.username }}</span>
+                      </div>
+                      <div class="user-code-row">
+                        <button
+                          class="code-copy-btn"
+                          title="点击复制用户唯一编码"
+                          @click="copyText(row.userCode || row.publicId)"
+                        >
+                          <span>{{ row.userCode || row.publicId }}</span>
+                          <el-icon><CopyDocument /></el-icon>
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </el-popover>
-              </div>
-              <div v-else class="unbound-emp-cell">
-                <el-tag size="small" type="info" effect="plain" class="unbound-tag">
-                  未绑定实名员工
-                </el-tag>
-              </div>
-            </template>
-          </el-table-column>
+                </template>
+              </el-table-column>
 
-          <!-- Contact -->
-          <el-table-column label="联系方式" min-width="180">
-            <template #default="{ row }">
-              <div class="contact-cell">
-                <div v-if="row.mobile" class="contact-item">
-                  <span class="contact-val">{{ row.mobile }}</span>
-                </div>
-                <div v-if="row.email" class="contact-item text-muted">
-                  <span class="contact-val">{{ row.email }}</span>
-                </div>
-                <span v-if="!row.mobile && !row.email" class="text-placeholder">-</span>
-              </div>
-            </template>
-          </el-table-column>
+              <!-- User Type -->
+              <el-table-column label="身份类型" min-width="120">
+                <template #default="{ row }">
+                  <el-tag
+                    size="small"
+                    :type="getUserTypeBadge(row.userType).type as any"
+                    effect="light"
+                    class="user-type-tag"
+                  >
+                    {{ getUserTypeBadge(row.userType).text }}
+                  </el-tag>
+                </template>
+              </el-table-column>
 
-          <!-- Status -->
-          <el-table-column label="账号状态" min-width="100" align="center">
-            <template #default="{ row }">
-              <BaseStatusTag :status="String(row.status)" :type="row.status === 'ENABLED' ? 'success' : 'danger'" />
-            </template>
-          </el-table-column>
+              <!-- Bound Employee -->
+              <el-table-column label="实名员工归属" min-width="190">
+                <template #default="{ row }">
+                  <div v-if="Number(row.employeeId) > 0" class="employee-binding-cell">
+                    <el-popover placement="top" :width="260" trigger="hover">
+                      <template #reference>
+                        <div class="bound-emp-pill">
+                          <el-icon class="emp-icon"><OfficeBuilding /></el-icon>
+                          <span class="emp-name">{{ getEmployee(row.employeeId)?.employeeName || `员工ID #${row.employeeId}` }}</span>
+                          <span v-if="getEmployee(row.employeeId)?.employeeNo" class="emp-no">
+                            ({{ getEmployee(row.employeeId)?.employeeNo }})
+                          </span>
+                        </div>
+                      </template>
+                      <div class="emp-popover-detail">
+                        <div class="emp-pop-title">关联组织与岗位</div>
+                        <div class="emp-pop-item">
+                          <span class="pop-label">所属部门:</span>
+                          <span class="pop-val">{{ getEmployee(row.employeeId)?.deptFullName || getEmployee(row.employeeId)?.deptName || '-' }}</span>
+                        </div>
+                        <div class="emp-pop-item">
+                          <span class="pop-label">当前岗位:</span>
+                          <span class="pop-val">{{ getEmployee(row.employeeId)?.positionName || '-' }}</span>
+                        </div>
+                        <div class="emp-pop-item">
+                          <span class="pop-label">联系电话:</span>
+                          <span class="pop-val">{{ getEmployee(row.employeeId)?.mobile || '-' }}</span>
+                        </div>
+                      </div>
+                    </el-popover>
+                  </div>
+                  <div v-else class="unbound-emp-cell">
+                    <el-tag size="small" type="info" effect="plain" class="unbound-tag">
+                      未绑定实名员工
+                    </el-tag>
+                  </div>
+                </template>
+              </el-table-column>
 
-          <!-- Actions -->
-          <el-table-column label="操作" min-width="210" fixed="right">
-            <template #default="{ row }">
-              <div class="action-cell">
-                <el-button
-                  link
-                  type="primary"
-                  :icon="Cpu"
-                  title="透视与模拟诊断该用户的实际权限"
-                  @click="openUserInspector(row)"
-                >
-                  透视诊断
-                </el-button>
-                <el-button
-                  v-button-permission="{ code: 'iam_user:edit', fallback: 'iam:user:write' }"
-                  link
-                  type="primary"
-                  @click="openUserEdit(row)"
-                >
-                  编辑
-                </el-button>
-                <el-button
-                  v-button-permission="{ code: 'iam_user:toggle', fallback: 'iam:user:write' }"
-                  link
-                  :type="row.status === 'ENABLED' ? 'danger' : 'success'"
-                  @click="toggleUser(row)"
-                >
-                  {{ row.status === "ENABLED" ? "停用" : "启用" }}
-                </el-button>
-              </div>
-            </template>
-          </el-table-column>
-        </el-table>
-      </BaseCard>
+              <!-- Contact -->
+              <el-table-column label="联系方式" min-width="180">
+                <template #default="{ row }">
+                  <div class="contact-cell">
+                    <div v-if="row.mobile" class="contact-item">
+                      <span class="contact-val">{{ row.mobile }}</span>
+                    </div>
+                    <div v-if="row.email" class="contact-item text-muted">
+                      <span class="contact-val">{{ row.email }}</span>
+                    </div>
+                    <span v-if="!row.mobile && !row.email" class="text-placeholder">-</span>
+                  </div>
+                </template>
+              </el-table-column>
+
+              <!-- Status -->
+              <el-table-column label="账号状态" min-width="100" align="center">
+                <template #default="{ row }">
+                  <BaseStatusTag :status="String(row.status)" :type="row.status === 'ENABLED' ? 'success' : 'danger'" />
+                </template>
+              </el-table-column>
+
+              <!-- Actions -->
+              <el-table-column label="操作" min-width="210">
+                <template #default="{ row }">
+                  <div class="action-cell">
+                    <el-button
+                      link
+                      type="primary"
+                      :icon="Cpu"
+                      title="透视与模拟诊断该用户的实际权限"
+                      @click="openUserInspector(row)"
+                    >
+                      透视诊断
+                    </el-button>
+                    <el-button
+                      v-button-permission="{ code: 'iam_user:edit', fallback: 'iam:user:write' }"
+                      link
+                      type="primary"
+                      @click="openUserEdit(row)"
+                    >
+                      编辑
+                    </el-button>
+                    <el-button
+                      v-button-permission="{ code: 'iam_user:toggle', fallback: 'iam:user:write' }"
+                      link
+                      :type="row.status === 'ENABLED' ? 'danger' : 'success'"
+                      @click="toggleUser(row)"
+                    >
+                      {{ row.status === "ENABLED" ? "停用" : "启用" }}
+                    </el-button>
+                  </div>
+                </template>
+              </el-table-column>
+            </el-table>
+
+            <!-- 底部通用分页器 (Precision Glass Pagination) -->
+            <div class="user-pagination-bar">
+              <el-pagination
+                v-model:current-page="userPage"
+                v-model:page-size="userPageSize"
+                :page-sizes="[10, 20, 50, 100]"
+                :total="filteredUsers.length"
+                layout="total, sizes, prev, pager, next, jumper"
+                @size-change="userPage = 1"
+              />
+            </div>
+          </BaseCard>
+        </main>
+      </div>
     </div>
 
     <!-- Role Section: Table or Matrix -->
@@ -628,7 +894,7 @@ async function handleRoleSaved() {
             复制
           </el-button>
           <el-button v-button-permission="{ code: 'iam_role:edit', fallback: 'iam:role:write' }" link type="primary" @click="openRoleEdit(row)">编辑</el-button>
-          <el-button v-button-permission="{ code: 'iam_role:toggle', fallback: 'iam:role:write' }" link @click="toggleRole(row)">{{ row.status === "ENABLED" ? "停用" : "启用" }}</el-button>
+          <el-button v-button-permission="{ code: 'iam_role:toggle', fallback: 'iam:role:write' }" link :type="row.status === 'ENABLED' ? 'danger' : 'success'" @click="toggleRole(row)">{{ row.status === "ENABLED" ? "停用" : "启用" }}</el-button>
         </template>
       </ProTable>
 
@@ -725,6 +991,141 @@ async function handleRoleSaved() {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.user-workspace-split {
+  display: grid;
+  grid-template-columns: 270px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.user-tree-panel {
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  border-radius: 20px;
+  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), 0 16px 40px -10px rgba(12, 34, 56, 0.08);
+  display: flex;
+  flex-direction: column;
+  min-height: 580px;
+
+  .tree-panel-header {
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+
+    .panel-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+
+      .panel-title {
+        font-size: 14px;
+        font-weight: 650;
+        color: #0f172a;
+      }
+    }
+
+    .tree-search-input {
+      :deep(.el-input__wrapper) {
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.75);
+      }
+    }
+  }
+
+  .tree-scroll-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 6px;
+
+    :deep(.el-tree-node__content) {
+      height: 36px;
+      border-radius: 6px;
+      padding-right: 8px;
+      margin: 1px 0;
+      transition: all 120ms ease;
+
+      &:hover {
+        background-color: rgba(241, 245, 249, 0.85);
+      }
+    }
+
+    :deep(.el-tree-node.is-current > .el-tree-node__content) {
+      background-color: rgba(219, 234, 254, 0.85);
+      color: #1d4ed8;
+      font-weight: 600;
+
+      .node-icon {
+        color: #2563eb;
+      }
+
+      .node-badge {
+        background-color: #2563eb;
+        color: #ffffff;
+      }
+    }
+  }
+}
+
+.custom-tree-node {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 13px;
+
+  .node-main {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    .node-icon {
+      font-size: 15px;
+      color: #64748b;
+    }
+
+    .node-label {
+      color: #1e293b;
+      font-weight: 500;
+    }
+  }
+
+  .node-badge {
+    padding: 1px 6px;
+    font-size: 11px;
+    font-weight: 550;
+    border-radius: 10px;
+    background: rgba(241, 245, 249, 0.9);
+    color: #475569;
+    font-family: var(--sb-font-mono);
+  }
+}
+
+.user-content-panel {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.user-pagination-bar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 14px 16px;
+  border-top: 1px solid rgba(226, 232, 240, 0.6);
+  background: rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(10px);
+}
+
+.active-dept-filter-tag {
+  font-weight: 550;
 }
 
 /* Sleek User Telemetry Strip */
@@ -825,9 +1226,11 @@ async function handleRoleSaved() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 18px;
-  background: #f0f7ff;
-  border-bottom: 1px solid #dbeafe;
+  padding: 10px 20px;
+  background: rgba(239, 246, 255, 0.65);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(219, 234, 254, 0.6);
 
   .batch-hint {
     font-size: 13px;
@@ -848,17 +1251,30 @@ async function handleRoleSaved() {
 
 .enterprise-user-table {
   width: 100%;
+  background: transparent !important;
 
   :deep(.el-table__header) th {
-    background: #f8fafc;
-    color: #475569;
-    font-size: 12px;
-    font-weight: 600;
-    padding: 10px 0;
+    background: rgba(255, 255, 255, 0.45) !important;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    color: var(--sb-text-primary);
+    font-size: 12.5px;
+    font-weight: 650;
+    padding: 11px 0;
+    border-bottom: 1px solid rgba(203, 213, 225, 0.6) !important;
   }
 
-  :deep(.el-table__row) td {
-    padding: 10px 0;
+  :deep(.el-table__row) {
+    background: transparent !important;
+    td {
+      background: transparent !important;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(226, 232, 240, 0.45) !important;
+    }
+    &:hover td {
+      background: rgba(239, 246, 255, 0.65) !important;
+      backdrop-filter: blur(8px);
+    }
   }
 
   .user-profile-cell {
@@ -1050,10 +1466,15 @@ async function handleRoleSaved() {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 16px;
-    background: #fff;
-    border-radius: 10px;
-    border: 1px solid #e2e8f0;
+    padding: 12px 20px;
+    background: rgba(255, 255, 255, 0.58);
+    backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+    -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+    border-radius: var(--sb-radius-glass-md, 18px);
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    box-shadow:
+      inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
+      0 10px 25px -5px rgba(12, 34, 56, 0.05);
 
     .segmented-role-switch {
       :deep(.el-radio-button__inner) {

@@ -20,6 +20,28 @@ public class WorkflowTaskEntity extends BaseTenantEntity {
     @TableField("node_type")
     private String nodeType;
 
+    @TableField("flowable_task_id")
+    private String flowableTaskId;
+
+    @TableField("activity_id")
+    private String activityId;
+
+    public String getFlowableTaskId() {
+        return flowableTaskId;
+    }
+
+    public void setFlowableTaskId(String flowableTaskId) {
+        this.flowableTaskId = flowableTaskId;
+    }
+
+    public String getActivityId() {
+        return activityId;
+    }
+
+    public void setActivityId(String activityId) {
+        this.activityId = activityId;
+    }
+
     @TableField("assignee_id")
     private Long assigneeId;
 

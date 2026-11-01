@@ -659,11 +659,15 @@ onMounted(() => {
 
 /* Unified Command Surface */
 .command-surface {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 14px 18px;
-  box-shadow: 0 1px 3px 0 rgb(15 23 42 / 0.05);
+  background: rgba(255, 255, 255, 0.60);
+  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  border-radius: var(--sb-radius-glass-md, 20px);
+  padding: 16px 22px;
+  box-shadow:
+    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
+    0 12px 32px -6px rgba(12, 34, 56, 0.06);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -857,28 +861,47 @@ onMounted(() => {
 
 /* VIEW A: Matrix Table */
 .matrix-table-container {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  border-radius: var(--sb-radius-glass, 24px);
   overflow: hidden;
-  box-shadow: 0 1px 3px 0 rgb(15 23 42 / 0.05);
+  box-shadow:
+    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
+    0 16px 40px -10px rgba(12, 34, 56, 0.08);
 }
 
 .clean-matrix-table {
   width: 100%;
+  background: transparent !important;
+
+  :deep(.el-table__inner-wrapper) {
+    background: transparent !important;
+  }
 
   :deep(.el-table__header-wrapper th) {
-    background: #f8fafc;
-    color: #475569;
+    background: rgba(255, 255, 255, 0.45) !important;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    color: var(--sb-text-primary);
     font-size: 13px;
-    font-weight: 600;
-    height: 44px;
+    font-weight: 650;
+    height: 46px;
+    border-bottom: 1px solid rgba(203, 213, 225, 0.6) !important;
   }
 
   :deep(.el-table__row) {
     height: 54px;
-    &:hover {
-      background: #f8fafc !important;
+    background: transparent !important;
+    td {
+      background: transparent !important;
+      border-bottom: 1px solid rgba(226, 232, 240, 0.45) !important;
+    }
+    &:hover td {
+      background: rgba(239, 246, 255, 0.65) !important;
+      backdrop-filter: blur(8px);
     }
   }
 }
@@ -988,19 +1011,28 @@ onMounted(() => {
 }
 
 .compact-app-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 14px;
+  background: rgba(255, 255, 255, 0.60);
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: var(--sb-radius-glass-sm, 14px);
+  padding: 16px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  transition: all 0.15s ease;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   min-height: 110px;
+  box-shadow:
+    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
+    0 8px 24px -4px rgba(12, 34, 56, 0.05);
 
   &:hover {
-    border-color: #cbd5e1;
-    box-shadow: 0 4px 12px rgb(15 23 42 / 0.06);
+    border-color: rgba(255, 255, 255, 0.98);
+    background: rgba(255, 255, 255, 0.75);
+    box-shadow:
+      inset 0 1.5px 2px 0 #fff,
+      0 14px 32px -6px rgba(12, 34, 56, 0.10);
+    transform: translateY(-2px);
   }
 
   &.is-authorized {

@@ -17,6 +17,7 @@ public record ProcessInstanceResponse(
         String initiatorDeptName,
         String currentNodeId,
         String currentNodeName,
+        String flowableProcInstId,
         String status,
         LocalDateTime startTime,
         LocalDateTime endTime,

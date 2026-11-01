@@ -157,7 +157,7 @@ function handleDownload(row: any) {
               <span>{{ row.fileSize ? (Number(row.fileSize) / 1024).toFixed(1) + ' KB' : '1.0 MB' }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="220" fixed="right">
+          <el-table-column label="操作" min-width="180">
             <template #default="{ row }">
               <el-button link type="primary" :icon="View" @click="handlePreview(row)">预览</el-button>
               <el-button link type="primary" :icon="CopyDocument" @click="handleCopyDirectUrl(row)">直链</el-button>
@@ -188,7 +188,7 @@ function handleDownload(row: any) {
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="160" fixed="right">
+          <el-table-column label="操作" min-width="140">
             <template #default="{ row }">
               <el-button
                 link

@@ -227,7 +227,7 @@ onMounted(() => {
           </template>
         </el-table-column>
         <el-table-column prop="remark" label="说明备注" min-width="180" show-overflow-tooltip />
-        <el-table-column label="操作" width="240" fixed="right" align="center">
+        <el-table-column label="操作" min-width="220" align="center">
           <template #default="{ row }">
             <div class="table-actions">
               <el-button link type="primary" size="small" @click="openEditDialog(row)">编辑</el-button>
@@ -307,12 +307,14 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   padding: 0 12px;
-  border: 1px solid var(--sb-border-color, #cbd5e1);
-  border-radius: 7px;
-  background: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   cursor: pointer;
   transition: all 120ms ease;
-  box-shadow: 0 1px 2px rgb(15 23 42 / 0.03);
+  box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.95), 0 2px 6px rgba(15, 23, 42, 0.04);
 
   &:hover {
     border-color: #3b82f6;

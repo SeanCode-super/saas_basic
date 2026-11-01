@@ -82,4 +82,10 @@ public class WorkflowInstanceController {
     public ApiResponse<List<Map<String, Object>>> getRollbackNodes(@PathVariable Long id) {
         return ApiResponse.success(taskService.getRollbackNodes(id));
     }
+
+    @GetMapping("/{id}/flowable-trace")
+    @RequirePermission("workflow:instance:query")
+    public ApiResponse<Map<String, Object>> getFlowableTrace(@PathVariable Long id) {
+        return ApiResponse.success(instanceService.getFlowableTrace(id));
+    }
 }

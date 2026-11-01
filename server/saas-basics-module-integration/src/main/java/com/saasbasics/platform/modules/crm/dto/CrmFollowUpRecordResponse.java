@@ -35,12 +35,14 @@ public class CrmFollowUpRecordResponse {
     public void setBizId(Long bizId) { this.bizId = bizId; }
     public String getFollowType() { return followType; }
     public void setFollowType(String followType) { this.followType = followType; }
+    public String getContactType() { return followType; }
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
     public LocalDateTime getNextContactTime() { return nextContactTime; }
     public void setNextContactTime(LocalDateTime nextContactTime) { this.nextContactTime = nextContactTime; }
     public String getContactUserName() { return contactUserName; }
     public void setContactUserName(String contactUserName) { this.contactUserName = contactUserName; }
+    public String getCreatorName() { return contactUserName; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

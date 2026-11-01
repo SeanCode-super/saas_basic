@@ -128,7 +128,7 @@ function handleClearLogs() {
             <span>{{ row.createdAt || '2026-10-18 00:00:00' }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" min-width="160">
           <template #default="{ row }">
             <el-button link type="primary" :icon="View" @click="handleViewDetail(row)">详情与栈</el-button>
             <el-button link type="warning" :icon="RefreshRight" @click="retryJob(row)">重新执行</el-button>

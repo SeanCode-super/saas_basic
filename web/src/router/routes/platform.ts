@@ -28,7 +28,7 @@ export const platformRoutes: RouteRecordRaw[] = [
         }
       },
       {
-        path: "iam",
+        path: "iam/:section*",
         name: "iam",
         component: () => import("@/views/iam/IamView.vue"),
         meta: {

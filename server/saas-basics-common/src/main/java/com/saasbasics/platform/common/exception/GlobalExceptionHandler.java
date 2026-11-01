@@ -113,6 +113,18 @@ public class GlobalExceptionHandler {
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ApiResponse<Void> handleNoResourceFound(org.springframework.web.servlet.resource.NoResourceFoundException exception) {
+        return ApiResponse.failure("RESOURCE_NOT_FOUND", "请求的资源未找到: " + exception.getResourcePath());
+    }
+
+    @ExceptionHandler(org.springframework.web.bind.MissingServletRequestParameterException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<Void> handleMissingParam(org.springframework.web.bind.MissingServletRequestParameterException exception) {
+        return ApiResponse.failure("PARAM_MISSING", "缺少必填请求参数: " + exception.getParameterName());
+    }
+
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ApiResponse<Void> handleException(Exception exception) {

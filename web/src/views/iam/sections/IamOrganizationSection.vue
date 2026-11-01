@@ -470,7 +470,7 @@ function getPositionEmployeeList(posId: number) {
             </el-table-column>
 
             <!-- 操作 -->
-            <el-table-column label="操作" width="160" fixed="right">
+            <el-table-column label="操作" min-width="160">
               <template #default="{ row }">
                 <el-button v-button-permission="{ code: 'iam_position:edit', fallback: 'iam:user:write' }" link type="primary" @click="openPositionEdit(row)">编辑</el-button>
                 <el-button v-button-permission="{ code: 'iam_position:toggle', fallback: 'iam:user:write' }" link :type="row.status === 'ENABLED' ? 'danger' : 'primary'" @click="togglePosition(row)">
@@ -686,7 +686,7 @@ function getPositionEmployeeList(posId: number) {
               </el-table-column>
 
               <!-- 操作栏 -->
-              <el-table-column label="操作" width="180" fixed="right">
+              <el-table-column label="操作" min-width="220">
                 <template #default="{ row }">
                   <div class="table-action-cell">
                     <el-button link type="primary" :icon="View" @click="openEmployee360(row)">360画像</el-button>
@@ -1024,8 +1024,8 @@ function getPositionEmployeeList(posId: number) {
               </template>
               <template #actions="{ row }">
                 <el-button v-button-permission="{ code: 'iam_employee:edit', fallback: 'iam:user:write' }" link type="primary" @click="openEmployeeEdit(row)">编辑</el-button>
-                <el-button v-button-permission="{ code: 'iam_employee:transfer', fallback: 'iam:user:write' }" link type="primary" @click="openEmployeeTransfer(row)">调岗异动</el-button>
-                <el-button v-button-permission="{ code: 'iam_employee:toggle', fallback: 'iam:user:write' }" link @click="toggleEmployee(row)">{{ row.employeeStatus === "ACTIVE" ? "停用" : "启用" }}</el-button>
+                <el-button v-button-permission="{ code: 'iam_employee:transfer', fallback: 'iam:user:write' }" link @click="openEmployeeTransfer(row)">调岗异动</el-button>
+                <el-button v-button-permission="{ code: 'iam_employee:toggle', fallback: 'iam:user:write' }" link :type="row.employeeStatus === 'ACTIVE' ? 'danger' : 'success'" @click="toggleEmployee(row)">{{ row.employeeStatus === "ACTIVE" ? "停用" : "启用" }}</el-button>
               </template>
             </ProTable>
           </div>
@@ -1060,7 +1060,7 @@ function getPositionEmployeeList(posId: number) {
               </template>
               <template #actions="{ row }">
                 <el-button v-button-permission="{ code: 'iam_position:edit', fallback: 'iam:user:write' }" link type="primary" @click="openPositionEdit(row)">编辑</el-button>
-                <el-button v-button-permission="{ code: 'iam_position:toggle', fallback: 'iam:user:write' }" link @click="togglePosition(row)">{{ row.status === "ENABLED" ? "停用" : "启用" }}</el-button>
+                <el-button v-button-permission="{ code: 'iam_position:toggle', fallback: 'iam:user:write' }" link :type="row.status === 'ENABLED' ? 'danger' : 'success'" @click="togglePosition(row)">{{ row.status === "ENABLED" ? "停用" : "启用" }}</el-button>
               </template>
             </ProTable>
           </div>
@@ -1094,7 +1094,7 @@ function getPositionEmployeeList(posId: number) {
               </template>
               <template #actions="{ row }">
                 <el-button v-button-permission="{ code: 'iam_department:edit', fallback: 'iam:user:write' }" link type="primary" @click="openDepartmentEdit(row)">编辑</el-button>
-                <el-button v-button-permission="{ code: 'iam_department:toggle', fallback: 'iam:user:write' }" link @click="toggleDepartment(row)">{{ row.status === "ENABLED" ? "停用" : "启用" }}</el-button>
+                <el-button v-button-permission="{ code: 'iam_department:toggle', fallback: 'iam:user:write' }" link :type="row.status === 'ENABLED' ? 'danger' : 'success'" @click="toggleDepartment(row)">{{ row.status === "ENABLED" ? "停用" : "启用" }}</el-button>
               </template>
             </ProTable>
           </div>
@@ -1117,9 +1117,12 @@ function getPositionEmployeeList(posId: number) {
 }
 
 .org-tree-panel {
-  background-color: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  border-radius: 20px;
+  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), 0 16px 40px -10px rgba(12, 34, 56, 0.08);
   display: flex;
   flex-direction: column;
   min-height: 600px;
@@ -1250,9 +1253,12 @@ function getPositionEmployeeList(posId: number) {
 }
 
 .dept-hero-card {
-  background-color: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  border-radius: 20px;
+  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), 0 16px 40px -10px rgba(12, 34, 56, 0.08);
   padding: 18px 20px;
 
   .hero-header-row {
@@ -1389,11 +1395,15 @@ function getPositionEmployeeList(posId: number) {
     display: flex;
     align-items: center;
     gap: 14px;
-    padding: 16px 18px;
-    border-radius: 8px;
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 1px 3px rgb(0 0 0 / 0.02);
+    padding: 16px 20px;
+    border-radius: var(--sb-radius-glass-md, 18px);
+    background: rgba(255, 255, 255, 0.58);
+    backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+    -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    box-shadow:
+      inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
+      0 10px 25px -5px rgba(12, 34, 56, 0.05);
 
     .stat-icon-wrap {
       width: 44px;
@@ -1453,19 +1463,24 @@ function getPositionEmployeeList(posId: number) {
 }
 
 .emp-dept-sidebar {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: var(--sb-radius-glass-md, 18px);
   overflow: hidden;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.02);
+  box-shadow:
+    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
+    0 12px 30px -6px rgba(12, 34, 56, 0.05);
 
   .dept-sidebar-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 14px;
-    border-bottom: 1px solid #f1f5f9;
-    background: #f8fafc;
+    padding: 14px 18px;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+    background: rgba(255, 255, 255, 0.40);
+    backdrop-filter: blur(14px);
 
     .sidebar-title {
       font-size: 13.5px;
@@ -1475,7 +1490,7 @@ function getPositionEmployeeList(posId: number) {
   }
 
   .dept-tree-wrap {
-    padding: 8px;
+    padding: 10px;
     max-height: calc(100vh - 300px);
     overflow-y: auto;
 
@@ -1554,10 +1569,15 @@ function getPositionEmployeeList(posId: number) {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
-  padding: 14px 16px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  padding: 12px 20px;
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: var(--sb-radius-glass-md, 18px);
+  box-shadow:
+    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
+    0 10px 25px -5px rgba(12, 34, 56, 0.05);
 
   .filter-row {
     display: flex;
@@ -1569,10 +1589,38 @@ function getPositionEmployeeList(posId: number) {
 
 .enterprise-employee-table,
 .enterprise-position-table {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.58) !important;
+  backdrop-filter: blur(28px) saturate(210%) contrast(104%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  border-radius: var(--sb-radius-glass, 24px);
   overflow: hidden;
+  box-shadow:
+    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
+    0 16px 40px -10px rgba(12, 34, 56, 0.08);
+
+  :deep(.el-table) {
+    background: transparent !important;
+  }
+
+  :deep(.el-table__header-wrapper th) {
+    background: rgba(255, 255, 255, 0.45) !important;
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid rgba(203, 213, 225, 0.6) !important;
+  }
+
+  :deep(.el-table__row) {
+    background: transparent !important;
+    td {
+      background: transparent !important;
+      border-bottom: 1px solid rgba(226, 232, 240, 0.45) !important;
+    }
+    &:hover td {
+      background: rgba(239, 246, 255, 0.65) !important;
+      backdrop-filter: blur(8px);
+    }
+  }
 
   .employee-cell {
     display: flex;

@@ -4,8 +4,8 @@ type MessageTree = Record<string, string>;
 
 const messages: Record<AppLocale, MessageTree> = {
   "zh-CN": {
-    "shell.brandTitle": "天枢云基 Tianshu PaaS",
-    "shell.brandSubtitle": "企业级多租户数字中枢",
+    "shell.brandTitle": "天枢协同云平台",
+    "shell.brandSubtitle": "企业一体化协同管理中枢",
     "shell.directory": "功能索引",
     "cluster.overview": "平台总览",
     "cluster.foundation": "基础治理",
@@ -14,7 +14,7 @@ const messages: Record<AppLocale, MessageTree> = {
     "cluster.assurance": "审计风控"
   },
   "en-US": {
-    "shell.brandTitle": "Tianshu PaaS",
+    "shell.brandTitle": "Tianshu Cloud Platform",
     "shell.brandSubtitle": "Enterprise Multi-Tenant Cloud",
     "shell.directory": "Functions",
     "cluster.overview": "Overview",

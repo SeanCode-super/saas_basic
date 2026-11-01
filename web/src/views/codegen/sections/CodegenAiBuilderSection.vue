@@ -512,7 +512,7 @@ onMounted(() => {
             </template>
           </el-table-column>
           <el-table-column prop="createdAt" label="构建时间" width="180" align="center" />
-          <el-table-column label="操作" width="200" align="center" fixed="right">
+          <el-table-column label="操作" min-width="180" align="center">
             <template #default="{ row }">
               <el-button type="primary" size="small" :icon="Right" @click="goToApp(row.modelCode)">
                 进入应用
@@ -629,10 +629,11 @@ onMounted(() => {
       display: flex;
       align-items: center;
       gap: 8px;
-      background: #fff;
+      background: rgba(255, 255, 255, 0.65);
+      backdrop-filter: blur(14px);
       padding: 8px 14px;
-      border-radius: 8px;
-      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.88);
 
       .selector-label {
         font-size: 13px;
@@ -744,10 +745,12 @@ onMounted(() => {
     justify-content: space-between;
     align-items: center;
     padding: 18px 24px;
-    background: #fff;
-    border-radius: 12px;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 4px 12px rgb(0 0 0 / 0.04);
+    background: rgba(255, 255, 255, 0.58);
+    backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+    -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.88);
+    box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), 0 16px 40px -10px rgba(12, 34, 56, 0.08);
 
     .publish-btn {
       padding: 14px 32px;

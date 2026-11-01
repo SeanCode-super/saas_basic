@@ -170,8 +170,49 @@ public class AuthService {
 
     public AuthLoginResponse login(AuthLoginRequest request, String loginIp, String userAgent) {
         TenantMapper tenantMapper = requiredTenantMapper();
+        String tenantCode = request.tenantCode() != null ? request.tenantCode().trim() : "";
+        if (tenantCode.isEmpty()) {
+            // 智能账号跨租户定位：在系统绕过模式下根据用户名与入口客户端全局检索租户
+            try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openSystemBypass(
+                    TenantAccessContext.BypassOperation.AUTHENTICATION_TOKEN_RESOLUTION, "Resolve tenant by username for password login")) {
+
+                PortalClientEntity portalClient = null;
+                if (request.clientId() != null && !request.clientId().isBlank()) {
+                    portalClient = portalEntryService.findActiveClient(request.clientId().trim());
+                }
+
+                UserMapper userMapper = requiredUserMapper();
+                List<UserEntity> candidateUsers = userMapper.selectList(new LambdaQueryWrapper<UserEntity>()
+                        .eq(UserEntity::getUsername, request.username() != null ? request.username().trim() : "")
+                        .eq(UserEntity::getDeleted, 0)
+                        .orderByAsc(UserEntity::getId)); // 优先匹配根级平台超管/首选账号
+
+                if (!candidateUsers.isEmpty()) {
+                    Long targetTenantId = candidateUsers.get(0).getTenantId();
+                    if (portalClient != null) {
+                        for (UserEntity u : candidateUsers) {
+                            if (portalClient.getTenantId().equals(u.getTenantId())) {
+                                targetTenantId = u.getTenantId();
+                                break;
+                            }
+                        }
+                    }
+                    TenantEntity resolvedTenant = tenantMapper.selectById(targetTenantId);
+                    if (resolvedTenant != null && Integer.valueOf(0).equals(resolvedTenant.getDeleted())) {
+                        tenantCode = resolvedTenant.getTenantCode();
+                    }
+                } else if (portalClient != null) {
+                    tenantCode = portalClient.getTenantCode();
+                }
+            }
+            if (tenantCode.isEmpty()) {
+                tenantCode = "platform";
+            }
+        }
+
+        final String finalTenantCode = tenantCode;
         TenantEntity tenant = tenantMapper.selectOne(new LambdaQueryWrapper<TenantEntity>()
-                .eq(TenantEntity::getTenantCode, request.tenantCode())
+                .eq(TenantEntity::getTenantCode, finalTenantCode)
                 .eq(TenantEntity::getDeleted, 0)
                 .last("LIMIT 1"));
         if (tenant == null) {
@@ -631,14 +672,18 @@ public class AuthService {
     }
 
     private PortalLoginContext resolvePortalLoginContext(AuthLoginRequest request, TenantEntity tenant) {
-        if ((request.clientId() == null || request.clientId().isBlank())
-                && (request.terminalCode() == null || request.terminalCode().isBlank())) {
+        if (request.clientId() == null || request.clientId().isBlank()) {
             return new PortalLoginContext(null, null);
         }
 
         PortalClientEntity client = portalEntryService.requireActiveClient(request.clientId());
         if (!tenant.getId().equals(client.getTenantId()) || !tenant.getTenantCode().equals(client.getTenantCode())) {
-            throw new BizException("PORTAL_TENANT_MISMATCH", "当前入口不属于该租户");
+            // 如果用户账号归属于其他租户，但在默认通用平台门户登录，允许登录并进入该账号自身租户上下文
+            if (Boolean.TRUE.equals(client.getIsDefault()) || "platform".equalsIgnoreCase(client.getTenantCode())) {
+                // 通用门户允许漫游登录
+            } else {
+                throw new BizException("PORTAL_TENANT_MISMATCH", "当前入口不属于该租户");
+            }
         }
 
         PortalTerminalEntity terminal = portalEntryService.requireActiveTerminal(client.getId(), request.terminalCode());

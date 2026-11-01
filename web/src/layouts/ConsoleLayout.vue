@@ -68,9 +68,9 @@ const directoryVisible = ref(false);
 const mobileDrawerVisible = ref(false);
 const railCollapsed = ref(false);
 
-// Dual-Nav (Top-Side Mix) vs Classic Full Sidebar vs Top Menu Layout
+// Dual-Nav (Top-Side Mix) vs Classic Full Sidebar vs Top Menu Layout (默认采用顶级横向晶透浮动模式，与 iOS 27 视觉完全统一)
 const layoutMode = ref<LayoutMode>(
-  (localStorage.getItem("sb_layout_mode") as LayoutMode) || "side"
+  (localStorage.getItem("sb_layout_mode") as LayoutMode) || "top"
 );
 const showBreadcrumbs = ref<boolean>(
   localStorage.getItem("sb_show_breadcrumbs") !== "false"
@@ -525,12 +525,15 @@ onMounted(() => {
   <div class="console-shell" :class="{ 'console-shell--collapsed': railCollapsed, [`layout--${layoutMode}`]: true }">
     <!-- 左侧主导航（仅在非顶部模式时显示） -->
     <aside v-if="layoutMode !== 'top'" class="console-shell__rail" :class="`rail-theme--${railTheme}`">
-      <div class="console-shell__brand">
+      <div
+        class="console-shell__brand"
+        :class="{ 'is-clickable': railCollapsed }"
+        :title="railCollapsed ? '点击展开左侧主导航' : ''"
+        @click="railCollapsed ? (railCollapsed = false) : null"
+      >
         <TianshuLogo
           :size="26"
           :show-text="!railCollapsed"
-          show-badge
-          badge-text="PaaS"
           :theme="railTheme"
         />
       </div>
@@ -538,51 +541,112 @@ onMounted(() => {
       <nav class="console-shell__navigation" aria-label="主导航">
         <!-- 模式 A：顶层父级置顶模式 (Top-Side Mix) 侧栏展示当前主域下的二级应用 -->
         <template v-if="layoutMode === 'mix'">
-          <div class="console-shell__cluster-title">
+          <div v-if="!railCollapsed" class="console-shell__cluster-title">
             {{ clusterMetaMap[activeCluster]?.label || '模块导航' }}
           </div>
           <section v-for="group in displayedGroups" :key="group.key" class="console-shell__rail-group">
             <div v-for="app in group.items" :key="app.id" class="console-shell__app-group">
-              <button
-                class="console-shell__rail-app"
-                :class="{
-                  'is-active': isSectionActive(app),
-                  'is-expanded': isAppExpanded(app.id),
-                  'has-children': app.children.length > 0
-                }"
-                :title="app.title"
-                @click="handleAppClick(app)"
+              <!-- 折叠状态下：浮层菜单 -->
+              <el-popover
+                v-if="railCollapsed && app.children && app.children.length"
+                placement="right-start"
+                trigger="hover"
+                :offset="12"
+                :show-after="100"
+                :popper-class="railTheme === 'dark' ? 'rail-collapsed-popover rail-collapsed-popover--dark' : 'rail-collapsed-popover'"
+                :width="210"
               >
-                <el-icon class="console-shell__rail-icon">
-                  <component :is="resolveAppIcon(app.code, app.icon)" />
-                </el-icon>
-                <span class="console-shell__rail-title">{{ app.title }}</span>
-                <el-icon v-if="app.children.length" class="console-shell__rail-arrow" :class="{ 'is-open': isAppExpanded(app.id) }">
-                  <ArrowRight />
-                </el-icon>
-              </button>
-
-              <!-- 三级子菜单 -->
-              <transition name="submenu-slide">
-                <div
-                  v-if="isAppExpanded(app.id) && app.children.length"
-                  class="console-shell__submenu"
-                >
+                <template #reference>
                   <button
-                    v-for="item in app.children.filter((child) => child.path)"
-                    :key="item.id"
-                    class="console-shell__submenu-item"
-                    :class="{ 'is-active': isExactActive(item) }"
-                    @click="go(item)"
+                    class="console-shell__rail-app"
+                    :class="{
+                      'is-active': isSectionActive(app)
+                    }"
+                    @click="handleAppClick(app)"
                   >
-                    <el-icon v-if="item.icon" class="console-shell__submenu-icon">
-                      <component :is="item.icon" />
+                    <el-icon class="console-shell__rail-icon">
+                      <component :is="resolveAppIcon(app.code, app.icon)" />
                     </el-icon>
-                    <span v-else class="console-shell__submenu-dot" />
-                    <span class="console-shell__submenu-text">{{ item.title }}</span>
                   </button>
+                </template>
+                <div class="rail-popover-menu">
+                  <div class="rail-popover-header">
+                    <span class="rail-popover-title">{{ app.title }}</span>
+                  </div>
+                  <div class="rail-popover-sub-list">
+                    <div
+                      v-for="item in app.children.filter((child) => child.path)"
+                      :key="item.id"
+                      class="rail-popover-sub-item"
+                      :class="{ 'is-active': isExactActive(item) }"
+                      @click="go(item)"
+                    >
+                      <span class="rail-popover-sub-dot" />
+                      <span class="rail-popover-sub-text">{{ item.title }}</span>
+                    </div>
+                  </div>
                 </div>
-              </transition>
+              </el-popover>
+              <el-tooltip
+                v-else-if="railCollapsed"
+                :content="app.title"
+                placement="right"
+                :offset="14"
+              >
+                <button
+                  class="console-shell__rail-app"
+                  :class="{ 'is-active': isSectionActive(app) }"
+                  @click="handleAppClick(app)"
+                >
+                  <el-icon class="console-shell__rail-icon">
+                    <component :is="resolveAppIcon(app.code, app.icon)" />
+                  </el-icon>
+                </button>
+              </el-tooltip>
+
+              <!-- 展开状态下：原装完整折叠项 -->
+              <template v-else>
+                <button
+                  class="console-shell__rail-app"
+                  :class="{
+                    'is-active': isSectionActive(app),
+                    'is-expanded': isAppExpanded(app.id),
+                    'has-children': app.children.length > 0
+                  }"
+                  :title="app.title"
+                  @click="handleAppClick(app)"
+                >
+                  <el-icon class="console-shell__rail-icon">
+                    <component :is="resolveAppIcon(app.code, app.icon)" />
+                  </el-icon>
+                  <span class="console-shell__rail-title">{{ app.title }}</span>
+                  <el-icon v-if="app.children.length" class="console-shell__rail-arrow" :class="{ 'is-open': isAppExpanded(app.id) }">
+                    <ArrowRight />
+                  </el-icon>
+                </button>
+
+                <!-- 三级子菜单 -->
+                <transition name="submenu-slide">
+                  <div
+                    v-if="isAppExpanded(app.id) && app.children.length"
+                    class="console-shell__submenu"
+                  >
+                    <button
+                      v-for="item in app.children.filter((child) => child.path)"
+                      :key="item.id"
+                      class="console-shell__submenu-item"
+                      :class="{ 'is-active': isExactActive(item) }"
+                      @click="go(item)"
+                    >
+                      <el-icon v-if="item.icon" class="console-shell__submenu-icon">
+                        <component :is="item.icon" />
+                      </el-icon>
+                      <span v-else class="console-shell__submenu-dot" />
+                      <span class="console-shell__submenu-text">{{ item.title }}</span>
+                    </button>
+                  </div>
+                </transition>
+              </template>
             </div>
           </section>
         </template>
@@ -592,87 +656,158 @@ onMounted(() => {
           <section v-for="group in displayedGroups" :key="group.key" class="console-shell__cluster-section">
             <!-- 单一无子模块独立大类 (如平台总览) -->
             <div v-if="group.items.length === 1 && (!group.items[0].children || group.items[0].children.length === 0)" class="console-shell__cluster-parent-wrap">
-              <button
-                class="console-shell__cluster-parent console-shell__cluster-parent--single"
-                :class="{ 'is-active': isSectionActive(group.items[0]) }"
-                :title="group.label"
-                @click="handleAppClick(group.items[0])"
+              <el-tooltip
+                :disabled="!railCollapsed"
+                :content="group.label"
+                placement="right"
+                :offset="14"
               >
-                <el-icon class="cluster-parent-icon">
-                  <component :is="clusterMetaMap[group.key]?.icon || 'DataBoard'" />
-                </el-icon>
-                <span class="cluster-parent-title">{{ group.label }}</span>
-              </button>
+                <button
+                  class="console-shell__cluster-parent console-shell__cluster-parent--single"
+                  :class="{ 'is-active': isSectionActive(group.items[0]) }"
+                  :title="railCollapsed ? '' : group.label"
+                  @click="handleAppClick(group.items[0])"
+                >
+                  <el-icon class="cluster-parent-icon">
+                    <component :is="clusterMetaMap[group.key]?.icon || 'DataBoard'" />
+                  </el-icon>
+                  <span class="cluster-parent-title">{{ group.label }}</span>
+                </button>
+              </el-tooltip>
             </div>
 
             <!-- 包含多个二级模块的顶层父级 (如基础治理、运行支撑、工程交付、审计追踪) -->
             <div v-else class="console-shell__cluster-group">
-              <!-- 一级顶层父菜单按钮：拥有大域图标、展开箭头、支持点击折叠/展开 (去除了臃肿的模块数Badge和卡片边框) -->
-              <button
-                class="console-shell__cluster-parent"
-                :class="{
-                  'is-expanded': isClusterExpanded(group.key),
-                  'is-active': isClusterActive(group)
-                }"
-                :title="`${group.label} (点击展开/折叠)`"
-                @click="toggleClusterExpanded(group.key)"
+              <!-- 折叠状态下：悬浮气泡二级/三级菜单 (完美解决收起后二级菜单不明显/出不来的问题) -->
+              <el-popover
+                v-if="railCollapsed"
+                placement="right-start"
+                trigger="hover"
+                :offset="12"
+                :show-after="100"
+                :popper-class="railTheme === 'dark' ? 'rail-collapsed-popover rail-collapsed-popover--dark' : 'rail-collapsed-popover'"
+                :width="230"
               >
-                <el-icon class="cluster-parent-icon">
-                  <component :is="clusterMetaMap[group.key]?.icon || 'Grid'" />
-                </el-icon>
-                <span class="cluster-parent-title">{{ group.label }}</span>
-                <el-icon class="cluster-parent-arrow" :class="{ 'is-open': isClusterExpanded(group.key) }">
-                  <ArrowRight />
-                </el-icon>
-              </button>
+                <template #reference>
+                  <button
+                    class="console-shell__cluster-parent"
+                    :class="{
+                      'is-active': isClusterActive(group)
+                    }"
+                    @click="switchCluster(group.key)"
+                  >
+                    <el-icon class="cluster-parent-icon">
+                      <component :is="clusterMetaMap[group.key]?.icon || 'Grid'" />
+                    </el-icon>
+                    <span class="cluster-parent-title">{{ group.label }}</span>
+                  </button>
+                </template>
 
-              <!-- 展开后的二级应用列表 (轻量内缩进树) -->
-              <transition name="cluster-slide">
-                <div v-if="isClusterExpanded(group.key)" class="console-shell__cluster-children">
-                  <div v-for="app in group.items" :key="app.id" class="console-shell__app-group">
-                    <button
-                      class="console-shell__rail-app console-shell__rail-app--nested"
-                      :class="{
-                        'is-active': isSectionActive(app),
-                        'is-expanded': isAppExpanded(app.id),
-                        'has-children': app.children.length > 0
-                      }"
-                      :title="app.title"
-                      @click="handleAppClick(app)"
-                    >
-                      <el-icon class="console-shell__rail-icon">
-                        <component :is="resolveAppIcon(app.code, app.icon)" />
-                      </el-icon>
-                      <span class="console-shell__rail-title">{{ app.title }}</span>
-                      <el-icon v-if="app.children.length" class="console-shell__rail-arrow" :class="{ 'is-open': isAppExpanded(app.id) }">
-                        <ArrowRight />
-                      </el-icon>
-                    </button>
-
-                    <!-- 三级子功能菜单 -->
-                    <transition name="submenu-slide">
+                <!-- 浮层内容：该模块大类下的完整菜单树 -->
+                <div class="rail-popover-menu">
+                  <div class="rail-popover-header">
+                    <el-icon class="rail-popover-icon">
+                      <component :is="clusterMetaMap[group.key]?.icon || 'Grid'" />
+                    </el-icon>
+                    <span class="rail-popover-title">{{ group.label }}</span>
+                  </div>
+                  <div class="rail-popover-body">
+                    <div v-for="app in group.items" :key="app.id" class="rail-popover-item-wrap">
                       <div
-                        v-if="isAppExpanded(app.id) && app.children.length"
-                        class="console-shell__submenu console-shell__submenu--nested"
+                        class="rail-popover-app"
+                        :class="{ 'is-active': isSectionActive(app) }"
+                        @click="handleAppClick(app)"
                       >
-                        <button
+                        <el-icon class="rail-popover-app-icon">
+                          <component :is="resolveAppIcon(app.code, app.icon)" />
+                        </el-icon>
+                        <span class="rail-popover-app-title">{{ app.title }}</span>
+                      </div>
+                      <div v-if="app.children && app.children.length" class="rail-popover-sub-list">
+                        <div
                           v-for="item in app.children.filter((child) => child.path)"
                           :key="item.id"
-                          class="console-shell__submenu-item"
+                          class="rail-popover-sub-item"
                           :class="{ 'is-active': isExactActive(item) }"
                           @click="go(item)"
                         >
-                          <el-icon v-if="item.icon" class="console-shell__submenu-icon">
-                            <component :is="item.icon" />
-                          </el-icon>
-                          <span v-else class="console-shell__submenu-dot" />
-                          <span class="console-shell__submenu-text">{{ item.title }}</span>
-                        </button>
+                          <span class="rail-popover-sub-dot" />
+                          <span class="rail-popover-sub-text">{{ item.title }}</span>
+                        </div>
                       </div>
-                    </transition>
+                    </div>
                   </div>
                 </div>
-              </transition>
+              </el-popover>
+
+              <!-- 正常展开状态下：内嵌完整树展开 -->
+              <template v-else>
+                <button
+                  class="console-shell__cluster-parent"
+                  :class="{
+                    'is-expanded': isClusterExpanded(group.key),
+                    'is-active': isClusterActive(group)
+                  }"
+                  :title="`${group.label} (点击展开/折叠)`"
+                  @click="toggleClusterExpanded(group.key)"
+                >
+                  <el-icon class="cluster-parent-icon">
+                    <component :is="clusterMetaMap[group.key]?.icon || 'Grid'" />
+                  </el-icon>
+                  <span class="cluster-parent-title">{{ group.label }}</span>
+                  <el-icon class="cluster-parent-arrow" :class="{ 'is-open': isClusterExpanded(group.key) }">
+                    <ArrowRight />
+                  </el-icon>
+                </button>
+
+                <!-- 展开后的二级应用列表 (轻量内缩进树) -->
+                <transition name="cluster-slide">
+                  <div v-if="isClusterExpanded(group.key)" class="console-shell__cluster-children">
+                    <div v-for="app in group.items" :key="app.id" class="console-shell__app-group">
+                      <button
+                        class="console-shell__rail-app console-shell__rail-app--nested"
+                        :class="{
+                          'is-active': isSectionActive(app),
+                          'is-expanded': isAppExpanded(app.id),
+                          'has-children': app.children.length > 0
+                        }"
+                        :title="app.title"
+                        @click="handleAppClick(app)"
+                      >
+                        <el-icon class="console-shell__rail-icon">
+                          <component :is="resolveAppIcon(app.code, app.icon)" />
+                        </el-icon>
+                        <span class="console-shell__rail-title">{{ app.title }}</span>
+                        <el-icon v-if="app.children.length" class="console-shell__rail-arrow" :class="{ 'is-open': isAppExpanded(app.id) }">
+                          <ArrowRight />
+                        </el-icon>
+                      </button>
+
+                      <!-- 三级子功能菜单 -->
+                      <transition name="submenu-slide">
+                        <div
+                          v-if="isAppExpanded(app.id) && app.children.length"
+                          class="console-shell__submenu console-shell__submenu--nested"
+                        >
+                          <button
+                            v-for="item in app.children.filter((child) => child.path)"
+                            :key="item.id"
+                            class="console-shell__submenu-item"
+                            :class="{ 'is-active': isExactActive(item) }"
+                            @click="go(item)"
+                          >
+                            <el-icon v-if="item.icon" class="console-shell__submenu-icon">
+                              <component :is="item.icon" />
+                            </el-icon>
+                            <span v-else class="console-shell__submenu-dot" />
+                            <span class="console-shell__submenu-text">{{ item.title }}</span>
+                          </button>
+                        </div>
+                      </transition>
+                    </div>
+                  </div>
+                </transition>
+              </template>
             </div>
           </section>
         </template>
@@ -683,42 +818,57 @@ onMounted(() => {
         <el-button link :loading="menuStore.loading" @click="handleRefreshNavigation">重试</el-button>
       </div>
 
-      <footer class="console-shell__rail-footer">
-        <button class="console-shell__directory-trigger" title="功能索引" @click="directoryVisible = true">
-          <Grid class="console-shell__directory-icon" />
-          <span>{{ localeStore.t("shell.directory") }}</span>
-        </button>
-
-        <!-- 顶层父级位置便捷切换按钮 (在顶部 vs 在左侧) -->
-        <el-tooltip :content="layoutMode === 'side' ? '点击切换为「顶层主域置顶模式」' : '点击切换为「左侧多级折叠树模式」'" placement="top">
+      <footer class="console-shell__rail-footer" :class="{ 'is-collapsed': railCollapsed }">
+        <template v-if="railCollapsed">
           <button
-            class="console-shell__footer-layout-btn"
-            @click="setCategoryPosition(layoutMode === 'side' ? 'top' : 'side')"
+            class="console-shell__collapsed-expand-bar"
+            title="点击展开左侧主导航"
+            aria-label="展开导航"
+            @click="railCollapsed = false"
           >
-            <el-icon class="footer-layout-icon"><SwitchIcon /></el-icon>
-            <span class="footer-layout-text">{{ layoutMode === 'side' ? '顶层在左' : '顶层置顶' }}</span>
+            <el-icon class="expand-icon"><Expand /></el-icon>
+            <span class="expand-label">展开</span>
           </button>
-        </el-tooltip>
-
-        <!-- 侧栏风格切换 (深钛金灰 vs 极简雅白) -->
-        <el-tooltip :content="railTheme === 'dark' ? '点击切换为「极简雅白」侧栏' : '点击切换为「深钛金灰」侧栏'" placement="top">
-          <button
-            class="console-shell__footer-layout-btn"
-            @click="toggleRailTheme"
-          >
-            <el-icon class="footer-layout-icon"><component :is="railTheme === 'dark' ? Sunny : Moon" /></el-icon>
-            <span class="footer-layout-text">{{ railTheme === 'dark' ? '雅白' : '深灰' }}</span>
+        </template>
+        <template v-else>
+          <button class="console-shell__directory-trigger" title="功能索引 (快捷导航地图)" @click="directoryVisible = true">
+            <Grid class="console-shell__directory-icon" />
+            <span>{{ localeStore.t("shell.directory") }}</span>
           </button>
-        </el-tooltip>
 
-        <button
-          class="console-shell__collapse-trigger"
-          :title="railCollapsed ? '展开导航' : '收起导航'"
-          :aria-label="railCollapsed ? '展开导航' : '收起导航'"
-          @click="railCollapsed = !railCollapsed"
-        >
-          <component :is="railCollapsed ? Expand : Fold" />
-        </button>
+          <div class="console-shell__footer-actions">
+            <!-- 顶层父级位置便捷切换按钮 (在顶部 vs 在左侧) -->
+            <el-tooltip :content="layoutMode === 'side' ? '点击切换为「顶层主域置顶模式」' : '点击切换为「左侧多级折叠树模式」'" placement="top">
+              <button
+                class="console-shell__footer-icon-btn"
+                :aria-label="layoutMode === 'side' ? '切换为顶层主域置顶模式' : '切换为左侧折叠树模式'"
+                @click="setCategoryPosition(layoutMode === 'side' ? 'top' : 'side')"
+              >
+                <el-icon><SwitchIcon /></el-icon>
+              </button>
+            </el-tooltip>
+
+            <!-- 侧栏风格切换 (深钛金灰 vs 极简雅白) -->
+            <el-tooltip :content="railTheme === 'dark' ? '点击切换为「极简雅白」侧栏' : '点击切换为「深钛金灰」侧栏'" placement="top">
+              <button
+                class="console-shell__footer-icon-btn"
+                :aria-label="railTheme === 'dark' ? '切换为极简雅白侧栏' : '切换为深钛金灰侧栏'"
+                @click="toggleRailTheme"
+              >
+                <el-icon><component :is="railTheme === 'dark' ? Sunny : Moon" /></el-icon>
+              </button>
+            </el-tooltip>
+
+            <button
+              class="console-shell__collapse-trigger"
+              title="收起侧栏主导航"
+              aria-label="收起导航"
+              @click="railCollapsed = true"
+            >
+              <Fold />
+            </button>
+          </div>
+        </template>
       </footer>
     </aside>
 
@@ -734,13 +884,25 @@ onMounted(() => {
           <el-icon class="mobile-menu-icon"><Fold /></el-icon>
         </button>
 
+        <!-- 侧栏折叠/展开常驻快捷按钮 (醒目快捷键：直接点击切换展开/收起) -->
+        <button
+          v-if="layoutMode !== 'top'"
+          class="console-shell__rail-toggle-pill"
+          :class="{ 'is-collapsed': railCollapsed }"
+          :title="railCollapsed ? '展开左侧菜单' : '收起左侧菜单'"
+          :aria-label="railCollapsed ? '展开左侧菜单' : '收起左侧菜单'"
+          @click="railCollapsed = !railCollapsed"
+        >
+          <el-icon class="toggle-icon"><component :is="railCollapsed ? Expand : Fold" /></el-icon>
+          <span class="toggle-text">{{ railCollapsed ? '展开菜单' : '收起' }}</span>
+        </button>
+
         <!-- 顶部菜单模式下的品牌展示 -->
         <div v-if="layoutMode === 'top'" class="console-shell__brand console-shell__brand--top">
           <TianshuLogo
             :size="26"
             show-text
-            show-badge
-            badge-text="PaaS"
+            :theme="railTheme"
           />
         </div>
 
@@ -1048,7 +1210,7 @@ onMounted(() => {
                 <Search />
               </template>
               <template #suffix>
-                <kbd class="console-shell__quick-kbd">⌘K</kbd>
+                <kbd class="console-shell__quick-kbd">搜索</kbd>
               </template>
               <template #default="{ item }">
                 <span class="console-shell__quick-option">{{ item.value }}</span>
@@ -1056,10 +1218,10 @@ onMounted(() => {
             </el-autocomplete>
           </div>
 
-          <!-- 云原生 SLA 运行状态指示器 -->
-          <div class="console-shell__sla-pill" title="全平台多租户微服务与基础设施健康：正常 (99.99% SLA)">
+          <!-- 系统运行状态指示器 -->
+          <div class="console-shell__sla-pill" title="系统各服务模块运行正常，数据传输稳定">
             <span class="sla-dot-pulse" />
-            <span class="sla-text">99.99% SLA</span>
+            <span class="sla-text">运行正常</span>
           </div>
 
           <!-- 数字大屏驾驶舱快捷按钮 -->
@@ -1152,13 +1314,13 @@ onMounted(() => {
         </div>
       </header>
 
-      <!-- 多标签页 TagsView 导航条 -->
-      <TagsView />
+      <!-- 多标签页 TagsView 导航条 (在概览控制台首页沉浸模式下隐藏，确保毛玻璃纯粹无干扰) -->
+      <TagsView v-if="route.path !== '/dashboard'" />
 
       <el-watermark class="console-shell__watermark-wrap" :content="watermarkContent" :font="{ color: 'rgba(0, 0, 0, 0.015)', fontSize: 13 }">
         <main class="console-shell__workspace">
-          <!-- 顶部模式下的页头面包屑导航条 -->
-          <div v-if="layoutMode === 'top' && showBreadcrumbs" class="console-shell__page-header-bar">
+          <!-- 顶部模式下的页头面包屑导航条 (在概览控制台首页隐藏，避免双重标题) -->
+          <div v-if="layoutMode === 'top' && showBreadcrumbs && route.path !== '/dashboard'" class="console-shell__page-header-bar">
             <div class="console-shell__breadcrumbs">
               <span class="console-shell__breadcrumb-app">{{ currentApp?.title ?? "控制台" }}</span>
               <template v-if="currentApp?.title && currentSectionMeta.label && currentApp.title !== currentSectionMeta.label">
@@ -1354,7 +1516,7 @@ onMounted(() => {
     >
       <div class="mobile-drawer__content">
         <div class="mobile-drawer__header">
-          <TianshuLogo :size="24" show-text show-badge badge-text="PaaS" />
+          <TianshuLogo :size="24" show-text />
           <button
             class="mobile-drawer__close-btn"
             aria-label="关闭导航"
@@ -1409,18 +1571,22 @@ onMounted(() => {
 .console-shell {
   height: 100vh;
   display: grid;
-  grid-template-columns: 236px minmax(0, 1fr);
+  grid-template-columns: 242px minmax(0, 1fr);
   overflow: hidden;
   background: var(--sb-shell-main);
   transition: grid-template-columns 160ms cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 12px 14px 12px 14px;
+  gap: 14px;
+  box-sizing: border-box;
 
   &.layout--top {
     grid-template-columns: minmax(0, 1fr);
+    padding: 12px 16px;
   }
 }
 
 .console-shell--collapsed {
-  grid-template-columns: 58px minmax(0, 1fr);
+  grid-template-columns: 64px minmax(0, 1fr);
 
   .console-shell__brand {
     justify-content: center;
@@ -1434,7 +1600,7 @@ onMounted(() => {
   .console-shell__rail-arrow,
   .console-shell__submenu,
   .console-shell__directory-trigger span,
-  .console-shell__footer-layout-btn,
+  .console-shell__footer-icon-btn,
   .console-shell__nav-state span,
   .console-shell__cluster-title,
   .cluster-parent-title,
@@ -1467,6 +1633,9 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  height: 100%;
+  border-radius: 20px;
+  overflow: hidden;
   backdrop-filter: var(--sb-glass-blur);
   -webkit-backdrop-filter: var(--sb-glass-blur);
 
@@ -1495,36 +1664,41 @@ onMounted(() => {
   --rail-btn-border: rgba(255, 255, 255, 0.1);
 
   background: var(--rail-bg);
-  border-right: 1px solid var(--rail-border);
+  border: 1px solid var(--rail-border);
   color: var(--rail-text-app);
-  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.06), 4px 0 24px rgba(0, 0, 0, 0.12);
+  box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.25), 0 20px 40px -10px rgba(0, 0, 0, 0.35);
 
-  /* 主题 B：iOS 27 晶透雅白 (Unified Liquid Glass - 超高透光，光学倒角高光) */
+  /* 主题 B：iOS 27 晶透雅白 (Unified Liquid Glass - 超高透光，光学倒角高光，深度清晰文字) */
   &.rail-theme--light {
-    --rail-bg: rgba(255, 255, 255, 0.65);
-    --rail-border: rgba(226, 232, 240, 0.75);
-    --rail-brand-bg: rgba(255, 255, 255, 0.45);
-    --rail-brand-border: rgba(226, 232, 240, 0.6);
-    --rail-text-cluster: #0f172a;       /* 顶层主域大字：深邃 Slate-900，极高对比度，绝不发虚 */
-    --rail-text-cluster-hover: #2563eb; /* 悬浮科技钴蓝 */
-    --rail-text-cluster-active: #2563eb;
-    --rail-text-app: #1e293b;           /* 二级功能文字：高对比度 Slate-800，清晰锐利 */
+    --rail-bg: rgba(255, 255, 255, 0.78);
+    --rail-border: rgba(255, 255, 255, 0.95);
+    --rail-brand-bg: rgba(255, 255, 255, 0.55);
+    --rail-brand-border: rgba(226, 232, 240, 0.65);
+    --rail-text-cluster: #475569;       /* 顶层主域大字：权威结构 Slate-600 */
+    --rail-text-cluster-hover: #0f172a;
+    --rail-text-cluster-active: #0f172a;/* 激活顶级保持稳重大字，杜绝杂乱发虚 */
+    --rail-text-app: #1e293b;           /* 二级功能文字：高对比度深色 Slate-800，绝对清晰锐利 */
     --rail-text-app-hover: #0f172a;
     --rail-text-app-active: #1d4ed8;    /* 激活项纯正钴蓝 */
-    --rail-app-bg-hover: rgba(255, 255, 255, 0.65);       /* 晶白悬浮背景 */
-    --rail-app-bg-active: rgba(37, 99, 235, 0.12);      /* 清爽微蓝激活底色 */
-    --rail-icon-color: #475569;         /* 图标清晰易辨 */
+    --rail-app-bg-hover: rgba(255, 255, 255, 0.88);       /* 晶白悬浮背景 */
+    --rail-app-bg-active: rgba(37, 99, 235, 0.10);      /* 清爽微蓝激活底色 */
+    --rail-icon-color: #2563eb;         /* 图标清晰易辨科技钴蓝 */
     --rail-icon-active: #2563eb;
     --rail-indicator: #2563eb;
     --rail-indicator-glow: 0 0 10px rgba(37, 99, 235, 0.4);
     --rail-arrow-color: #94a3b8;
-    --rail-tree-line: rgba(203, 213, 225, 0.6);          /* 细腻雅灰引导发丝线 */
-    --rail-footer-bg: rgba(255, 255, 255, 0.45);
-    --rail-footer-border: rgba(226, 232, 240, 0.6);
-    --rail-btn-text: #334155;
-    --rail-btn-border: rgba(226, 232, 240, 0.8);
+    --rail-tree-line: rgba(203, 213, 225, 0.85);         /* 细腻雅灰引导发丝线 */
+    --rail-footer-bg: rgba(255, 255, 255, 0.60);
+    --rail-footer-border: rgba(226, 232, 240, 0.7);
+    --rail-btn-text: #1e293b;
+    --rail-btn-border: rgba(203, 213, 225, 0.8);
 
-    box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.85), 2px 0 20px rgba(15, 23, 42, 0.04);
+    backdrop-filter: blur(32px) saturate(210%) contrast(106%);
+    -webkit-backdrop-filter: blur(32px) saturate(210%) contrast(106%);
+    border: 1px solid rgba(255, 255, 255, 0.98);
+    box-shadow:
+      inset 0 1.5px 2px 0 rgba(255, 255, 255, 1),
+      0 20px 40px -10px rgba(15, 23, 42, 0.08);
   }
 }
 
@@ -1706,29 +1880,22 @@ onMounted(() => {
     font-weight: 500;
 
     &.is-active {
-      background: var(--rail-app-bg-active);
-      color: var(--rail-text-app-active);
-      font-weight: 600;
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+      color: #ffffff !important;
+      font-weight: 600 !important;
+      box-shadow: 0 3px 10px rgba(37, 99, 235, 0.35);
 
       &::before {
-        content: "";
-        position: absolute;
-        left: 0;
-        top: 4px;
-        bottom: 4px;
-        width: 3px;
-        border-radius: 0 2px 2px 0;
-        background: var(--rail-indicator);
-        box-shadow: var(--rail-indicator-glow);
+        display: none;
       }
 
       .cluster-parent-icon {
-        color: var(--rail-icon-active);
+        color: #ffffff !important;
       }
 
       .cluster-parent-title {
-        color: var(--rail-text-app-active);
-        font-weight: 600;
+        color: #ffffff !important;
+        font-weight: 600 !important;
       }
     }
   }
@@ -1831,18 +1998,19 @@ onMounted(() => {
 .console-shell__rail-app {
   position: relative;
   width: 100%;
-  height: 32px;
-  min-height: 32px;
+  height: 34px;
+  min-height: 34px;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 8px;
-  border-radius: 6px;
+  padding: 0 10px;
+  border-radius: 7px;
   background: transparent;
   color: var(--rail-text-app);
   font-size: 13px;
   font-weight: 500;
   text-align: left;
+  -webkit-font-smoothing: antialiased;
 
   .console-shell__rail-icon {
     color: var(--rail-icon-color);
@@ -1852,6 +2020,7 @@ onMounted(() => {
     color: inherit;
     font-size: 13px;
     font-weight: inherit;
+    letter-spacing: -0.01em;
   }
 
   .console-shell__rail-arrow {
@@ -1871,37 +2040,53 @@ onMounted(() => {
     }
   }
 
-  &.is-active {
-    background: var(--rail-app-bg-active);
-    color: var(--rail-text-app-active);
-    font-weight: 600;
+  /* 具有下级菜单项的父节点：展开或其子路由激活时保持素雅权威大字，不出现与子菜单冲突的混杂蓝底 */
+  &.has-children {
+    font-weight: 550;
 
-    &::before {
-      content: "";
-      position: absolute;
-      left: 0;
-      top: 4px;
-      bottom: 4px;
-      width: 3px;
-      border-radius: 0 2px 2px 0;
-      background: var(--rail-indicator);
-      box-shadow: var(--rail-indicator-glow);
+    &.is-expanded,
+    &.is-active {
+      background: rgba(241, 245, 249, 0.70);
+      color: #0f172a;
+      font-weight: 650;
+
+      .console-shell__rail-icon {
+        color: #2563eb;
+      }
+
+      .console-shell__rail-title {
+        color: #0f172a;
+        font-weight: 650;
+      }
+
+      .console-shell__rail-arrow {
+        color: #2563eb;
+      }
+
+      &::before {
+        display: none;
+      }
     }
+  }
+
+  /* 单一叶子节点激活态 (无子级的菜单，如平台总览) */
+  &:not(.has-children).is-active {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    box-shadow: 0 3px 10px rgba(37, 99, 235, 0.35);
 
     .console-shell__rail-icon {
-      color: var(--rail-icon-active);
-      background: transparent;
-      border: none;
-      box-shadow: none;
+      color: #ffffff !important;
     }
 
     .console-shell__rail-title {
-      font-weight: 600;
-      color: var(--rail-text-app-active);
+      font-weight: 600 !important;
+      color: #ffffff !important;
     }
 
-    .console-shell__rail-arrow {
-      color: var(--rail-icon-active);
+    &::before {
+      display: none;
     }
   }
 }
@@ -1961,10 +2146,10 @@ onMounted(() => {
 
 .console-shell__submenu {
   display: grid;
-  gap: 1px;
-  margin: 1px 0 3px 15px;
+  gap: 2px;
+  margin: 2px 0 4px 14px;
   padding-left: 8px;
-  border-left: 1px solid var(--rail-tree-line);
+  border-left: 1.5px solid var(--rail-tree-line);
 }
 
 .submenu-slide-enter-active,
@@ -1980,36 +2165,38 @@ onMounted(() => {
 
 .console-shell__submenu-item {
   width: 100%;
-  height: 28px;
-  min-height: 28px;
+  height: 32px;
+  min-height: 32px;
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 0 8px;
-  border-radius: 5px;
+  gap: 8px;
+  padding: 0 10px;
+  border-radius: 6px;
   background: transparent;
   color: var(--rail-text-app);
-  font-size: 12.5px;
-  font-weight: 450;
+  font-size: 13px;
+  font-weight: 500;
   text-align: left;
   border: none;
   cursor: pointer;
-  transition: all 120ms ease;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.01em;
+  transition: all 120ms cubic-bezier(0.4, 0, 0.2, 1);
 
   .console-shell__submenu-dot {
-    width: 4px;
-    height: 4px;
-    flex: 0 0 4px;
+    width: 4.5px;
+    height: 4.5px;
+    flex: 0 0 4.5px;
     border-radius: 50%;
-    background: var(--rail-icon-color);
+    background: #94a3b8;
     transition: all 120ms ease;
   }
 
   .console-shell__submenu-icon {
-    font-size: 13px;
-    width: 13px;
-    height: 13px;
-    flex: 0 0 13px;
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+    flex: 0 0 14px;
     color: var(--rail-icon-color);
     transition: color 120ms ease;
   }
@@ -2029,6 +2216,7 @@ onMounted(() => {
 
     .console-shell__submenu-dot {
       background: var(--rail-icon-active);
+      transform: scale(1.2);
     }
 
     .console-shell__submenu-icon {
@@ -2036,17 +2224,28 @@ onMounted(() => {
     }
   }
 
+  /* Apple Keynote 顶级聚焦明澈胶囊 */
   &.is-active {
-    background: var(--rail-app-bg-active);
-    color: var(--rail-text-app-active);
-    font-weight: 600;
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    box-shadow:
+      0 3px 10px rgba(37, 99, 235, 0.35),
+      inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
 
     .console-shell__submenu-dot {
-      background: var(--rail-indicator);
+      background: #ffffff !important;
+      box-shadow: 0 0 6px rgba(255, 255, 255, 0.85);
+      transform: scale(1.2);
     }
 
     .console-shell__submenu-icon {
-      color: var(--rail-icon-active);
+      color: #ffffff !important;
+    }
+
+    .console-shell__submenu-text {
+      color: #ffffff !important;
+      font-weight: 600 !important;
     }
   }
 }
@@ -2063,14 +2262,80 @@ onMounted(() => {
 }
 
 .console-shell__rail-footer {
-  height: 44px;
+  height: 46px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   border-top: 1px solid var(--rail-footer-border);
   background: var(--rail-footer-bg);
-  padding: 0 6px;
+  padding: 0 8px;
+  gap: 6px;
+  box-sizing: border-box;
+
+  &.is-collapsed {
+    padding: 6px;
+    justify-content: center;
+  }
+}
+
+.console-shell__collapsed-expand-bar {
+  width: 100%;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   gap: 4px;
+  padding: 0 4px;
+  white-space: nowrap;
+  border-radius: 8px;
+  background: rgba(37, 99, 235, 0.12);
+  border: 1px solid rgba(37, 99, 235, 0.35);
+  color: #2563eb;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.12);
+  transition: all 160ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  .expand-icon {
+    font-size: 13px;
+    flex-shrink: 0;
+    transition: transform 160ms ease;
+  }
+
+  .expand-label {
+    letter-spacing: 0.02em;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  &:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    border-color: #1d4ed8;
+    color: #ffffff;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+
+    .expand-icon {
+      transform: translateX(2px);
+    }
+  }
+}
+
+.rail-theme--dark {
+  .console-shell__collapsed-expand-bar {
+    background: rgba(56, 189, 248, 0.14);
+    border-color: rgba(56, 189, 248, 0.4);
+    color: #38bdf8;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+
+    &:hover {
+      background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+      border-color: #38bdf8;
+      color: #ffffff;
+      box-shadow: 0 4px 16px rgba(56, 189, 248, 0.45);
+    }
+  }
 }
 
 .console-shell__directory-trigger {
@@ -2089,68 +2354,58 @@ onMounted(() => {
   text-align: left;
   border: 1px solid var(--rail-btn-border);
   cursor: pointer;
-  transition: all 120ms ease;
-
-  &:hover {
-    background: var(--rail-app-bg-hover);
-    color: var(--rail-text-app-hover);
-    border-color: var(--rail-icon-active);
-  }
-}
-
-.console-shell__footer-layout-btn {
-  height: 30px;
-  padding: 0 7px;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--rail-btn-text);
-  font-size: 11px;
-  font-weight: 500;
-  border: 1px solid var(--rail-btn-border);
-  cursor: pointer;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   transition: all 120ms ease;
+
+  span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 
   &:hover {
     background: var(--rail-app-bg-hover);
-    border-color: var(--rail-icon-active);
     color: var(--rail-text-app-hover);
-  }
-
-  .footer-layout-icon {
-    font-size: 12px;
-  }
-
-  .footer-layout-text {
-    font-size: 11px;
+    border-color: var(--rail-icon-active);
   }
 }
 
+.console-shell__footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.console-shell__footer-icon-btn,
 .console-shell__collapse-trigger {
-  width: 30px;
-  height: 30px;
-  display: grid;
-  flex: 0 0 30px;
-  place-items: center;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 6px;
   border: 1px solid var(--rail-btn-border);
   background: transparent;
   color: var(--rail-btn-text);
+  font-size: 13px;
   cursor: pointer;
+  flex-shrink: 0;
   transition: all 120ms ease;
 
   &:hover {
     background: var(--rail-app-bg-hover);
-    color: var(--rail-text-app-hover);
     border-color: var(--rail-icon-active);
+    color: var(--rail-text-app-hover);
   }
 }
 
 .console-shell__directory-icon {
   width: 15px;
+  height: 15px;
+  flex-shrink: 0;
 }
 
 .console-shell__main {
@@ -2159,22 +2414,76 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  gap: 10px;
 }
 
 .console-shell__topbar {
-  height: 52px;
-  flex: 0 0 52px;
+  height: 54px;
+  flex: 0 0 54px;
   box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   padding: 0 20px;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.75);
-  background: rgba(255, 255, 255, 0.68);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.58);
   backdrop-filter: var(--sb-glass-blur);
   -webkit-backdrop-filter: var(--sb-glass-blur);
-  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.95), 0 4px 20px rgba(15, 23, 42, 0.03);
+  box-shadow:
+    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
+    0 10px 25px -5px rgba(15, 23, 42, 0.04);
+}
+
+.console-shell__rail-toggle-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  color: #334155;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  transition: all 160ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  .toggle-icon {
+    font-size: 14px;
+    color: #2563eb;
+    transition: transform 160ms ease;
+  }
+
+  .toggle-text {
+    letter-spacing: -0.01em;
+  }
+
+  &:hover {
+    background: #ffffff;
+    border-color: #93c5fd;
+    color: #1d4ed8;
+    box-shadow: 0 3px 10px rgba(37, 99, 235, 0.15);
+
+    .toggle-icon {
+      transform: scale(1.15);
+    }
+  }
+
+  &.is-collapsed {
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.10) 0%, rgba(59, 130, 246, 0.15) 100%);
+    border-color: rgba(37, 99, 235, 0.4);
+    color: #1d4ed8;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+
+    .toggle-icon {
+      color: #2563eb;
+    }
+  }
 }
 
 .console-shell__watermark-wrap {
@@ -2183,6 +2492,11 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .console-shell__title-block {
@@ -3536,6 +3850,241 @@ onMounted(() => {
     width: 28px;
     height: 28px;
     font-size: 12px;
+  }
+}
+</style>
+
+<style lang="scss">
+/* ============================================================
+   全局悬浮菜单浮层 (左侧栏收起状态下的子菜单 Popover)
+   ============================================================ */
+.rail-collapsed-popover.el-popper {
+  padding: 0 !important;
+  border-radius: 14px !important;
+  border: 1px solid rgba(255, 255, 255, 0.95) !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  backdrop-filter: blur(28px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+  box-shadow:
+    0 16px 36px -4px rgba(15, 23, 42, 0.16),
+    0 0 0 1px rgba(255, 255, 255, 0.95) inset !important;
+  overflow: hidden;
+
+  .el-popper__arrow {
+    display: none !important;
+  }
+}
+
+.rail-collapsed-popover--dark.el-popper {
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  background: rgba(15, 23, 42, 0.92) !important;
+  box-shadow:
+    0 20px 40px -4px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.08) inset !important;
+
+  .rail-popover-menu {
+    .rail-popover-header {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      color: #f1f5f9;
+
+      .rail-popover-icon {
+        color: #38bdf8;
+      }
+      .rail-popover-title {
+        color: #f1f5f9;
+      }
+    }
+
+    .rail-popover-app {
+      color: #cbd5e1;
+      .rail-popover-app-icon {
+        color: #38bdf8;
+      }
+      &:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: #ffffff;
+      }
+      &.is-active {
+        background: rgba(56, 189, 248, 0.15);
+        color: #38bdf8;
+      }
+    }
+
+    .rail-popover-sub-list {
+      border-left: 1.5px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .rail-popover-sub-item {
+      color: #94a3b8;
+      .rail-popover-sub-dot {
+        background: #64748b;
+      }
+      &:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: #ffffff;
+        .rail-popover-sub-dot {
+          background: #38bdf8;
+          transform: scale(1.3);
+        }
+      }
+      &.is-active {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+        color: #ffffff !important;
+        .rail-popover-sub-dot {
+          background: #ffffff !important;
+        }
+        .rail-popover-sub-text {
+          color: #ffffff !important;
+        }
+      }
+    }
+  }
+}
+
+.rail-popover-menu {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 6px;
+  min-width: 190px;
+  max-width: 260px;
+  box-sizing: border-box;
+
+  .rail-popover-header {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 10px 8px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.7);
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+
+    .rail-popover-icon {
+      font-size: 15px;
+      color: #2563eb;
+    }
+
+    .rail-popover-title {
+      font-size: 13px;
+      font-weight: 650;
+      color: #0f172a;
+    }
+  }
+
+  .rail-popover-body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 420px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+
+    &::-webkit-scrollbar {
+      width: 4px;
+    }
+    &::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.35);
+      border-radius: 4px;
+    }
+  }
+
+  .rail-popover-item-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .rail-popover-app {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 7px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #334155;
+    cursor: pointer;
+    transition: all 120ms ease;
+
+    .rail-popover-app-icon {
+      font-size: 14px;
+      color: #2563eb;
+    }
+
+    &:hover {
+      background: rgba(241, 245, 249, 0.95);
+      color: #0f172a;
+    }
+
+    &.is-active {
+      background: rgba(37, 99, 235, 0.08);
+      color: #2563eb;
+    }
+  }
+
+  .rail-popover-sub-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-left: 10px;
+    margin-left: 10px;
+    border-left: 1.5px solid rgba(226, 232, 240, 0.85);
+  }
+
+  .rail-popover-sub-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #475569;
+    cursor: pointer;
+    transition: all 120ms ease;
+
+    .rail-popover-sub-dot {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #94a3b8;
+      transition: all 120ms ease;
+    }
+
+    .rail-popover-sub-text {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    &:hover {
+      background: rgba(241, 245, 249, 0.95);
+      color: #0f172a;
+
+      .rail-popover-sub-dot {
+        background: #2563eb;
+        transform: scale(1.3);
+      }
+    }
+
+    &.is-active {
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+      color: #ffffff !important;
+      font-weight: 600 !important;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+
+      .rail-popover-sub-dot {
+        background: #ffffff !important;
+        box-shadow: 0 0 4px rgba(255, 255, 255, 0.85);
+      }
+
+      .rail-popover-sub-text {
+        color: #ffffff !important;
+      }
+    }
   }
 }
 </style>

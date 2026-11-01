@@ -285,7 +285,7 @@ onMounted(() => {
           </template>
         </el-table-column>
 
-        <el-table-column label="自愈操作" width="200" fixed="right" align="center">
+        <el-table-column label="自愈操作" min-width="180" align="center">
           <template #default="{ row }">
             <el-button
               type="primary"
@@ -401,17 +401,19 @@ onMounted(() => {
 
 /* 检索过滤工具条 */
 .trash-filter-toolbar {
-  background: #fff;
-  border: 1px solid var(--sb-border-color);
-  border-radius: 9px;
-  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  border-radius: 18px;
+  padding: 12px 18px;
   margin-bottom: 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
-  box-shadow: var(--sb-shadow-xs);
+  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), 0 10px 25px -5px rgba(12, 34, 56, 0.05);
 }
 
 .filter-left {
@@ -519,11 +521,13 @@ onMounted(() => {
 }
 
 .trash-table-card {
-  background: #fff;
-  border: 1px solid var(--sb-border-color);
-  border-radius: 10px;
-  padding: 16px;
-  box-shadow: var(--sb-shadow-xs);
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  border-radius: 24px;
+  padding: 18px;
+  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), inset 0 0 0 1px rgba(255, 255, 255, 0.35), 0 16px 40px -10px rgba(12, 34, 56, 0.08);
 }
 
 .empty-state {

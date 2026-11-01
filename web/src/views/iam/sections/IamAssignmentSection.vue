@@ -527,7 +527,7 @@ onMounted(() => {
                 </template>
               </el-table-column>
 
-              <el-table-column label="操作" width="160" align="center" fixed="right">
+              <el-table-column label="操作" min-width="160" align="center">
                 <template #default="{ row }">
                   <el-button link type="primary" size="small" @click="emit('openInspector', row.id)">
                     权限透视
@@ -1159,19 +1159,23 @@ onMounted(() => {
     }
 
     .role-grid-card {
-      border: 1px solid var(--sb-border-color, #e2e8f0);
-      background: #fafafa;
-      border-radius: 8px;
-      padding: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.85);
+      background: rgba(255, 255, 255, 0.58);
+      backdrop-filter: blur(24px) saturate(200%);
+      -webkit-backdrop-filter: blur(24px) saturate(200%);
+      border-radius: var(--sb-radius-glass-sm, 14px);
+      padding: 16px;
       display: flex;
       flex-direction: column;
       gap: 12px;
-      transition: all 0.2s;
+      box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), 0 6px 20px -4px rgba(12, 34, 56, 0.05);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 
       &:hover {
-        border-color: #cbd5e1;
-        background: #fff;
-        box-shadow: 0 4px 12px rgb(0 0 0 / 0.04);
+        border-color: rgba(255, 255, 255, 0.98);
+        background: rgba(255, 255, 255, 0.75);
+        box-shadow: inset 0 1.5px 2px 0 #fff, 0 12px 30px -6px rgba(12, 34, 56, 0.10);
+        transform: translateY(-2px);
       }
 
       .card-top {

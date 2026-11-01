@@ -123,6 +123,11 @@
         <path d="m9 18 6-6-6-6" />
       </g>
 
+      <!-- 箭头向左 / 返回 -->
+      <g v-else-if="name === 'chevron-left' || name === 'arrow-left' || name === 'back'">
+        <path d="m15 18-6-6 6-6" />
+      </g>
+
       <!-- 默认通用图标 -->
       <g v-else>
         <circle cx="12" cy="12" r="10" />

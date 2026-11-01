@@ -78,10 +78,16 @@ function updateField(field: string, value: string | number | undefined) {
 
 <style scoped lang="scss">
 .schema-form-shell {
-  padding: 13px 14px 2px;
-  border: 1px solid var(--sb-border-color);
-  border-radius: var(--sb-radius-md);
-  background: #fafbfc;
+  padding: 14px 18px 4px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: var(--sb-radius-glass-md, 16px);
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  box-shadow:
+    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
+    0 10px 25px -5px rgba(12, 34, 56, 0.05);
+  margin-bottom: 12px;
 }
 
 .schema-form-shell__header {

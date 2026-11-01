@@ -195,7 +195,7 @@ function navigateTo(path: string) {
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="220" fixed="right">
+        <el-table-column label="操作" min-width="200">
           <template #default="{ row }">
             <el-button link type="primary" :icon="VideoPlay" @click="triggerJob?.(row)">即刻触发</el-button>
             <el-button

@@ -223,6 +223,9 @@ public class ErpService {
 
     @Transactional
     public ErpPurchaseOrderResponse createPurchaseOrder(ErpPurchaseOrderSaveRequest req) {
+        if (req != null && req.totalAmount() != null && req.totalAmount().compareTo(BigDecimal.ZERO) < 0) {
+            throw new BizException("INVALID_AMOUNT", "采购订单总金额不能为负数");
+        }
         Long tenantId = getTenantId();
         Long userId = getUserId();
 

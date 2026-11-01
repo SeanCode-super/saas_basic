@@ -448,7 +448,7 @@ function handleGoToArtifacts() {
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="80" align="center" fixed="right">
+        <el-table-column label="操作" min-width="80" align="center">
           <template #default="{ $index, row }">
             <el-button
               type="danger"
@@ -493,7 +493,7 @@ function handleGoToArtifacts() {
         </el-table-column>
         <el-table-column prop="tableComment" label="表描述 / 业务名称" min-width="200" />
         <el-table-column prop="createTime" label="创建时间" width="170" align="center" />
-        <el-table-column label="操作" width="120" align="center" fixed="right">
+        <el-table-column label="操作" min-width="100" align="center">
           <template #default="{ row }">
             <el-button type="primary" link size="small" @click="handleImportTable(row)">
               一键导入建模
@@ -629,8 +629,9 @@ function handleGoToArtifacts() {
 
   .config-expanded-body {
     padding: 12px 14px;
-    border-top: 1px solid #e2e8f0;
-    background: #fff;
+    border-top: 1px solid rgba(226, 232, 240, 0.6);
+    background: rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(12px);
 
     :deep(.el-form-item) {
       margin-bottom: 0;

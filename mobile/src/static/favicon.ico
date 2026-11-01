@@ -1,0 +1,13 @@
+<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Tianshu PaaS Enterprise Vector Mark (Polaris Pivot) -->
+  <!-- Four precision architectural wings converging on the central pivot -->
+  <path d="M24 4L34 14H27.5L24 10.5L20.5 14H14L24 4Z" fill="#1D4ED8" />
+  <path d="M24 44L14 34H20.5L24 37.5L27.5 34H34L24 44Z" fill="#1D4ED8" />
+  <path d="M4 24L14 14V20.5L10.5 24L14 27.5V34L4 24Z" fill="#2563EB" />
+  <path d="M44 24L34 34V27.5L37.5 24L34 20.5V14L44 24Z" fill="#2563EB" />
+
+  <!-- Center Diamond Pivot -->
+  <path d="M24 17L31 24L24 31L17 24L24 17Z" fill="#0F172A" />
+  <!-- Core Anchor Point -->
+  <circle cx="24" cy="24" r="2.5" fill="#FFFFFF" />
+</svg>

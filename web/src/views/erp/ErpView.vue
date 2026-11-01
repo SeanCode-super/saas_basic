@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
   Box,
@@ -86,6 +86,44 @@ const filteredInventory = computed(() => {
       i.productName.toLowerCase().includes(kw) ||
       i.warehouseName.toLowerCase().includes(kw)
   );
+});
+
+// 统一分页
+const erpPage = ref(1);
+const erpPageSize = ref(10);
+
+const currentErpList = computed<any[]>(() => {
+  switch (activeTab.value) {
+    case "inventory": return filteredInventory.value;
+    case "products": return filteredProducts.value;
+    case "purchase": return purchaseOrders.value;
+    case "records": return records.value;
+    default: return [];
+  }
+});
+
+const paginatedInventory = computed(() => {
+  const start = (erpPage.value - 1) * erpPageSize.value;
+  return filteredInventory.value.slice(start, start + erpPageSize.value);
+});
+
+const paginatedProducts = computed(() => {
+  const start = (erpPage.value - 1) * erpPageSize.value;
+  return filteredProducts.value.slice(start, start + erpPageSize.value);
+});
+
+const paginatedPurchaseOrders = computed(() => {
+  const start = (erpPage.value - 1) * erpPageSize.value;
+  return purchaseOrders.value.slice(start, start + erpPageSize.value);
+});
+
+const paginatedRecords = computed(() => {
+  const start = (erpPage.value - 1) * erpPageSize.value;
+  return records.value.slice(start, start + erpPageSize.value);
+});
+
+watch([activeTab, productSearch, inventorySearch], () => {
+  erpPage.value = 1;
 });
 
 async function loadAll() {
@@ -214,7 +252,7 @@ async function handleStockIn(order: ErpPurchaseOrderRow) {
             />
           </div>
 
-          <el-table :data="filteredInventory" stripe border style="width: 100%;">
+          <el-table :data="paginatedInventory" stripe border style="width: 100%;">
             <el-table-column prop="productCode" label="物料编码" width="150" />
             <el-table-column prop="productName" label="物料全称" min-width="180">
               <template #default="{ row }">
@@ -263,7 +301,7 @@ async function handleStockIn(order: ErpPurchaseOrderRow) {
             <el-button type="primary" :icon="Plus" @click="openAddProductDialog">新增物料档案</el-button>
           </div>
 
-          <el-table :data="filteredProducts" stripe border style="width: 100%;">
+          <el-table :data="paginatedProducts" stripe border style="width: 100%;">
             <el-table-column prop="productCode" label="物料编码" width="150" />
             <el-table-column prop="productName" label="物料名称" min-width="180" />
             <el-table-column prop="category" label="分类" width="120" />
@@ -291,7 +329,7 @@ async function handleStockIn(order: ErpPurchaseOrderRow) {
             <el-button type="primary" :icon="DocumentAdd" @click="openAddPurchaseDialog">新建采购订单</el-button>
           </div>
 
-          <el-table :data="purchaseOrders" stripe border style="width: 100%;">
+          <el-table :data="paginatedPurchaseOrders" stripe border style="width: 100%;">
             <el-table-column prop="orderNo" label="采购单号" width="180" />
             <el-table-column prop="supplierName" label="供货单位" min-width="180" />
             <el-table-column prop="totalAmount" label="订单标的总额" width="140" align="right">
@@ -323,7 +361,7 @@ async function handleStockIn(order: ErpPurchaseOrderRow) {
 
         <!-- 4. 出入库台账审计 -->
         <el-tab-pane label="出入库流水台账" name="records">
-          <el-table :data="records" stripe border style="width: 100%;">
+          <el-table :data="paginatedRecords" stripe border style="width: 100%;">
             <el-table-column prop="recordNo" label="流水单号" width="180" />
             <el-table-column prop="recordType" label="业务类型" width="120" align="center">
               <template #default="{ row }">
@@ -349,6 +387,17 @@ async function handleStockIn(order: ErpPurchaseOrderRow) {
           </el-table>
         </el-tab-pane>
       </el-tabs>
+
+      <div class="erp-pagination-bar">
+        <el-pagination
+          v-model:current-page="erpPage"
+          v-model:page-size="erpPageSize"
+          :page-sizes="[10, 20, 50, 100]"
+          layout="total, sizes, prev, pager, next, jumper"
+          :total="currentErpList.length"
+          background
+        />
+      </div>
     </el-card>
 
     <!-- 新建物料 Dialog -->
@@ -431,7 +480,13 @@ async function handleStockIn(order: ErpPurchaseOrderRow) {
 
 <style scoped>
 .erp-container {
-  padding: 20px;
+  padding: 8px 4px 20px;
+  background: transparent;
+  box-sizing: border-box;
+}
+
+.erp-tabs {
+  background: transparent;
 }
 
 .flex-between {
@@ -477,5 +532,13 @@ async function handleStockIn(order: ErpPurchaseOrderRow) {
 
 .mb-4 {
   margin-bottom: 16px;
+}
+
+.erp-pagination-bar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 16px 8px 8px;
+  margin-top: 12px;
+  border-top: 1px solid rgba(226, 232, 240, 0.6);
 }
 </style>

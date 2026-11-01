@@ -355,11 +355,13 @@ onMounted(() => {
 }
 
 .profile-card {
-  background: #fff;
-  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  border-radius: 24px;
   padding: 24px;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.05);
-  border: 1px solid var(--sb-border-color, #e2e8f0);
+  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), inset 0 0 0 1px rgba(255, 255, 255, 0.35), 0 16px 40px -10px rgba(12, 34, 56, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.88);
 }
 
 .profile-card__avatar-wrap {
@@ -462,11 +464,13 @@ onMounted(() => {
 }
 
 .profile-content {
-  background: #fff;
-  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  border-radius: 24px;
   padding: 20px 24px;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.05);
-  border: 1px solid var(--sb-border-color, #e2e8f0);
+  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), inset 0 0 0 1px rgba(255, 255, 255, 0.35), 0 16px 40px -10px rgba(12, 34, 56, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.88);
 }
 
 .pane-wrap {

@@ -8,7 +8,7 @@ import type {
   PortalTerminalSavePayload
 } from "./types";
 
-export async function fetchPortalEntry(params: { clientId?: string; terminalCode?: string }) {
+export async function fetchPortalEntry(params: { clientId?: string; terminalCode?: string; tenantCode?: string }) {
   const response = await http.get<ApiResponse<PortalEntry>>("/portal/entry", {
     params
   });

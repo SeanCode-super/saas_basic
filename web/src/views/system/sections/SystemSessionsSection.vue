@@ -308,7 +308,7 @@ onMounted(() => {
           </template>
         </el-table-column>
 
-        <el-table-column label="治理操作" width="110" fixed="right" align="center">
+        <el-table-column label="治理操作" min-width="110" align="center">
           <template #default="{ row }">
             <el-button
               type="danger"
