@@ -1,55 +1,88 @@
-# SaaS Basics · 企业级多租户数字化中台底座
+# 天枢云基 (Tianshu Cloud) · 企业级多租户数字化 PaaS 底座与协同中枢
 
 <p align="center">
   <img src="https://img.shields.io/badge/Spring%20Boot-3.3.5-brightgreen.svg" alt="Spring Boot">
   <img src="https://img.shields.io/badge/Java-17%2B-blue.svg" alt="Java">
+  <img src="https://img.shields.io/badge/Flowable%20BPMN-7.x-orange.svg" alt="Flowable BPMN">
   <img src="https://img.shields.io/badge/Vue-3.4%2B-green.svg" alt="Vue">
+  <img src="https://img.shields.io/badge/uni--app-Vue%203-blueviolet.svg" alt="uni-app">
   <img src="https://img.shields.io/badge/TypeScript-5.x-blue.svg" alt="TypeScript">
-  <img src="https://img.shields.io/badge/Vite-6.x-purple.svg" alt="Vite">
-  <img src="https://img.shields.io/badge/Element%20Plus-2.8%2B-blue.svg" alt="Element Plus">
+  <img src="https://img.shields.io/badge/Vite-5.x%2F6.x-purple.svg" alt="Vite">
+  <img src="https://img.shields.io/badge/UI%20Style-iOS%2027%20Liquid%20Glass-cyan.svg" alt="Liquid Glass">
+  <img src="https://img.shields.io/badge/MySQL-8.3%2B-blue.svg" alt="MySQL">
+  <img src="https://img.shields.io/badge/Redis-7.2%2B-red.svg" alt="Redis">
   <img src="https://img.shields.io/badge/License-Apache%202.0-orange.svg" alt="License">
 </p>
 
-**SaaS Basics** 是一套面向全行业、云原生、现代化的企业级多租户数字化中台底座。
+**天枢云基 (Tianshu Cloud)** 是一套面向大中型企业、集团控股公司及 SaaS 服务商的现代化**云原生企业级多租户数字化 PaaS 底座与业务协同中枢**。
 
-本项目不是单纯的后台管理模板或垂直业务系统，而是致力于为 **CRM、ERP、WMS、MES、OA 协同、政企服务、供应链** 等千行百业的数字化系统，提供开箱即用、权威标准、高内聚低耦合的**平台级公共基础设施能力**。
+本项目不是单纯的后台管理模板或单一业务系统，而是致力于为 **CRM 客户管理、ERP 进销存、WMS 仓储、MES 制造、OA 智能协同、政企服务、供应链枢纽** 等千行百业的数字化系统，提供开箱即用、权威标准、高内聚低耦合的**平台级公共基础设施与全端协同能力**。
 
 ---
 
 ## 🌟 核心架构与功能矩阵
 
 ```
-┌────────────────────────────────────────────────────────────────────────┐
-│                        SaaS Basics 平台架构全景图                       │
-├────────────────────────────────────────────────────────────────────────┤
-│ 【接入控制面】统一门户 / 移动端 H5 / 小程序 / 第三方 API Webhook / SSO   │
-├────────────────────────────────────────────────────────────────────────┤
-│ 【业务中台套件】                                                       │
-│   ├─ 客户中心 (CRM)   : 线索跟进 · 商机漏斗 · 客户公海 · 合同回款       │
-│   ├─ 进销存 (ERP)     : 商品物料 · 采购订单 · 出入库流水 · 动态库存     │
-│   └─ 可视化决策        : 企业数据大屏 · 报表打印中心 · 审计合规大屏      │
-├────────────────────────────────────────────────────────────────────────┤
-│ 【核心中台能力】                                                       │
-│   ├─ 多租户中心       : 4类数据隔离 · 租户自助入驻 · 配额套餐 · 账本   │
-│   ├─ 组织与身份 (IAM) : 集团-企业-部门架构 · RBAC三位一体 · 行级数据范围│
-│   ├─ 工作流引擎       : 串并行审批 · 流程图可视化 · 节点加签 · 审计     │
-│   ├─ 分布式调度       : Quartz集群 · 任务管线 · 实时熔断 · 告警基线     │
-│   ├─ 文件资产中心     : 多存储引擎 · 分片秒传 · 生命周期归档 · 审计     │
-│   ├─ 低代码代码生成   : 元数据逆向 · 前后端一体化模板 · 质量门禁        │
-│   └─ 集成消息中心     : 短信邮件企微网关 · 连接池探针 · Webhook/死信补偿│
-├────────────────────────────────────────────────────────────────────────┤
-│ 【系统底座支撑】全平台在线会话强退 · 软删除自愈回收站 · 慢SQL诊断 · Redis/JVM监控 │
-└────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                      天枢云基 (Tianshu Cloud) 平台全景架构图                             │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│ 【接入控制与全端交互】                                                                  │
+│   ├─ PC 端控制台 (Vue 3 + TS + Vite)  : iOS 27 / visionOS 流光毛玻璃拟态界面规范        │
+│   ├─ 跨端移动工作台 (uni-app / Vue 3) : 悬浮灵动岛毛玻璃 TabBar · H5 / 微信小程序 / App │
+│   ├─ 泛域名与多租户路由网关           : *.tianshu.cloud 子域名抽取 · X-Tenant-Code 注入 │
+│   └─ 开放互联中枢                     : Open API 网关 (AppKey/HMAC) · SAML 2.0 / OIDC  │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│ 【业务中台套件】                                                                        │
+│   ├─ 流程审批中心 (Flowable 7.x)      : BPMN 2.0 工业级流程引擎 · 串并行会签 · 驳回转办 │
+│   ├─ 客户中心 (CRM)                   : 线索跟进 · 商机漏斗 · 客户公海 · 合同回款       │
+│   ├─ 进销存 (ERP)                     : 商品物料 · 采购订单 · 出入库流水 · 动态库存预警 │
+│   ├─ 统一支付结算 (Pay Center)        : 微信/支付宝网关 · 聚合收银 · 账单交易流水       │
+│   └─ 可视化决策驾驶舱                 : 企业数据大屏 · 报表打印中心 · 审计合规大屏      │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│ 【核心中台能力】                                                                        │
+│   ├─ 多租户核心 (Multi-Tenant)        : 共享库表行级强隔离 (MyBatis-Plus) · 多物理库扩展│
+│   │                                   : 租户独立门户入口识别 · 空间配额 · 套餐生命周期  │
+│   ├─ 组织与身份 (Enterprise IAM)      : 集团-企业-部门-岗位-员工 五级架构 · RBAC三位一体│
+│   │                                   : 行级数据范围 (Data Scope) · 权限毫秒级透视诊断器│
+│   ├─ 分布式高可用调度 (Scheduler)     : Quartz 集群 · 执行管线监控 · 毫秒级熔断告警     │
+│   ├─ 分布式文件资产中心 (File Center) : MinIO / 阿里云 OSS / 腾讯 COS / 华为 OBS / S3   │
+│   │                                   : 断点续传 · 分片秒传 · 生命周期归档 · 审计销毁   │
+│   ├─ 低代码代码生成 (Codegen)         : MySQL 表结构逆向 · 前后端一体化模版 · 质量门禁  │
+│   └─ 消息中枢与事件总线 (Integration) : 短信邮件企微网关 · 连接池探针 · Webhook 死信补偿│
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│ 【系统底座与高可用支撑】                                                                │
+│   ├─ 安全治理与会话强退               : 全局 Access/Refresh Token · 多端在线强退 · 脱敏 │
+│   ├─ 数据库版本自动化演进             : Flyway 10.x 增量迁移规范 (V1 ~ V59 持续受控)    │
+│   └─ 基础设施运行时监控               : Actuator 探活 · 慢 SQL 智能诊断 · Redis 键空间  │
+└────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### 1. 🏢 多租户中心 (Multi-Tenant Management)
-- **权威数据隔离方案**：原生支持字段级共享隔离（`tenant_id`）、独立 Schema、独立数据库以及混合隔离模式，在框架底层利用 AST SQL 拦截器实现无感穿透防护。
-- **租户全生命周期管理**：租户开通申请、在线签约审批、套餐升降配、租户白名单/黑名单以及租户注销冻结。
-- **多维度配额管控 (Quota & Plan)**：支持用户数、存储容量、API 调用频次、并发连接数的动态配额计算与超额熔断。
+## 💎 核心技术特色与深度能力
 
-### 2. 🛡️ 身份与权限中心 (Enterprise IAM & Data Scope)
+### 1. 🏢 多租户体系与动态 URL 空间隔离 (Multi-Tenancy & URL Routing)
+- **权威数据隔离方案**：原生支持字段级共享隔离（`tenant_id`）、独立 Schema、独立数据库以及混合隔离模式，框架底层基于 MyBatis-Plus `TenantLineInnerInterceptor` 深度拦截，研发人员编写业务 SQL 时无需手工关心租户隔离，杜绝跨租户越权漏洞。
+- **动静解耦的 URL 路由体系**：
+  - **泛域名企业专属门户**：支持 `https://tenant-a.tianshu.cloud` 与 `https://admin.tianshu.cloud`，Nginx 自动提取子域名注入 `X-Tenant-Code` 头；
+  - **统一域名路径路由**：支持 `https://console.tianshu.cloud/:tenantCode/`，前端路由守卫通过 `/api/portal/entry` 动态拉取企业空间定制 Logo、背景图与品牌名；
+  - **移动端租户空间直连**：移动端 H5 及小程序支持自动通过 URL 参数（`?tenantCode=xxx`）完成租户环境绑定与独立登录，杜绝租户信息混乱。
+
+### 2. 🌊 iOS 27 / visionOS 流光毛玻璃设计规范 (Liquid Glassmorphism)
+- **PC 控制台顶级工业设计**：突破传统管理后台沉闷的扁平化色块，全面落地苹果最新的 Liquid Glass 设计语言。涵盖超通透毛玻璃侧边导航栏、多阶高斯模糊滤镜（`backdrop-filter: blur(28px)`）、动态微光漫反射描边（`rgba(255,255,255,0.45)`）、柔和悬浮投影与极光呼吸动态壁纸。
+- **移动端悬浮灵动岛 TabBar**：移动端放弃传统生硬贴底的 TabBar，采用悬浮胶囊灵动岛设计，支持平滑缩放动效（Scale 1.15）、呼吸光晕指示器与全端安全区完美避让。
+
+### 3. ⚙️ Flowable BPMN 2.0 工业级流程引擎 (Workflow Engine)
+- **工业级流程编排**：由自研轻量状态机全面升级为业界标准的 **Flowable 7.x 流程引擎**（Flyway V57 自动化集成），支持标准 BPMN 2.0 XML 规范。
+- **高级审批业务语义**：开箱支持发起审批、待办追踪、串并行会签、驳回上一步、退回发起人、节点加签协办与委托转办。
+- **流程状态可视化与全生命周期审计**：提供直观的流程流转拓扑图、节点耗时统计、办理人留痕与审批历史追踪。
+
+### 4. 📱 uni-app 跨端移动工作台 (Mobile Multi-Platform)
+- **全端同构技术栈**：位于 `/mobile` 目录，基于 Vue 3 + TypeScript + Pinia + uni-app 4.29 构建。
+- **一次开发，多端发布**：完美支持一键构建为 **H5 移动端 Web 应用**、**微信小程序** 以及 **iOS / Android 原生 App**。
+- **移动业务全覆盖**：移动端内嵌 Flowable 移动审批中心、CRM 移动商机跟进、ERP 移动库存盘点、员工通讯录与专属个人空间。
+
+### 5. 🛡️ 身份与权限中心 (Enterprise IAM & Data Scope)
 - **多企业/集团化多层级组织架构**：标准支持 `集团 ➔ 企业/子公司 ➔ 部门 ➔ 岗位 ➔ 员工` 五级实体，适配大型多元化企业集团与母子公司管控模式。
 - **三位一体权限体系**：
   - **功能菜单权限**：动态路由树、徽标、菜单代码与角色深度绑定。
@@ -57,64 +90,68 @@
   - **行级数据范围 (Data Scope)**：原生支持“全部数据”、“本集团数据”、“本企业数据”、“本部门及下级部门”、“仅本人数据”以及“自定义部门”规则。
 - **权限透视诊断器与模拟器**：支持输入任意人员与操作代码，毫秒级穿透输出命中规则链、决策裁定（PASS/DENY）及底层自动改写的 SQL 条件。
 
-### 3. ⚙️ 轻量级工作流引擎 (Workflow Engine)
-- **内嵌企业级工作流状态机**：支持请假报销、合同审批、租户入驻等业务的工单发起、自动流转、串并行会签、驳回重审、转办与自愈。
-- **全流程审计追踪**：完整的任务执行日志、处理人耗时留痕与审批意见。
-- **低门槛可视化流程设计器**：支持图形化节点编排与流程定义在线发布。
+### 6. 💼 业务中台套件：ERP 进销存与 CRM 客户管理
+- **进销存中心 (ERP)**：包含商品分类、多规格物料档案、采购入库单据、销售出库单据、动态出入库流水核算以及高低库存智能阈值预警。
+- **客户中心 (CRM)**：涵盖全渠道线索采集、商机阶段漏斗推进、客户公海池流转与抢单、合同全流程管理与多期回款流水跟踪。
 
-### 4. ⏱️ 分布式任务调度中心 (Scheduler Center)
-- **分布式集群架构**：基于 Quartz 集群，支持主备选举、节点负载分发与毫秒级心跳检测。
-- **链路透视与管线监控**：提供调度任务“解析 ➔ 校验 ➔ 分发 ➔ 隔离执行 ➔ 结果留痕”五步流转管线。
-- **全方位告警基线与应急熔断**：任务执行失败、执行超时、漏触发毫秒级捕获，支持 Webhook、邮件、企业微信推送与全平台一键紧急熔断。
+### 7. 💳 统一支付中心与企业 SSO (Pay & SSO Federation)
+- **统一支付收银 (Pay Center)**：支持微信支付、支付宝支付通道配置，提供统一下单、扫码收银、异步回调验签、订单退款与多维度财务对账流水。
+- **企业身份联邦 (SSO)**：支持企业微信、飞书、钉钉移动端与 PC 扫码免登，以及标准 SAML 2.0 / OIDC 企业身份联邦协议。
 
-### 5. 📁 分布式文件资产中心 (File Center)
-- **多存储引擎即插即用**：统一抽象底层存储协议，支持 Local 本地文件、MinIO、阿里云 OSS、腾讯云 COS、华为云 OBS、AWS S3。
-- **文件全生命周期治理**：冷热数据分层、自动归档周期设定、物理彻底粉碎、哈希防重校验与下载审计。
+### 8. ⏱️ 分布式调度与文件资产中枢
+- **Quartz 分布式高可用调度**：主备高可用选举、任务五步流转管线监控、漏触发检测、超时预警与全平台一键应急熔断。
+- **分布式文件资产管理**：统一屏蔽底层的存储差异，支持 Local 本地磁盘、MinIO、阿里云 OSS、腾讯云 COS、华为云 OBS、AWS S3，支持分片秒传、冷热生命周期分层与安全防盗链。
 
-### 6. 💻 低代码与代码生成中心 (Codegen Center)
-- **元数据逆向工程**：一键读取 MySQL 表结构、字段定义、主键索引与字段注释。
-- **前后端一体化脚手架**：生成遵循规范的 Entity、Mapper、Service、Controller、DTO、API 接口定义以及 Vue3 ProTable 页面。
-- **质量门禁与即时预览**：内置覆盖率、代码规范、多租户字段合规性静态门禁检查。
-
-### 7. 🔗 系统集成中心 (Integration Center)
-- **统一多通道消息网关**：集成短信 SMS（阿里云/腾讯云）、企业邮件、微信工作台通知。
-- **连接池健康实时探针**：动态对业务数据源、从库副本进行连接有效性探针探测与网络往返延迟分析。
-- **Webhook 事件总线与死信补偿**：事件触发、HMAC-SHA256 请求签名、24 小时幂等去重，重试衰竭后自动进入死信队列（DLQ）并支持一键重投。
-
-### 8. 📊 系统底座与安全审计 (System & Audit)
-- **在线会话治理**：实时监控 Redis 与全局访问令牌（AccessToken / RefreshToken），支持多端在线审计与特权一键强退。
-- **数据回收站自愈引擎**：全平台业务模型软删除数据统一归集，按应用分面统计，支持级联自愈还原与物理永久粉碎。
-- **基础设施实时监控**：Redis 缓存键空间与命中率大屏、慢 SQL 智能拦截诊断、JVM 堆与 GC 运行时健康。
-- **等保三级安全合规**：密码复杂度矩阵、历史密码留存、会话无操作自动注销、三员分立审计日志防篡改。
-
-### 9. 🚀 企业级高级底座套件 (Tier-1 Enterprise Suite)
-- **全链路可观测追踪 (Distributed Tracing & MDC)**：基于 `TraceFilter` 与 `TraceContext`，在 HTTP 请求头与响应头自动注入并透传 `X-Trace-Id`，日志框架 MDC 上下文自动绑定 `trace_id`、`tenant_id`、`user_id`，实现无缝分布式排障。
-- **敏感数据动态脱敏 (Dynamic Data Masking)**：提供 `@DataMask` 注解，对手机号、身份证、邮箱、银行卡等个人隐私信息在 JSON 序列化阶段执行行级脱敏，并支持超级管理员穿透解密查看。
-- **租户级 API 熔断限流 (Tenant Rate Limiting)**：提供 `@RateLimit` 注解，支持基于 Redis 滑动窗口以租户、用户、IP 为维度的并发限流，彻底防护多租户系统中的“吵闹邻居 (Noisy Neighbor)”攻击。
-- **分布式业务幂等与防重提交 (@Idempotent)**：提供 `@Idempotent` 注解，基于 Redis 分布式原子锁与本地滑动缓存双层保障，在审批流转、秘钥轮转、灾备快照等高危写接口上防重防刷。
-- **混合多租户架构与动态数据源路由 (Hybrid Multi-Tenant Routing)**：提供 `DynamicRoutingDataSource` 与 `TenantDataSourceRegistry`，支持“共享 Schema”租户与“独立专有物理库”租户混合部署与透明数据源路由。
-- **企业级单点登录 (SSO & Identity Federation)**：支持企业微信、飞书、钉钉移动端与 PC 扫码免登，以及标准 SAML 2.0 / OIDC 企业身份联邦协议。
-- **开发者开放平台 (Open API Gateway)**：提供企业级外部系统接入控制台，包含 AppKey/AppSecret 凭据管理、HMAC-SHA256 签名鉴权、防重放机制与在线签名调试沙箱。
-- **租户计量计费与数据快照双向灾备 (Metering, Billing & Snapshot Restore)**：精准计量各租户 API 调用与云存储消耗，生成月度账单，支持租户全量数据一键加密导出与跨环境一键原子还原。
-- **复杂工作流高级审批语义 (Advanced Workflow Semantics)**：扩展工作流引擎，原生支持加签协办（`ADD_SIGN`）、退回上一步（`ROLLBACK_PREVIOUS`）、退回发起人（`ROLLBACK_INITIATOR`）与委托转办（`TRANSFER`）。
+### 9. 🚀 数据库自动化迁移 (Flyway V1 ~ V59)
+- **数据库版本强受控**：引入 Flyway 10.x 作为生产数据库迁移的唯一准绳，严禁运维手工执行 DDL。
+- **平滑增量升级**：涵盖从基础架构（V1）到组织架构（V25）、工作流（V35）、ERP/CRM（V48-V50）、Flowable BPMN（V57）及支付模块（V58-V59）的全量迁移脚本，应用容器启动自动自愈演进。
 
 ---
 
-## 🐳 容器化与一键交付 (Cloud-Native DevOps)
+## 📂 项目工程全景目录结构
 
-本项目原生支持容器化交付与全栈编排，提供生产就绪的 Dockerfile 与 Docker Compose 配置：
-
-```bash
-# 1. 克隆代码仓库
-git clone git@github.com:SeanCode-super/saas_basic.git
-cd saas_basic
-
-# 2. 一键启动全栈基础设施与服务 (MySQL 8.3 + Redis 7.2 + 后端 + 前端 Nginx)
-docker compose -f docker-compose.prod.yml up -d
-
-# 3. 访问控制台
-# 前端访问入口: http://localhost (默认管理员账号 admin / Admin@123456)
-# 后端 API 接口文档: http://localhost:8080/swagger-ui.html
+```text
+saas_basics/
+├── server/                               # 后端 Spring Boot 模块化单体工程 (Java 17)
+│   ├── saas-basics-common/               # 公共常量、上下文、异常处理、统一响应模型与工具类
+│   ├── saas-basics-app/                  # 系统启动入口、Web MVC 配置、安全拦截与 Flyway 迁移脚本
+│   │   └── src/main/resources/db/migration # Flyway V1 ~ V59 数据库版本化自愈脚本
+│   ├── saas-basics-module-iam/           # 身份认证、组织架构、RBAC 三位一体权限、会话治理
+│   ├── saas-basics-module-tenant/        # 多租户管理、数据隔离、独立门户入口与空间配额
+│   ├── saas-basics-module-workflow/      # Flowable BPMN 2.0 工业级流程引擎与工作流中心
+│   ├── saas-basics-module-scheduler/     # Quartz 分布式高可用调度中心与管线监控
+│   ├── saas-basics-module-file/          # 分布式文件中心、MinIO / S3 多存储适配
+│   ├── saas-basics-module-codegen/       # 低代码逆向代码生成中心
+│   ├── saas-basics-module-integration/   # 消息网关、数据源探针、Webhook 与死信补偿
+│   ├── saas-basics-module-audit/         # 全链路行为审计、风控识别与黑名单阻断
+│   └── saas-basics-module-system/        # 系统配置、数据字典、回收站自愈、ERP/CRM 基础底座
+├── web/                                  # 前端 Vue3 + TypeScript PC 端控制台
+│   ├── src/
+│   │   ├── api/                          # 前端 API 模块化请求层 (Axios 封装)
+│   │   ├── assets/                       # 视觉资源、iOS 27 动态壁纸、矢量图标
+│   │   ├── components/                   # 公共业务组件 (ProTable, SchemaForm, 状态徽标等)
+│   │   ├── router/                       # 动态路由守卫、多租户 URL 隔离与鉴权拦截
+│   │   ├── stores/                       # Pinia 全局状态管理 (Auth, Tenant, Theme, Tags)
+│   │   ├── styles/                       # iOS 27 Liquid Glassmorphism 毛玻璃视觉样式系统
+│   │   └── views/                        # 业务中心视图层 (CRM, ERP, IAM, 租户, 流程, 审计等)
+│   ├── nginx.conf                        # 生产静态托管与反向代理配置
+│   ├── package.json
+│   └── vite.config.ts
+├── mobile/                               # 移动端跨端工作台 (uni-app / Vue 3 / TS)
+│   ├── src/
+│   │   ├── pages/                        # 移动端页面 (工作台、流程审批、CRM、ERP、个人空间)
+│   │   ├── components/                   # 移动端悬浮灵动岛 TabBar、毛玻璃卡片组件
+│   │   ├── api/                          # 移动端轻量 API 请求封装
+│   │   └── stores/                       # Pinia 移动端状态中枢 (用户状态、租户绑定)
+│   ├── package.json
+│   └── vite.config.ts
+├── docs/                                 # 架构白皮书与技术文档中心
+│   ├── DEPLOYMENT_AND_ARCHITECTURE_GUIDE.md # 生产部署与系统架构全景指南 (可一键导入语雀)
+│   ├── backend-enterprise-architecture.md# 后端架构规范与设计决策
+│   └── frontend-vue-architecture.md     # 前端架构规范与组件体系
+├── docker-compose.prod.yml               # 生产环境全栈容器化一键编排配置
+├── compose.yaml                          # 基础中间件编排文件 (MySQL 8.3 + Redis 7.2)
+└── README.md                             # 平台官方工程全景文档
 ```
 
 ---
@@ -122,131 +159,114 @@ docker compose -f docker-compose.prod.yml up -d
 ## 🛠️ 技术栈清单
 
 ### 后端技术栈 (Backend)
-| 组件 / 框架 | 版本 | 说明 |
+| 组件 / 框架 | 版本基线 | 说明 |
 | :--- | :--- | :--- |
 | **Java** | 17 LTS | 开发语言基础 |
 | **Spring Boot** | 3.3.5 | 核心微服务 / 单体底座应用框架 |
+| **Flowable** | 7.0.x | 工业级 BPMN 2.0 流程引擎 |
 | **MyBatis-Plus** | 3.5.7 | ORM 持久层框架，提供多租户拦截与分页扩展 |
 | **Dynamic-Datasource**| 4.3.0 | 动态多数据源切换与读写分离 |
 | **Quartz** | 2.3.2 | 分布式高可用任务调度引擎 |
-| **Redis & Lettuce** | 6.x+ | 分布式会话缓存、字典缓存与分布式锁 |
+| **Redis & Lettuce** | 7.2+ | 分布式会话缓存、字典缓存与分布式锁 |
 | **Caffeine** | 3.1.8 | 高性能本地一级缓存，构成二级混合缓存 |
-| **Flyway** | 10.x | 数据库版本控制与结构迁移自动化 |
-| **HikariCP** | 5.1.0 | 高性能数据库连接池 |
-| **Hutool & JWT** | 5.8+ | 工具库与无状态令牌鉴权 |
+| **Flyway** | 10.x | 数据库版本控制与结构迁移自动化 (V1~V59) |
+| **HikariCP** | 5.1.0 | 极致性能数据库连接池 |
+| **Spring Security** | 6.x | 企业级细粒度安全与鉴权中心 |
 
-### 前端技术栈 (Frontend)
-| 组件 / 框架 | 版本 | 说明 |
+### 前端与移动端技术栈 (Frontend & Mobile)
+| 组件 / 框架 | 版本基线 | 说明 |
 | :--- | :--- | :--- |
 | **Vue** | 3.4+ | 响应式核心框架，采用 `<script setup lang="ts">` 语法 |
-| **Vite** | 6.x | 现代极速前端构建与热重载工具 |
+| **uni-app** | 4.29+ (Vue 3) | 移动端跨端框架，支持 H5、微信小程序与 App |
+| **Vite** | 5.x / 6.x | 极速现代前端构建工具 |
 | **TypeScript** | 5.x | 全静态类型支持，消除隐式类型错误 |
-| **Element Plus** | 2.8+ | 核心 UI 组件库，定制现代化企业级轻量主题 |
-| **Pinia** | 2.2+ | 新一代状态管理容器 |
-| **Vue Router** | 4.x | 前端动态路由体系，支持异步加载与权限守卫 |
-| **ECharts** | 5.x | 数据可视化图表库 |
-| **SCSS** | 1.x | 现代 CSS 预处理器 |
+| **Element Plus** | 2.8+ | 核心 UI 组件库，定制现代化轻量主题 |
+| **UI 视觉体系** | iOS 27 Liquid Glass | 全局流光毛玻璃拟态、悬浮灵动岛交互规范 |
+| **Pinia** | 2.2+ | 新一代轻量状态管理容器 |
+| **Vue Router** | 4.x | 前端动态路由体系，支持多租户 URL 隔离守卫 |
+| **ECharts** | 5.x | 企业级高可定制数据大屏与图表库 |
 
 ---
 
 ## 🚀 快速启动指南
 
-### 1. 环境准备
-确保本机或服务器已安装以下基础环境：
+### 1. 本机开发环境要求
 - **JDK 17+**
 - **Node.js 20+** 及 **npm 10+**
 - **MySQL 8.0+**
-- **Redis 6.0+**
+- **Redis 6.2+ / 7.x**
 
 ### 2. 数据库配置
-1. 创建数据库 `saas_basics`，字符集推荐使用 `utf8mb4`，排序规则 `utf8mb4_general_ci`。
-2. 后端采用 **Flyway** 进行数据库自动化迁移，启动时会自动执行 `sql/` 下的迁移脚本，无需手动导入全量 SQL。
+1. 创建数据库 `saas_basics`，字符集推荐使用 `utf8mb4`，排序规则 `utf8mb4_unicode_ci`。
+2. 后端集成 **Flyway** 自动版本迁移，启动时会自动按序扫描并执行 `V1` 至 `V59` 全量脚本，无需手动导入 SQL。
 
-### 3. 后端启动 (Backend)
-进入后端主模块或配置环境变量：
+### 3. 后端服务启动 (Backend)
 ```bash
-# 方式一：直接使用 Maven 构建与运行
 cd server
 mvn clean package -DskipTests
 
-# 方式二：运行可执行 Jar
+# 运行可执行 Jar
 java -jar saas-basics-app/target/saas-basics-app-0.1.0-SNAPSHOT.jar \
-  --spring.datasource.url=jdbc:mysql://127.0.0.1:3306/saas_basics?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai \
+  --spring.datasource.url="jdbc:mysql://127.0.0.1:3306/saas_basics?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai" \
   --spring.datasource.username=root \
   --spring.datasource.password=your_password
 ```
-后端服务默认监听端口：`http://127.0.0.1:8080`
+> 后端服务监听端口：`http://localhost:8080`
 
-### 4. 前端启动 (Frontend)
-进入前端项目目录：
+### 4. PC 前端控制台启动 (Web Console)
 ```bash
 cd web
+npm install
+npm run dev
+```
+> PC 前端访问入口：`http://localhost:9527`
 
-# 安装依赖
+### 5. 跨端移动端启动 (Mobile)
+```bash
+cd mobile
 npm install
 
-# 启动开发服务器
-npm run dev
+# 运行 H5 移动工作台
+npm run dev:h5
 
-# 编译生产包
-npm run build
+# 或运行微信小程序编译预览
+npm run dev:mp-weixin
 ```
-前端开发服务默认监听端口：`http://localhost:9527`
+> 移动端 H5 访问入口：`http://localhost:5173`
 
-### 5. 初始登录凭证
-系统预设顶级特权账户与租户开箱演示账户：
-- **平台超级管理员**：
-  - 账号：`admin`
-  - 密码：`Admin@123456`
-  - 权限：拥有全平台、全租户控制面管理与底层治理权限
-- **租户企业管理员**：
-  - 账号：`tenant_admin`
-  - 密码：`Tenant@123456`
-  - 权限：企业自闭环管理与业务审批
+### 6. 初始登录凭证矩阵
+| 角色定位 | 租户编码 / 所属空间 | 账号 | 默认密码 | 核心特权与应用范围 |
+| :--- | :--- | :--- | :--- | :--- |
+| **平台超级管理员** | 平台管控总部 (`platform`) | `admin` | `Admin@123456` | 全平台超管控制台，拥有租户入驻、配额套餐、系统运维与全域治理权限 |
+| **天枢测速控制台** | 示范企业空间 (`tenant-ce`) | `admin` | `Admin@123456` | 企业专属空间超管，数据完全隔离，包含 ERP/CRM/Flowable 流程业务 |
+| **普通业务员工** | 示范企业空间 (`tenant-ce`) | `user` | `User@123456` | 专属空间业务协同人员，包含日常单据报销、移动端外勤与协同工作台 |
 
 ---
 
-## 📂 项目代码目录结构
+## 🐳 生产环境容器化编排与部署
 
-```text
-saas_basics/
-├── server/                               # 后端 Spring Boot 模块化单体
-│   ├── saas-basics-common/               # 公共常量、上下文、异常、统一响应与工具类
-│   ├── saas-basics-app/                  # 系统启动入口、Web 配置与安全拦截器
-│   ├── saas-basics-module-iam/           # 身份凭证、组织架构、RBAC+ABAC 权限、会话管理
-│   ├── saas-basics-module-tenant/        # 多租户管理、数据隔离、配额与套餐
-│   ├── saas-basics-module-workflow/      # 内嵌轻量级工作流状态机引擎
-│   ├── saas-basics-module-scheduler/     # Quartz 分布式高可用调度中心
-│   ├── saas-basics-module-file/          # 分布式文件中心、多存储适配
-│   ├── saas-basics-module-codegen/       # 代码生成中心、元数据逆向解析
-│   ├── saas-basics-module-integration/   # 消息通道、数据源连接池探测、Webhook 死信队列
-│   ├── saas-basics-module-audit/         # 全链路行为审计、风控识别与黑名单阻断
-│   └── saas-basics-module-system/        # 系统配置、数据字典、序列号、回收站、监控
-├── web/                                  # 前端 Vue3 + TypeScript 控制台
-│   ├── src/
-│   │   ├── api/                          # 前端 API 模块化请求层
-│   │   ├── assets/                       # 静态资源、登录壁纸、图标
-│   │   ├── components/                   # 公共业务组件 (ProTable, SchemaForm, 状态点等)
-│   │   ├── router/                       # 路由守卫与动态路由树
-│   │   ├── stores/                       # Pinia 全局状态管理 (Auth, Notify, Tags)
-│   │   ├── views/                        # 业务中心视图层
-│   │   │   ├── tenant/                   # 租户中心
-│   │   │   ├── iam/                      # 身份权限中心
-│   │   │   ├── workflow/                 # 工作流中心
-│   │   │   ├── scheduler/                # 调度中心
-│   │   │   ├── file/                     # 文件中心
-│   │   │   ├── codegen/                  # 代码生成中心
-│   │   │   ├── integration/              # 集成中心
-│   │   │   ├── system/                   # 系统底座与监控
-│   │   │   ├── audit/                    # 审计中心
-│   │   │   ├── crm/                      # 客户管理中心
-│   │   │   └── erp/                      # 进销存管理中心
-│   │   └── main.ts                       # 前端入口文件
-│   ├── package.json
-│   └── vite.config.ts
-├── sql/                                  # 数据库增量与全量迁移 SQL 脚本
-└── README.md                             # 项目工程全景介绍文档
+本项目原生提供经过严格生产验证的 Docker Compose 编排，支持一键拉起 MySQL、Redis、后端与前端静态托管容器：
+
+```bash
+# 1. 克隆代码仓库
+git clone git@github.com:SeanCode-super/saas_basic.git
+cd saas_basics
+
+# 2. 启动生产编排集群
+docker compose -f docker-compose.prod.yml up -d
+
+# 3. 生产部署全流程与 Nginx 泛域名配置
+详见文档：docs/DEPLOYMENT_AND_ARCHITECTURE_GUIDE.md
 ```
+
+---
+
+## 📚 详细设计与部署白皮书
+
+- 📖 **生产部署与系统架构白皮书**：[`docs/DEPLOYMENT_AND_ARCHITECTURE_GUIDE.md`](./docs/DEPLOYMENT_AND_ARCHITECTURE_GUIDE.md)（*支持直接复制导入语雀*）
+- 📐 **后端企业级微服务架构规范**：[`docs/backend-enterprise-architecture.md`](./docs/backend-enterprise-architecture.md)
+- 🎨 **前端 Vue 3 架构与组件规范**：[`docs/frontend-vue-architecture.md`](./docs/frontend-vue-architecture.md)
+- 🤝 **项目代码贡献规范**：[`CONTRIBUTING.md`](./CONTRIBUTING.md)
 
 ---
 
