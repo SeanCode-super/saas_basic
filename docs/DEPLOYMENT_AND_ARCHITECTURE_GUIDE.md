@@ -63,18 +63,44 @@
 ### 1.3 核心生产端实机视觉呈现 (UI Showcase)
 
 #### PC 控制台视觉体验 (iOS 27 / visionOS 流光毛玻璃)
-* **企业数据大屏与中枢驾驶舱**：`docs/images/pc_dashboard_glass.png`
-* **Flowable BPMN 2.0 流程审批中心**：`docs/images/pc_workflow_flowable.png`
-* **ERP 进销存与物料仓储中枢**：`docs/images/pc_erp_inventory.png`
-* **CRM 客户全生命周期与商机漏斗**：`docs/images/pc_crm_customer.png`
-* **多租户动态 URL 空间隔离认证**：`docs/images/pc_tenant_login.png`
+
+##### 1. 企业数据大屏与中枢驾驶舱
+![企业数据大屏与中枢驾驶舱](https://raw.githubusercontent.com/SeanCode-super/saas_basic/main/docs/images/pc_dashboard_glass.png)
+
+##### 2. Flowable BPMN 2.0 流程审批中心
+![Flowable BPMN 2.0 流程审批中心](https://raw.githubusercontent.com/SeanCode-super/saas_basic/main/docs/images/pc_workflow_flowable.png)
+
+##### 3. ERP 进销存与物料仓储中枢
+![ERP 进销存与物料仓储中枢](https://raw.githubusercontent.com/SeanCode-super/saas_basic/main/docs/images/pc_erp_inventory.png)
+
+##### 4. CRM 客户全生命周期与商机漏斗
+![CRM 客户全生命周期与商机漏斗](https://raw.githubusercontent.com/SeanCode-super/saas_basic/main/docs/images/pc_crm_customer.png)
+
+##### 5. 权限矩阵与 IAM 细粒度管控
+![权限矩阵与 IAM 细粒度管控](https://raw.githubusercontent.com/SeanCode-super/saas_basic/main/docs/images/pc_iam_permissions.png)
+
+##### 6. 多租户动态 URL 空间隔离认证
+![多租户动态 URL 空间隔离认证](https://raw.githubusercontent.com/SeanCode-super/saas_basic/main/docs/images/pc_tenant_login.png)
 
 #### 跨端移动工作台视觉体验 (uni-app 悬浮灵动岛 TabBar)
-* **移动工作台与灵动岛导航**：`docs/images/mobile_index_island.png`
-* **Flowable 移动审批待办**：`docs/images/mobile_workflow_approval.png`
-* **移动 CRM 客户公海池**：`docs/images/mobile_crm_leads.png`
-* **专属空间数据安全隔离中心**：`docs/images/mobile_profile_space.png`
-* **移动端专属租户空间直连登录**：`docs/images/mobile_tenant_login.png`
+
+##### 1. 移动工作台与灵动岛导航
+![移动工作台与灵动岛导航](https://raw.githubusercontent.com/SeanCode-super/saas_basic/main/docs/images/mobile_index_island.png)
+
+##### 2. Flowable 移动审批待办
+![Flowable 移动审批待办](https://raw.githubusercontent.com/SeanCode-super/saas_basic/main/docs/images/mobile_workflow_approval.png)
+
+##### 3. 移动 CRM 客户公海池
+![移动 CRM 客户公海池](https://raw.githubusercontent.com/SeanCode-super/saas_basic/main/docs/images/mobile_crm_leads.png)
+
+##### 4. 移动 ERP 云仓物料管理
+![移动 ERP 云仓物料管理](https://raw.githubusercontent.com/SeanCode-super/saas_basic/main/docs/images/mobile_erp_stock.png)
+
+##### 5. 专属空间数据安全隔离中心
+![专属空间数据安全隔离中心](https://raw.githubusercontent.com/SeanCode-super/saas_basic/main/docs/images/mobile_profile_space.png)
+
+##### 6. 移动端专属租户空间直连登录
+![移动端专属租户空间直连登录](https://raw.githubusercontent.com/SeanCode-super/saas_basic/main/docs/images/mobile_tenant_login.png)
 
 ---
 
