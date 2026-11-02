@@ -59,7 +59,8 @@ async function doRefreshToken(): Promise<string> {
       data: { refreshToken },
       header: {
         "Content-Type": "application/json",
-        "X-Tenant-Id": uni.getStorageSync("sb_tenant_id") || "1"
+        "X-Tenant-Id": uni.getStorageSync("sb_tenant_id") || "1",
+        ...(uni.getStorageSync("sb_tenant_code") ? { "X-Tenant-Code": uni.getStorageSync("sb_tenant_code") } : {})
       },
       success: (res) => {
         const body = res.data as ApiResponse<any>;
@@ -90,6 +91,7 @@ export function request<T = any>(options: {
   return new Promise((resolve, reject) => {
     const token = uni.getStorageSync("sb_access_token") || "";
     const tenantId = uni.getStorageSync("sb_tenant_id") || "1";
+    const tenantCode = uni.getStorageSync("sb_tenant_code") || "";
 
     let finalUrl = options.url.startsWith("http") ? options.url : BASE_URL + options.url;
     if (options.params) {
@@ -110,6 +112,7 @@ export function request<T = any>(options: {
       header: {
         "Content-Type": "application/json",
         "X-Tenant-Id": tenantId,
+        ...(tenantCode ? { "X-Tenant-Code": tenantCode } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {})
       },
       success: async (res) => {

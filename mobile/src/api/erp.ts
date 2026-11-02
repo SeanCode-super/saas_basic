@@ -13,3 +13,17 @@ export function apiGetProducts() {
     method: "GET"
   });
 }
+
+export function apiAdjustStock(data: {
+  productId: number | string;
+  warehouseId?: number | string;
+  type: string;
+  delta: number;
+  remark?: string;
+}) {
+  return request<void>({
+    url: "/api/erp/inventory/adjust",
+    method: "POST",
+    data
+  });
+}

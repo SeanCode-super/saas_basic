@@ -139,10 +139,10 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from "vue";
+import { onMounted, reactive, ref } from "vue";
 import AppModal from "../../components/ui/AppModal.vue";
 import AppIcon from "../../components/ui/AppIcon.vue";
-import { apiStartWorkflow } from "../../api/workflow";
+import { apiGetWorkflowDefinitions, apiStartWorkflow } from "../../api/workflow";
 
 function goBack() {
   uni.navigateBack({
@@ -155,13 +155,25 @@ function goBack() {
 const selectedTpl = ref<"LEAVE" | "EXPENSE" | "PURCHASE" | "GENERAL">("LEAVE");
 const submitting = ref(false);
 const confirmModalVisible = ref(false);
+const remoteDefinitions = ref<any[]>([]);
 
 const templates = [
-  { type: "LEAVE" as const, name: "请假出差申请", sub: "年假/事假/病假", icon: "🌴", defaultTitle: "带薪年假申请单" },
-  { type: "EXPENSE" as const, name: "费用报销申请", sub: "差旅/业务招待", icon: "💰", defaultTitle: "商务差旅报销单" },
-  { type: "PURCHASE" as const, name: "物资设备申领", sub: "研发硬件/办公耗材", icon: "💻", defaultTitle: "办公硬件采购申请" },
-  { type: "GENERAL" as const, name: "通用事务审批", sub: "合同用印/行政流转", icon: "📑", defaultTitle: "综合行政通用审批单" }
+  { type: "LEAVE" as const, code: "LEAVE_REQUEST", name: "请假出差申请", sub: "年假/事假/病假", icon: "🌴", defaultTitle: "带薪年假申请单" },
+  { type: "EXPENSE" as const, code: "EXPENSE_REIMBURSE", name: "费用报销申请", sub: "差旅/业务招待", icon: "💰", defaultTitle: "商务差旅报销单" },
+  { type: "PURCHASE" as const, code: "GENERAL_APPROVAL", name: "物资设备申领", sub: "研发硬件/办公耗材", icon: "💻", defaultTitle: "办公硬件采购申请" },
+  { type: "GENERAL" as const, code: "GENERAL_APPROVAL", name: "通用事务审批", sub: "合同用印/行政流转", icon: "📑", defaultTitle: "综合行政通用审批单" }
 ];
+
+onMounted(async () => {
+  try {
+    const list = await apiGetWorkflowDefinitions();
+    if (Array.isArray(list) && list.length > 0) {
+      remoteDefinitions.value = list;
+    }
+  } catch (err) {
+    console.warn("Failed to load workflow definitions, will use standard codes", err);
+  }
+});
 
 const priorities = [
   { key: "NORMAL", label: "普通" },
@@ -210,11 +222,28 @@ function handlePreSubmit() {
   confirmModalVisible.value = true;
 }
 
+function resolveDefinitionId(): number {
+  const tpl = templates.find((t) => t.type === selectedTpl.value);
+  const code = tpl ? tpl.code : "LEAVE_REQUEST";
+  if (remoteDefinitions.value.length > 0) {
+    const matched = remoteDefinitions.value.find((d) => d.processCode === code);
+    if (matched && matched.id) {
+      return Number(matched.id);
+    }
+    // Fallback to first available published definition
+    return Number(remoteDefinitions.value[0].id);
+  }
+  if (code === "EXPENSE_REIMBURSE") return 2;
+  if (code === "GENERAL_APPROVAL") return 3;
+  return 1;
+}
+
 async function submitWorkflow() {
   submitting.value = true;
   try {
+    const targetDefId = resolveDefinitionId();
     await apiStartWorkflow({
-      defId: 1,
+      definitionId: targetDefId,
       title: form.title,
       formData: {
         type: selectedTpl.value,
@@ -224,17 +253,14 @@ async function submitWorkflow() {
         reason: form.reason
       }
     });
-    uni.showToast({ title: "流程发起成功！", icon: "success" });
+    uni.showToast({ title: "Flowable 流程已成功发起！", icon: "success" });
     confirmModalVisible.value = false;
     setTimeout(() => {
       uni.navigateBack();
     }, 600);
-  } catch {
-    uni.showToast({ title: "流程发起成功 (模拟流转中)", icon: "success" });
-    confirmModalVisible.value = false;
-    setTimeout(() => {
-      uni.navigateBack();
-    }, 600);
+  } catch (e: any) {
+    const msg = e?.message || e?.data?.message || "流程发起失败，请重试";
+    uni.showToast({ title: msg, icon: "none" });
   } finally {
     submitting.value = false;
   }

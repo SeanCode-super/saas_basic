@@ -310,6 +310,86 @@ public class ErpService {
         recordMapper.insert(record);
     }
 
+    @Transactional
+    public void adjustStock(Long productId, Long warehouseId, String type, int delta, String remark) {
+        Long tenantId = getTenantId();
+        String userName = getUserName();
+        Long whId = warehouseId != null ? warehouseId : 1L;
+
+        ErpProductEntity prod = productMapper.selectById(productId);
+        if (prod == null || !prod.getTenantId().equals(tenantId) || prod.getDeleted() != 0) {
+            throw new BizException("NOT_FOUND", "物料不存在");
+        }
+
+        ErpInventoryEntity inv = inventoryMapper.selectOne(new LambdaQueryWrapper<ErpInventoryEntity>()
+                .eq(ErpInventoryEntity::getTenantId, tenantId)
+                .eq(ErpInventoryEntity::getProductId, productId)
+                .eq(ErpInventoryEntity::getWarehouseId, whId));
+
+        int before = inv != null && inv.getStockQuantity() != null ? inv.getStockQuantity() : 0;
+        int after;
+        int changeQty;
+        String normalizedType = type != null ? type.toUpperCase() : "IN";
+
+        if (normalizedType.contains("IN") || "PURCHASE".equals(normalizedType)) {
+            after = before + delta;
+            changeQty = delta;
+        } else if (normalizedType.contains("OUT") || "SALE".equals(normalizedType)) {
+            if (before < delta) {
+                throw new BizException("INSUFFICIENT_STOCK", "库存不足，当前仅剩 " + before + " " + prod.getUnit());
+            }
+            after = before - delta;
+            changeQty = -delta;
+        } else { // AUDIT / CHECK
+            after = delta;
+            changeQty = delta - before;
+        }
+
+        if (inv != null) {
+            inv.setStockQuantity(after);
+            inv.setUpdatedAt(LocalDateTime.now());
+            inventoryMapper.updateById(inv);
+        } else {
+            inv = new ErpInventoryEntity();
+            inv.setTenantId(tenantId);
+            inv.setProductId(productId);
+            inv.setWarehouseId(whId);
+            inv.setStockQuantity(after);
+            inv.setLockedQuantity(0);
+            inv.setUpdatedAt(LocalDateTime.now());
+            inventoryMapper.insert(inv);
+        }
+
+        String whName = whId == 1L ? "华东一号中心立体总仓" : (whId == 2L ? "华南保税智造配送仓" : "天枢测速专属实验仓");
+        try {
+            List<String> names = jdbcTemplate.query(
+                    "SELECT warehouse_name FROM erp_warehouse WHERE id = ? AND deleted = 0 LIMIT 1",
+                    (rs, rowNum) -> rs.getString("warehouse_name"),
+                    whId
+            );
+            if (!names.isEmpty() && names.get(0) != null) {
+                whName = names.get(0);
+            }
+        } catch (Exception ignored) {
+        }
+
+        ErpInventoryRecordEntity record = new ErpInventoryRecordEntity();
+        record.setTenantId(tenantId);
+        record.setRecordNo("REC" + System.currentTimeMillis());
+        record.setRecordType(normalizedType.contains("IN") ? "MANUAL_IN" : (normalizedType.contains("OUT") ? "MANUAL_OUT" : "STOCK_CHECK"));
+        record.setProductId(productId);
+        record.setProductName(prod.getProductName());
+        record.setWarehouseId(whId);
+        record.setWarehouseName(whName);
+        record.setChangeQuantity(changeQty);
+        record.setBeforeQuantity(before);
+        record.setAfterQuantity(after);
+        record.setOperatorName(userName);
+        record.setRemark(remark != null && !remark.isBlank() ? remark : "智能仓储调拨盘点");
+        record.setCreatedAt(LocalDateTime.now());
+        recordMapper.insert(record);
+    }
+
     private Long getTenantId() {
         AuthPrincipal p = AuthContext.get();
         return p != null && p.tenantId() != null ? p.tenantId() : 1L;

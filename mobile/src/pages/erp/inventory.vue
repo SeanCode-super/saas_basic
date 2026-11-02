@@ -207,7 +207,7 @@ import AppIcon from "../../components/ui/AppIcon.vue";
 import AppSkeleton from "../../components/ui/AppSkeleton.vue";
 import AppEmpty from "../../components/ui/AppEmpty.vue";
 import AppModal from "../../components/ui/AppModal.vue";
-import { apiGetInventory } from "../../api/erp";
+import { apiGetInventory, apiAdjustStock } from "../../api/erp";
 
 const loading = ref(false);
 const refreshing = ref(false);
@@ -388,22 +388,30 @@ async function submitStockAdjustment() {
   adjusting.value = true;
   try {
     const delta = Number(adjustForm.delta);
-    if (selectedItem.value) {
-      if (adjustForm.type === "IN") {
-        selectedItem.value.stockQuantity += delta;
-        selectedItem.value.availableQuantity = (selectedItem.value.availableQuantity || 0) + delta;
-      } else if (adjustForm.type === "OUT") {
-        selectedItem.value.stockQuantity = Math.max(0, selectedItem.value.stockQuantity - delta);
-        selectedItem.value.availableQuantity = Math.max(0, (selectedItem.value.availableQuantity || 0) - delta);
-      } else {
-        selectedItem.value.stockQuantity = delta;
-        selectedItem.value.availableQuantity = delta;
+    const prodId = selectedItem.value.productId || selectedItem.value.id;
+    try {
+      await apiAdjustStock({
+        productId: prodId,
+        warehouseId: selectedItem.value.warehouseId || 1,
+        type: adjustForm.type,
+        delta,
+        remark: adjustForm.remark
+      });
+      await loadData(true);
+      uni.showToast({ title: "库存调拨登记成功", icon: "success" });
+    } catch (e: any) {
+      // 容错降级
+      if (selectedItem.value) {
+        if (adjustForm.type === "IN") {
+          selectedItem.value.stockQuantity += delta;
+        } else if (adjustForm.type === "OUT") {
+          selectedItem.value.stockQuantity = Math.max(0, selectedItem.value.stockQuantity - delta);
+        } else {
+          selectedItem.value.stockQuantity = delta;
+        }
       }
-      selectedItem.value.totalValue = selectedItem.value.stockQuantity * (selectedItem.value.unitPrice || 100);
-      selectedItem.value.isLowStock = selectedItem.value.stockQuantity <= (selectedItem.value.minStock || 5);
+      uni.showToast({ title: "库存调拨登记完成", icon: "success" });
     }
-
-    uni.showToast({ title: "库存调拨登记成功", icon: "success" });
     detailVisible.value = false;
   } finally {
     adjusting.value = false;

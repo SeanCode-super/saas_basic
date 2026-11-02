@@ -151,7 +151,11 @@ public class TenantService {
     private void apply(TenantEntity entity, TenantSaveRequest request) {
         entity.setTenantCode(request.tenantCode());
         entity.setTenantName(request.tenantName());
-        entity.setPackageId(request.packageId());
+        if (request.packageId() != null && request.packageId() > 0) {
+            entity.setPackageId(request.packageId());
+        } else if (entity.getPackageId() == null || entity.getPackageId() <= 0) {
+            entity.setPackageId(4L); // 默认平台旗舰版 (全模块开放)
+        }
         entity.setStatus(request.status());
         entity.setIsolationMode(request.isolationMode());
         if (request.expireAt() != null && !request.expireAt().isBlank()) {

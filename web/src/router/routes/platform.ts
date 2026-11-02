@@ -167,6 +167,16 @@ export const platformRoutes: RouteRecordRaw[] = [
         }
       },
       {
+        path: "erp/:tab",
+        name: "erp-tab",
+        component: () => import("@/views/erp/ErpView.vue"),
+        meta: {
+          title: "进销存 ERP",
+          icon: "Briefcase",
+          permissionCode: "erp:inventory:query"
+        }
+      },
+      {
         path: "server-monitor",
         name: "server-monitor",
         component: () => import("@/views/monitor/ServerMonitorView.vue"),

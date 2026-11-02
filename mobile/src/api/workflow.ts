@@ -33,15 +33,23 @@ export function apiGetMyInstances() {
 }
 
 export function apiStartWorkflow(payload: {
-  defId: number | string;
+  definitionId?: number | string;
+  defId?: number | string;
   businessKey?: string;
   title: string;
-  formData: Record<string, any>;
+  formDataJson?: string;
+  formData?: Record<string, any>;
 }) {
+  const definitionId = Number(payload.definitionId || payload.defId || 1);
+  const formDataJson = payload.formDataJson || JSON.stringify(payload.formData || {});
   return request<any>({
     url: "/api/workflow/instances/start",
     method: "POST",
-    data: payload
+    data: {
+      definitionId,
+      title: payload.title,
+      formDataJson
+    }
   });
 }
 
