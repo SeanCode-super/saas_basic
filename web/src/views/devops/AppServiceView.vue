@@ -28,7 +28,8 @@ import {
   Box,
   CaretRight,
   Tickets,
-  Monitor
+  Monitor,
+  Lock
 } from "@element-plus/icons-vue";
 import {
   fetchAppServices,
@@ -140,6 +141,14 @@ async function handleStart(service: AppServiceItem) {
 }
 
 async function handleStop(service: AppServiceItem, timeout = 15) {
+  if (service.serviceCode === "backend-main") {
+    ElMessageBox.alert(
+      "核心主服务 (backend-main) 承载整个平台中台与控制面 API。为防止控制台连接断开，禁止直接在线停机！如需更新部署，请使用【安全重启】或服务器外部守护脚本。",
+      "安全保护警告",
+      { type: "error", confirmButtonText: "我知道了" }
+    );
+    return;
+  }
   try {
     await ElMessageBox.confirm(`确认停止服务 [${service.serviceName}] 吗？`, "优雅停止确认", {
       type: "warning",
@@ -159,13 +168,18 @@ async function handleStop(service: AppServiceItem, timeout = 15) {
 }
 
 async function handleRestart(service: AppServiceItem) {
+  const isCore = service.serviceCode === "backend-main";
+  const confirmMsg = isCore
+    ? `⚠️ 您正在重启【平台核心主服务 (${service.serviceName})】！\n重启期间控制台将断开连接约 3~5 秒，并由守护进程自愈拉起。确认继续重启吗？`
+    : `确认重启服务 [${service.serviceName}] 吗？`;
+
   try {
-    await ElMessageBox.confirm(`确认重启服务 [${service.serviceName}] 吗？`, "重启确认", {
-      type: "warning",
-      confirmButtonText: "确认重启",
+    await ElMessageBox.confirm(confirmMsg, isCore ? "核心服务重启高危确认" : "重启确认", {
+      type: isCore ? "error" : "warning",
+      confirmButtonText: isCore ? "确认重启核心主服务" : "确认重启",
       cancelButtonText: "取消"
     });
-    ElMessage.info(`正在重启服务 [${service.serviceName}]...`);
+    ElMessage.info(`正在下发重启指令 [${service.serviceName}]...`);
     const res = await restartAppService(service.id, 15);
     if (res.success) {
       ElMessage.success(res.message);
@@ -178,6 +192,14 @@ async function handleRestart(service: AppServiceItem) {
 }
 
 async function handleKill(service: AppServiceItem) {
+  if (service.serviceCode === "backend-main") {
+    ElMessageBox.alert(
+      "核心主服务 (backend-main) 承载控制面基础支撑，严禁在线强制强杀！如需强制处理请登录服务器操作系统执行操作。",
+      "安全防护禁止",
+      { type: "error", confirmButtonText: "我知道了" }
+    );
+    return;
+  }
   try {
     await ElMessageBox.confirm(`强制杀死进程 (SIGKILL) 将立即释放端口，但可能中断进行中的事务。确认强杀 [${service.serviceName}] 吗？`, "强制终止警告", {
       type: "error",
@@ -731,7 +753,21 @@ onUnmounted(() => {
                 重启
               </el-button>
 
-              <el-dropdown trigger="click">
+              <el-tooltip
+                v-if="service.serviceCode === 'backend-main'"
+                content="平台核心控制面，禁止在线停机以防控制台失联"
+                placement="top"
+              >
+                <el-button
+                  type="info"
+                  size="default"
+                  :icon="Lock"
+                  disabled
+                >
+                  受保护
+                </el-button>
+              </el-tooltip>
+              <el-dropdown v-else trigger="click">
                 <el-button
                   type="danger"
                   size="default"

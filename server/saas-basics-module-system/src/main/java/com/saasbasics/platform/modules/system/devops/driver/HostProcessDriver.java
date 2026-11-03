@@ -197,10 +197,10 @@ public class HostProcessDriver implements ServiceDriver {
                 }
             } else {
                 // If not found in JVM handle, use OS kill command
-                runCommand("kill -15 " + pid);
+                killPidFallback(pid, false);
                 Thread.sleep(1000);
                 if (isProcessAlive(pid)) {
-                    runCommand("kill -9 " + pid);
+                    killPidFallback(pid, true);
                 }
             }
         }
@@ -210,13 +210,41 @@ public class HostProcessDriver implements ServiceDriver {
             Integer stubbornPid = findPidByPort(service.getPort());
             if (stubbornPid != null && stubbornPid > 0) {
                 log.warn("Port {} still listening by PID {}, killing forcibly.", service.getPort(), stubbornPid);
-                runCommand("kill -9 " + stubbornPid);
+                killPidFallback(stubbornPid, true);
             }
         }
     }
 
     @Override
     public void restart(AppServiceEntity service, int timeoutSeconds) throws Exception {
+        if ("backend-main".equalsIgnoreCase(service.getServiceCode())) {
+            long currentPid = ProcessHandle.current().pid();
+            Integer targetPid = service.getCurrentPid();
+            if (targetPid == null || targetPid == (int) currentPid) {
+                log.info("Self-restart for backend-main (current PID: {}). Spawning successor process detached...", currentPid);
+                String startCmd = service.getStartCmd();
+                File workDir = new File(service.getWorkDir());
+                ProcessBuilder pb;
+                if (isWindows()) {
+                    pb = new ProcessBuilder("cmd.exe", "/c", "start /b " + startCmd);
+                } else {
+                    pb = new ProcessBuilder("/bin/bash", "-c", "nohup " + startCmd + " > /dev/null 2>&1 &");
+                }
+                pb.directory(workDir);
+                pb.environment().put("PATH", "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:" + System.getenv("PATH"));
+                pb.environment().put("DB_PASSWORD", "19990518suo");
+                pb.start();
+
+                log.info("Successor process spawned. Exiting current JVM to free port for successor/watchdog...");
+                new Thread(() -> {
+                    try {
+                        Thread.sleep(500);
+                    } catch (InterruptedException ignored) {}
+                    System.exit(0);
+                }).start();
+                return;
+            }
+        }
         stop(service, timeoutSeconds);
         Thread.sleep(1500);
         start(service);
@@ -231,12 +259,12 @@ public class HostProcessDriver implements ServiceDriver {
                 h.descendants().forEach(ProcessHandle::destroyForcibly);
                 h.destroyForcibly();
             });
-            runCommand("kill -9 " + pid);
+            killPidFallback(pid, true);
         }
         if (service.getPort() != null) {
             Integer pPid = findPidByPort(service.getPort());
             if (pPid != null && pPid > 0) {
-                runCommand("kill -9 " + pPid);
+                killPidFallback(pPid, true);
             }
         }
     }
@@ -293,6 +321,18 @@ public class HostProcessDriver implements ServiceDriver {
         return lines;
     }
 
+    private boolean isWindows() {
+        return System.getProperty("os.name", "").toLowerCase().contains("win");
+    }
+
+    private void killPidFallback(int pid, boolean force) {
+        if (isWindows()) {
+            runCommand("taskkill " + (force ? "/F " : "") + "/PID " + pid + " /T");
+        } else {
+            runCommand("kill -" + (force ? "9 " : "15 ") + pid);
+        }
+    }
+
     private boolean checkPortListening(int port) {
         try (Socket socket = new Socket()) {
             socket.connect(new InetSocketAddress("127.0.0.1", port), 300);
@@ -308,11 +348,34 @@ public class HostProcessDriver implements ServiceDriver {
 
     private Integer findPidByPort(int port) {
         try {
-            Process p = new ProcessBuilder("/bin/sh", "-c", "lsof -ti :" + port).start();
+            ProcessBuilder pb;
+            if (isWindows()) {
+                pb = new ProcessBuilder("cmd.exe", "/c", "netstat -ano -p tcp | findstr :" + port);
+            } else {
+                pb = new ProcessBuilder("/bin/sh", "-c", "lsof -ti :" + port);
+            }
+            Process p = pb.start();
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
-                String line = reader.readLine();
-                if (line != null && !line.isBlank()) {
-                    return Integer.parseInt(line.trim());
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    line = line.trim();
+                    if (line.isEmpty()) continue;
+                    if (isWindows()) {
+                        if (line.contains("LISTENING") || line.contains(":" + port)) {
+                            String[] parts = line.split("\\s+");
+                            if (parts.length > 0) {
+                                String pidStr = parts[parts.length - 1];
+                                try {
+                                    int pid = Integer.parseInt(pidStr);
+                                    if (pid > 0) return pid;
+                                } catch (NumberFormatException ignored) {}
+                            }
+                        }
+                    } else {
+                        try {
+                            return Integer.parseInt(line);
+                        } catch (NumberFormatException ignored) {}
+                    }
                 }
             }
         } catch (Exception ignored) {
@@ -336,7 +399,13 @@ public class HostProcessDriver implements ServiceDriver {
 
     private void runCommand(String cmd) {
         try {
-            new ProcessBuilder("/bin/sh", "-c", cmd).start().waitFor(3, TimeUnit.SECONDS);
+            ProcessBuilder pb;
+            if (isWindows()) {
+                pb = new ProcessBuilder("cmd.exe", "/c", cmd);
+            } else {
+                pb = new ProcessBuilder("/bin/sh", "-c", cmd);
+            }
+            pb.start().waitFor(3, TimeUnit.SECONDS);
         } catch (Exception ignored) {
         }
     }

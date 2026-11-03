@@ -8,6 +8,8 @@ import com.saasbasics.platform.modules.system.devops.mapper.AppBuildRecordMapper
 import com.saasbasics.platform.modules.system.devops.mapper.AppServiceMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.saasbasics.platform.modules.audit.api.AuditRecorder;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
@@ -39,6 +41,7 @@ public class AppBuildPipelineService {
     private final AppServiceMapper serviceMapper;
     private final AppBuildRecordMapper buildRecordMapper;
     private final AppArtifactMapper artifactMapper;
+    private final ObjectProvider<AuditRecorder> auditRecorderProvider;
     private final ExecutorService buildThreadPool = Executors.newFixedThreadPool(3);
 
     // Active live build log buffer: recordId -> List<String>
@@ -46,10 +49,12 @@ public class AppBuildPipelineService {
 
     public AppBuildPipelineService(AppServiceMapper serviceMapper,
                                   AppBuildRecordMapper buildRecordMapper,
-                                  AppArtifactMapper artifactMapper) {
+                                  AppArtifactMapper artifactMapper,
+                                  ObjectProvider<AuditRecorder> auditRecorderProvider) {
         this.serviceMapper = serviceMapper;
         this.buildRecordMapper = buildRecordMapper;
         this.artifactMapper = artifactMapper;
+        this.auditRecorderProvider = auditRecorderProvider;
     }
 
     public AppBuildRecordEntity triggerBuild(Long serviceId, String customBuildCmd, String triggerType, String createdBy) {
@@ -92,6 +97,13 @@ public class AppBuildPipelineService {
         // Execute async
         CompletableFuture.runAsync(() -> executePipeline(service, record, actualCmd), buildThreadPool);
 
+        try {
+            AuditRecorder recorder = auditRecorderProvider.getIfAvailable();
+            if (recorder != null) {
+                recorder.record("SYSTEM_DEVOPS", "SERVICE_BUILD", service.getServiceCode(), "BUILD", "触发编译流水线: " + buildNo + ", 命令: " + actualCmd, "SUBMITTED", true);
+            }
+        } catch (Exception ignored) {}
+
         return record;
     }
 
@@ -105,7 +117,13 @@ public class AppBuildPipelineService {
                 throw new IllegalStateException("工作目录不存在: " + service.getWorkDir());
             }
 
-            ProcessBuilder pb = new ProcessBuilder("/bin/bash", "-c", buildCmd);
+            ProcessBuilder pb;
+            String osName = System.getProperty("os.name", "").toLowerCase();
+            if (osName.contains("win")) {
+                pb = new ProcessBuilder("cmd.exe", "/c", buildCmd);
+            } else {
+                pb = new ProcessBuilder("/bin/bash", "-c", buildCmd);
+            }
             pb.directory(workDir);
             pb.redirectErrorStream(true);
             pb.environment().put("PATH", "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:" + System.getenv("PATH"));

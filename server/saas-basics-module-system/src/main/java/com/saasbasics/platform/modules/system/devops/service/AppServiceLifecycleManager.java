@@ -1,6 +1,7 @@
 package com.saasbasics.platform.modules.system.devops.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.saasbasics.platform.modules.audit.api.AuditRecorder;
 import com.saasbasics.platform.modules.system.devops.driver.ServiceDriver;
 import com.saasbasics.platform.modules.system.devops.driver.ServiceRuntimeInfo;
 import com.saasbasics.platform.modules.system.devops.dto.AppArtifactDTO;
@@ -17,6 +18,7 @@ import com.saasbasics.platform.modules.system.devops.mapper.AppServiceMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -32,6 +34,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -44,17 +47,31 @@ public class AppServiceLifecycleManager {
     private final AppServiceMapper serviceMapper;
     private final AppBuildRecordMapper buildRecordMapper;
     private final AppArtifactMapper artifactMapper;
+    private final ObjectProvider<AuditRecorder> auditRecorderProvider;
     private final Map<String, ServiceDriver> drivers = new ConcurrentHashMap<>();
 
     public AppServiceLifecycleManager(AppServiceMapper serviceMapper,
                                      AppBuildRecordMapper buildRecordMapper,
                                      AppArtifactMapper artifactMapper,
+                                     ObjectProvider<AuditRecorder> auditRecorderProvider,
                                      List<ServiceDriver> driverList) {
         this.serviceMapper = serviceMapper;
         this.buildRecordMapper = buildRecordMapper;
         this.artifactMapper = artifactMapper;
+        this.auditRecorderProvider = auditRecorderProvider;
         for (ServiceDriver d : driverList) {
             drivers.put(d.getDriverType().toUpperCase(), d);
+        }
+    }
+
+    private void recordAudit(String opType, String serviceCode, String details, boolean success) {
+        try {
+            AuditRecorder recorder = auditRecorderProvider.getIfAvailable();
+            if (recorder != null) {
+                recorder.record("SYSTEM_DEVOPS", "SERVICE_CONTROL", serviceCode, opType, details, success ? "SUCCESS" : "FAIL", success);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to record devops audit: {}", e.getMessage());
         }
     }
 
@@ -126,12 +143,14 @@ public class AppServiceLifecycleManager {
             entity.setLastErrorMsg(null);
             serviceMapper.updateById(entity);
 
+            recordAudit("START", entity.getServiceCode(), "成功启动服务 (PID: " + pid + ")", true);
             return AppServiceActionResult.ok("START", "服务已成功启动 (PID: " + pid + ")", "RUNNING", pid);
         } catch (Exception e) {
             log.error("Start service failed: {}", e.getMessage(), e);
             entity.setStatus("ERROR");
             entity.setLastErrorMsg(e.getMessage());
             serviceMapper.updateById(entity);
+            recordAudit("START", entity.getServiceCode(), "启动失败: " + e.getMessage(), false);
             return AppServiceActionResult.fail("START", "启动失败: " + e.getMessage(), "ERROR");
         }
     }
@@ -142,6 +161,14 @@ public class AppServiceLifecycleManager {
             return AppServiceActionResult.fail("STOP", "未找到服务 ID: " + id, "ERROR");
         }
 
+        // Safety Guardrail: backend-main suicide prevention
+        if ("backend-main".equalsIgnoreCase(entity.getServiceCode())) {
+            recordAudit("STOP", entity.getServiceCode(), "在线停机被平台安全机制拦截", false);
+            return AppServiceActionResult.fail("STOP",
+                    "【安全防护】核心主服务 (backend-main) 承载平台控制面，禁止在线直接停机以防控制台失联！如需更新部署，请使用【安全重启】或服务器外部守护脚本",
+                    entity.getStatus());
+        }
+
         ServiceDriver driver = resolveDriver(entity);
         try {
             driver.stop(entity, timeoutSeconds);
@@ -150,9 +177,11 @@ public class AppServiceLifecycleManager {
             entity.setLastStoppedAt(LocalDateTime.now());
             serviceMapper.updateById(entity);
 
+            recordAudit("STOP", entity.getServiceCode(), "服务安全停止", true);
             return AppServiceActionResult.ok("STOP", "服务已安全停止", "STOPPED", null);
         } catch (Exception e) {
             log.error("Stop service failed: {}", e.getMessage(), e);
+            recordAudit("STOP", entity.getServiceCode(), "停止异常: " + e.getMessage(), false);
             return AppServiceActionResult.fail("STOP", "停止服务异常: " + e.getMessage(), entity.getStatus());
         }
     }
@@ -161,6 +190,29 @@ public class AppServiceLifecycleManager {
         AppServiceEntity entity = serviceMapper.selectById(id);
         if (entity == null) {
             return AppServiceActionResult.fail("RESTART", "未找到服务 ID: " + id, "ERROR");
+        }
+
+        // Special handling for core backend-main self-restart
+        if ("backend-main".equalsIgnoreCase(entity.getServiceCode())) {
+            log.warn("Self-restart triggered for core service [backend-main]. Scheduling graceful restart...");
+            entity.setStatus("RESTARTING");
+            entity.setLastErrorMsg(null);
+            serviceMapper.updateById(entity);
+            recordAudit("RESTART", entity.getServiceCode(), "触发核心主服务安全自愈重启", true);
+
+            // Execute async restart so the current HTTP response completes and reaches the browser
+            CompletableFuture.runAsync(() -> {
+                try {
+                    Thread.sleep(1200); // 1.2s delay to allow HTTP response flush
+                    log.info("Executing self-restart for backend-main...");
+                    ServiceDriver driver = resolveDriver(entity);
+                    driver.restart(entity, timeoutSeconds);
+                } catch (Exception e) {
+                    log.error("Async self-restart failed: {}", e.getMessage(), e);
+                }
+            });
+
+            return AppServiceActionResult.ok("RESTART", "核心主服务安全重启指令已下发，系统将在数秒内平滑重载，请稍候刷新控制台...", "RESTARTING", entity.getCurrentPid());
         }
 
         ServiceDriver driver = resolveDriver(entity);
@@ -174,12 +226,14 @@ public class AppServiceLifecycleManager {
             entity.setLastErrorMsg(null);
             serviceMapper.updateById(entity);
 
+            recordAudit("RESTART", entity.getServiceCode(), "服务成功重启 (PID: " + info.getPid() + ")", true);
             return AppServiceActionResult.ok("RESTART", "服务已成功重启", "RUNNING", info.getPid());
         } catch (Exception e) {
             log.error("Restart service failed: {}", e.getMessage(), e);
             entity.setStatus("ERROR");
             entity.setLastErrorMsg(e.getMessage());
             serviceMapper.updateById(entity);
+            recordAudit("RESTART", entity.getServiceCode(), "重启失败: " + e.getMessage(), false);
             return AppServiceActionResult.fail("RESTART", "重启失败: " + e.getMessage(), "ERROR");
         }
     }
@@ -190,6 +244,14 @@ public class AppServiceLifecycleManager {
             return AppServiceActionResult.fail("KILL", "未找到服务 ID: " + id, "ERROR");
         }
 
+        // Safety Guardrail: backend-main suicide prevention
+        if ("backend-main".equalsIgnoreCase(entity.getServiceCode())) {
+            recordAudit("KILL", entity.getServiceCode(), "在线强杀被平台安全机制拦截", false);
+            return AppServiceActionResult.fail("KILL",
+                    "【安全防护】核心主服务 (backend-main) 承载平台控制面，禁止在线强杀！如需强制关停请登录服务器操作系统执行操作",
+                    entity.getStatus());
+        }
+
         ServiceDriver driver = resolveDriver(entity);
         try {
             driver.kill(entity);
@@ -198,8 +260,10 @@ public class AppServiceLifecycleManager {
             entity.setLastStoppedAt(LocalDateTime.now());
             serviceMapper.updateById(entity);
 
+            recordAudit("KILL", entity.getServiceCode(), "进程已被强制终止 (SIGKILL)", true);
             return AppServiceActionResult.ok("KILL", "服务进程已强制终止 (SIGKILL)", "STOPPED", null);
         } catch (Exception e) {
+            recordAudit("KILL", entity.getServiceCode(), "强杀失败: " + e.getMessage(), false);
             return AppServiceActionResult.fail("KILL", "强杀失败: " + e.getMessage(), entity.getStatus());
         }
     }
@@ -358,6 +422,7 @@ public class AppServiceLifecycleManager {
         // Restart service
         restartService(serviceId, 15);
 
+        recordAudit("ROLLBACK", service.getServiceCode(), "制品回滚至版本: " + targetArtifact.getVersionTag(), true);
         return AppServiceActionResult.ok("ROLLBACK", "已回滚至版本: " + targetArtifact.getVersionTag() + " 并成功平滑重启", "RUNNING", service.getCurrentPid());
     }
 

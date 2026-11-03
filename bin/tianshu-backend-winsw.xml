@@ -1,0 +1,11 @@
+<service>
+  <id>TianshuBackendService</id>
+  <name>Tianshu Cloud Base Backend</name>
+  <description>天枢云基企业级核心业务主服务后台守护进程</description>
+  <executable>java</executable>
+  <arguments>-Dfile.encoding=UTF-8 -Dserver.port=8080 -jar "%BASE%\server\saas-basics-app\target\saas-basics-app-0.1.0-SNAPSHOT.jar"</arguments>
+  <logmode>rotate</logmode>
+  <logpath>%BASE%\logs</logpath>
+  <onfailure action="restart" delay="3 sec"/>
+  <env name="DB_PASSWORD" value="19990518suo"/>
+</service>

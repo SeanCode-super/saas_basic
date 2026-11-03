@@ -1,0 +1,16 @@
+[Unit]
+Description=Tianshu Cloud Base Backend Service
+After=network.target mysql.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/saas_basics
+ExecStart=/usr/bin/java -Dfile.encoding=UTF-8 -Dserver.port=8080 -jar /opt/saas_basics/server/saas-basics-app/target/saas-basics-app-0.1.0-SNAPSHOT.jar
+Restart=always
+RestartSec=3s
+LimitNOFILE=65536
+Environment="DB_PASSWORD=19990518suo"
+
+[Install]
+WantedBy=multi-user.target
