@@ -29,7 +29,8 @@ import {
   CaretRight,
   Tickets,
   Monitor,
-  Lock
+  Lock,
+  MagicStick
 } from "@element-plus/icons-vue";
 import {
   fetchAppServices,
@@ -46,9 +47,11 @@ import {
   rollbackAppArtifact,
   saveAppService,
   deleteAppService,
+  checkAppServicePort,
   type AppServiceItem,
   type AppBuildRecordItem,
-  type AppArtifactItem
+  type AppArtifactItem,
+  type PortCheckResult
 } from "@/api/modules/devops";
 
 // ==================== 1. 数据状态 ====================
@@ -93,15 +96,192 @@ const uploadRemark = ref("");
 const selectedFile = ref<File | null>(null);
 const uploadSubmitting = ref(false);
 
-// ==================== 5. 服务配置编辑弹窗 ====================
+// ==================== 5. 架构模板与服务配置弹窗 ====================
+interface ServiceTemplate {
+  key: string;
+  name: string;
+  icon: string;
+  desc: string;
+  serviceType: "JAR" | "NODE" | "DOCKER" | "SCRIPT";
+  driverType: "HOST_PROCESS" | "DOCKER";
+  defaultPort: number;
+  workDir: string;
+  startCmdTpl: (code: string, port: number) => string;
+  buildCmdTpl: (code: string) => string;
+  healthUrlTpl: (code: string, port: number) => string;
+  logPathTpl: (code: string) => string;
+  artifactPathTpl: (code: string) => string;
+  remark: string;
+}
+
+const SERVICE_TEMPLATES: ServiceTemplate[] = [
+  {
+    key: "spring_boot",
+    name: "Spring Boot 微服务",
+    icon: "☕",
+    desc: "Java 17/21 独立后端微服务",
+    serviceType: "JAR",
+    driverType: "HOST_PROCESS",
+    defaultPort: 8086,
+    workDir: "/Users/shenzhidan/ideaProject/saas_basics/server",
+    startCmdTpl: (code, port) => `java -Dfile.encoding=UTF-8 -Dserver.port=${port} -DDB_PASSWORD=19990518suo -jar ${code}/target/${code}-0.1.0-SNAPSHOT.jar`,
+    buildCmdTpl: (code) => `mvn clean package -DskipTests -pl ${code} -am`,
+    healthUrlTpl: (code, port) => `http://127.0.0.1:${port}/actuator/health`,
+    logPathTpl: (code) => `logs/${code}.log`,
+    artifactPathTpl: (code) => `${code}/target/${code}-0.1.0-SNAPSHOT.jar`,
+    remark: "Spring Boot 工业级后端微服务"
+  },
+  {
+    key: "web_frontend",
+    name: "Vue / Vite 前端工程",
+    icon: "🌐",
+    desc: "Vue 3 / React / Vite 响应式前端应用",
+    serviceType: "NODE",
+    driverType: "HOST_PROCESS",
+    defaultPort: 9528,
+    workDir: "/Users/shenzhidan/ideaProject/saas_basics/web",
+    startCmdTpl: (code, port) => `npm run dev -- --port ${port}`,
+    buildCmdTpl: () => `npm run build`,
+    healthUrlTpl: (code, port) => `http://127.0.0.1:${port}`,
+    logPathTpl: (code) => `logs/${code}.log`,
+    artifactPathTpl: () => `dist`,
+    remark: "Vue 3 + Vite 现代化 Web 交互前端"
+  },
+  {
+    key: "python_fastapi",
+    name: "Python / AI 模型服务",
+    icon: "🐍",
+    desc: "FastAPI / PyTorch / LLM 推理服务",
+    serviceType: "SCRIPT",
+    driverType: "HOST_PROCESS",
+    defaultPort: 8000,
+    workDir: "/Users/shenzhidan/ideaProject/saas_basics",
+    startCmdTpl: (code, port) => `python3 -m uvicorn app:app --host 0.0.0.0 --port ${port}`,
+    buildCmdTpl: () => `pip install -r requirements.txt`,
+    healthUrlTpl: (code, port) => `http://127.0.0.1:${port}/docs`,
+    logPathTpl: (code) => `logs/${code}.log`,
+    artifactPathTpl: () => ``,
+    remark: "Python / FastAPI 智能化模型服务"
+  },
+  {
+    key: "golang_native",
+    name: "Go 高性能微服务",
+    icon: "🐹",
+    desc: "Golang 单二进制高并发服务",
+    serviceType: "SCRIPT",
+    driverType: "HOST_PROCESS",
+    defaultPort: 8090,
+    workDir: "/Users/shenzhidan/ideaProject/saas_basics",
+    startCmdTpl: (code, port) => `./${code} -port ${port}`,
+    buildCmdTpl: (code) => `go build -o ${code} main.go`,
+    healthUrlTpl: (code, port) => `http://127.0.0.1:${port}/health`,
+    logPathTpl: (code) => `logs/${code}.log`,
+    artifactPathTpl: (code) => `${code}`,
+    remark: "Golang 高并发微服务"
+  },
+  {
+    key: "docker_container",
+    name: "Docker 独立容器",
+    icon: "🐳",
+    desc: "Redis / Nginx / 任意 Docker 镜像",
+    serviceType: "DOCKER",
+    driverType: "DOCKER",
+    defaultPort: 6380,
+    workDir: "/tmp",
+    startCmdTpl: (code, port) => `docker run -d --name ${code} -p ${port}:${port} redis:7-alpine`,
+    buildCmdTpl: () => `docker pull redis:7-alpine`,
+    healthUrlTpl: (code, port) => `http://127.0.0.1:${port}`,
+    logPathTpl: () => ``,
+    artifactPathTpl: () => ``,
+    remark: "Docker 容器化服务组件"
+  },
+  {
+    key: "custom",
+    name: "自由自定义配置",
+    icon: "⚡",
+    desc: "完全自由定制任意启动命令",
+    serviceType: "SCRIPT",
+    driverType: "HOST_PROCESS",
+    defaultPort: 8088,
+    workDir: "/Users/shenzhidan/ideaProject/saas_basics",
+    startCmdTpl: () => ``,
+    buildCmdTpl: () => ``,
+    healthUrlTpl: (code, port) => `http://127.0.0.1:${port}`,
+    logPathTpl: (code) => `logs/${code}.log`,
+    artifactPathTpl: () => ``,
+    remark: "自定义应用组件"
+  }
+];
+
 const editDialogVisible = ref(false);
+const activeTemplateKey = ref("spring_boot");
+const portCheckResult = ref<PortCheckResult | null>(null);
+const portChecking = ref(false);
+let portCheckTimer: any = null;
+
 const editForm = ref<Partial<AppServiceItem>>({
   serviceType: "JAR",
   driverType: "HOST_PROCESS",
   serviceGroup: "PLATFORM",
   autoRestart: 0,
-  port: 8080
+  port: 8086
 });
+
+function applyTemplate(tpl: ServiceTemplate, force = false) {
+  activeTemplateKey.value = tpl.key;
+  editForm.value.serviceType = tpl.serviceType;
+  editForm.value.driverType = tpl.driverType;
+  editForm.value.workDir = tpl.workDir;
+  if (!editForm.value.port || force) {
+    editForm.value.port = tpl.defaultPort;
+  }
+  const code = editForm.value.serviceCode || "new-service";
+  const port = editForm.value.port || tpl.defaultPort;
+  editForm.value.startCmd = tpl.startCmdTpl(code, port);
+  editForm.value.buildCmd = tpl.buildCmdTpl(code);
+  editForm.value.healthUrl = tpl.healthUrlTpl(code, port);
+  editForm.value.logPath = tpl.logPathTpl(code);
+  editForm.value.artifactPath = tpl.artifactPathTpl(code);
+  editForm.value.remark = tpl.remark;
+  checkPortConflict(editForm.value.port);
+}
+
+function handleCodeOrPortChange() {
+  if (editForm.value.id) {
+    checkPortConflict(editForm.value.port);
+    return;
+  }
+  const tpl = SERVICE_TEMPLATES.find((t) => t.key === activeTemplateKey.value);
+  if (!tpl || tpl.key === "custom") {
+    checkPortConflict(editForm.value.port);
+    return;
+  }
+  const code = editForm.value.serviceCode || "new-service";
+  const port = editForm.value.port || tpl.defaultPort;
+  editForm.value.startCmd = tpl.startCmdTpl(code, port);
+  editForm.value.healthUrl = tpl.healthUrlTpl(code, port);
+  editForm.value.logPath = tpl.logPathTpl(code);
+  editForm.value.artifactPath = tpl.artifactPathTpl(code);
+  checkPortConflict(port);
+}
+
+function checkPortConflict(port?: number) {
+  if (portCheckTimer) clearTimeout(portCheckTimer);
+  if (!port || port <= 0 || port > 65535) {
+    portCheckResult.value = null;
+    return;
+  }
+  portCheckTimer = setTimeout(async () => {
+    portChecking.value = true;
+    try {
+      portCheckResult.value = await checkAppServicePort(port, editForm.value.id);
+    } catch (e) {
+      portCheckResult.value = null;
+    } finally {
+      portChecking.value = false;
+    }
+  }, 250);
+}
 
 // ==================== 6. 核心业务操作 ====================
 // 按钮级防抖加载态: actionLoading['1-start'], actionLoading['1-restart'] 等
@@ -515,19 +695,16 @@ async function handleRollback(artifact: AppArtifactItem) {
 function openEditDialog(service?: AppServiceItem) {
   if (service) {
     editForm.value = { ...service };
+    activeTemplateKey.value = "";
+    checkPortConflict(service.port);
   } else {
     editForm.value = {
-      serviceCode: "custom-service-" + Date.now().toString().slice(-4),
-      serviceName: "自定义扩展微服务",
-      serviceType: "JAR",
+      serviceCode: "demo-service-" + Date.now().toString().slice(-4),
+      serviceName: "新建业务微服务",
       serviceGroup: "PLATFORM",
-      driverType: "HOST_PROCESS",
-      workDir: "/Users/shenzhidan/ideaProject/saas_basics",
-      startCmd: "java -jar your-app.jar",
-      buildCmd: "mvn clean package -DskipTests",
-      port: 8090,
       autoRestart: 0
     };
+    applyTemplate(SERVICE_TEMPLATES[0], true);
   }
   editDialogVisible.value = true;
 }
@@ -536,6 +713,17 @@ async function submitSaveService() {
   if (!editForm.value.serviceCode || !editForm.value.serviceName || !editForm.value.workDir || !editForm.value.startCmd) {
     ElMessage.warning("请完整填写服务标识、服务名称、工作目录与启动命令");
     return;
+  }
+  if (portCheckResult.value && !portCheckResult.value.available) {
+    try {
+      await ElMessageBox.confirm(
+        `当前端口 [${editForm.value.port}] ${portCheckResult.value.message}。强制保存可能导致服务启动冲突，是否确认继续保存？`,
+        "端口占用冲突提示",
+        { type: "warning", confirmButtonText: "仍然保存", cancelButtonText: "返回修改" }
+      );
+    } catch {
+      return;
+    }
   }
   try {
     await saveAppService(editForm.value, editForm.value.id);
@@ -1115,58 +1303,113 @@ onUnmounted(() => {
       </div>
     </el-dialog>
 
-    <!-- 6. 服务配置添加/编辑弹窗 -->
+    <!-- 6. 服务配置添加/编辑弹窗 (支持模板化与端口冲突检测) -->
     <el-dialog
       v-model="editDialogVisible"
       :title="editForm.id ? '编辑纳管服务' : '新建纳管服务'"
-      width="50%"
+      width="58%"
+      class="service-edit-dialog"
+      destroy-on-close
     >
-      <el-form label-width="110px">
-        <el-form-item label="服务标识代码" required>
-          <el-input v-model="editForm.serviceCode" placeholder="如: saas-basics-crm" :disabled="!!editForm.id" />
-        </el-form-item>
+      <!-- 智能模板选择器 (仅在新建服务时展示) -->
+      <div v-if="!editForm.id" class="template-selector-box mb-4">
+        <div class="template-header">
+          <div class="tpl-title">
+            <el-icon color="#409eff"><MagicStick /></el-icon>
+            <span>推荐应用架构模板（点击即可一键预填标准指令与探针）</span>
+          </div>
+          <el-tag size="small" type="success" effect="light">标准契约对齐</el-tag>
+        </div>
+        <div class="template-cards-grid">
+          <div
+            v-for="tpl in SERVICE_TEMPLATES"
+            :key="tpl.key"
+            class="tpl-card"
+            :class="{ active: activeTemplateKey === tpl.key }"
+            @click="applyTemplate(tpl, true)"
+          >
+            <div class="tpl-card-icon">{{ tpl.icon }}</div>
+            <div class="tpl-card-info">
+              <div class="tpl-card-name">{{ tpl.name }}</div>
+              <div class="tpl-card-desc">{{ tpl.desc }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-        <el-form-item label="服务显示名称" required>
-          <el-input v-model="editForm.serviceName" placeholder="如: 天枢云基 · CRM 业务模块" />
-        </el-form-item>
-
-        <el-row :gutter="12">
+      <el-form label-width="120px" class="edit-form-content">
+        <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="服务类型">
+            <el-form-item label="服务代码 (唯一)" required>
+              <el-input
+                v-model="editForm.serviceCode"
+                placeholder="如: crm-service"
+                :disabled="!!editForm.id"
+                @input="handleCodeOrPortChange"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="服务显示名称" required>
+              <el-input v-model="editForm.serviceName" placeholder="如: 天枢云基 · CRM 业务模块" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="服务架构类型">
               <el-select v-model="editForm.serviceType" style="width: 100%;">
-                <el-option value="JAR" label="Java Jar 应用" />
-                <el-option value="NODE" label="Node.js / 前端应用" />
-                <el-option value="DOCKER" label="Docker 容器" />
-                <el-option value="SCRIPT" label="自定义 Shell 脚本" />
+                <el-option value="JAR" label="☕ Java Jar 应用" />
+                <el-option value="NODE" label="🌐 Node.js / 前端应用" />
+                <el-option value="DOCKER" label="🐳 Docker 容器镜像" />
+                <el-option value="SCRIPT" label="⚡ 原生程序 / 脚本 (Python/Go/Shell)" />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="编排驱动">
+            <el-form-item label="编排驱动引擎">
               <el-select v-model="editForm.driverType" style="width: 100%;">
-                <el-option value="HOST_PROCESS" label="Host 宿主机进程 (ProcessTree)" />
-                <el-option value="DOCKER" label="Docker Engine (Socket)" />
+                <el-option value="HOST_PROCESS" label="Host 宿主机进程树 (Java 21 ProcessTree)" />
+                <el-option value="DOCKER" label="Docker Engine (Socket / CLI)" />
               </el-select>
             </el-form-item>
           </el-col>
         </el-row>
 
-        <el-form-item label="工作目录" required>
-          <el-input v-model="editForm.workDir" placeholder="服务的根目录绝对路径" />
+        <el-form-item label="服务工作目录" required>
+          <el-input v-model="editForm.workDir" placeholder="服务的根目录绝对路径，如: /Users/xxx/project" />
         </el-form-item>
 
-        <el-form-item label="启动命令" required>
-          <el-input v-model="editForm.startCmd" type="textarea" :rows="2" placeholder="如: java -jar app.jar 或 npm run dev" />
-        </el-form-item>
-
-        <el-form-item label="编译命令">
-          <el-input v-model="editForm.buildCmd" placeholder="如: mvn clean package -DskipTests 或 npm run build" />
-        </el-form-item>
-
-        <el-row :gutter="12">
+        <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="监听端口">
-              <el-input-number v-model="editForm.port" :min="1" :max="65535" style="width: 100%;" />
+            <el-form-item label="服务监听端口" required>
+              <div class="port-input-wrapper">
+                <el-input-number
+                  v-model="editForm.port"
+                  :min="1"
+                  :max="65535"
+                  style="width: 130px;"
+                  @change="handleCodeOrPortChange"
+                />
+                <div class="port-status-inline">
+                  <span v-if="portChecking" class="status-checking">
+                    <el-icon class="is-loading"><Loading /></el-icon> 检查端口...
+                  </span>
+                  <span v-else-if="portCheckResult?.available" class="status-available text-success">
+                    <el-icon><CircleCheck /></el-icon> 端口可用
+                  </span>
+                  <el-tooltip
+                    v-else-if="portCheckResult && !portCheckResult.available"
+                    :content="portCheckResult.message"
+                    placement="top"
+                  >
+                    <span class="status-occupied text-danger">
+                      <el-icon><CircleClose /></el-icon> 冲突: {{ portCheckResult.occupiedByRegisteredService ? '已分配' : '被占用' }}
+                    </span>
+                  </el-tooltip>
+                </div>
+              </div>
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -1176,18 +1419,47 @@ onUnmounted(() => {
           </el-col>
         </el-row>
 
-        <el-form-item label="日志输出路径">
-          <el-input v-model="editForm.logPath" placeholder="留空时自动输出至 workDir/logs/xxx.log" />
+        <el-form-item label="启动运行命令" required>
+          <el-input
+            v-model="editForm.startCmd"
+            type="textarea"
+            :rows="2"
+            placeholder="如: java -Dfile.encoding=UTF-8 -jar app.jar 或 npm run dev"
+          />
         </el-form-item>
 
-        <el-form-item label="备注说明">
-          <el-input v-model="editForm.remark" placeholder="服务的用途说明" />
+        <el-form-item label="自动编译命令">
+          <el-input v-model="editForm.buildCmd" placeholder="如: mvn clean package -DskipTests 或 npm run build" />
+        </el-form-item>
+
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="制品产物相对路径">
+              <el-input v-model="editForm.artifactPath" placeholder="如: target/app.jar 或 dist" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="日志输出路径">
+              <el-input v-model="editForm.logPath" placeholder="留空默认: workDir/logs/{serviceCode}.log" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <el-form-item label="业务用途说明">
+          <el-input v-model="editForm.remark" placeholder="服务的用途说明或技术栈说明" />
         </el-form-item>
       </el-form>
 
       <template #footer>
-        <el-button @click="editDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitSaveService">保存配置</el-button>
+        <div class="dialog-footer-actions">
+          <el-button v-if="!editForm.id && activeTemplateKey" size="default" @click="handleCodeOrPortChange">
+            <el-icon><Refresh /></el-icon> 重新依模板填充
+          </el-button>
+          <div class="right-buttons">
+            <el-button @click="editDialogVisible = false">取消</el-button>
+            <el-button type="primary" @click="submitSaveService">保存并纳管服务</el-button>
+          </div>
+        </div>
       </template>
     </el-dialog>
   </div>
@@ -1821,5 +2093,131 @@ onUnmounted(() => {
   font-size: 11px;
   color: var(--el-text-color-secondary, #94a3b8);
   margin-top: 4px;
+}
+
+/* 智能应用架构模板选择器 */
+.template-selector-box {
+  background: var(--el-fill-color-light, #f8fafc);
+  border: 1px solid var(--el-border-color-light, #e2e8f0);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.template-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.tpl-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--el-text-color-primary, #0f172a);
+}
+
+.template-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.tpl-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--el-bg-color, #ffffff);
+  border: 1px solid var(--el-border-color-light, #e2e8f0);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tpl-card:hover {
+  border-color: var(--el-color-primary, #409eff);
+  transform: translateY(-1px);
+}
+
+.tpl-card.active {
+  border-color: var(--el-color-primary, #409eff);
+  background: rgba(64, 158, 255, 0.08);
+  box-shadow: 0 0 0 1px var(--el-color-primary, #409eff);
+}
+
+.tpl-card-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.tpl-card-info {
+  overflow: hidden;
+}
+
+.tpl-card-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--el-text-color-primary, #0f172a);
+}
+
+.tpl-card-desc {
+  font-size: 11px;
+  color: var(--el-text-color-secondary, #64748b);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 130px;
+}
+
+/* 端口检测指示器 */
+.port-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.port-status-inline {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+}
+
+.status-checking {
+  color: var(--el-text-color-secondary, #64748b);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.status-available {
+  color: #10b981;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.status-occupied {
+  color: #ef4444;
+  font-weight: 600;
+  cursor: help;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dialog-footer-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.dialog-footer-actions .right-buttons {
+  display: flex;
+  gap: 10px;
 }
 </style>

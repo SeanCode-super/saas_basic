@@ -8,6 +8,7 @@ import com.saasbasics.platform.modules.system.devops.dto.AppBuildTriggerRequest;
 import com.saasbasics.platform.modules.system.devops.dto.AppServiceActionResult;
 import com.saasbasics.platform.modules.system.devops.dto.AppServiceDTO;
 import com.saasbasics.platform.modules.system.devops.dto.AppServiceSaveRequest;
+import com.saasbasics.platform.modules.system.devops.dto.PortCheckResultDTO;
 import com.saasbasics.platform.modules.system.devops.entity.AppBuildRecordEntity;
 import com.saasbasics.platform.modules.system.devops.service.AppBuildPipelineService;
 import com.saasbasics.platform.modules.system.devops.service.AppLogStreamService;
@@ -47,6 +48,13 @@ public class AppServiceDevopsController {
     @RequirePermission("system:config:query")
     public ApiResponse<List<AppServiceDTO>> listServices() {
         return ApiResponse.success(lifecycleManager.listServices());
+    }
+
+    @GetMapping("/services/check-port")
+    @RequirePermission("system:config:query")
+    public ApiResponse<PortCheckResultDTO> checkPort(@RequestParam int port,
+                                                     @RequestParam(required = false) Long excludeServiceId) {
+        return ApiResponse.success(lifecycleManager.checkPortStatus(port, excludeServiceId));
     }
 
     @GetMapping("/services/{id}")

@@ -158,3 +158,20 @@ export async function rollbackAppArtifact(id: number, artifactId: number): Promi
   const res = await http.post<{ data: ActionResult }>(`/infra/devops/services/${id}/artifacts/${artifactId}/rollback`);
   return res.data.data;
 }
+
+export interface PortCheckResult {
+  port: number;
+  available: boolean;
+  occupiedBySystem: boolean;
+  occupiedByRegisteredService: boolean;
+  registeredServiceName?: string;
+  registeredServiceCode?: string;
+  message: string;
+}
+
+export async function checkAppServicePort(port: number, excludeServiceId?: number): Promise<PortCheckResult> {
+  const res = await http.get<{ data: PortCheckResult }>("/infra/devops/services/check-port", {
+    params: { port, excludeServiceId }
+  });
+  return res.data.data;
+}

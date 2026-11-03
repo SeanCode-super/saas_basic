@@ -9,6 +9,7 @@ import com.saasbasics.platform.modules.system.devops.dto.AppBuildRecordDTO;
 import com.saasbasics.platform.modules.system.devops.dto.AppServiceActionResult;
 import com.saasbasics.platform.modules.system.devops.dto.AppServiceDTO;
 import com.saasbasics.platform.modules.system.devops.dto.AppServiceSaveRequest;
+import com.saasbasics.platform.modules.system.devops.dto.PortCheckResultDTO;
 import com.saasbasics.platform.modules.system.devops.entity.AppArtifactEntity;
 import com.saasbasics.platform.modules.system.devops.entity.AppBuildRecordEntity;
 import com.saasbasics.platform.modules.system.devops.entity.AppServiceEntity;
@@ -269,6 +270,8 @@ public class AppServiceLifecycleManager {
     }
 
     public Long saveService(AppServiceSaveRequest req, Long id) {
+        validateCommands(req.getStartCmd(), req.getBuildCmd());
+
         AppServiceEntity entity;
         if (id != null && id > 0) {
             entity = serviceMapper.selectById(id);
@@ -290,6 +293,49 @@ public class AppServiceLifecycleManager {
             serviceMapper.insert(entity);
         }
         return entity.getId();
+    }
+
+    public PortCheckResultDTO checkPortStatus(int port, Long excludeServiceId) {
+        if (port <= 0 || port > 65535) {
+            PortCheckResultDTO dto = new PortCheckResultDTO();
+            dto.setPort(port);
+            dto.setAvailable(false);
+            dto.setMessage("端口必须在 1 ~ 65535 范围内");
+            return dto;
+        }
+
+        // 1. 检查数据库中是否已分配给其他已注册服务
+        LambdaQueryWrapper<AppServiceEntity> qw = new LambdaQueryWrapper<AppServiceEntity>()
+                .eq(AppServiceEntity::getPort, port);
+        if (excludeServiceId != null && excludeServiceId > 0) {
+            qw.ne(AppServiceEntity::getId, excludeServiceId);
+        }
+        AppServiceEntity inDb = serviceMapper.selectOne(qw);
+        if (inDb != null) {
+            return PortCheckResultDTO.occupiedByService(port, inDb.getServiceName(), inDb.getServiceCode());
+        }
+
+        // 2. 探测操作系统物理端口当前是否已被外部进程监听
+        try (java.net.Socket socket = new java.net.Socket()) {
+            socket.connect(new java.net.InetSocketAddress("127.0.0.1", port), 120);
+            return PortCheckResultDTO.occupiedBySystem(port);
+        } catch (Exception ignored) {
+        }
+
+        return PortCheckResultDTO.available(port);
+    }
+
+    private void validateCommands(String startCmd, String buildCmd) {
+        String combined = ((startCmd != null ? startCmd : "") + " " + (buildCmd != null ? buildCmd : "")).toLowerCase();
+        String[] dangerous = {
+            "rm -rf /", "rm -rf *", "mkfs", ":(){ :|:& };:", "dd if=", "> /dev/sda",
+            "chmod -r 777 /", "shutdown -h", "init 0"
+        };
+        for (String d : dangerous) {
+            if (combined.contains(d)) {
+                throw new IllegalArgumentException("【安全防御】检测到包含高危破坏性指令: " + d);
+            }
+        }
     }
 
     public void deleteService(Long id) {
