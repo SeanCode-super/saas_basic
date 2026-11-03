@@ -293,7 +293,6 @@ h1, h2, h3, h4, h5, h6 {
   .el-table__fixed-right th.el-table__cell,
   .el-table__fixed th.el-table__cell,
   .el-table__header-wrapper th.el-table-fixed-column--right {
-    background-color: rgba(248, 250, 252, 0.68) !important;
     background: rgba(248, 250, 252, 0.68) !important;
     backdrop-filter: blur(24px) saturate(210%) contrast(104%) !important;
     -webkit-backdrop-filter: blur(24px) saturate(210%) contrast(104%) !important;
@@ -306,7 +305,6 @@ h1, h2, h3, h4, h5, h6 {
   tbody tr:nth-child(odd) > td.el-table__cell.el-table-fixed-column--left,
   .el-table__fixed-right tbody tr:nth-child(odd) td.el-table__cell,
   .el-table__fixed tbody tr:nth-child(odd) td.el-table__cell {
-    background-color: rgba(255, 255, 255, 0.35) !important;
     background: rgba(255, 255, 255, 0.35) !important;
     backdrop-filter: blur(24px) saturate(210%) contrast(104%) !important;
     -webkit-backdrop-filter: blur(24px) saturate(210%) contrast(104%) !important;
@@ -319,7 +317,6 @@ h1, h2, h3, h4, h5, h6 {
   tbody tr:nth-child(even) > td.el-table__cell.el-table-fixed-column--left,
   .el-table__fixed-right tbody tr:nth-child(even) td.el-table__cell,
   .el-table__fixed tbody tr:nth-child(even) td.el-table__cell {
-    background-color: rgba(241, 245, 249, 0.65) !important;
     background: rgba(241, 245, 249, 0.65) !important;
     backdrop-filter: blur(24px) saturate(210%) contrast(104%) !important;
     -webkit-backdrop-filter: blur(24px) saturate(210%) contrast(104%) !important;
@@ -332,7 +329,6 @@ h1, h2, h3, h4, h5, h6 {
   tbody tr:hover > td.el-table__cell.el-table-fixed-column--left,
   .el-table__fixed-right tbody tr:hover td.el-table__cell,
   .el-table__fixed tbody tr:hover td.el-table__cell {
-    background-color: rgba(219, 234, 254, 0.75) !important;
     background: rgba(219, 234, 254, 0.75) !important;
     backdrop-filter: blur(24px) saturate(210%) contrast(104%) !important;
     -webkit-backdrop-filter: blur(24px) saturate(210%) contrast(104%) !important;

@@ -9,6 +9,8 @@ import com.saasbasics.platform.modules.system.devops.mapper.AppServiceMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.saasbasics.platform.modules.audit.api.AuditRecorder;
+import com.saasbasics.platform.modules.system.devops.dto.AppBuildRecordDTO;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
@@ -57,7 +59,7 @@ public class AppBuildPipelineService {
         this.auditRecorderProvider = auditRecorderProvider;
     }
 
-    public AppBuildRecordEntity triggerBuild(Long serviceId, String customBuildCmd, String triggerType, String createdBy) {
+    public AppBuildRecordDTO triggerBuild(Long serviceId, String customBuildCmd, String triggerType, String createdBy) {
         AppServiceEntity service = serviceMapper.selectById(serviceId);
         if (service == null) {
             throw new IllegalArgumentException("未找到服务 ID: " + serviceId);
@@ -104,7 +106,9 @@ public class AppBuildPipelineService {
             }
         } catch (Exception ignored) {}
 
-        return record;
+        AppBuildRecordDTO dto = new AppBuildRecordDTO();
+        BeanUtils.copyProperties(record, dto);
+        return dto;
     }
 
     private void executePipeline(AppServiceEntity service, AppBuildRecordEntity record, String buildCmd) {

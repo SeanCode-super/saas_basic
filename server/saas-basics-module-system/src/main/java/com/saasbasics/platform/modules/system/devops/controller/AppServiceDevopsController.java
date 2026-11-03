@@ -9,7 +9,6 @@ import com.saasbasics.platform.modules.system.devops.dto.AppServiceActionResult;
 import com.saasbasics.platform.modules.system.devops.dto.AppServiceDTO;
 import com.saasbasics.platform.modules.system.devops.dto.AppServiceSaveRequest;
 import com.saasbasics.platform.modules.system.devops.dto.PortCheckResultDTO;
-import com.saasbasics.platform.modules.system.devops.entity.AppBuildRecordEntity;
 import com.saasbasics.platform.modules.system.devops.service.AppBuildPipelineService;
 import com.saasbasics.platform.modules.system.devops.service.AppLogStreamService;
 import com.saasbasics.platform.modules.system.devops.service.AppServiceLifecycleManager;
@@ -110,7 +109,7 @@ public class AppServiceDevopsController {
 
     @PostMapping("/services/{id}/build")
     @RequirePermission("system:config:update")
-    public ApiResponse<AppBuildRecordEntity> triggerBuild(@PathVariable Long id,
+    public ApiResponse<AppBuildRecordDTO> triggerBuild(@PathVariable Long id,
                                                           @RequestBody(required = false) AppBuildTriggerRequest req) {
         String cmd = req != null ? req.getCustomBuildCmd() : null;
         return ApiResponse.success(buildPipelineService.triggerBuild(id, cmd, "MANUAL", "admin"));

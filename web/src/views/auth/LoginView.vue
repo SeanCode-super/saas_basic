@@ -587,12 +587,8 @@ onMounted(() => {
     0 4px 16px -2px rgba(15, 23, 42, 0.04);
 
   &__header {
-    margin-bottom: 22px;
-    text-align: center;
-  }
-
-  &__header {
     margin-bottom: 20px;
+    text-align: center;
   }
 
   &__title {
