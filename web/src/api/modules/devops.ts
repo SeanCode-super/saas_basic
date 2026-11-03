@@ -16,7 +16,7 @@ export interface AppServiceItem {
   logPath?: string;
   buildCmd?: string;
   autoRestart?: number;
-  status: "RUNNING" | "STOPPED" | "STARTING" | "COMPILING" | "ERROR";
+  status: "RUNNING" | "STOPPED" | "STARTING" | "STOPPING" | "COMPILING" | "ERROR";
   currentPid?: number;
   uptimeSeconds?: number;
   lastStartedAt?: string;

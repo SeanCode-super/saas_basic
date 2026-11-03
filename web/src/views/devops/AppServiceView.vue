@@ -343,16 +343,20 @@ async function handleStart(service: AppServiceItem) {
   setActionLoading(service.id, "start", true);
   const prevStatus = service.status;
   service.status = "STARTING"; // 乐观UI更新，瞬间给用户反馈
+  let startNotice: any = null;
   try {
-    ElMessage.info(`正在下发启动指令 [${service.serviceName}]...`);
+    startNotice = ElMessage.info({ message: `正在下发启动指令 [${service.serviceName}]...`, duration: 0 });
     const res = await startAppService(service.id);
+    startNotice?.close();
     if (res.success) {
+      setActionLoading(service.id, "start", false);
       ElMessage.success(res.message);
     } else {
       ElMessage.error(res.message);
       service.status = prevStatus;
     }
   } catch (err: any) {
+    startNotice?.close();
     service.status = prevStatus;
     ElMessage.error("启动失败: " + (err?.message || "未知错误"));
   } finally {
@@ -370,6 +374,7 @@ async function handleStop(service: AppServiceItem, timeout = 15) {
     );
     return;
   }
+  let stopNotice: any = null;
   try {
     await ElMessageBox.confirm(`确认停止服务 [${service.serviceName}] 吗？`, "优雅停止确认", {
       type: "warning",
@@ -377,16 +382,30 @@ async function handleStop(service: AppServiceItem, timeout = 15) {
       cancelButtonText: "取消"
     });
     setActionLoading(service.id, "stop", true);
-    ElMessage.info(`正在停止服务 [${service.serviceName}]...`);
+    const prevStatus = service.status;
+    service.status = "STOPPING"; // 立即进入停止中过渡状态
+    stopNotice = ElMessage.info({ message: `正在停止服务 [${service.serviceName}]...`, duration: 0 });
     const res = await stopAppService(service.id, timeout);
+    stopNotice?.close();
     if (res.success) {
-      ElMessage.success(res.message);
       service.status = "STOPPED";
       service.currentPid = undefined;
+      service.portListening = false;
+      service.healthOk = false;
+      service.cpuUsagePercent = 0;
+      service.memoryRssBytes = 0;
+      service.threadCount = 0;
+      setActionLoading(service.id, "stop", false);
+      ElMessage.success(res.message);
     } else {
+      service.status = prevStatus;
       ElMessage.error(res.message);
     }
-  } catch (err) {
+  } catch (err: any) {
+    stopNotice?.close();
+    if (err !== "cancel") {
+      service.status = "ERROR";
+    }
   } finally {
     setActionLoading(service.id, "stop", false);
     await loadServices(true);
@@ -399,6 +418,7 @@ async function handleRestart(service: AppServiceItem) {
     ? `⚠️ 您正在重启【平台核心主服务 (${service.serviceName})】！\n重启期间控制台将断开连接约 3~5 秒，并由守护进程自愈拉起。确认继续重启吗？`
     : `确认重启服务 [${service.serviceName}] 吗？`;
 
+  let restartNotice: any = null;
   try {
     await ElMessageBox.confirm(confirmMsg, isCore ? "核心服务重启高危确认" : "重启确认", {
       type: isCore ? "error" : "warning",
@@ -407,14 +427,17 @@ async function handleRestart(service: AppServiceItem) {
     });
     setActionLoading(service.id, "restart", true);
     service.status = "STARTING";
-    ElMessage.info(`正在下发重启指令 [${service.serviceName}]...`);
+    restartNotice = ElMessage.info({ message: `正在下发重启指令 [${service.serviceName}]...`, duration: 0 });
     const res = await restartAppService(service.id, 15);
+    restartNotice?.close();
     if (res.success) {
+      setActionLoading(service.id, "restart", false);
       ElMessage.success(res.message);
     } else {
       ElMessage.error(res.message);
     }
   } catch (err) {
+    restartNotice?.close();
   } finally {
     setActionLoading(service.id, "restart", false);
     await loadServices(true);
@@ -430,6 +453,7 @@ async function handleKill(service: AppServiceItem) {
     );
     return;
   }
+  let killNotice: any = null;
   try {
     await ElMessageBox.confirm(`强制杀死进程 (SIGKILL) 将立即释放端口，但可能中断进行中的事务。确认强杀 [${service.serviceName}] 吗？`, "强制终止警告", {
       type: "error",
@@ -437,15 +461,30 @@ async function handleKill(service: AppServiceItem) {
       cancelButtonText: "取消"
     });
     setActionLoading(service.id, "kill", true);
+    const prevStatus = service.status;
+    service.status = "STOPPING";
+    killNotice = ElMessage.info({ message: `正在强制终止服务进程 [${service.serviceName}]...`, duration: 0 });
     const res = await killAppService(service.id);
+    killNotice?.close();
     if (res.success) {
-      ElMessage.warning(res.message);
       service.status = "STOPPED";
       service.currentPid = undefined;
+      service.portListening = false;
+      service.healthOk = false;
+      service.cpuUsagePercent = 0;
+      service.memoryRssBytes = 0;
+      service.threadCount = 0;
+      setActionLoading(service.id, "kill", false);
+      ElMessage.warning(res.message);
     } else {
+      service.status = prevStatus;
       ElMessage.error(res.message);
     }
-  } catch (err) {
+  } catch (err: any) {
+    killNotice?.close();
+    if (err !== "cancel") {
+      service.status = "ERROR";
+    }
   } finally {
     setActionLoading(service.id, "kill", false);
     await loadServices(true);
@@ -969,6 +1008,7 @@ onUnmounted(() => {
             'card-running': service.status === 'RUNNING',
             'card-compiling': service.status === 'COMPILING',
             'card-starting': service.status === 'STARTING',
+            'card-stopping': service.status === 'STOPPING',
             'card-error': service.status === 'ERROR',
             'card-stopped': service.status === 'STOPPED'
           }"
@@ -981,6 +1021,8 @@ onUnmounted(() => {
                 :class="{
                   'icon-running': service.status === 'RUNNING',
                   'icon-compiling': service.status === 'COMPILING',
+                  'icon-starting': service.status === 'STARTING',
+                  'icon-stopping': service.status === 'STOPPING',
                   'icon-error': service.status === 'ERROR',
                   'icon-stopped': service.status === 'STOPPED'
                 }"
@@ -1008,7 +1050,7 @@ onUnmounted(() => {
               <el-tag
                 :type="service.status === 'RUNNING' ? 'success' :
                        service.status === 'COMPILING' ? 'primary' :
-                       service.status === 'STARTING' ? 'warning' :
+                       (service.status === 'STARTING' || service.status === 'STOPPING') ? 'warning' :
                        service.status === 'ERROR' ? 'danger' : 'info'"
                 size="default"
                 effect="light"
@@ -1019,7 +1061,7 @@ onUnmounted(() => {
                   :class="{
                     'green': service.status === 'RUNNING',
                     'blue': service.status === 'COMPILING',
-                    'amber': service.status === 'STARTING',
+                    'amber': service.status === 'STARTING' || service.status === 'STOPPING',
                     'red': service.status === 'ERROR',
                     'gray': service.status === 'STOPPED'
                   }"
@@ -1027,6 +1069,7 @@ onUnmounted(() => {
                 {{ service.status === 'RUNNING' ? '运行中' :
                    service.status === 'COMPILING' ? '编译中' :
                    service.status === 'STARTING' ? '启动中' :
+                   service.status === 'STOPPING' ? '停止中...' :
                    service.status === 'ERROR' ? '异常' : '已停止' }}
               </el-tag>
             </div>
@@ -1085,7 +1128,7 @@ onUnmounted(() => {
                 size="default"
                 :icon="VideoPlay"
                 :loading="isActionLoading(service.id, 'start')"
-                :disabled="service.status === 'RUNNING' || service.status === 'COMPILING' || isActionLoading(service.id, 'start')"
+                :disabled="service.status === 'RUNNING' || service.status === 'COMPILING' || service.status === 'STARTING' || service.status === 'STOPPING' || isActionLoading(service.id, 'start') || isActionLoading(service.id, 'stop') || isActionLoading(service.id, 'kill')"
                 @click="handleStart(service)"
               >
                 启动
@@ -1096,7 +1139,7 @@ onUnmounted(() => {
                 size="default"
                 :icon="RefreshRight"
                 :loading="isActionLoading(service.id, 'restart')"
-                :disabled="service.status === 'COMPILING' || isActionLoading(service.id, 'restart')"
+                :disabled="service.status === 'COMPILING' || service.status === 'STOPPING' || isActionLoading(service.id, 'restart') || isActionLoading(service.id, 'stop') || isActionLoading(service.id, 'kill')"
                 @click="handleRestart(service)"
               >
                 重启
@@ -1122,9 +1165,9 @@ onUnmounted(() => {
                   size="default"
                   :icon="VideoPause"
                   :loading="isActionLoading(service.id, 'stop') || isActionLoading(service.id, 'kill')"
-                  :disabled="service.status === 'STOPPED' || isActionLoading(service.id, 'stop') || isActionLoading(service.id, 'kill')"
+                  :disabled="service.status === 'STOPPED' || service.status === 'STOPPING' || isActionLoading(service.id, 'stop') || isActionLoading(service.id, 'kill')"
                 >
-                  停止
+                  {{ service.status === 'STOPPING' ? '停止中...' : '停止' }}
                 </el-button>
                 <template #dropdown>
                   <el-dropdown-menu>

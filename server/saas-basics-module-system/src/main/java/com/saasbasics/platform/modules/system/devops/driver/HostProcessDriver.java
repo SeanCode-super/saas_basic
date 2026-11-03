@@ -242,6 +242,32 @@ public class HostProcessDriver implements ServiceDriver {
                 killPidFallback(stubbornPid, true);
             }
         }
+
+        // 等待操作系统完全回收端口与 PID（最长 4 秒，毫秒级轮询，一旦彻底退出立即放行）
+        long deadline = System.currentTimeMillis() + 4000L;
+        while (System.currentTimeMillis() < deadline) {
+            boolean portStillListening = service.getPort() != null && checkPortListening(service.getPort());
+            boolean pidStillAlive = pid != null && isProcessAlive(pid);
+            if (!portStillListening && !pidStillAlive) {
+                break;
+            }
+            Thread.sleep(150);
+        }
+
+        // 彻底清除并刷新内存监控缓存为 STOPPED，防止前端轮询拿到旧缓存导致启动按钮短暂禁用
+        if (service.getId() != null) {
+            inspectCache.remove(service.getId());
+            ServiceRuntimeInfo stoppedInfo = new ServiceRuntimeInfo();
+            stoppedInfo.setStatus("STOPPED");
+            stoppedInfo.setPid(null);
+            stoppedInfo.setPortListening(false);
+            stoppedInfo.setHealthOk(false);
+            stoppedInfo.setUptimeSeconds(0L);
+            stoppedInfo.setCpuUsagePercent(0.0);
+            stoppedInfo.setMemoryRssBytes(0L);
+            stoppedInfo.setThreadCount(0);
+            inspectCache.put(service.getId(), new CachedInspect(stoppedInfo));
+        }
     }
 
     @Override
@@ -301,6 +327,32 @@ public class HostProcessDriver implements ServiceDriver {
             if (pPid != null && pPid > 0) {
                 killPidFallback(pPid, true);
             }
+        }
+
+        // 等待操作系统完全回收端口与 PID（最长 3 秒）
+        long deadline = System.currentTimeMillis() + 3000L;
+        while (System.currentTimeMillis() < deadline) {
+            boolean portStillListening = service.getPort() != null && checkPortListening(service.getPort());
+            boolean pidStillAlive = pid != null && isProcessAlive(pid);
+            if (!portStillListening && !pidStillAlive) {
+                break;
+            }
+            Thread.sleep(100);
+        }
+
+        // 彻底清除并刷新内存监控缓存为 STOPPED
+        if (service.getId() != null) {
+            inspectCache.remove(service.getId());
+            ServiceRuntimeInfo stoppedInfo = new ServiceRuntimeInfo();
+            stoppedInfo.setStatus("STOPPED");
+            stoppedInfo.setPid(null);
+            stoppedInfo.setPortListening(false);
+            stoppedInfo.setHealthOk(false);
+            stoppedInfo.setUptimeSeconds(0L);
+            stoppedInfo.setCpuUsagePercent(0.0);
+            stoppedInfo.setMemoryRssBytes(0L);
+            stoppedInfo.setThreadCount(0);
+            inspectCache.put(service.getId(), new CachedInspect(stoppedInfo));
         }
     }
 
