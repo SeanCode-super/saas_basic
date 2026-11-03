@@ -45,7 +45,7 @@ public class AppLogStreamService {
         return driver.tailLogs(service, maxLines);
     }
 
-    public SseEmitter createLogEmitter(Long serviceId) {
+    public SseEmitter createLogEmitter(Long serviceId, boolean includeHistory) {
         AppServiceEntity service = serviceMapper.selectById(serviceId);
         if (service == null) {
             throw new IllegalArgumentException("未找到服务 ID: " + serviceId);
@@ -66,12 +66,14 @@ public class AppLogStreamService {
 
         File logFile = new File(logPathStr);
 
-        // First send recent 100 lines as historical buffer
-        ServiceDriver driver = resolveDriver(service);
-        List<String> recent = driver.tailLogs(service, 100);
         try {
-            for (String r : recent) {
-                emitter.send(SseEmitter.event().name("log").data(r));
+            emitter.send(SseEmitter.event().name("connected").data("CONNECTED"));
+            if (includeHistory) {
+                ServiceDriver driver = resolveDriver(service);
+                List<String> recent = driver.tailLogs(service, 100);
+                for (String r : recent) {
+                    emitter.send(SseEmitter.event().name("log").data(r));
+                }
             }
         } catch (Exception e) {
             emitter.completeWithError(e);
@@ -80,6 +82,7 @@ public class AppLogStreamService {
 
         // Periodic tail reader
         final long[] filePointer = new long[]{logFile.exists() ? logFile.length() : 0};
+        final long[] lastHeartbeat = new long[]{System.currentTimeMillis()};
 
         var future = sseScheduler.scheduleWithFixedDelay(() -> {
             try {
@@ -100,6 +103,11 @@ public class AppLogStreamService {
                             emitter.send(SseEmitter.event().name("log").data(utf8));
                         }
                         filePointer[0] = raf.getFilePointer();
+                    }
+                } else {
+                    if (System.currentTimeMillis() - lastHeartbeat[0] > 15000) {
+                        emitter.send(SseEmitter.event().name("ping").data("heartbeat"));
+                        lastHeartbeat[0] = System.currentTimeMillis();
                     }
                 }
             } catch (Exception ex) {

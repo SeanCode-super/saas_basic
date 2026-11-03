@@ -82,13 +82,21 @@ public class AuthContextFilter extends OncePerRequestFilter {
 
     private String extractAccessToken(HttpServletRequest request) {
         String authorization = request.getHeader("Authorization");
-        if (authorization == null || authorization.isBlank()) {
-            return null;
+        if (authorization != null && !authorization.isBlank()) {
+            if (authorization.startsWith("Bearer ")) {
+                return authorization.substring(7);
+            }
+            return authorization;
         }
-        if (authorization.startsWith("Bearer ")) {
-            return authorization.substring(7);
+        // Support token in query parameter for EventSource (SSE) & WebSocket
+        String paramToken = request.getParameter("token");
+        if (paramToken == null || paramToken.isBlank()) {
+            paramToken = request.getParameter("accessToken");
         }
-        return authorization;
+        if (paramToken != null && !paramToken.isBlank()) {
+            return paramToken.trim();
+        }
+        return null;
     }
 
     private void writeUnauthorized(HttpServletResponse response) throws IOException {

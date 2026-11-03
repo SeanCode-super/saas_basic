@@ -136,8 +136,9 @@ public class AppServiceDevopsController {
     }
 
     @GetMapping(value = "/services/{id}/logs/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter streamLogs(@PathVariable Long id) {
-        return logStreamService.createLogEmitter(id);
+    public SseEmitter streamLogs(@PathVariable Long id,
+                                 @RequestParam(value = "history", defaultValue = "false") boolean history) {
+        return logStreamService.createLogEmitter(id, history);
     }
 
     @GetMapping("/services/{id}/artifacts")

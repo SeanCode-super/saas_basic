@@ -455,6 +455,9 @@ async function handleKill(service: AppServiceItem) {
 // ==================== 7. 终端日志流处理 ====================
 let logBuffer: string[] = [];
 let rafId: number | null = null;
+const sseStatus = ref<"connecting" | "live" | "idle" | "error">("connecting");
+let lastLogReceivedTime = 0;
+let idleCheckTimer: any = null;
 
 async function openTerminal(service: AppServiceItem) {
   terminalService.value = service;
@@ -463,8 +466,9 @@ async function openTerminal(service: AppServiceItem) {
   terminalSearch.value = "";
   autoScroll.value = true;
   logBuffer = [];
+  sseStatus.value = "connecting";
 
-  // 1. 先拉取最近 100 行日志
+  // 1. 先拉取最近 100 行日志快速呈现
   try {
     const recent = await fetchAppRecentLogs(service.id, 100);
     terminalLogs.value = recent;
@@ -473,26 +477,47 @@ async function openTerminal(service: AppServiceItem) {
     terminalLogs.value = ["[SYSTEM ERROR] 获取初始日志失败"];
   }
 
-  // 2. 建立 SSE 实时推流（加入 requestAnimationFrame 帧级缓冲，避免刷屏卡顿）
+  // 2. 建立 SSE 实时推流（带 Token 鉴权 + 仅增量推送）
+  connectSseStream(service.id);
+}
+
+function connectSseStream(serviceId: number) {
   if (sseSource) {
     sseSource.close();
+    sseSource = null;
   }
-  const sseUrl = `${import.meta.env.VITE_API_BASE_URL || "/api"}/infra/devops/services/${service.id}/logs/stream`;
+  if (idleCheckTimer) clearInterval(idleCheckTimer);
+
+  const token = localStorage.getItem("sb-access-token") || "";
+  const sseUrl = `${import.meta.env.VITE_API_BASE_URL || "/api"}/infra/devops/services/${serviceId}/logs/stream?token=${encodeURIComponent(token)}&history=false`;
   sseSource = new EventSource(sseUrl);
 
   const flushLogs = () => {
     if (logBuffer.length > 0) {
       terminalLogs.value.push(...logBuffer);
       logBuffer = [];
-      if (terminalLogs.value.length > 600) {
-        terminalLogs.value = terminalLogs.value.slice(-600);
+      if (terminalLogs.value.length > 800) {
+        terminalLogs.value = terminalLogs.value.slice(-800);
       }
       if (autoScroll.value) {
         scrollTerminalToBottom();
       }
+      sseStatus.value = "live";
+      lastLogReceivedTime = Date.now();
     }
     rafId = null;
   };
+
+  sseSource.addEventListener("connected", () => {
+    sseStatus.value = "idle";
+    lastLogReceivedTime = Date.now();
+  });
+
+  sseSource.addEventListener("ping", () => {
+    if (Date.now() - lastLogReceivedTime > 3000) {
+      sseStatus.value = "idle";
+    }
+  });
 
   sseSource.addEventListener("log", (evt) => {
     logBuffer.push(evt.data);
@@ -506,7 +531,20 @@ async function openTerminal(service: AppServiceItem) {
       cancelAnimationFrame(rafId);
       rafId = null;
     }
+    sseStatus.value = "error";
   });
+
+  idleCheckTimer = setInterval(() => {
+    if (sseStatus.value === "live" && Date.now() - lastLogReceivedTime > 3000) {
+      sseStatus.value = "idle";
+    }
+  }, 2000);
+}
+
+function retryConnectTerminal() {
+  if (!terminalService.value) return;
+  sseStatus.value = "connecting";
+  connectSseStream(terminalService.value.id);
 }
 
 function closeTerminal() {
@@ -517,6 +555,10 @@ function closeTerminal() {
   if (rafId) {
     cancelAnimationFrame(rafId);
     rafId = null;
+  }
+  if (idleCheckTimer) {
+    clearInterval(idleCheckTimer);
+    idleCheckTimer = null;
   }
   logBuffer = [];
   terminalVisible.value = false;
@@ -1156,6 +1198,19 @@ onUnmounted(() => {
             <span class="traffic-btn max-btn"></span>
             <span class="term-title font-mono">
               tianshu@service: ~ / {{ terminalService?.serviceCode }} / live.log
+            </span>
+            <!-- 实时连接状态标签 -->
+            <span v-if="sseStatus === 'live'" class="term-status-badge status-live">
+              <span class="status-pulse-dot"></span> 实时输出中
+            </span>
+            <span v-else-if="sseStatus === 'idle'" class="term-status-badge status-idle">
+              <span class="status-dot"></span> 监听中 · 服务空闲
+            </span>
+            <span v-else-if="sseStatus === 'connecting'" class="term-status-badge status-connecting">
+              <el-icon class="is-loading"><Loading /></el-icon> 正在连接...
+            </span>
+            <span v-else-if="sseStatus === 'error'" class="term-status-badge status-error" @click="retryConnectTerminal">
+              <el-icon><WarningFilled /></el-icon> 链路断开 (点击重连)
             </span>
           </div>
 
@@ -1970,6 +2025,64 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.term-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+  margin-left: 10px;
+  user-select: none;
+}
+
+.status-live {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.status-pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  animation: pulseDot 1s infinite alternate;
+}
+
+.status-idle {
+  background: rgba(148, 163, 184, 0.15);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+
+.status-connecting {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+}
+
+.status-error {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  cursor: pointer;
+}
+
+@keyframes pulseDot {
+  from { opacity: 0.4; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1.15); }
 }
 
 .traffic-btn {
