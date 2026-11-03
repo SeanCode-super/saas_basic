@@ -45,3 +45,5 @@ mobile/.vite/
 tmp/
 logs/
 data/
+*.pid
+.*.pid
