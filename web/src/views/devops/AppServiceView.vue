@@ -23,6 +23,8 @@ import {
   Close,
   Plus,
   Loading,
+  CircleCheckFilled,
+  CircleCloseFilled,
   Connection,
   Folder,
   Box,
@@ -285,6 +287,7 @@ function checkPortConflict(port?: number) {
 }
 
 // ==================== 6. 核心业务操作 ====================
+// ==================== 6. 核心业务操作与执行进度 ====================
 // 按钮级防抖加载态: actionLoading['1-start'], actionLoading['1-restart'] 等
 const actionLoading = ref<Record<string, boolean>>({});
 
@@ -300,6 +303,116 @@ function isActionLoading(id: number | string, action: string): boolean {
   return !!actionLoading.value[`${id}-${action}`];
 }
 
+// 细粒度生命周期执行进度 (Execution Progress Tracker)
+interface ServiceProgressItem {
+  type: "start" | "stop" | "restart" | "kill";
+  title: string;
+  desc: string;
+  percent: number;
+  status?: "" | "success" | "warning" | "exception";
+  elapsed: number;
+  timer?: any;
+}
+
+const serviceProgress = ref<Record<number, ServiceProgressItem>>({});
+
+function startLifecycleProgress(service: AppServiceItem, type: "start" | "stop" | "restart" | "kill") {
+  if (serviceProgress.value[service.id]?.timer) {
+    clearInterval(serviceProgress.value[service.id].timer);
+  }
+  const startTime = Date.now();
+  const portStr = service.port ? `:${service.port}` : "";
+
+  const initialItem: ServiceProgressItem = {
+    type,
+    title: type === "start" ? "启动中" : type === "stop" ? "停止中" : type === "restart" ? "重启中" : "终止中",
+    desc: type === "start"
+      ? "[1/3 准备就绪] 正在分配进程与初始化工作目录..."
+      : type === "stop"
+      ? "[1/3 发送停机] 正在向服务下发优雅停机信号 (SIGTERM)..."
+      : type === "restart"
+      ? "[1/4 停机处理] 正在优雅停止运行中的旧实例..."
+      : "[1/2 强杀信号] 正在向进程树发送 SIGKILL (-9)...",
+    percent: type === "kill" ? 45 : 20,
+    status: "",
+    elapsed: 0
+  };
+
+  const timer = setInterval(() => {
+    const elapsedSec = (Date.now() - startTime) / 1000;
+    const item = serviceProgress.value[service.id];
+    if (!item) return;
+    item.elapsed = elapsedSec;
+
+    if (type === "start") {
+      if (elapsedSec < 1.2) {
+        item.percent = 25;
+        item.desc = "[1/3 准备就绪] 正在分配进程与初始化工作目录...";
+      } else if (elapsedSec < 4.0) {
+        item.percent = 55;
+        item.desc = "[2/3 容器装载] SpringBoot / 组件正在启动加载...";
+      } else {
+        item.percent = Math.min(92, Math.round(55 + (elapsedSec - 4.0) * 4));
+        item.desc = `[3/3 探活检测] 正在持续探测端口 ${portStr} 监听就绪...`;
+      }
+    } else if (type === "stop") {
+      if (elapsedSec < 1.0) {
+        item.percent = 30;
+        item.desc = "[1/3 发送停机] 正在向服务下发优雅停机信号 (SIGTERM)...";
+      } else if (elapsedSec < 2.5) {
+        item.percent = 65;
+        item.desc = "[2/3 资源释放] 等待持久化、事务提交与连接池回收...";
+      } else {
+        item.percent = Math.min(92, Math.round(65 + (elapsedSec - 2.5) * 6));
+        item.desc = `[3/3 端口回收] 正在确认端口 ${portStr} 与 PID 彻底释放...`;
+      }
+    } else if (type === "restart") {
+      if (elapsedSec < 1.5) {
+        item.percent = 25;
+        item.desc = "[1/4 停机处理] 正在优雅停止运行中的旧实例...";
+      } else if (elapsedSec < 3.2) {
+        item.percent = 50;
+        item.desc = `[2/4 资源释放] 确认端口 ${portStr} 彻底释放...`;
+      } else if (elapsedSec < 5.5) {
+        item.percent = 75;
+        item.desc = "[3/4 重新拉起] 正在孵化新服务进程...";
+      } else {
+        item.percent = Math.min(92, Math.round(75 + (elapsedSec - 5.5) * 3));
+        item.desc = `[4/4 探活就绪] 等待新实例端口 ${portStr} 监听...`;
+      }
+    } else if (type === "kill") {
+      item.percent = Math.min(90, Math.round(45 + elapsedSec * 15));
+      item.desc = "[2/2 端口回收] 正在强制释放端口与进程资源...";
+    }
+  }, 100);
+
+  initialItem.timer = timer;
+  serviceProgress.value[service.id] = initialItem;
+}
+
+function finishLifecycleProgress(serviceId: number, success: boolean, msg?: string) {
+  const item = serviceProgress.value[serviceId];
+  if (!item) return;
+  if (item.timer) {
+    clearInterval(item.timer);
+    item.timer = undefined;
+  }
+  if (success) {
+    item.percent = 100;
+    item.status = "success";
+    item.desc = msg || (item.type === "start" ? "[就绪] 服务已成功监听端口并提供正常服务" : "[完成] 服务已完全停止，端口与资源已彻底释放");
+    setTimeout(() => {
+      delete serviceProgress.value[serviceId];
+    }, 1200);
+  } else {
+    item.status = "exception";
+    item.desc = msg || "[失败] 操作执行未成功";
+    setTimeout(() => {
+      delete serviceProgress.value[serviceId];
+    }, 3000);
+  }
+}
+
 async function loadServices(silent = false) {
   if (!silent && serviceList.value.length === 0) loading.value = true;
   try {
@@ -312,7 +425,14 @@ async function loadServices(silent = false) {
       for (const cur of serviceList.value) {
         const item = freshMap.get(cur.id);
         if (item) {
-          Object.assign(cur, item);
+          // 若当前服务正处于本地生命周期执行过渡中，锁定过渡状态，防止轮询提前冲刷状态
+          if (serviceProgress.value[cur.id]) {
+            const preservedStatus = cur.status;
+            Object.assign(cur, item);
+            cur.status = preservedStatus;
+          } else {
+            Object.assign(cur, item);
+          }
           freshMap.delete(cur.id);
         }
       }
@@ -342,23 +462,26 @@ function handleAutoRefreshChange(val: number) {
 async function handleStart(service: AppServiceItem) {
   setActionLoading(service.id, "start", true);
   const prevStatus = service.status;
-  service.status = "STARTING"; // 乐观UI更新，瞬间给用户反馈
-  let startNotice: any = null;
+  service.status = "STARTING"; // 立即进入启动中
+  startLifecycleProgress(service, "start");
+
   try {
-    startNotice = ElMessage.info({ message: `正在下发启动指令 [${service.serviceName}]...`, duration: 0 });
     const res = await startAppService(service.id);
-    startNotice?.close();
     if (res.success) {
+      service.status = "RUNNING";
+      finishLifecycleProgress(service.id, true, res.message);
       setActionLoading(service.id, "start", false);
       ElMessage.success(res.message);
     } else {
-      ElMessage.error(res.message);
       service.status = prevStatus;
+      finishLifecycleProgress(service.id, false, res.message);
+      ElMessage.error(res.message);
     }
   } catch (err: any) {
-    startNotice?.close();
     service.status = prevStatus;
-    ElMessage.error("启动失败: " + (err?.message || "未知错误"));
+    const errMsg = err?.response?.data?.message || err?.message || "未知错误";
+    finishLifecycleProgress(service.id, false, errMsg);
+    ElMessage.error("启动失败: " + errMsg);
   } finally {
     setActionLoading(service.id, "start", false);
     await loadServices(true);
@@ -374,7 +497,6 @@ async function handleStop(service: AppServiceItem, timeout = 15) {
     );
     return;
   }
-  let stopNotice: any = null;
   try {
     await ElMessageBox.confirm(`确认停止服务 [${service.serviceName}] 吗？`, "优雅停止确认", {
       type: "warning",
@@ -384,9 +506,9 @@ async function handleStop(service: AppServiceItem, timeout = 15) {
     setActionLoading(service.id, "stop", true);
     const prevStatus = service.status;
     service.status = "STOPPING"; // 立即进入停止中过渡状态
-    stopNotice = ElMessage.info({ message: `正在停止服务 [${service.serviceName}]...`, duration: 0 });
+    startLifecycleProgress(service, "stop");
+
     const res = await stopAppService(service.id, timeout);
-    stopNotice?.close();
     if (res.success) {
       service.status = "STOPPED";
       service.currentPid = undefined;
@@ -395,16 +517,20 @@ async function handleStop(service: AppServiceItem, timeout = 15) {
       service.cpuUsagePercent = 0;
       service.memoryRssBytes = 0;
       service.threadCount = 0;
+      finishLifecycleProgress(service.id, true, res.message);
       setActionLoading(service.id, "stop", false);
       ElMessage.success(res.message);
     } else {
       service.status = prevStatus;
+      finishLifecycleProgress(service.id, false, res.message);
       ElMessage.error(res.message);
     }
   } catch (err: any) {
-    stopNotice?.close();
     if (err !== "cancel") {
       service.status = "ERROR";
+      const errMsg = err?.response?.data?.message || err?.message || "停止异常";
+      finishLifecycleProgress(service.id, false, errMsg);
+      ElMessage.error(errMsg);
     }
   } finally {
     setActionLoading(service.id, "stop", false);
@@ -418,7 +544,6 @@ async function handleRestart(service: AppServiceItem) {
     ? `⚠️ 您正在重启【平台核心主服务 (${service.serviceName})】！\n重启期间控制台将断开连接约 3~5 秒，并由守护进程自愈拉起。确认继续重启吗？`
     : `确认重启服务 [${service.serviceName}] 吗？`;
 
-  let restartNotice: any = null;
   try {
     await ElMessageBox.confirm(confirmMsg, isCore ? "核心服务重启高危确认" : "重启确认", {
       type: isCore ? "error" : "warning",
@@ -427,17 +552,24 @@ async function handleRestart(service: AppServiceItem) {
     });
     setActionLoading(service.id, "restart", true);
     service.status = "STARTING";
-    restartNotice = ElMessage.info({ message: `正在下发重启指令 [${service.serviceName}]...`, duration: 0 });
+    startLifecycleProgress(service, "restart");
+
     const res = await restartAppService(service.id, 15);
-    restartNotice?.close();
     if (res.success) {
+      service.status = "RUNNING";
+      finishLifecycleProgress(service.id, true, res.message);
       setActionLoading(service.id, "restart", false);
       ElMessage.success(res.message);
     } else {
+      finishLifecycleProgress(service.id, false, res.message);
       ElMessage.error(res.message);
     }
-  } catch (err) {
-    restartNotice?.close();
+  } catch (err: any) {
+    if (err !== "cancel") {
+      const errMsg = err?.response?.data?.message || err?.message || "重启异常";
+      finishLifecycleProgress(service.id, false, errMsg);
+      ElMessage.error(errMsg);
+    }
   } finally {
     setActionLoading(service.id, "restart", false);
     await loadServices(true);
@@ -453,7 +585,6 @@ async function handleKill(service: AppServiceItem) {
     );
     return;
   }
-  let killNotice: any = null;
   try {
     await ElMessageBox.confirm(`强制杀死进程 (SIGKILL) 将立即释放端口，但可能中断进行中的事务。确认强杀 [${service.serviceName}] 吗？`, "强制终止警告", {
       type: "error",
@@ -463,9 +594,9 @@ async function handleKill(service: AppServiceItem) {
     setActionLoading(service.id, "kill", true);
     const prevStatus = service.status;
     service.status = "STOPPING";
-    killNotice = ElMessage.info({ message: `正在强制终止服务进程 [${service.serviceName}]...`, duration: 0 });
+    startLifecycleProgress(service, "kill");
+
     const res = await killAppService(service.id);
-    killNotice?.close();
     if (res.success) {
       service.status = "STOPPED";
       service.currentPid = undefined;
@@ -474,16 +605,20 @@ async function handleKill(service: AppServiceItem) {
       service.cpuUsagePercent = 0;
       service.memoryRssBytes = 0;
       service.threadCount = 0;
+      finishLifecycleProgress(service.id, true, res.message);
       setActionLoading(service.id, "kill", false);
       ElMessage.warning(res.message);
     } else {
       service.status = prevStatus;
+      finishLifecycleProgress(service.id, false, res.message);
       ElMessage.error(res.message);
     }
   } catch (err: any) {
-    killNotice?.close();
     if (err !== "cancel") {
       service.status = "ERROR";
+      const errMsg = err?.response?.data?.message || err?.message || "终止异常";
+      finishLifecycleProgress(service.id, false, errMsg);
+      ElMessage.error(errMsg);
     }
   } finally {
     setActionLoading(service.id, "kill", false);
@@ -1068,12 +1203,37 @@ onUnmounted(() => {
                 ></span>
                 {{ service.status === 'RUNNING' ? '运行中' :
                    service.status === 'COMPILING' ? '编译中' :
-                   service.status === 'STARTING' ? '启动中' :
-                   service.status === 'STOPPING' ? '停止中...' :
+                   service.status === 'STARTING' ? (serviceProgress[service.id] ? `启动中 (${serviceProgress[service.id].elapsed.toFixed(1)}s)` : '启动中...') :
+                   service.status === 'STOPPING' ? (serviceProgress[service.id] ? `停止中 (${serviceProgress[service.id].elapsed.toFixed(1)}s)` : '停止中...') :
                    service.status === 'ERROR' ? '异常' : '已停止' }}
               </el-tag>
             </div>
           </div>
+
+          <!-- 执行进度展示 (Lifecycle Execution Progress Display) -->
+          <transition name="el-zoom-in-top">
+            <div v-if="serviceProgress[service.id]" class="lifecycle-progress-box">
+              <div class="progress-info-row">
+                <div class="progress-step-text">
+                  <el-icon v-if="serviceProgress[service.id].status === 'success'" class="progress-icon text-success"><CircleCheckFilled /></el-icon>
+                  <el-icon v-else-if="serviceProgress[service.id].status === 'exception'" class="progress-icon text-danger"><CircleCloseFilled /></el-icon>
+                  <el-icon v-else class="progress-icon is-loading"><Loading /></el-icon>
+                  <span class="step-badge">{{ serviceProgress[service.id].title }}</span>
+                  <span class="step-desc" :title="serviceProgress[service.id].desc">{{ serviceProgress[service.id].desc }}</span>
+                </div>
+                <div class="progress-timer font-mono">
+                  {{ serviceProgress[service.id].elapsed.toFixed(1) }}s
+                </div>
+              </div>
+              <el-progress
+                :percentage="Math.round(serviceProgress[service.id].percent)"
+                :status="serviceProgress[service.id].status || undefined"
+                :stroke-width="5"
+                :show-text="false"
+                class="lifecycle-progress-bar"
+              />
+            </div>
+          </transition>
 
           <!-- 卡片中间：4 宫格遥测数据 -->
           <div class="service-telemetry-grid">
@@ -1131,7 +1291,7 @@ onUnmounted(() => {
                 :disabled="service.status === 'RUNNING' || service.status === 'COMPILING' || service.status === 'STARTING' || service.status === 'STOPPING' || isActionLoading(service.id, 'start') || isActionLoading(service.id, 'stop') || isActionLoading(service.id, 'kill')"
                 @click="handleStart(service)"
               >
-                启动
+                {{ service.status === 'STARTING' ? '启动中...' : '启动' }}
               </el-button>
 
               <el-button
@@ -1139,10 +1299,10 @@ onUnmounted(() => {
                 size="default"
                 :icon="RefreshRight"
                 :loading="isActionLoading(service.id, 'restart')"
-                :disabled="service.status === 'COMPILING' || service.status === 'STOPPING' || isActionLoading(service.id, 'restart') || isActionLoading(service.id, 'stop') || isActionLoading(service.id, 'kill')"
+                :disabled="service.status === 'COMPILING' || service.status === 'STARTING' || service.status === 'STOPPING' || isActionLoading(service.id, 'restart') || isActionLoading(service.id, 'stop') || isActionLoading(service.id, 'kill') || isActionLoading(service.id, 'start')"
                 @click="handleRestart(service)"
               >
-                重启
+                {{ service.status === 'STARTING' && isActionLoading(service.id, 'restart') ? '重启中...' : '重启' }}
               </el-button>
 
               <el-tooltip
@@ -1165,7 +1325,7 @@ onUnmounted(() => {
                   size="default"
                   :icon="VideoPause"
                   :loading="isActionLoading(service.id, 'stop') || isActionLoading(service.id, 'kill')"
-                  :disabled="service.status === 'STOPPED' || service.status === 'STOPPING' || isActionLoading(service.id, 'stop') || isActionLoading(service.id, 'kill')"
+                  :disabled="service.status === 'STOPPED' || service.status === 'STARTING' || service.status === 'STOPPING' || isActionLoading(service.id, 'stop') || isActionLoading(service.id, 'kill') || isActionLoading(service.id, 'start')"
                 >
                   {{ service.status === 'STOPPING' ? '停止中...' : '停止' }}
                 </el-button>
@@ -1795,12 +1955,89 @@ onUnmounted(() => {
   border-left: 4px solid #f59e0b;
 }
 
+.card-stopping {
+  border-left: 4px solid #f97316;
+}
+
 .card-error {
   border-left: 4px solid #ef4444;
 }
 
 .card-stopped {
   border-left: 4px solid #94a3b8;
+}
+
+/* 生命周期执行进度条 */
+.lifecycle-progress-box {
+  margin: -4px 0 12px 0;
+  padding: 8px 12px;
+  background: rgba(241, 245, 249, 0.6);
+  border-radius: 8px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.lifecycle-progress-box .progress-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.lifecycle-progress-box .progress-step-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lifecycle-progress-box .progress-icon {
+  font-size: 14px;
+  color: #3b82f6;
+  flex-shrink: 0;
+}
+
+.lifecycle-progress-box .progress-icon.text-success {
+  color: #10b981;
+}
+
+.lifecycle-progress-box .progress-icon.text-danger {
+  color: #ef4444;
+}
+
+.lifecycle-progress-box .step-badge {
+  font-weight: 600;
+  color: var(--el-text-color-primary, #1e293b);
+  flex-shrink: 0;
+}
+
+.lifecycle-progress-box .step-desc {
+  color: var(--el-text-color-secondary, #64748b);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lifecycle-progress-box .progress-timer {
+  color: #3b82f6;
+  font-weight: 700;
+  font-size: 11px;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.lifecycle-progress-box .lifecycle-progress-bar :deep(.el-progress-bar__outer) {
+  background-color: rgba(226, 232, 240, 0.8);
+  border-radius: 3px;
+}
+
+.lifecycle-progress-box .lifecycle-progress-bar :deep(.el-progress-bar__inner) {
+  border-radius: 3px;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .service-card-top {

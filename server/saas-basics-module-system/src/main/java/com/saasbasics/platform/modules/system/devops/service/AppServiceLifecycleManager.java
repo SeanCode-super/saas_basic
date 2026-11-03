@@ -86,6 +86,15 @@ public class AppServiceLifecycleManager {
             AppServiceDTO dto = convertToDto(entity);
             ServiceDriver driver = resolveDriver(entity);
             try {
+                // 如果处于瞬态中间状态（如 STARTING、STOPPING、COMPILING），优先尊重当前过渡态，防止轮询提前冲掉中间态
+                String currentDbStatus = entity.getStatus();
+                if ("STARTING".equalsIgnoreCase(currentDbStatus) ||
+                    "STOPPING".equalsIgnoreCase(currentDbStatus) ||
+                    "COMPILING".equalsIgnoreCase(currentDbStatus)) {
+                    dto.setStatus(currentDbStatus);
+                    return dto;
+                }
+
                 ServiceRuntimeInfo info = driver.inspect(entity);
                 dto.setStatus(info.getStatus());
                 dto.setCurrentPid(info.getPid());
@@ -97,7 +106,7 @@ public class AppServiceLifecycleManager {
                 dto.setHealthOk(info.getHealthOk());
 
                 // If DB status is out of sync, sync it silently
-                if (!info.getStatus().equalsIgnoreCase(entity.getStatus()) && !"COMPILING".equalsIgnoreCase(entity.getStatus())) {
+                if (!info.getStatus().equalsIgnoreCase(entity.getStatus())) {
                     entity.setStatus(info.getStatus());
                     entity.setCurrentPid(info.getPid());
                     serviceMapper.updateById(entity);
@@ -137,6 +146,11 @@ public class AppServiceLifecycleManager {
 
         ServiceDriver driver = resolveDriver(entity);
         try {
+            // 立即落库 STARTING 状态，防止轮询误判
+            entity.setStatus("STARTING");
+            entity.setLastErrorMsg(null);
+            serviceMapper.updateById(entity);
+
             int pid = driver.start(entity);
             entity.setStatus("RUNNING");
             entity.setCurrentPid(pid);
@@ -145,7 +159,8 @@ public class AppServiceLifecycleManager {
             serviceMapper.updateById(entity);
 
             recordAudit("START", entity.getServiceCode(), "成功启动服务 (PID: " + pid + ")", true);
-            return AppServiceActionResult.ok("START", "服务已成功启动 (PID: " + pid + ")", "RUNNING", pid);
+            String portMsg = entity.getPort() != null ? "，端口 :" + entity.getPort() + " 已正常就绪" : "";
+            return AppServiceActionResult.ok("START", "服务已成功启动并就绪 (PID: " + pid + portMsg + ")", "RUNNING", pid);
         } catch (Exception e) {
             log.error("Start service failed: {}", e.getMessage(), e);
             entity.setStatus("ERROR");
@@ -172,6 +187,10 @@ public class AppServiceLifecycleManager {
 
         ServiceDriver driver = resolveDriver(entity);
         try {
+            // 立即落库 STOPPING 状态，防止轮询并发拉取旧状态
+            entity.setStatus("STOPPING");
+            serviceMapper.updateById(entity);
+
             driver.stop(entity, timeoutSeconds);
             entity.setStatus("STOPPED");
             entity.setCurrentPid(null);
@@ -179,9 +198,12 @@ public class AppServiceLifecycleManager {
             serviceMapper.updateById(entity);
 
             recordAudit("STOP", entity.getServiceCode(), "服务安全停止", true);
-            return AppServiceActionResult.ok("STOP", "服务已安全停止", "STOPPED", null);
+            return AppServiceActionResult.ok("STOP", "服务已完全停止，端口与系统资源已回收", "STOPPED", null);
         } catch (Exception e) {
             log.error("Stop service failed: {}", e.getMessage(), e);
+            entity.setStatus("ERROR");
+            entity.setLastErrorMsg(e.getMessage());
+            serviceMapper.updateById(entity);
             recordAudit("STOP", entity.getServiceCode(), "停止异常: " + e.getMessage(), false);
             return AppServiceActionResult.fail("STOP", "停止服务异常: " + e.getMessage(), entity.getStatus());
         }

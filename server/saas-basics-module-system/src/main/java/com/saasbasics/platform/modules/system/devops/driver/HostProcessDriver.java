@@ -164,8 +164,8 @@ public class HostProcessDriver implements ServiceDriver {
         if (osName.contains("win")) {
             pb = new ProcessBuilder("cmd.exe", "/c", startCmd);
         } else {
-            // Use bash or sh
-            pb = new ProcessBuilder("/bin/bash", "-c", startCmd);
+            // 使用 exec 让目标应用进程直接替换子 shell，确保 PID 和信号直达应用进程本身
+            pb = new ProcessBuilder("/bin/bash", "-c", "exec " + startCmd);
         }
 
         pb.directory(workDir);
@@ -188,7 +188,39 @@ public class HostProcessDriver implements ServiceDriver {
             log.warn("Failed to write pid file: {}", e.getMessage());
         }
 
-        log.info("Service [{}] started with PID: {}", service.getServiceCode(), pid);
+        log.info("Service [{}] spawned with PID: {}. Waiting for readiness...", service.getServiceCode(), pid);
+
+        // 如果配置了端口，等待端口真正就绪（最长 25 秒），未就绪前不提前下发成功响应
+        if (service.getPort() != null && service.getPort() > 0) {
+            long deadline = System.currentTimeMillis() + 25000L;
+            boolean portReady = false;
+            while (System.currentTimeMillis() < deadline) {
+                if (!process.isAlive()) {
+                    int exitVal = -1;
+                    try { exitVal = process.exitValue(); } catch (Exception ignored) {}
+                    throw new IllegalStateException("进程异常过早退出 (ExitCode: " + exitVal + ")，请在日志终端查看报错栈");
+                }
+                if (checkPortListening(service.getPort())) {
+                    portReady = true;
+                    break;
+                }
+                Thread.sleep(250);
+            }
+            if (!portReady && !checkPortListening(service.getPort())) {
+                log.warn("Service [{}] did not bind port {} within 25s, but process is alive (PID: {})", service.getServiceCode(), service.getPort(), pid);
+            }
+        } else {
+            Thread.sleep(600);
+            if (!process.isAlive()) {
+                throw new IllegalStateException("进程异常过早退出");
+            }
+        }
+
+        if (service.getId() != null) {
+            inspectCache.remove(service.getId());
+        }
+
+        log.info("Service [{}] successfully started and confirmed ready with PID: {}", service.getServiceCode(), pid);
         return pid;
     }
 
@@ -243,8 +275,8 @@ public class HostProcessDriver implements ServiceDriver {
             }
         }
 
-        // 等待操作系统完全回收端口与 PID（最长 4 秒，毫秒级轮询，一旦彻底退出立即放行）
-        long deadline = System.currentTimeMillis() + 4000L;
+        // 等待操作系统完全回收端口与 PID（最长 6 秒，毫秒级轮询，一旦彻底退出立即放行）
+        long deadline = System.currentTimeMillis() + 6000L;
         while (System.currentTimeMillis() < deadline) {
             boolean portStillListening = service.getPort() != null && checkPortListening(service.getPort());
             boolean pidStillAlive = pid != null && isProcessAlive(pid);
@@ -257,15 +289,7 @@ public class HostProcessDriver implements ServiceDriver {
         // 彻底清除并刷新内存监控缓存为 STOPPED，防止前端轮询拿到旧缓存导致启动按钮短暂禁用
         if (service.getId() != null) {
             inspectCache.remove(service.getId());
-            ServiceRuntimeInfo stoppedInfo = new ServiceRuntimeInfo();
-            stoppedInfo.setStatus("STOPPED");
-            stoppedInfo.setPid(null);
-            stoppedInfo.setPortListening(false);
-            stoppedInfo.setHealthOk(false);
-            stoppedInfo.setUptimeSeconds(0L);
-            stoppedInfo.setCpuUsagePercent(0.0);
-            stoppedInfo.setMemoryRssBytes(0L);
-            stoppedInfo.setThreadCount(0);
+            ServiceRuntimeInfo stoppedInfo = ServiceRuntimeInfo.stopped();
             inspectCache.put(service.getId(), new CachedInspect(stoppedInfo));
         }
     }

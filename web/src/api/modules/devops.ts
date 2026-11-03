@@ -98,23 +98,23 @@ export async function deleteAppService(id: number): Promise<void> {
 }
 
 export async function startAppService(id: number): Promise<ActionResult> {
-  const res = await http.post<{ data: ActionResult }>(`/infra/devops/services/${id}/start`);
-  return res.data.data;
+  const res = await http.post<{ data: ActionResult }>(`/infra/devops/services/${id}/start`, {}, { timeout: 45000 });
+  return (res.data as any).data || res.data;
 }
 
 export async function stopAppService(id: number, timeoutSeconds = 15): Promise<ActionResult> {
-  const res = await http.post<{ data: ActionResult }>(`/infra/devops/services/${id}/stop?timeoutSeconds=${timeoutSeconds}`);
-  return res.data.data;
+  const res = await http.post<{ data: ActionResult }>(`/infra/devops/services/${id}/stop?timeoutSeconds=${timeoutSeconds}`, {}, { timeout: 45000 });
+  return (res.data as any).data || res.data;
 }
 
 export async function restartAppService(id: number, timeoutSeconds = 15): Promise<ActionResult> {
-  const res = await http.post<{ data: ActionResult }>(`/infra/devops/services/${id}/restart?timeoutSeconds=${timeoutSeconds}`);
-  return res.data.data;
+  const res = await http.post<{ data: ActionResult }>(`/infra/devops/services/${id}/restart?timeoutSeconds=${timeoutSeconds}`, {}, { timeout: 60000 });
+  return (res.data as any).data || res.data;
 }
 
 export async function killAppService(id: number): Promise<ActionResult> {
-  const res = await http.post<{ data: ActionResult }>(`/infra/devops/services/${id}/kill`);
-  return res.data.data;
+  const res = await http.post<{ data: ActionResult }>(`/infra/devops/services/${id}/kill`, {}, { timeout: 20000 });
+  return (res.data as any).data || res.data;
 }
 
 export async function triggerAppBuild(id: number, customBuildCmd?: string): Promise<AppBuildRecordItem> {
