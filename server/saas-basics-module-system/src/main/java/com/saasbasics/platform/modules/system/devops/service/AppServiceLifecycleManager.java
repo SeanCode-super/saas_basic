@@ -32,6 +32,7 @@ import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -80,8 +81,7 @@ public class AppServiceLifecycleManager {
                 new LambdaQueryWrapper<AppServiceEntity>().orderByAsc(AppServiceEntity::getSortNo)
         );
 
-        List<AppServiceDTO> result = new ArrayList<>();
-        for (AppServiceEntity entity : entities) {
+        return entities.parallelStream().map(entity -> {
             AppServiceDTO dto = convertToDto(entity);
             ServiceDriver driver = resolveDriver(entity);
             try {
@@ -104,9 +104,9 @@ public class AppServiceLifecycleManager {
             } catch (Exception e) {
                 log.warn("Inspect failed for service {}: {}", entity.getServiceCode(), e.getMessage());
             }
-            result.add(dto);
-        }
-        return result;
+            return dto;
+        }).sorted(Comparator.comparingInt(s -> s.getSortNo() != null ? s.getSortNo() : 100))
+          .collect(Collectors.toList());
     }
 
     public AppServiceDTO getService(Long id) {

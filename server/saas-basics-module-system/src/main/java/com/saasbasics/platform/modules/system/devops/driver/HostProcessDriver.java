@@ -25,8 +25,10 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 @Component
@@ -34,6 +36,16 @@ public class HostProcessDriver implements ServiceDriver {
 
     private static final Logger log = LoggerFactory.getLogger(HostProcessDriver.class);
     private final OperatingSystem os = new SystemInfo().getOperatingSystem();
+    private final Map<Long, CachedInspect> inspectCache = new ConcurrentHashMap<>();
+
+    private static class CachedInspect {
+        final ServiceRuntimeInfo info;
+        final long timestamp;
+        CachedInspect(ServiceRuntimeInfo info) {
+            this.info = info;
+            this.timestamp = System.currentTimeMillis();
+        }
+    }
 
     @Override
     public String getDriverType() {
@@ -47,6 +59,13 @@ public class HostProcessDriver implements ServiceDriver {
 
     @Override
     public ServiceRuntimeInfo inspect(AppServiceEntity service) {
+        if (service.getId() != null) {
+            CachedInspect cached = inspectCache.get(service.getId());
+            if (cached != null && (System.currentTimeMillis() - cached.timestamp < 1500)) {
+                return cached.info;
+            }
+        }
+
         ServiceRuntimeInfo info = new ServiceRuntimeInfo();
         Integer port = service.getPort();
         boolean isPortOpen = false;
@@ -96,11 +115,18 @@ public class HostProcessDriver implements ServiceDriver {
             info.setThreadCount(0);
         }
 
+        if (service.getId() != null) {
+            inspectCache.put(service.getId(), new CachedInspect(info));
+        }
+
         return info;
     }
 
     @Override
     public int start(AppServiceEntity service) throws Exception {
+        if (service.getId() != null) {
+            inspectCache.remove(service.getId());
+        }
         ServiceRuntimeInfo current = inspect(service);
         if ("RUNNING".equalsIgnoreCase(current.getStatus())) {
             throw new IllegalStateException("服务已在运行中 (PID: " + current.getPid() + ", 端口: " + service.getPort() + ")");
@@ -168,6 +194,9 @@ public class HostProcessDriver implements ServiceDriver {
 
     @Override
     public void stop(AppServiceEntity service, int timeoutSeconds) throws Exception {
+        if (service.getId() != null) {
+            inspectCache.remove(service.getId());
+        }
         ServiceRuntimeInfo info = inspect(service);
         Integer pid = info.getPid();
 
@@ -217,6 +246,9 @@ public class HostProcessDriver implements ServiceDriver {
 
     @Override
     public void restart(AppServiceEntity service, int timeoutSeconds) throws Exception {
+        if (service.getId() != null) {
+            inspectCache.remove(service.getId());
+        }
         if ("backend-main".equalsIgnoreCase(service.getServiceCode())) {
             long currentPid = ProcessHandle.current().pid();
             Integer targetPid = service.getCurrentPid();
@@ -252,6 +284,9 @@ public class HostProcessDriver implements ServiceDriver {
 
     @Override
     public void kill(AppServiceEntity service) throws Exception {
+        if (service.getId() != null) {
+            inspectCache.remove(service.getId());
+        }
         ServiceRuntimeInfo info = inspect(service);
         Integer pid = info.getPid();
         if (pid != null && pid > 0) {
@@ -335,7 +370,7 @@ public class HostProcessDriver implements ServiceDriver {
 
     private boolean checkPortListening(int port) {
         try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress("127.0.0.1", port), 300);
+            socket.connect(new InetSocketAddress("127.0.0.1", port), 120);
             return true;
         } catch (Exception e) {
             return false;
@@ -388,8 +423,8 @@ public class HostProcessDriver implements ServiceDriver {
             URI uri = URI.create(urlStr);
             HttpURLConnection conn = (HttpURLConnection) uri.toURL().openConnection();
             conn.setRequestMethod("GET");
-            conn.setConnectTimeout(1500);
-            conn.setReadTimeout(1500);
+            conn.setConnectTimeout(400);
+            conn.setReadTimeout(400);
             int code = conn.getResponseCode();
             return code >= 200 && code < 400;
         } catch (Exception e) {

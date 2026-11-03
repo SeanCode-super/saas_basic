@@ -104,10 +104,43 @@ const editForm = ref<Partial<AppServiceItem>>({
 });
 
 // ==================== 6. 核心业务操作 ====================
+// 按钮级防抖加载态: actionLoading['1-start'], actionLoading['1-restart'] 等
+const actionLoading = ref<Record<string, boolean>>({});
+
+function setActionLoading(id: number | string, action: string, val: boolean) {
+  if (val) {
+    actionLoading.value[`${id}-${action}`] = true;
+  } else {
+    delete actionLoading.value[`${id}-${action}`];
+  }
+}
+
+function isActionLoading(id: number | string, action: string): boolean {
+  return !!actionLoading.value[`${id}-${action}`];
+}
+
 async function loadServices(silent = false) {
-  if (!silent) loading.value = true;
+  if (!silent && serviceList.value.length === 0) loading.value = true;
   try {
-    serviceList.value = await fetchAppServices();
+    const fresh = await fetchAppServices();
+    if (serviceList.value.length === 0) {
+      serviceList.value = fresh;
+    } else {
+      // In-place merge to avoid DOM re-creation, preserve hover and active states
+      const freshMap = new Map(fresh.map((s) => [s.id, s]));
+      for (const cur of serviceList.value) {
+        const item = freshMap.get(cur.id);
+        if (item) {
+          Object.assign(cur, item);
+          freshMap.delete(cur.id);
+        }
+      }
+      for (const [_, item] of freshMap) {
+        serviceList.value.push(item);
+      }
+      const freshIds = new Set(fresh.map((s) => s.id));
+      serviceList.value = serviceList.value.filter((s) => freshIds.has(s.id));
+    }
   } catch (err: any) {
     if (!silent) ElMessage.error("获取服务列表失败: " + (err?.message || "网络错误"));
   } finally {
@@ -126,6 +159,9 @@ function handleAutoRefreshChange(val: number) {
 
 // 启停控制
 async function handleStart(service: AppServiceItem) {
+  setActionLoading(service.id, "start", true);
+  const prevStatus = service.status;
+  service.status = "STARTING"; // 乐观UI更新，瞬间给用户反馈
   try {
     ElMessage.info(`正在下发启动指令 [${service.serviceName}]...`);
     const res = await startAppService(service.id);
@@ -133,10 +169,14 @@ async function handleStart(service: AppServiceItem) {
       ElMessage.success(res.message);
     } else {
       ElMessage.error(res.message);
+      service.status = prevStatus;
     }
-    await loadServices(true);
   } catch (err: any) {
+    service.status = prevStatus;
     ElMessage.error("启动失败: " + (err?.message || "未知错误"));
+  } finally {
+    setActionLoading(service.id, "start", false);
+    await loadServices(true);
   }
 }
 
@@ -155,15 +195,20 @@ async function handleStop(service: AppServiceItem, timeout = 15) {
       confirmButtonText: "确认停止",
       cancelButtonText: "取消"
     });
+    setActionLoading(service.id, "stop", true);
     ElMessage.info(`正在停止服务 [${service.serviceName}]...`);
     const res = await stopAppService(service.id, timeout);
     if (res.success) {
       ElMessage.success(res.message);
+      service.status = "STOPPED";
+      service.currentPid = undefined;
     } else {
       ElMessage.error(res.message);
     }
-    await loadServices(true);
   } catch (err) {
+  } finally {
+    setActionLoading(service.id, "stop", false);
+    await loadServices(true);
   }
 }
 
@@ -179,6 +224,8 @@ async function handleRestart(service: AppServiceItem) {
       confirmButtonText: isCore ? "确认重启核心主服务" : "确认重启",
       cancelButtonText: "取消"
     });
+    setActionLoading(service.id, "restart", true);
+    service.status = "STARTING";
     ElMessage.info(`正在下发重启指令 [${service.serviceName}]...`);
     const res = await restartAppService(service.id, 15);
     if (res.success) {
@@ -186,8 +233,10 @@ async function handleRestart(service: AppServiceItem) {
     } else {
       ElMessage.error(res.message);
     }
-    await loadServices(true);
   } catch (err) {
+  } finally {
+    setActionLoading(service.id, "restart", false);
+    await loadServices(true);
   }
 }
 
@@ -206,52 +255,76 @@ async function handleKill(service: AppServiceItem) {
       confirmButtonText: "立即强杀",
       cancelButtonText: "取消"
     });
+    setActionLoading(service.id, "kill", true);
     const res = await killAppService(service.id);
     if (res.success) {
       ElMessage.warning(res.message);
+      service.status = "STOPPED";
+      service.currentPid = undefined;
     } else {
       ElMessage.error(res.message);
     }
-    await loadServices(true);
   } catch (err) {
+  } finally {
+    setActionLoading(service.id, "kill", false);
+    await loadServices(true);
   }
 }
 
 // ==================== 7. 终端日志流处理 ====================
+let logBuffer: string[] = [];
+let rafId: number | null = null;
+
 async function openTerminal(service: AppServiceItem) {
   terminalService.value = service;
   terminalLogs.value = [];
   terminalVisible.value = true;
   terminalSearch.value = "";
   autoScroll.value = true;
+  logBuffer = [];
 
-  // 1. 先拉取最近 200 行日志
+  // 1. 先拉取最近 100 行日志
   try {
-    const recent = await fetchAppRecentLogs(service.id, 200);
+    const recent = await fetchAppRecentLogs(service.id, 100);
     terminalLogs.value = recent;
     scrollTerminalToBottom();
   } catch (e) {
     terminalLogs.value = ["[SYSTEM ERROR] 获取初始日志失败"];
   }
 
-  // 2. 建立 SSE 实时推流
+  // 2. 建立 SSE 实时推流（加入 requestAnimationFrame 帧级缓冲，避免刷屏卡顿）
   if (sseSource) {
     sseSource.close();
   }
   const sseUrl = `${import.meta.env.VITE_API_BASE_URL || "/api"}/infra/devops/services/${service.id}/logs/stream`;
   sseSource = new EventSource(sseUrl);
 
-  sseSource.addEventListener("log", (evt) => {
-    terminalLogs.value.push(evt.data);
-    if (terminalLogs.value.length > 3000) {
-      terminalLogs.value.shift();
+  const flushLogs = () => {
+    if (logBuffer.length > 0) {
+      terminalLogs.value.push(...logBuffer);
+      logBuffer = [];
+      if (terminalLogs.value.length > 600) {
+        terminalLogs.value = terminalLogs.value.slice(-600);
+      }
+      if (autoScroll.value) {
+        scrollTerminalToBottom();
+      }
     }
-    if (autoScroll.value) {
-      scrollTerminalToBottom();
+    rafId = null;
+  };
+
+  sseSource.addEventListener("log", (evt) => {
+    logBuffer.push(evt.data);
+    if (!rafId) {
+      rafId = requestAnimationFrame(flushLogs);
     }
   });
 
   sseSource.addEventListener("error", () => {
+    if (rafId) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
   });
 }
 
@@ -260,6 +333,11 @@ function closeTerminal() {
     sseSource.close();
     sseSource = null;
   }
+  if (rafId) {
+    cancelAnimationFrame(rafId);
+    rafId = null;
+  }
+  logBuffer = [];
   terminalVisible.value = false;
   terminalService.value = null;
 }
@@ -737,7 +815,8 @@ onUnmounted(() => {
                 type="success"
                 size="default"
                 :icon="VideoPlay"
-                :disabled="service.status === 'RUNNING' || service.status === 'COMPILING'"
+                :loading="isActionLoading(service.id, 'start')"
+                :disabled="service.status === 'RUNNING' || service.status === 'COMPILING' || isActionLoading(service.id, 'start')"
                 @click="handleStart(service)"
               >
                 启动
@@ -747,7 +826,8 @@ onUnmounted(() => {
                 type="primary"
                 size="default"
                 :icon="RefreshRight"
-                :disabled="service.status === 'COMPILING'"
+                :loading="isActionLoading(service.id, 'restart')"
+                :disabled="service.status === 'COMPILING' || isActionLoading(service.id, 'restart')"
                 @click="handleRestart(service)"
               >
                 重启
@@ -772,7 +852,8 @@ onUnmounted(() => {
                   type="danger"
                   size="default"
                   :icon="VideoPause"
-                  :disabled="service.status === 'STOPPED'"
+                  :loading="isActionLoading(service.id, 'stop') || isActionLoading(service.id, 'kill')"
+                  :disabled="service.status === 'STOPPED' || isActionLoading(service.id, 'stop') || isActionLoading(service.id, 'kill')"
                 >
                   停止
                 </el-button>
@@ -1260,7 +1341,8 @@ onUnmounted(() => {
   border-radius: 10px;
   border: 1px solid var(--el-border-color-light, #e2e8f0);
   background: var(--el-bg-color, #ffffff);
-  transition: all 0.25s ease;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
 }
 
 .service-box-card:hover {
