@@ -2,6 +2,8 @@
 -- V62: 天枢云基 · 应用生命周期与 DevOps 服务编排中台
 -- 包含：服务资产表、自动化构建记录表、制品版本归档表、预置核心服务、菜单与权限赋权
 -- ===================================================================
+SET NAMES utf8mb4;
+SET CHARACTER SET utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `sys_app_service` (
   `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',

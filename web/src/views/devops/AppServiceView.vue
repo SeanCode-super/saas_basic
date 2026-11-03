@@ -26,7 +26,9 @@ import {
   Connection,
   Folder,
   Box,
-  CaretRight
+  CaretRight,
+  Tickets,
+  Monitor
 } from "@element-plus/icons-vue";
 import {
   fetchAppServices,
@@ -153,7 +155,6 @@ async function handleStop(service: AppServiceItem, timeout = 15) {
     }
     await loadServices(true);
   } catch (err) {
-    // cancelled
   }
 }
 
@@ -173,7 +174,6 @@ async function handleRestart(service: AppServiceItem) {
     }
     await loadServices(true);
   } catch (err) {
-    // cancelled
   }
 }
 
@@ -192,7 +192,6 @@ async function handleKill(service: AppServiceItem) {
     }
     await loadServices(true);
   } catch (err) {
-    // cancelled
   }
 }
 
@@ -231,7 +230,6 @@ async function openTerminal(service: AppServiceItem) {
   });
 
   sseSource.addEventListener("error", () => {
-    // Retry or idle
   });
 }
 
@@ -268,7 +266,6 @@ function downloadTerminalLog() {
   URL.revokeObjectURL(url);
 }
 
-// 日志颜色过滤渲染
 const filteredLogs = computed(() => {
   if (!terminalSearch.value) return terminalLogs.value;
   const kw = terminalSearch.value.toLowerCase();
@@ -276,12 +273,12 @@ const filteredLogs = computed(() => {
 });
 
 function getLogClass(line: string) {
-  if (line.includes("ERROR") || line.includes("Exception") || line.includes("FAILED")) return "text-red-400";
-  if (line.includes("WARN")) return "text-amber-300";
-  if (line.includes("INFO")) return "text-emerald-300";
-  if (line.includes("DEBUG")) return "text-sky-300";
-  if (line.includes("[TIANSHU CI]")) return "text-cyan-300 font-bold";
-  return "text-slate-300";
+  if (line.includes("ERROR") || line.includes("Exception") || line.includes("FAILED")) return "log-error";
+  if (line.includes("WARN")) return "log-warn";
+  if (line.includes("INFO")) return "log-info";
+  if (line.includes("DEBUG")) return "log-debug";
+  if (line.includes("[TIANSHU CI]")) return "log-ci";
+  return "log-default";
 }
 
 // ==================== 8. 自动化编译中心 ====================
@@ -321,7 +318,6 @@ async function executeBuild() {
     activeBuildRecord.value = newRecord;
     liveBuildLogs.value = [`[TIANSHU CI] 已下发构建任务: ${newRecord.buildNo}，实时输出追踪中...`];
 
-    // 启动轮询检查构建日志
     if (buildLogTimer) clearInterval(buildLogTimer);
     buildLogTimer = setInterval(async () => {
       if (activeBuildRecord.value) {
@@ -412,7 +408,6 @@ async function handleRollback(artifact: AppArtifactItem) {
     await loadArtifacts(artifactService.value.id);
     await loadServices(true);
   } catch (err) {
-    // cancelled
   }
 }
 
@@ -497,372 +492,362 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="devops-container">
-    <!-- 1. 顶部 Header 与全景流光指标 -->
-    <div class="glass-header-card mb-6">
-      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/30">
-              <el-icon class="text-white text-xl"><Platform /></el-icon>
+  <div class="devops-page">
+    <!-- 1. 顶部 Header 与全景卡片 -->
+    <el-card shadow="never" class="header-card mb-4">
+      <div class="header-top-row">
+        <div class="header-left">
+          <div class="title-with-icon">
+            <div class="header-badge-icon">
+              <el-icon><Platform /></el-icon>
             </div>
             <div>
-              <div class="flex items-center gap-2">
-                <h1 class="text-2xl font-bold text-white tracking-wide">服务编排与发布中台</h1>
-                <span class="px-2 py-0.5 text-xs rounded-full bg-sky-500/20 text-sky-300 border border-sky-400/30 font-medium">
+              <div class="title-line">
+                <h2 class="main-title">服务编排与发布中台</h2>
+                <el-tag type="primary" size="small" effect="plain" class="driver-tag">
                   双模驱动 · 敏捷 DevOps
-                </span>
+                </el-tag>
               </div>
-              <p class="text-sm text-slate-400 mt-0.5">
+              <p class="sub-desc">
                 全自动编译构建 · 制品版本热更与回滚 · 进程生命周期平滑启停 · 实时流式日志终端
               </p>
             </div>
           </div>
         </div>
 
-        <div class="flex items-center gap-3">
-          <div class="flex items-center gap-2 bg-slate-800/60 px-3 py-1.5 rounded-xl border border-white/10 text-xs text-slate-300">
-            <el-icon class="text-sky-400"><Timer /></el-icon>
-            <span>自动刷新:</span>
-            <el-select v-model="autoRefreshSeconds" size="small" class="w-20" @change="handleAutoRefreshChange">
+        <div class="header-right">
+          <div class="auto-refresh-box">
+            <el-icon color="#409eff"><Timer /></el-icon>
+            <span class="refresh-label">自动刷新:</span>
+            <el-select v-model="autoRefreshSeconds" size="default" style="width: 105px;" @change="handleAutoRefreshChange">
               <el-option :value="0" label="关闭" />
-              <el-option :value="3" label="3s" />
-              <el-option :value="5" label="5s" />
-              <el-option :value="10" label="10s" />
+              <el-option :value="3" label="3 秒" />
+              <el-option :value="5" label="5 秒" />
+              <el-option :value="10" label="10 秒" />
             </el-select>
           </div>
 
-          <el-button type="primary" :icon="Plus" class="glass-btn-primary" @click="openEditDialog()">
+          <el-button type="primary" :icon="Plus" @click="openEditDialog()">
             新建纳管服务
           </el-button>
 
-          <el-button :icon="Refresh" circle class="glass-btn-circle" :loading="loading" @click="loadServices()" />
+          <el-button :icon="Refresh" :loading="loading" @click="loadServices()">
+            刷新状态
+          </el-button>
         </div>
       </div>
 
-      <!-- 4 大全景指标卡片 -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-        <div class="metric-pill">
-          <div class="text-xs text-slate-400 flex items-center gap-1.5">
-            <el-icon class="text-sky-400"><Box /></el-icon> 总纳管服务
+      <!-- 4 大全景统计指标栏 -->
+      <div class="stat-metrics-row">
+        <div class="stat-metric-card">
+          <div class="stat-label">
+            <el-icon color="#409eff"><Box /></el-icon>
+            <span>总纳管服务</span>
           </div>
-          <div class="text-2xl font-bold text-white mt-1">{{ totalServices }} <span class="text-xs text-slate-400 font-normal">个模块</span></div>
+          <div class="stat-val">
+            {{ totalServices }} <span class="unit">个模块</span>
+          </div>
         </div>
 
-        <div class="metric-pill">
-          <div class="text-xs text-slate-400 flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> 正常运行实例
+        <div class="stat-metric-card">
+          <div class="stat-label">
+            <span class="pulse-dot green"></span>
+            <span>正常运行实例</span>
           </div>
-          <div class="text-2xl font-bold text-emerald-400 mt-1">{{ runningServices }} <span class="text-xs text-slate-400 font-normal">/ {{ totalServices }} 在线</span></div>
+          <div class="stat-val text-success">
+            {{ runningServices }} <span class="unit">/ {{ totalServices }} 在线</span>
+          </div>
         </div>
 
-        <div class="metric-pill">
-          <div class="text-xs text-slate-400 flex items-center gap-1.5">
-            <el-icon class="text-indigo-400"><Cpu /></el-icon> 物理内存常驻 (RSS)
+        <div class="stat-metric-card">
+          <div class="stat-label">
+            <el-icon color="#6366f1"><Cpu /></el-icon>
+            <span>物理内存常驻 (RSS)</span>
           </div>
-          <div class="text-2xl font-bold text-indigo-300 mt-1">{{ totalMemoryMb }} <span class="text-xs text-slate-400 font-normal">MB</span></div>
+          <div class="stat-val text-indigo">
+            {{ totalMemoryMb }} <span class="unit">MB</span>
+          </div>
         </div>
 
-        <div class="metric-pill">
-          <div class="text-xs text-slate-400 flex items-center gap-1.5">
-            <el-icon class="text-amber-400"><SetUp /></el-icon> 编排驱动架构
+        <div class="stat-metric-card">
+          <div class="stat-label">
+            <el-icon color="#eab308"><SetUp /></el-icon>
+            <span>编排驱动引擎</span>
           </div>
-          <div class="text-sm font-semibold text-amber-300 mt-2 flex items-center gap-1">
-            <span>ProcessTree + Docker</span>
+          <div class="stat-val text-engine">
+            ProcessTree + Docker
           </div>
         </div>
       </div>
-    </div>
+    </el-card>
 
     <!-- 2. 服务卡片矩阵 (Service Card Grid) -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-      <div
+    <el-row :gutter="16">
+      <el-col
         v-for="service in serviceList"
         :key="service.id"
-        class="service-card group"
-        :class="{
-          'border-emerald-500/40 shadow-emerald-500/10': service.status === 'RUNNING',
-          'border-sky-500/40 shadow-sky-500/10': service.status === 'COMPILING',
-          'border-amber-500/40 shadow-amber-500/10': service.status === 'STARTING',
-          'border-rose-500/40 shadow-rose-500/10': service.status === 'ERROR',
-          'border-slate-800/80': service.status === 'STOPPED'
-        }"
+        :xs="24"
+        :sm="24"
+        :md="12"
+        :lg="12"
+        :xl="12"
+        class="mb-4"
       >
-        <!-- 卡片头部 -->
-        <div class="flex items-start justify-between p-5 border-b border-white/5">
-          <div class="flex items-start gap-3.5">
-            <!-- 模块图标 -->
-            <div
-              class="w-12 h-12 rounded-xl flex items-center justify-center text-xl shrink-0 transition-transform group-hover:scale-105"
-              :class="{
-                'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30': service.status === 'RUNNING',
-                'bg-sky-500/20 text-sky-400 border border-sky-500/30': service.status === 'COMPILING',
-                'bg-amber-500/20 text-amber-400 border border-amber-500/30': service.status === 'STARTING',
-                'bg-rose-500/20 text-rose-400 border border-rose-500/30': service.status === 'ERROR',
-                'bg-slate-800 text-slate-400 border border-white/10': service.status === 'STOPPED'
-              }"
-            >
-              <span v-if="service.serviceType === 'JAR'">☕</span>
-              <span v-else-if="service.serviceType === 'NODE'">🌐</span>
-              <span v-else-if="service.serviceType === 'DOCKER'">🐳</span>
-              <span v-else>⚡</span>
-            </div>
-
-            <div>
-              <div class="flex items-center gap-2 flex-wrap">
-                <h3 class="text-base font-bold text-white group-hover:text-sky-300 transition-colors">
-                  {{ service.serviceName }}
-                </h3>
-                <span class="px-2 py-0.5 text-xs rounded-md bg-slate-800/90 text-slate-300 border border-white/10 font-mono">
-                  {{ service.serviceCode }}
-                </span>
-                <span class="px-2 py-0.5 text-xs rounded-md bg-indigo-950/60 text-indigo-300 border border-indigo-500/30">
-                  {{ service.driverType }}
-                </span>
-              </div>
-              <p class="text-xs text-slate-400 mt-1 line-clamp-1">
-                {{ service.remark || '暂无描述' }}
-              </p>
-            </div>
-          </div>
-
-          <!-- 状态呼吸徽标 -->
-          <div class="shrink-0">
-            <div
-              class="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border"
-              :class="{
-                'bg-emerald-950/60 text-emerald-300 border-emerald-500/40': service.status === 'RUNNING',
-                'bg-sky-950/60 text-sky-300 border-sky-500/40': service.status === 'COMPILING',
-                'bg-amber-950/60 text-amber-300 border-amber-500/40': service.status === 'STARTING',
-                'bg-rose-950/60 text-rose-300 border-rose-500/40': service.status === 'ERROR',
-                'bg-slate-800/80 text-slate-400 border-slate-700': service.status === 'STOPPED'
-              }"
-            >
-              <span
-                class="w-2 h-2 rounded-full"
+        <el-card
+          shadow="hover"
+          class="service-box-card"
+          :class="{
+            'card-running': service.status === 'RUNNING',
+            'card-compiling': service.status === 'COMPILING',
+            'card-starting': service.status === 'STARTING',
+            'card-error': service.status === 'ERROR',
+            'card-stopped': service.status === 'STOPPED'
+          }"
+        >
+          <!-- 卡片顶栏 -->
+          <div class="service-card-top">
+            <div class="service-title-area">
+              <div
+                class="service-icon-box"
                 :class="{
-                  'bg-emerald-400 animate-ping': service.status === 'RUNNING',
-                  'bg-sky-400 animate-spin': service.status === 'COMPILING',
-                  'bg-amber-400 animate-pulse': service.status === 'STARTING',
-                  'bg-rose-500': service.status === 'ERROR',
-                  'bg-slate-500': service.status === 'STOPPED'
+                  'icon-running': service.status === 'RUNNING',
+                  'icon-compiling': service.status === 'COMPILING',
+                  'icon-error': service.status === 'ERROR',
+                  'icon-stopped': service.status === 'STOPPED'
                 }"
-              ></span>
-              <span>
+              >
+                <span v-if="service.serviceType === 'JAR'">☕</span>
+                <span v-else-if="service.serviceType === 'NODE'">🌐</span>
+                <span v-else-if="service.serviceType === 'DOCKER'">🐳</span>
+                <span v-else>⚡</span>
+              </div>
+
+              <div class="service-name-box">
+                <div class="name-row">
+                  <h3 class="service-name-text">{{ service.serviceName }}</h3>
+                  <el-tag size="small" type="info" class="code-tag font-mono">{{ service.serviceCode }}</el-tag>
+                  <el-tag size="small" type="primary" effect="plain" class="driver-tag">{{ service.driverType }}</el-tag>
+                </div>
+                <div class="service-remark-text" :title="service.remark">
+                  {{ service.remark || '暂无描述' }}
+                </div>
+              </div>
+            </div>
+
+            <!-- 状态标签带脉冲灯 -->
+            <div class="service-status-area">
+              <el-tag
+                :type="service.status === 'RUNNING' ? 'success' :
+                       service.status === 'COMPILING' ? 'primary' :
+                       service.status === 'STARTING' ? 'warning' :
+                       service.status === 'ERROR' ? 'danger' : 'info'"
+                size="default"
+                effect="light"
+                class="status-tag"
+              >
+                <span
+                  class="pulse-dot"
+                  :class="{
+                    'green': service.status === 'RUNNING',
+                    'blue': service.status === 'COMPILING',
+                    'amber': service.status === 'STARTING',
+                    'red': service.status === 'ERROR',
+                    'gray': service.status === 'STOPPED'
+                  }"
+                ></span>
                 {{ service.status === 'RUNNING' ? '运行中' :
                    service.status === 'COMPILING' ? '编译中' :
                    service.status === 'STARTING' ? '启动中' :
                    service.status === 'ERROR' ? '异常' : '已停止' }}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <!-- 卡片中间：指标矩阵与探针状态 -->
-        <div class="p-5 grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-950/20 text-xs">
-          <div class="metric-cell">
-            <span class="text-slate-400">端口 / 监听</span>
-            <div class="flex items-center gap-1.5 mt-0.5">
-              <span class="font-mono font-bold text-white">{{ service.port ? `:${service.port}` : '无' }}</span>
-              <el-tag v-if="service.portListening" type="success" size="small" effect="dark" class="px-1 scale-90">OK</el-tag>
-              <el-tag v-else type="info" size="small" effect="plain" class="px-1 scale-90">未监听</el-tag>
+              </el-tag>
             </div>
           </div>
 
-          <div class="metric-cell">
-            <span class="text-slate-400">系统 PID</span>
-            <div class="font-mono font-bold text-white mt-0.5">
-              {{ service.currentPid ? `#${service.currentPid}` : '-' }}
+          <!-- 卡片中间：4 宫格遥测数据 -->
+          <div class="service-telemetry-grid">
+            <div class="telemetry-cell">
+              <span class="cell-label">端口 / 探针</span>
+              <div class="cell-val">
+                <span class="font-mono font-bold">{{ service.port ? `:${service.port}` : '无' }}</span>
+                <el-tag v-if="service.portListening" type="success" size="small" effect="dark" class="port-tag">LISTENING</el-tag>
+                <el-tag v-else type="info" size="small" effect="plain" class="port-tag">STOPPED</el-tag>
+              </div>
+            </div>
+
+            <div class="telemetry-cell">
+              <span class="cell-label">系统 PID</span>
+              <div class="cell-val font-mono font-bold">
+                {{ service.currentPid ? `#${service.currentPid}` : '-' }}
+              </div>
+            </div>
+
+            <div class="telemetry-cell">
+              <span class="cell-label">本次运行已持续</span>
+              <div class="cell-val font-mono">
+                {{ formatUptime(service.uptimeSeconds) }}
+              </div>
+            </div>
+
+            <div class="telemetry-cell">
+              <span class="cell-label">物理内存 / CPU</span>
+              <div class="cell-val font-mono text-indigo font-bold">
+                {{ formatBytes(service.memoryRssBytes) }}
+                <span class="cpu-text" v-if="service.cpuUsagePercent">({{ service.cpuUsagePercent }}%)</span>
+              </div>
             </div>
           </div>
 
-          <div class="metric-cell">
-            <span class="text-slate-400">运行时长</span>
-            <div class="font-mono text-white mt-0.5">
-              {{ formatUptime(service.uptimeSeconds) }}
+          <!-- 工作路径与制品名 -->
+          <div class="service-meta-strip">
+            <div class="strip-left" :title="service.workDir">
+              <el-icon class="mr-1 text-slate-400"><Folder /></el-icon>
+              <span class="font-mono strip-text">{{ service.workDir }}</span>
+            </div>
+            <div class="strip-right font-mono" v-if="service.artifactPath">
+              {{ service.artifactPath.split('/').pop() }}
             </div>
           </div>
 
-          <div class="metric-cell">
-            <span class="text-slate-400">内存 / CPU</span>
-            <div class="font-mono text-indigo-300 font-bold mt-0.5">
-              {{ formatBytes(service.memoryRssBytes) }}
-              <span class="text-slate-400 text-[10px] font-normal" v-if="service.cpuUsagePercent">({{ service.cpuUsagePercent }}%)</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- 部署命令与制品摘要 -->
-        <div class="px-5 py-2.5 bg-slate-900/40 border-t border-b border-white/5 flex items-center justify-between text-xs text-slate-400">
-          <div class="flex items-center gap-2 truncate pr-2">
-            <el-icon class="text-slate-500 shrink-0"><Folder /></el-icon>
-            <span class="truncate font-mono text-slate-400" :title="service.workDir">{{ service.workDir }}</span>
-          </div>
-          <span class="text-slate-500 font-mono shrink-0" v-if="service.artifactPath">
-            {{ service.artifactPath.split('/').pop() }}
-          </span>
-        </div>
-
-        <!-- 卡片底部操作栏 -->
-        <div class="p-4 flex items-center justify-between gap-2 flex-wrap bg-slate-950/40">
-          <div class="flex items-center gap-2">
-            <!-- 启动按钮 -->
-            <el-button
-              type="success"
-              size="small"
-              :icon="VideoPlay"
-              class="glass-btn-success"
-              :disabled="service.status === 'RUNNING' || service.status === 'COMPILING'"
-              @click="handleStart(service)"
-            >
-              启动
-            </el-button>
-
-            <!-- 重启按钮 -->
-            <el-button
-              type="primary"
-              size="small"
-              :icon="RefreshRight"
-              class="glass-btn-primary"
-              :disabled="service.status === 'COMPILING'"
-              @click="handleRestart(service)"
-            >
-              重启
-            </el-button>
-
-            <!-- 停止下拉按钮 -->
-            <el-dropdown trigger="click">
+          <!-- 卡片底部操作栏 -->
+          <div class="service-card-actions">
+            <div class="action-btn-left">
               <el-button
-                type="danger"
-                size="small"
-                :icon="VideoPause"
-                class="glass-btn-danger"
-                :disabled="service.status === 'STOPPED'"
+                type="success"
+                size="default"
+                :icon="VideoPlay"
+                :disabled="service.status === 'RUNNING' || service.status === 'COMPILING'"
+                @click="handleStart(service)"
               >
-                停止
+                启动
               </el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item @click="handleStop(service, 15)">
-                    <el-icon><VideoPause /></el-icon> 优雅停止 (SIGTERM)
-                  </el-dropdown-item>
-                  <el-dropdown-item divided @click="handleKill(service)" class="text-red-500">
-                    <el-icon><WarningFilled /></el-icon> 强制杀死 (SIGKILL)
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </div>
 
-          <div class="flex items-center gap-1.5">
-            <!-- 编译打包 -->
-            <el-tooltip content="一键触发自动化编译打包流水线" placement="top">
               <el-button
-                size="small"
-                class="glass-action-btn"
-                :loading="service.status === 'COMPILING'"
-                @click="openBuildDrawer(service)"
+                type="primary"
+                size="default"
+                :icon="RefreshRight"
+                :disabled="service.status === 'COMPILING'"
+                @click="handleRestart(service)"
               >
-                <el-icon><SetUp /></el-icon> 编译
+                重启
               </el-button>
-            </el-tooltip>
 
-            <!-- 实时日志 -->
-            <el-tooltip content="查看实时流式运行日志 (tail -f)" placement="top">
-              <el-button size="small" class="glass-action-btn" @click="openTerminal(service)">
-                <el-icon><Monitor /></el-icon> 日志
-              </el-button>
-            </el-tooltip>
+              <el-dropdown trigger="click">
+                <el-button
+                  type="danger"
+                  size="default"
+                  :icon="VideoPause"
+                  :disabled="service.status === 'STOPPED'"
+                >
+                  停止
+                </el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item @click="handleStop(service, 15)">
+                      <el-icon><VideoPause /></el-icon> 优雅停止 (SIGTERM)
+                    </el-dropdown-item>
+                    <el-dropdown-item divided @click="handleKill(service)" class="text-danger">
+                      <el-icon><WarningFilled /></el-icon> 强制杀死 (SIGKILL)
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </div>
 
-            <!-- 制品发布与回滚 -->
-            <el-tooltip content="制品上传与历史版本一键回滚" placement="top">
-              <el-button size="small" class="glass-action-btn" @click="openArtifactModal(service)">
-                <el-icon><Upload /></el-icon> 制品
-              </el-button>
-            </el-tooltip>
+            <div class="action-btn-right">
+              <el-tooltip content="一键触发自动化构建打包" placement="top">
+                <el-button
+                  size="default"
+                  :loading="service.status === 'COMPILING'"
+                  @click="openBuildDrawer(service)"
+                >
+                  <el-icon><SetUp /></el-icon> 编译
+                </el-button>
+              </el-tooltip>
 
-            <!-- 更多操作 -->
-            <el-dropdown trigger="click">
-              <el-button size="small" class="glass-action-btn">
-                ...
-              </el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item @click="openEditDialog(service)">
-                    <el-icon><Edit /></el-icon> 编辑服务配置
-                  </el-dropdown-item>
-                  <el-dropdown-item divided @click="handleDeleteService(service)" class="text-red-500">
-                    <el-icon><Delete /></el-icon> 删除该服务
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
+              <el-tooltip content="查看实时运行日志 (tail -f)" placement="top">
+                <el-button size="default" @click="openTerminal(service)">
+                  <el-icon><Monitor /></el-icon> 日志
+                </el-button>
+              </el-tooltip>
+
+              <el-tooltip content="上传制品与历史版本回滚" placement="top">
+                <el-button size="default" @click="openArtifactModal(service)">
+                  <el-icon><Upload /></el-icon> 制品
+                </el-button>
+              </el-tooltip>
+
+              <el-dropdown trigger="click">
+                <el-button size="default">···</el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item @click="openEditDialog(service)">
+                      <el-icon><Edit /></el-icon> 编辑服务配置
+                    </el-dropdown-item>
+                    <el-dropdown-item divided @click="handleDeleteService(service)" class="text-danger">
+                      <el-icon><Delete /></el-icon> 删除该服务
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </div>
           </div>
-        </div>
-      </div>
-    </div>
+        </el-card>
+      </el-col>
+    </el-row>
 
-    <!-- 3. 实时终端弹窗 (Apple Terminal Fluid Glass) -->
+    <!-- 3. 实时终端弹窗 (macOS 极简暗黑终端风格) -->
     <el-dialog
       v-model="terminalVisible"
       :show-close="false"
       width="82%"
-      top="5vh"
-      class="terminal-dialog-glass"
+      top="4vh"
+      class="terminal-dialog-custom"
       :before-close="closeTerminal"
     >
-      <div class="terminal-window">
-        <!-- 终端顶栏 -->
-        <div class="terminal-header flex items-center justify-between px-4 py-3 bg-slate-900/90 border-b border-white/10">
-          <div class="flex items-center gap-2">
-            <span class="w-3 h-3 rounded-full bg-rose-500 cursor-pointer" @click="closeTerminal"></span>
-            <span class="w-3 h-3 rounded-full bg-amber-500"></span>
-            <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
-            <span class="ml-3 text-xs font-mono text-slate-300 font-bold">
-              tianshu@console: ~ / {{ terminalService?.serviceCode }} / live.log
+      <div class="terminal-shell">
+        <div class="terminal-topbar">
+          <div class="traffic-lights">
+            <span class="traffic-btn close-btn" @click="closeTerminal"></span>
+            <span class="traffic-btn min-btn"></span>
+            <span class="traffic-btn max-btn"></span>
+            <span class="term-title font-mono">
+              tianshu@service: ~ / {{ terminalService?.serviceCode }} / live.log
             </span>
           </div>
 
-          <div class="flex items-center gap-3">
-            <!-- 关键字搜索 -->
+          <div class="term-actions">
             <el-input
               v-model="terminalSearch"
               placeholder="搜索日志关键字..."
               size="small"
-              class="w-48 terminal-search-input"
+              style="width: 180px;"
               clearable
               :prefix-icon="Search"
             />
 
-            <!-- 自动滚屏开关 -->
-            <div
-              class="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs cursor-pointer select-none border"
-              :class="autoScroll ? 'bg-sky-500/20 text-sky-300 border-sky-400/40' : 'bg-slate-800 text-slate-400 border-slate-700'"
+            <el-button
+              size="small"
+              :type="autoScroll ? 'primary' : 'info'"
+              plain
               @click="autoScroll = !autoScroll"
             >
-              <span>贴底自动滚屏</span>
-            </div>
+              {{ autoScroll ? '滚动锁定: 开' : '滚动锁定: 关' }}
+            </el-button>
 
-            <!-- 清屏 -->
-            <el-button size="small" class="glass-action-btn" @click="clearTerminal">清屏</el-button>
-
-            <!-- 下载 -->
-            <el-button size="small" class="glass-action-btn" :icon="Download" @click="downloadTerminalLog">下载</el-button>
-
-            <!-- 关闭 -->
-            <el-button size="small" circle :icon="Close" class="glass-action-btn" @click="closeTerminal" />
+            <el-button size="small" @click="clearTerminal">清屏</el-button>
+            <el-button size="small" :icon="Download" @click="downloadTerminalLog">下载日志</el-button>
+            <el-button size="small" :icon="Close" circle @click="closeTerminal" />
           </div>
         </div>
 
-        <!-- 终端主体内容 -->
-        <div ref="terminalBodyRef" class="terminal-body p-4 overflow-y-auto font-mono text-xs leading-relaxed max-h-[70vh]">
-          <div v-if="filteredLogs.length === 0" class="text-slate-500 py-10 text-center">
+        <div ref="terminalBodyRef" class="terminal-screen font-mono">
+          <div v-if="filteredLogs.length === 0" class="empty-term-tip">
             暂无日志输出或无匹配项
           </div>
           <div
             v-for="(line, index) in filteredLogs"
             :key="index"
-            class="py-0.5 select-text break-all"
+            class="term-line"
             :class="getLogClass(line)"
           >
             {{ line }}
@@ -871,25 +856,22 @@ onUnmounted(() => {
       </div>
     </el-dialog>
 
-    <!-- 4. 自动化编译构建抽屉 -->
+    <!-- 4. 自动化构建抽屉 -->
     <el-drawer
       v-model="buildDrawerVisible"
       title="全自动编译构建流水线 (CI/CD Pipeline)"
       size="65%"
-      class="build-drawer-glass"
     >
-      <div v-if="buildService" class="flex flex-col h-full">
-        <!-- 构建控制台 -->
-        <div class="p-4 bg-slate-900/60 rounded-xl border border-white/10 mb-4">
-          <div class="flex items-center justify-between mb-3">
+      <div v-if="buildService" class="build-drawer-content">
+        <el-card shadow="never" class="mb-4 build-cmd-card">
+          <div class="build-cmd-header">
             <div>
-              <h4 class="text-sm font-bold text-white">{{ buildService.serviceName }}</h4>
-              <p class="text-xs text-slate-400 mt-0.5">工作目录: {{ buildService.workDir }}</p>
+              <h4 class="service-h4">{{ buildService.serviceName }}</h4>
+              <p class="service-p font-mono">工作目录: {{ buildService.workDir }}</p>
             </div>
             <el-button
               type="primary"
               :icon="CaretRight"
-              class="glass-btn-primary"
               :loading="buildExecuting"
               @click="executeBuild"
             >
@@ -897,61 +879,55 @@ onUnmounted(() => {
             </el-button>
           </div>
 
-          <div class="text-xs text-slate-400 mb-1">执行编译命令 (可按需微调):</div>
-          <el-input
-            v-model="customBuildCmd"
-            placeholder="如: mvn clean package -DskipTests"
-            size="small"
-            class="font-mono"
-          />
-        </div>
+          <div class="cmd-input-row">
+            <span class="cmd-label">执行编译命令 (可按需微调):</span>
+            <el-input
+              v-model="customBuildCmd"
+              placeholder="如: mvn clean package -DskipTests"
+              size="default"
+              class="font-mono"
+            />
+          </div>
+        </el-card>
 
-        <!-- 分割为左右两列：左侧历史记录，右侧构建控制台日志 -->
-        <div class="grid grid-cols-12 gap-4 flex-1 overflow-hidden">
-          <!-- 构建历史 -->
-          <div class="col-span-4 bg-slate-950/40 rounded-xl p-3 border border-white/5 overflow-y-auto">
-            <h5 class="text-xs font-bold text-slate-300 mb-2">历史构建记录</h5>
-            <div v-if="buildRecords.length === 0" class="text-xs text-slate-500 py-6 text-center">
-              暂无历史记录
-            </div>
+        <div class="build-body-grid">
+          <!-- 左侧历史 -->
+          <div class="build-history-col">
+            <div class="history-title">历史构建记录</div>
+            <div v-if="buildRecords.length === 0" class="empty-history">暂无记录</div>
             <div
               v-for="rec in buildRecords"
               :key="rec.id"
-              class="p-2.5 rounded-lg mb-2 cursor-pointer border transition-all text-xs"
-              :class="activeBuildRecord?.id === rec.id ? 'bg-sky-950/40 border-sky-500/50' : 'bg-slate-900/30 border-white/5 hover:border-white/20'"
+              class="history-item"
+              :class="{ 'item-active': activeBuildRecord?.id === rec.id }"
               @click="selectBuildRecord(rec)"
             >
-              <div class="flex items-center justify-between">
-                <span class="font-mono font-bold text-white">{{ rec.buildNo }}</span>
-                <span
-                  class="px-1.5 py-0.5 rounded text-[10px]"
-                  :class="{
-                    'bg-emerald-500/20 text-emerald-300': rec.status === 'SUCCESS',
-                    'bg-rose-500/20 text-rose-300': rec.status === 'FAILED',
-                    'bg-sky-500/20 text-sky-300 animate-pulse': rec.status === 'RUNNING'
-                  }"
+              <div class="rec-row1">
+                <span class="font-mono rec-no">{{ rec.buildNo }}</span>
+                <el-tag
+                  size="small"
+                  :type="rec.status === 'SUCCESS' ? 'success' : rec.status === 'FAILED' ? 'danger' : 'primary'"
                 >
                   {{ rec.status }}
-                </span>
+                </el-tag>
               </div>
-              <div class="text-[11px] text-slate-400 mt-1 flex items-center justify-between">
+              <div class="rec-row2">
                 <span>{{ rec.createdAt ? rec.createdAt.replace('T', ' ').slice(5, 16) : '-' }}</span>
                 <span v-if="rec.durationMs">{{ (rec.durationMs / 1000).toFixed(1) }}s</span>
               </div>
             </div>
           </div>
 
-          <!-- 构建控制台 -->
-          <div class="col-span-8 bg-slate-950 rounded-xl p-4 border border-white/10 flex flex-col overflow-hidden">
-            <div class="flex items-center justify-between pb-2 mb-2 border-b border-white/10 text-xs text-slate-400">
+          <!-- 右侧控制台 -->
+          <div class="build-console-col">
+            <div class="console-header">
               <span class="font-mono">Console Output: {{ activeBuildRecord?.buildNo || 'None' }}</span>
-              <span v-if="buildExecuting" class="flex items-center gap-1 text-sky-400 animate-pulse">
-                <el-icon class="animate-spin"><Loading /></el-icon> 正在编译打包中...
+              <span v-if="buildExecuting" class="building-indicator">
+                <el-icon class="is-loading"><Loading /></el-icon> 正在编译打包中...
               </span>
             </div>
-
-            <div class="flex-1 overflow-y-auto font-mono text-xs leading-relaxed text-slate-300">
-              <div v-for="(line, idx) in liveBuildLogs" :key="idx" class="py-0.5" :class="getLogClass(line)">
+            <div class="console-body font-mono">
+              <div v-for="(line, idx) in liveBuildLogs" :key="idx" class="term-line" :class="getLogClass(line)">
                 {{ line }}
               </div>
             </div>
@@ -960,62 +936,58 @@ onUnmounted(() => {
       </div>
     </el-drawer>
 
-    <!-- 5. 制品管理与版本回滚弹窗 -->
+    <!-- 5. 制品中心与版本回滚弹窗 -->
     <el-dialog
       v-model="artifactModalVisible"
       title="制品中心与多版本发布 (Artifact Hub & Rollback)"
       width="60%"
-      class="artifact-dialog-glass"
     >
-      <div v-if="artifactService" class="space-y-4">
+      <div v-if="artifactService" class="artifact-content">
         <!-- 上传新制品 -->
-        <div class="p-4 bg-slate-900/60 rounded-xl border border-white/10">
-          <h4 class="text-sm font-bold text-white mb-2 flex items-center gap-2">
-            <el-icon class="text-sky-400"><Upload /></el-icon> 手动上传新制品发布 (Jar / Zip)
-          </h4>
-          <div class="flex items-center gap-3">
-            <input type="file" @change="handleFileChange" class="text-xs text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-sky-500 file:text-white hover:file:bg-sky-600 cursor-pointer" />
-            <el-input v-model="uploadRemark" placeholder="发布备注 (如: 修复审批流回退漏洞)" size="small" class="flex-1" />
-            <el-button type="primary" size="small" class="glass-btn-primary" :loading="uploadSubmitting" @click="submitUploadArtifact">
+        <el-card shadow="never" class="mb-4 upload-card">
+          <div class="upload-title">
+            <el-icon color="#409eff"><Upload /></el-icon>
+            <span>手动上传新制品部署 (Jar / Zip)</span>
+          </div>
+          <div class="upload-row">
+            <input type="file" @change="handleFileChange" class="file-picker" />
+            <el-input v-model="uploadRemark" placeholder="发布备注 (如: 修复审批流回退漏洞)" size="default" style="flex: 1;" />
+            <el-button type="primary" :loading="uploadSubmitting" @click="submitUploadArtifact">
               确认部署
             </el-button>
           </div>
-        </div>
+        </el-card>
 
-        <!-- 历史制品版本列表 -->
-        <div>
-          <h4 class="text-sm font-bold text-slate-200 mb-2">版本历史归档 (支持一键秒级回滚)</h4>
-          <div v-if="artifactList.length === 0" class="text-xs text-slate-500 py-6 text-center">
-            暂无历史归档制品
-          </div>
+        <!-- 历史版本 -->
+        <div class="artifact-history-section">
+          <h4 class="history-h4">版本历史归档 (支持一键秒级回滚)</h4>
+          <div v-if="artifactList.length === 0" class="empty-history">暂无归档制品</div>
           <div
             v-for="art in artifactList"
             :key="art.id"
-            class="p-3.5 rounded-xl mb-2.5 border transition-all flex items-center justify-between text-xs"
-            :class="art.isCurrent ? 'bg-emerald-950/30 border-emerald-500/40' : 'bg-slate-900/40 border-white/5'"
+            class="artifact-item"
+            :class="{ 'current-art': art.isCurrent }"
           >
-            <div>
-              <div class="flex items-center gap-2">
-                <span class="font-mono font-bold text-white text-sm">{{ art.versionTag }}</span>
-                <span v-if="art.isCurrent" class="px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-medium">
-                  当前生产版本
-                </span>
-                <span class="text-slate-400 font-mono">{{ art.fileName }}</span>
+            <div class="art-info">
+              <div class="art-top">
+                <span class="art-tag font-mono">{{ art.versionTag }}</span>
+                <el-tag v-if="art.isCurrent" size="small" type="success" effect="dark">当前生产版本</el-tag>
+                <span class="art-file font-mono">{{ art.fileName }}</span>
               </div>
-              <div class="text-slate-400 mt-1 flex items-center gap-4 text-[11px]">
+              <div class="art-meta font-mono">
                 <span>大小: {{ (art.fileSizeBytes / (1024 * 1024)).toFixed(2) }} MB</span>
                 <span>MD5: {{ art.fileMd5.slice(0, 8) }}...</span>
                 <span>时间: {{ art.createdAt ? art.createdAt.replace('T', ' ').slice(0, 19) : '-' }}</span>
-                <span class="text-slate-300" v-if="art.remark">备注: {{ art.remark }}</span>
+                <span v-if="art.remark" class="text-secondary">备注: {{ art.remark }}</span>
               </div>
             </div>
 
-            <div>
+            <div class="art-action">
               <el-button
                 v-if="!art.isCurrent"
                 size="small"
                 type="warning"
-                class="glass-btn-warning"
+                plain
                 @click="handleRollback(art)"
               >
                 一键回滚至此版本
@@ -1031,9 +1003,8 @@ onUnmounted(() => {
       v-model="editDialogVisible"
       :title="editForm.id ? '编辑纳管服务' : '新建纳管服务'"
       width="50%"
-      class="edit-dialog-glass"
     >
-      <el-form label-width="110px" class="space-y-3">
+      <el-form label-width="110px">
         <el-form-item label="服务标识代码" required>
           <el-input v-model="editForm.serviceCode" placeholder="如: saas-basics-crm" :disabled="!!editForm.id" />
         </el-form-item>
@@ -1042,45 +1013,51 @@ onUnmounted(() => {
           <el-input v-model="editForm.serviceName" placeholder="如: 天枢云基 · CRM 业务模块" />
         </el-form-item>
 
-        <div class="grid grid-cols-2 gap-3">
-          <el-form-item label="服务类型">
-            <el-select v-model="editForm.serviceType" class="w-full">
-              <el-option value="JAR" label="Java Jar 应用" />
-              <el-option value="NODE" label="Node.js / 前端应用" />
-              <el-option value="DOCKER" label="Docker 容器" />
-              <el-option value="SCRIPT" label="自定义 Shell 脚本" />
-            </el-select>
-          </el-form-item>
+        <el-row :gutter="12">
+          <el-col :span="12">
+            <el-form-item label="服务类型">
+              <el-select v-model="editForm.serviceType" style="width: 100%;">
+                <el-option value="JAR" label="Java Jar 应用" />
+                <el-option value="NODE" label="Node.js / 前端应用" />
+                <el-option value="DOCKER" label="Docker 容器" />
+                <el-option value="SCRIPT" label="自定义 Shell 脚本" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="编排驱动">
+              <el-select v-model="editForm.driverType" style="width: 100%;">
+                <el-option value="HOST_PROCESS" label="Host 宿主机进程 (ProcessTree)" />
+                <el-option value="DOCKER" label="Docker Engine (Socket)" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
 
-          <el-form-item label="编排驱动">
-            <el-select v-model="editForm.driverType" class="w-full">
-              <el-option value="HOST_PROCESS" label="Host 宿主机进程 (ProcessTree)" />
-              <el-option value="DOCKER" label="Docker Engine (Socket)" />
-            </el-select>
-          </el-form-item>
-        </div>
-
-        <el-form-item label="工作目录 (WorkDir)" required>
+        <el-form-item label="工作目录" required>
           <el-input v-model="editForm.workDir" placeholder="服务的根目录绝对路径" />
         </el-form-item>
 
-        <el-form-item label="启动命令 (Start)" required>
+        <el-form-item label="启动命令" required>
           <el-input v-model="editForm.startCmd" type="textarea" :rows="2" placeholder="如: java -jar app.jar 或 npm run dev" />
         </el-form-item>
 
-        <el-form-item label="编译命令 (Build)">
+        <el-form-item label="编译命令">
           <el-input v-model="editForm.buildCmd" placeholder="如: mvn clean package -DskipTests 或 npm run build" />
         </el-form-item>
 
-        <div class="grid grid-cols-2 gap-3">
-          <el-form-item label="监听端口">
-            <el-input-number v-model="editForm.port" :min="1" :max="65535" class="w-full" />
-          </el-form-item>
-
-          <el-form-item label="健康探测 URL">
-            <el-input v-model="editForm.healthUrl" placeholder="如: http://127.0.0.1:8080/actuator/health" />
-          </el-form-item>
-        </div>
+        <el-row :gutter="12">
+          <el-col :span="12">
+            <el-form-item label="监听端口">
+              <el-input-number v-model="editForm.port" :min="1" :max="65535" style="width: 100%;" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="健康探测 URL">
+              <el-input v-model="editForm.healthUrl" placeholder="如: http://127.0.0.1:8080/actuator/health" />
+            </el-form-item>
+          </el-col>
+        </el-row>
 
         <el-form-item label="日志输出路径">
           <el-input v-model="editForm.logPath" placeholder="留空时自动输出至 workDir/logs/xxx.log" />
@@ -1093,117 +1070,638 @@ onUnmounted(() => {
 
       <template #footer>
         <el-button @click="editDialogVisible = false">取消</el-button>
-        <el-button type="primary" class="glass-btn-primary" @click="submitSaveService">保存配置</el-button>
+        <el-button type="primary" @click="submitSaveService">保存配置</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <style scoped>
-.devops-container {
-  padding: 1.5rem;
-  min-height: calc(100vh - 4rem);
+.devops-page {
+  padding: 16px;
 }
 
-.glass-header-card {
-  background: rgba(15, 23, 42, 0.65);
-  backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 1.25rem;
-  padding: 1.5rem;
-  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+.mb-4 {
+  margin-bottom: 16px;
 }
 
-.metric-pill {
-  background: rgba(30, 41, 59, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 1rem;
-  padding: 1rem 1.25rem;
+.mr-1 {
+  margin-right: 4px;
 }
 
-.service-card {
-  background: rgba(15, 23, 42, 0.6);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 1.25rem;
-  overflow: hidden;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+.font-mono {
+  font-family: var(--sb-font-mono, monospace);
 }
 
-.service-card:hover {
+.font-bold {
+  font-weight: 700;
+}
+
+/* 顶部卡片 */
+.header-card {
+  border-radius: 12px;
+  background: var(--el-bg-color, #ffffff);
+  border: 1px solid var(--el-border-color-light, #e2e8f0);
+}
+
+.header-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.header-left .title-with-icon {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-badge-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 22px;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+}
+
+.title-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.main-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--el-text-color-primary, #0f172a);
+}
+
+.sub-desc {
+  font-size: 12px;
+  color: var(--el-text-color-secondary, #64748b);
+  margin: 4px 0 0 0;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.auto-refresh-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--el-text-color-secondary, #64748b);
+  background: var(--el-fill-color-light, #f8fafc);
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--el-border-color-lighter, #e2e8f0);
+}
+
+/* 4 大全景指标栏 */
+.stat-metrics-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--el-border-color-lighter, #f1f5f9);
+}
+
+.stat-metric-card {
+  background: var(--el-fill-color-light, #f8fafc);
+  border: 1px solid var(--el-border-color-lighter, #e2e8f0);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--el-text-color-secondary, #64748b);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stat-val {
+  font-size: 20px;
+  font-weight: 700;
+  margin-top: 4px;
+  color: var(--el-text-color-primary, #0f172a);
+}
+
+.stat-val .unit {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--el-text-color-secondary, #94a3b8);
+}
+
+.text-success {
+  color: #10b981 !important;
+}
+
+.text-indigo {
+  color: #6366f1 !important;
+}
+
+.text-engine {
+  font-size: 14px;
+  color: #f59e0b;
+}
+
+/* 服务卡片 */
+.service-box-card {
+  border-radius: 10px;
+  border: 1px solid var(--el-border-color-light, #e2e8f0);
+  background: var(--el-bg-color, #ffffff);
+  transition: all 0.25s ease;
+}
+
+.service-box-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--el-box-shadow-light);
 }
 
-.metric-cell {
+.card-running {
+  border-left: 4px solid #10b981;
+}
+
+.card-compiling {
+  border-left: 4px solid #0ea5e9;
+}
+
+.card-starting {
+  border-left: 4px solid #f59e0b;
+}
+
+.card-error {
+  border-left: 4px solid #ef4444;
+}
+
+.card-stopped {
+  border-left: 4px solid #94a3b8;
+}
+
+.service-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.service-title-area {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.service-icon-box {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+  background: var(--el-fill-color-light, #f1f5f9);
+  border: 1px solid var(--el-border-color-lighter, #e2e8f0);
+}
+
+.icon-running {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.icon-compiling {
+  background: rgba(14, 165, 233, 0.1);
+  border-color: rgba(14, 165, 233, 0.3);
+}
+
+.service-name-box {
+  flex: 1;
+  min-width: 0;
+}
+
+.name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.service-name-text {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--el-text-color-primary, #0f172a);
+}
+
+.code-tag {
+  font-size: 11px;
+}
+
+.service-remark-text {
+  font-size: 12px;
+  color: var(--el-text-color-secondary, #64748b);
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 脉冲灯 */
+.pulse-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 5px;
+}
+
+.pulse-dot.green {
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+}
+
+.pulse-dot.blue {
+  background: #0ea5e9;
+  box-shadow: 0 0 8px #0ea5e9;
+}
+
+.pulse-dot.amber {
+  background: #f59e0b;
+  box-shadow: 0 0 8px #f59e0b;
+}
+
+.pulse-dot.red {
+  background: #ef4444;
+  box-shadow: 0 0 8px #ef4444;
+}
+
+.pulse-dot.gray {
+  background: #94a3b8;
+}
+
+/* 遥测数据 4 宫格 */
+.service-telemetry-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--el-fill-color-light, #f8fafc);
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+
+.telemetry-cell {
   display: flex;
   flex-direction: column;
 }
 
-.glass-btn-primary {
-  background: linear-gradient(135deg, #0284c7 0%, #4f46e5 100%) !important;
-  border: none !important;
-  color: #fff !important;
-  font-weight: 500;
-  border-radius: 0.6rem !important;
+.cell-label {
+  font-size: 11px;
+  color: var(--el-text-color-secondary, #64748b);
 }
 
-.glass-btn-success {
-  background: linear-gradient(135deg, #059669 0%, #10b981 100%) !important;
-  border: none !important;
-  color: #fff !important;
-  font-weight: 500;
-  border-radius: 0.6rem !important;
+.cell-val {
+  font-size: 13px;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
-.glass-btn-danger {
-  background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%) !important;
-  border: none !important;
-  color: #fff !important;
-  font-weight: 500;
-  border-radius: 0.6rem !important;
+.port-tag {
+  padding: 0 4px;
+  font-size: 10px;
 }
 
-.glass-btn-warning {
-  background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%) !important;
-  border: none !important;
-  color: #fff !important;
-  font-weight: 500;
-  border-radius: 0.6rem !important;
+.cpu-text {
+  font-size: 11px;
+  color: var(--el-text-color-secondary, #64748b);
+  font-weight: 400;
 }
 
-.glass-btn-circle {
-  background: rgba(30, 41, 59, 0.6) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  color: #e2e8f0 !important;
+/* 文件路径条 */
+.service-meta-strip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: var(--el-text-color-secondary, #64748b);
+  padding: 6px 10px;
+  background: var(--el-fill-color-lighter, #f1f5f9);
+  border-radius: 4px;
+  margin-bottom: 12px;
 }
 
-.glass-action-btn {
-  background: rgba(30, 41, 59, 0.6) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  color: #cbd5e1 !important;
-  border-radius: 0.5rem !important;
+.strip-left {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
 }
 
-.glass-action-btn:hover {
-  background: rgba(51, 65, 85, 0.8) !important;
-  color: #38bdf8 !important;
-  border-color: rgba(56, 189, 248, 0.4) !important;
+.strip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.strip-right {
+  flex-shrink: 0;
+  margin-left: 8px;
+  color: #0ea5e9;
+}
+
+/* 卡片操作栏 */
+.service-card-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.action-btn-left,
+.action-btn-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.text-danger {
+  color: #ef4444 !important;
 }
 
 /* 终端样式 */
-.terminal-window {
-  background: #090d16;
-  border-radius: 1rem;
+.terminal-shell {
+  background: #0a0f1d;
+  border-radius: 8px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4);
 }
 
-.terminal-body {
+.terminal-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 14px;
+  background: #111827;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.traffic-lights {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.traffic-btn {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.close-btn { background: #ef4444; }
+.min-btn { background: #f59e0b; }
+.max-btn { background: #10b981; }
+
+.term-title {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-left: 8px;
+}
+
+.term-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.terminal-screen {
+  padding: 14px 16px;
+  height: 60vh;
+  overflow-y: auto;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #cbd5e1;
   background: #090d16;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.term-line {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.empty-term-tip {
+  text-align: center;
+  color: #64748b;
+  padding: 40px 0;
+}
+
+.log-error { color: #f87171 !important; }
+.log-warn { color: #fbbf24 !important; }
+.log-info { color: #34d399 !important; }
+.log-debug { color: #38bdf8 !important; }
+.log-ci { color: #67e8f9 !important; font-weight: 700; }
+.log-default { color: #cbd5e1; }
+
+/* 抽屉样式 */
+.build-cmd-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.service-h4 {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.service-p {
+  font-size: 12px;
+  color: var(--el-text-color-secondary, #64748b);
+  margin: 4px 0 0 0;
+}
+
+.cmd-input-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cmd-label {
+  font-size: 12px;
+  color: var(--el-text-color-secondary, #64748b);
+}
+
+.build-body-grid {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 14px;
+  height: calc(100vh - 280px);
+}
+
+.build-history-col {
+  background: var(--el-fill-color-light, #f8fafc);
+  border: 1px solid var(--el-border-color-lighter, #e2e8f0);
+  border-radius: 8px;
+  padding: 10px;
+  overflow-y: auto;
+}
+
+.history-title {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.history-item {
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--el-border-color-lighter, #e2e8f0);
+  margin-bottom: 8px;
+  cursor: pointer;
+  background: var(--el-bg-color, #ffffff);
+}
+
+.history-item.item-active {
+  border-color: #0ea5e9;
+  background: rgba(14, 165, 233, 0.08);
+}
+
+.rec-row1 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.rec-no {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.rec-row2 {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--el-text-color-secondary, #64748b);
+  margin-top: 4px;
+}
+
+.build-console-col {
+  background: #090d16;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.console-header {
+  padding: 8px 12px;
+  background: #111827;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 12px;
+  color: #94a3b8;
+  display: flex;
+  justify-content: space-between;
+}
+
+.console-body {
+  padding: 12px;
+  flex: 1;
+  overflow-y: auto;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* 制品模态框 */
+.upload-card {
+  background: var(--el-fill-color-light, #f8fafc);
+  border-radius: 8px;
+}
+
+.upload-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.upload-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.file-picker {
+  font-size: 12px;
+}
+
+.history-h4 {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 16px 0 10px 0;
+}
+
+.artifact-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--el-border-color-lighter, #e2e8f0);
+  background: var(--el-bg-color, #ffffff);
+  margin-bottom: 8px;
+}
+
+.artifact-item.current-art {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.art-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.art-tag {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.art-file {
+  font-size: 12px;
+  color: var(--el-text-color-secondary, #64748b);
+}
+
+.art-meta {
+  display: flex;
+  gap: 14px;
+  font-size: 11px;
+  color: var(--el-text-color-secondary, #94a3b8);
+  margin-top: 4px;
 }
 </style>
