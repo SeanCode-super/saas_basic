@@ -30,7 +30,8 @@ import {
   Tickets,
   Monitor,
   Lock,
-  MagicStick
+  MagicStick,
+  Bottom
 } from "@element-plus/icons-vue";
 import {
   fetchAppServices,
@@ -520,6 +521,44 @@ function closeTerminal() {
   logBuffer = [];
   terminalVisible.value = false;
   terminalService.value = null;
+}
+
+function handleTerminalScroll() {
+  if (!terminalBodyRef.value) return;
+  const el = terminalBodyRef.value;
+  // 计算距离底部的像素（阈值 40px）
+  const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+  const isNearBottom = distanceFromBottom <= 40;
+
+  if (isNearBottom) {
+    if (!autoScroll.value) {
+      autoScroll.value = true;
+    }
+  } else {
+    // 用户主动向上翻阅，暂停自动滚动以保证沉浸式阅读
+    if (autoScroll.value) {
+      autoScroll.value = false;
+    }
+  }
+}
+
+function toggleAutoScroll() {
+  autoScroll.value = !autoScroll.value;
+  if (autoScroll.value) {
+    resumeAutoScroll();
+  }
+}
+
+function resumeAutoScroll() {
+  autoScroll.value = true;
+  nextTick(() => {
+    if (terminalBodyRef.value) {
+      terminalBodyRef.value.scrollTo({
+        top: terminalBodyRef.value.scrollHeight,
+        behavior: "smooth"
+      });
+    }
+  });
 }
 
 function scrollTerminalToBottom() {
@@ -1130,14 +1169,22 @@ onUnmounted(() => {
               :prefix-icon="Search"
             />
 
-            <el-button
-              size="small"
-              :type="autoScroll ? 'primary' : 'info'"
-              plain
-              @click="autoScroll = !autoScroll"
+            <el-tooltip
+              :content="autoScroll ? '当前正在跟随最新日志：新日志到达时自动滚至底部（向上翻阅时会自动暂停）' : '当前已暂停自动滚屏：便于自由查阅历史日志（点击或滚到底部可重新恢复）'"
+              placement="top"
             >
-              {{ autoScroll ? '滚动锁定: 开' : '滚动锁定: 关' }}
-            </el-button>
+              <el-button
+                size="small"
+                :type="autoScroll ? 'primary' : 'info'"
+                plain
+                @click="toggleAutoScroll"
+              >
+                <el-icon style="margin-right: 4px;">
+                  <component :is="autoScroll ? Bottom : VideoPause" />
+                </el-icon>
+                {{ autoScroll ? '自动滚屏: 开启' : '自动滚屏: 暂停' }}
+              </el-button>
+            </el-tooltip>
 
             <el-button size="small" @click="clearTerminal">清屏</el-button>
             <el-button size="small" :icon="Download" @click="downloadTerminalLog">下载日志</el-button>
@@ -1145,7 +1192,11 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <div ref="terminalBodyRef" class="terminal-screen font-mono">
+        <div
+          ref="terminalBodyRef"
+          class="terminal-screen font-mono"
+          @scroll="handleTerminalScroll"
+        >
           <div v-if="filteredLogs.length === 0" class="empty-term-tip">
             暂无日志输出或无匹配项
           </div>
@@ -1158,6 +1209,18 @@ onUnmounted(() => {
             {{ line }}
           </div>
         </div>
+
+        <!-- 悬浮恢复滚至最新小胶囊 -->
+        <transition name="el-fade-in">
+          <div
+            v-if="!autoScroll"
+            class="terminal-scroll-pill"
+            @click="resumeAutoScroll"
+          >
+            <el-icon class="pill-icon"><Bottom /></el-icon>
+            <span class="pill-text">已暂停自动滚屏 · 点击滚至最新</span>
+          </div>
+        </transition>
       </div>
     </el-dialog>
 
@@ -1841,10 +1904,57 @@ onUnmounted(() => {
 
 /* 终端样式 */
 .terminal-shell {
+  position: relative;
   background: #0a0f1d;
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4);
+}
+
+.terminal-scroll-pill {
+  position: absolute;
+  bottom: 24px;
+  right: 28px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: rgba(14, 165, 233, 0.92);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 20px;
+  box-shadow: 0 6px 20px rgba(14, 165, 233, 0.45), 0 2px 6px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+  z-index: 20;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.terminal-scroll-pill:hover {
+  background: rgba(14, 165, 233, 1);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(14, 165, 233, 0.6), 0 3px 8px rgba(0, 0, 0, 0.5);
+}
+
+.terminal-scroll-pill:active {
+  transform: translateY(0);
+}
+
+.terminal-scroll-pill .pill-icon {
+  font-size: 14px;
+  animation: bounceDown 1.4s infinite ease-in-out;
+}
+
+@keyframes bounceDown {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(3px);
+  }
 }
 
 .terminal-topbar {
