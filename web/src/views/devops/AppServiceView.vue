@@ -1148,6 +1148,18 @@ onUnmounted(() => {
             'card-stopped': service.status === 'STOPPED'
           }"
         >
+          <!-- 顶部零侵入微细进度光轨 (Hairline Progress, absolute 定位，完全不增加高度、不挤压页面) -->
+          <div
+            v-if="serviceProgress[service.id]"
+            class="card-progress-hairline"
+            :class="serviceProgress[service.id].type"
+          >
+            <div
+              class="hairline-bar"
+              :style="{ width: serviceProgress[service.id].percent + '%' }"
+            ></div>
+          </div>
+
           <!-- 卡片顶栏 -->
           <div class="service-card-top">
             <div class="service-title-area">
@@ -1210,31 +1222,6 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <!-- 执行进度展示 (Lifecycle Execution Progress Display) -->
-          <transition name="el-zoom-in-top">
-            <div v-if="serviceProgress[service.id]" class="lifecycle-progress-box">
-              <div class="progress-info-row">
-                <div class="progress-step-text">
-                  <el-icon v-if="serviceProgress[service.id].status === 'success'" class="progress-icon text-success"><CircleCheckFilled /></el-icon>
-                  <el-icon v-else-if="serviceProgress[service.id].status === 'exception'" class="progress-icon text-danger"><CircleCloseFilled /></el-icon>
-                  <el-icon v-else class="progress-icon is-loading"><Loading /></el-icon>
-                  <span class="step-badge">{{ serviceProgress[service.id].title }}</span>
-                  <span class="step-desc" :title="serviceProgress[service.id].desc">{{ serviceProgress[service.id].desc }}</span>
-                </div>
-                <div class="progress-timer font-mono">
-                  {{ serviceProgress[service.id].elapsed.toFixed(1) }}s
-                </div>
-              </div>
-              <el-progress
-                :percentage="Math.round(serviceProgress[service.id].percent)"
-                :status="serviceProgress[service.id].status || undefined"
-                :stroke-width="5"
-                :show-text="false"
-                class="lifecycle-progress-bar"
-              />
-            </div>
-          </transition>
-
           <!-- 卡片中间：4 宫格遥测数据 -->
           <div class="service-telemetry-grid">
             <div class="telemetry-cell">
@@ -1269,15 +1256,28 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <!-- 工作路径与制品名 -->
-          <div class="service-meta-strip">
-            <div class="strip-left" :title="service.workDir">
-              <el-icon class="mr-1 text-slate-400"><Folder /></el-icon>
-              <span class="font-mono strip-text">{{ service.workDir }}</span>
-            </div>
-            <div class="strip-right font-mono" v-if="service.artifactPath">
-              {{ service.artifactPath.split('/').pop() }}
-            </div>
+          <!-- 工作路径与制品名 / 原位生命周期执行进度 (零新增高度，完全不挤压布局) -->
+          <div class="service-meta-strip" :class="{ 'meta-in-progress': !!serviceProgress[service.id] }">
+            <template v-if="serviceProgress[service.id]">
+              <div class="strip-left in-progress-text" :title="serviceProgress[service.id].desc">
+                <el-icon v-if="serviceProgress[service.id].status === 'success'" class="text-success mr-1"><CircleCheckFilled /></el-icon>
+                <el-icon v-else-if="serviceProgress[service.id].status === 'exception'" class="text-danger mr-1"><CircleCloseFilled /></el-icon>
+                <el-icon v-else class="is-loading text-primary mr-1"><Loading /></el-icon>
+                <span class="step-desc-text font-medium">{{ serviceProgress[service.id].desc }}</span>
+              </div>
+              <div class="strip-right font-mono in-progress-timer">
+                {{ Math.round(serviceProgress[service.id].percent) }}% · {{ serviceProgress[service.id].elapsed.toFixed(1) }}s
+              </div>
+            </template>
+            <template v-else>
+              <div class="strip-left" :title="service.workDir">
+                <el-icon class="mr-1 text-slate-400"><Folder /></el-icon>
+                <span class="font-mono strip-text">{{ service.workDir }}</span>
+              </div>
+              <div class="strip-right font-mono" v-if="service.artifactPath">
+                {{ service.artifactPath.split('/').pop() }}
+              </div>
+            </template>
           </div>
 
           <!-- 卡片底部操作栏 -->
@@ -1931,6 +1931,8 @@ onUnmounted(() => {
 
 /* 服务卡片 */
 .service-box-card {
+  position: relative;
+  overflow: hidden;
   border-radius: 10px;
   border: 1px solid var(--el-border-color-light, #e2e8f0);
   background: var(--el-bg-color, #ffffff);
@@ -1967,77 +1969,32 @@ onUnmounted(() => {
   border-left: 4px solid #94a3b8;
 }
 
-/* 生命周期执行进度条 */
-.lifecycle-progress-box {
-  margin: -4px 0 12px 0;
-  padding: 8px 12px;
-  background: rgba(241, 245, 249, 0.6);
-  border-radius: 8px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
-}
-
-.lifecycle-progress-box .progress-info-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 6px;
-  font-size: 12px;
-}
-
-.lifecycle-progress-box .progress-step-text {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+/* 卡片顶部零高度微细光轨 (Hairline Progress, absolute 定位，完全不影响布局高度) */
+.card-progress-hairline {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(0, 0, 0, 0.04);
+  z-index: 10;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  pointer-events: none;
 }
 
-.lifecycle-progress-box .progress-icon {
-  font-size: 14px;
-  color: #3b82f6;
-  flex-shrink: 0;
-}
-
-.lifecycle-progress-box .progress-icon.text-success {
-  color: #10b981;
-}
-
-.lifecycle-progress-box .progress-icon.text-danger {
-  color: #ef4444;
-}
-
-.lifecycle-progress-box .step-badge {
-  font-weight: 600;
-  color: var(--el-text-color-primary, #1e293b);
-  flex-shrink: 0;
-}
-
-.lifecycle-progress-box .step-desc {
-  color: var(--el-text-color-secondary, #64748b);
-  font-size: 11px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.lifecycle-progress-box .progress-timer {
-  color: #3b82f6;
-  font-weight: 700;
-  font-size: 11px;
-  flex-shrink: 0;
-  margin-left: 8px;
-}
-
-.lifecycle-progress-box .lifecycle-progress-bar :deep(.el-progress-bar__outer) {
-  background-color: rgba(226, 232, 240, 0.8);
-  border-radius: 3px;
-}
-
-.lifecycle-progress-box .lifecycle-progress-bar :deep(.el-progress-bar__inner) {
-  border-radius: 3px;
+.card-progress-hairline .hairline-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #6366f1);
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-progress-hairline.stop .hairline-bar,
+.card-progress-hairline.kill .hairline-bar {
+  background: linear-gradient(90deg, #f59e0b, #ef4444);
+}
+
+.card-progress-hairline.start .hairline-bar {
+  background: linear-gradient(90deg, #10b981, #06b6d4);
 }
 
 .service-card-top {
@@ -2184,7 +2141,7 @@ onUnmounted(() => {
   font-weight: 400;
 }
 
-/* 文件路径条 */
+/* 文件路径条 / 原位执行状态条 (高度锁定，0px 布局挤压) */
 .service-meta-strip {
   display: flex;
   justify-content: space-between;
@@ -2195,6 +2152,29 @@ onUnmounted(() => {
   background: var(--el-fill-color-lighter, #f1f5f9);
   border-radius: 4px;
   margin-bottom: 12px;
+  height: 28px;
+  box-sizing: border-box;
+  transition: background-color 0.25s ease, border-color 0.25s ease;
+}
+
+.service-meta-strip.meta-in-progress {
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+}
+
+.meta-in-progress .step-desc-text {
+  font-weight: 500;
+  color: #2563eb;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta-in-progress .in-progress-timer {
+  color: #2563eb;
+  font-weight: 600;
+  flex-shrink: 0;
+  padding-left: 8px;
 }
 
 .strip-left {
