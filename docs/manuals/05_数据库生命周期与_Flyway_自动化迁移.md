@@ -15,16 +15,16 @@
 ```
 V{版本号}__{英文下划线业务描述}.sql
 ```
-*例如：`V57__flowable_bpmn_integration.sql`、`V58__payment_center.sql`、`V59__pay_order_remark.sql`。*
+*例如：`V57__flowable_bpmn_integration.sql`、`V58__payment_center.sql`、`V62__app_devops_service_center.sql`。*
 
 ### 1.2 生产不可篡改原则
 * 已发布的迁移脚本在发布后，其文本内容的 **Checksum** 会被 Flyway 强校验并记录在数据库的 `flyway_schema_history` 表中；
 * 严禁修改任何已执行的历史脚本内容，否则应用启动时 Flyway 会报 Checksum 校验失败阻断启动；
-* 任何新字段或表结构调整必须递增创建新版本脚本（如 `V60__xxx.sql`）。
+* 任何新字段或表结构调整必须递增创建新版本脚本（如 `V63__xxx.sql`）。
 
 ---
 
-## 2. 历史核心版本线速查表 (V1 ~ V59)
+## 2. 历史核心版本线速查表 (V1 ~ V62)
 
 | 版本跨度 | 核心业务主题 | 涉及的核心数据表与能力 |
 | :--- | :--- | :--- |
@@ -37,3 +37,6 @@ V{版本号}__{英文下划线业务描述}.sql
 | **V51 ~ V56** | 开放平台与企业 SSO | `open_app`, `open_api_token`, SAML 2.0 / OIDC 身份提供商配置表 |
 | **V57** | Flowable BPMN 原生集成 | 集成 Flowable 7.x 原生 28 张核心表 (`ACT_RU_*`, `ACT_HI_*`, `ACT_RE_*`) |
 | **V58 ~ V59** | 聚合收银台与账单中心 | `pay_channel`, `pay_order` 聚合支付与财务对账支持 |
+| **V60** | 企业级开箱数据种子 | 补充企业级预置演示数据、租户套餐与安全合规策略初始基线 |
+| **V61** | ERP 进销存唯一索引加固 | 优化多租户模式下物料编号与出入库流水的逻辑删除唯一索引约束 |
+| **V62** | 服务编排与发布中台 | `app_managed_service`, `app_build_record`, `app_service_artifact` 核心纳管与构建表 |

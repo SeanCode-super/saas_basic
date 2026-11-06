@@ -31,21 +31,29 @@
                                     |                       |
                                     v                       v
           +-----------------------------------+   +------------------------------------+
-          |  PC 端 (Vue 3 + TS + Vite 5)      |   |  天枢后端服务 (Spring Boot 3.3.x)   |
-          |  - iOS 27 Liquid Glass UI 视觉    |   |  - Spring Security + JWT 令牌中枢   |
-          |  - 多租户 URL 隔离路由体系        |   |  - TenantContextHolder 租户上下文  |
-          |  移动端 (uni-app / 灵动岛 TabBar) |   |  - Flowable BPMN 2.0 流程引擎      |
-          +-----------------------------------+   |  - MyBatis-Plus 数据行级租户隔离   |
+          |  PC 端 (Vue 3 + TS + Vite 5/6)    |   |  天枢业务主服务 (Spring Boot 3.3.5)|
+          |  - 默认端口: 9527                 |   |  - 默认端口: 8080 (saas-basics-app)|
+          |  - iOS 27 Liquid Glass UI 视觉    |   |  - Spring Security + JWT 令牌中枢  |
+          |  - 多租户 URL 隔离路由体系        |   |  - TenantContextHolder 租户上下文 |
+          |  移动端 (uni-app / 灵动岛 TabBar) |   |  - MyBatis-Plus 数据行级租户隔离  |
+          |  - 默认端口: 5173 (H5 / 微信小程序) |   +------------------------------------+
+          +-----------------------------------+                     |
+                                                                    v
                                                   +------------------------------------+
-                                                            |
-                                   +------------------------+------------------------+
-                                   |                        |                        |
-                                   v                        v                        v
-                        +--------------------+   +--------------------+   +--------------------+
-                        |  MySQL 8.3 数据库  |   |   Redis 7.2 缓存   |   |   MinIO 对象存储   |
-                        | - Flyway 自动迁移  |   | - 会话/Refresh 令牌|   | - 附件/合同/媒体   |
-                        |   (V1 ~ V59 脚本)  |   | - 分布式锁 / 限流  |   | - S3 协议高可用    |
-                        +--------------------+   +--------------------+   +--------------------+
+                                                  |  Flowable 流程引擎服务 (独立微服务)|
+                                                  |  - 默认端口: 8085                  |
+                                                  |  - (saas-basics-workflow-app)      |
+                                                  |  - BPMN 2.0 工业级流程引擎独立部署 |
+                                                  +------------------------------------+
+                                                                    |
+                                    +-------------------------------+--------------------+
+                                    |                               |                    |
+                                    v                               v                    v
+                         +--------------------+           +--------------------+   +--------------------+
+                         |  MySQL 8.3 数据库  |           |   Redis 7.2 缓存   |   |   MinIO 对象存储   |
+                         | - Flyway 自动迁移  |           | - 会话/Refresh 令牌|   | - 附件/合同/媒体   |
+                         |   (V1 ~ V62 脚本)  |           | - 分布式锁 / 限流  |   | - S3 协议高可用    |
+                         +--------------------+           +--------------------+   +--------------------+
 ```
 
 ### 1.2 核心技术栈规范
@@ -81,6 +89,9 @@
 
 ##### 6. 多租户动态 URL 空间隔离认证
 ![多租户动态 URL 空间隔离认证](https://raw.githubusercontent.com/SeanCode-super/saas_basic/main/docs/images/pc_tenant_login.png)
+
+##### 7. 服务编排与发布中台 (DevOps Console)
+![服务编排与发布中台](https://raw.githubusercontent.com/SeanCode-super/saas_basic/main/docs/images/pc_devops_service.png)
 
 #### 跨端移动工作台视觉体验 (uni-app 悬浮灵动岛 TabBar)
 
@@ -402,8 +413,8 @@ server {
 天枢云基引入 **Flyway 10.x** 作为生产数据库迁移的唯一准绳，严禁运维工程师在生产数据库手工执行 DDL 语句。
 
 ### 5.1 数据库自动迁移规则
-1. **命名规范**：`V{版本号}__{英文描述}.sql`，例如 `V57__flowable_bpmn_integration.sql`、`V59__pay_order_remark.sql`。
-2. **不可篡改性**：已发布的迁移脚本（V1 至 V59）在发布后其文件内容 Checksum 强校验，严禁修改历史脚本内容；新需求必须递增创建新脚本（如 `V60__xxx.sql`）。
+1. **命名规范**：`V{版本号}__{英文描述}.sql`，例如 `V57__flowable_bpmn_integration.sql`、`V62__app_devops_service_center.sql`。
+2. **不可篡改性**：已发布的迁移脚本（V1 至 V62）在发布后其文件内容 Checksum 强校验，严禁修改历史脚本内容；新需求必须递增创建新脚本（如 `V63__xxx.sql`）。
 3. **自动化执行**：后端 Spring Boot 服务容器启动时，Flyway 会自动扫描 `db/migration` 目录，获取当前数据库 `flyway_schema_history` 表执行最新增量脚本，执行成功后应用才对外开放健康检查探针。
 
 ### 5.2 历史核心版本线速查 (Baseline Highlights)
@@ -416,6 +427,9 @@ server {
 * **V51 ~ V56**：SAML/OIDC 企业 SSO 联合认证与 Open API 开放平台。
 * **V57**：Flowable BPMN 2.0 工业级流程引擎原生表集成。
 * **V58 ~ V59**：统一支付收银中心与订单账单模型。
+* **V60**：企业级开箱预置演示数据与安全策略初始基线。
+* **V61**：ERP 进销存唯一索引加固与物料出入库逻辑删除冲突防护。
+* **V62**：服务编排与发布中台数据表 (`app_managed_service`, `app_build_record`, `app_service_artifact`) 与系统运维菜单权限。
 
 ---
 
@@ -468,6 +482,47 @@ npm run build:mp-weixin
     mysqldump -u saas_app -p saas_basics --single-transaction --quick --default-character-set=utf8mb4 | gzip > /data/backup/mysql/saas_basics_$(date +%Y%m%d_%H%M%S).sql.gz
     ```
   - **MinIO 对象存储**：建议配置跨区域副本同步或异地对象备份。
+
+---
+
+## 八、 服务编排与发布中台实战 (DevOps Service Center & CI/CD)
+
+天枢云基原生内置研发运维一体化的【服务编排与发布中台】（PC 控制台「系统中心」->「服务编排与发布中台」），实现多应用、微服务与跨端容器的一站式可视化运维管控。
+
+### 8.1 核心运维能力
+1. **多微服务全生命周期纳管**：
+   * 原生预置 `backend-main` (端口 8080)、`workflow-app` (端口 8085)、`web-console` (端口 9527)、`mobile-h5` (端口 5173)；
+   * 支持通过主机进程树（ProcessTree）与 Docker 容器双模驱动；
+   * 状态流转具备 `STARTING` 与 `STOPPING` 防抖过渡状态，精准探活端口释放与进程消亡，彻底杜绝虚假成功提示。
+2. **免外置 Jenkins 的本地 CI 构建流水线**：
+   * 支持 Maven、npm、Docker 等一键触发源码重编译；
+   * 实时输出构建控制台标准/错误流日志，计算构建耗时与制品 MD5 指纹；
+   * 产物自动归档入库，支持历史版本秒级平滑回滚。
+3. **实时 SSE 流式日志控制台**：
+   * 采用 Server-Sent Events 流式传输标准日志，集成心跳保活帧（15s）；
+   * 仿 macOS 拟态深色终端，内置智能自动滚屏吸底、用户回溯暂停、悬浮一键回底、关键字正则过滤与全量日志导出。
+
+---
+
+## 九、 13 卷专栏实战手册速查 (Yuque Knowledge Base Index)
+
+天枢云基已完成全套生产指南的模块化拆分，各专栏手册均可一键导入语雀（Yuque）等知识库系统中独立共享与学习：
+
+| 专栏序号与手册名称 | 对应文档路径 | 核心内容提要 |
+| :--- | :--- | :--- |
+| **01. 平台定位与系统架构全景** | [`docs/manuals/01_平台定位与系统架构全景.md`](./manuals/01_平台定位与系统架构全景.md) | 集团控股与 SaaS 平台定位、分层全景架构拓扑与核心特性 |
+| **02. 核心生产端实机视觉呈现** | [`docs/manuals/02_核心生产端实机视觉呈现_UI_Showcase.md`](./manuals/02_核心生产端实机视觉呈现_UI_Showcase.md) | PC 流光毛玻璃驾驶舱与移动端悬浮灵动岛实机高清图解 |
+| **03. Docker Compose 一键生产编排部署** | [`docs/manuals/03_Docker_Compose_一键生产编排部署.md`](./manuals/03_Docker_Compose_一键生产编排部署.md) | 包含生产 compose 文件详解、健康检查、日志轮转与备份 |
+| **04. 生产级 Nginx 泛域名网关与 SSL 配置** | [`docs/manuals/04_生产级_Nginx_泛域名网关与_SSL_配置.md`](./manuals/04_生产级_Nginx_泛域名网关与_SSL_配置.md) | 泛域名 SSL 通配符终结、子域名提取注入 `X-Tenant-Code`、跨域防刷 |
+| **05. 数据库生命周期与 Flyway 自动化迁移** | [`docs/manuals/05_数据库生命周期与_Flyway_自动化迁移.md`](./manuals/05_数据库生命周期与_Flyway_自动化迁移.md) | Flyway 10.x 迁移准绳、V1~V62 全量核心版本线与防篡改策略 |
+| **06. 跨端工作台生产构建 (PC/H5/小程序)** | [`docs/manuals/06_跨端工作台生产构建_PC_H5_微信小程序.md`](./manuals/06_跨端工作台生产构建_PC_H5_微信小程序.md) | Vue 3 PC 控制台与 uni-app 跨端工作台全平台打包与发布规范 |
+| **07. 生产安全基线 SecOps 与高可用运维保障**| [`docs/manuals/07_生产安全基线_SecOps_与高可用运维保障.md`](./manuals/07_生产安全基线_SecOps_与高可用运维保障.md) | 凭证隔离、网络安全域、数据库冷备份脚本与异常应急预案 |
+| **08. 组织架构与企业级 IAM 权限配置指南** | [`docs/manuals/08_组织架构与企业级_IAM_权限配置指南.md`](./manuals/08_组织架构与企业级_IAM_权限配置指南.md) | 集团-企业-部门-岗位-员工五级实体架构，菜单/按钮/行级数据范围 |
+| **09. Flowable BPMN 2.0 工业级工作流实战** | [`docs/manuals/09_Flowable_BPMN_2_0_工业级工作流实战.md`](./manuals/09_Flowable_BPMN_2_0_工业级工作流实战.md) | Flowable 7.x 审批流、串并行会签、驳回加签与移动端快捷签批 |
+| **10. CRM 客户全生命周期与商机管理实战** | [`docs/manuals/10_CRM_客户全生命周期与商机管理实战.md`](./manuals/10_CRM_客户全生命周期与商机管理实战.md) | 线索跟进、商机阶段漏斗、客户公海池流转与合同回款流水管理 |
+| **11. ERP 进销存与云仓物料管理实战** | [`docs/manuals/11_ERP_进销存与云仓物料管理实战.md`](./manuals/11_ERP_进销存与云仓物料管理实战.md) | 物料多规格档案、采购订单、出入库流水核算与高低库存预警 |
+| **12. 开放平台 Open API 与企业 SSO 对接指南** | [`docs/manuals/12_开放平台_Open_API_与企业_SSO_对接指南.md`](./manuals/12_开放平台_Open_API_与企业_SSO_对接指南.md) | Open API 签名网关、AppKey/HMAC 鉴权与 SAML/OIDC/企微免登 |
+| **13. 服务编排与发布中台 DevOps 运维实战** | [`docs/manuals/13_服务编排与发布中台_DevOps_CI_CD_运维实战.md`](./manuals/13_服务编排与发布中台_DevOps_CI_CD_运维实战.md) | 双驱动编排引擎、本地 CI 构建流水线、制品秒级回滚与 SSE 流式终端 |
 
 ---
 *本文档由天枢云基研发团队与系统架构委员会联合编制，持续跟踪生产演进。*

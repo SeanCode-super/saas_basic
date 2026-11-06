@@ -42,6 +42,10 @@
 ![多租户动态 URL 空间隔离认证](https://raw.githubusercontent.com/SeanCode-super/saas_basic/main/docs/images/pc_tenant_login.png)
 * **核心亮点**：基于子域名/企业代码的专属登录界面，自动加载企业自定义 Logo、品牌主色调与免密扫码。
 
+### 2.7 服务编排与发布中台 (DevOps Console)
+![服务编排与发布中台](https://raw.githubusercontent.com/SeanCode-super/saas_basic/main/docs/images/pc_devops_service.png)
+* **核心亮点**：微服务全生命周期可视化纳管、零抖动发丝进度条、免 Jenkins 本地 CI 构建、历史版本秒级回退与 SSE 仿 macOS 拟态深色终端。
+
 ---
 
 ## 3. 跨端移动工作台视觉体验 (uni-app 悬浮灵动岛 TabBar)
