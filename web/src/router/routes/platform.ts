@@ -58,6 +58,16 @@ export const platformRoutes: RouteRecordRaw[] = [
         }
       },
       {
+        path: "system/ai-models",
+        name: "system-ai-models",
+        component: () => import("@/views/system/AiModelConfigView.vue"),
+        meta: {
+          title: "AI 智能模型网关",
+          icon: "Cpu",
+          permissionCode: "system:config:query"
+        }
+      },
+      {
         path: "system/:section",
         name: "system-section",
         component: () => import("@/views/system/SystemView.vue"),

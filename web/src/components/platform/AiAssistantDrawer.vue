@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, reactive, nextTick } from "vue";
+import { ref, reactive, nextTick, onMounted, computed } from "vue";
+import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import {
   ChatLineRound,
@@ -9,8 +10,10 @@ import {
   Position,
   Cpu,
   Star,
-  RefreshRight
+  RefreshRight,
+  Setting
 } from "@element-plus/icons-vue";
+import { fetchPublicAiModels } from "@/api/modules/ai";
 
 interface ChatMessageItem {
   id: string;
@@ -19,18 +22,57 @@ interface ChatMessageItem {
   timestamp: string;
 }
 
+interface ModelOption {
+  id: string;
+  name: string;
+  vendor: string;
+  contextWindow?: string;
+  status?: string;
+  isDefault?: boolean;
+  hasApiKey?: boolean;
+}
+
+const router = useRouter();
 const visible = ref(false);
 const loading = ref(false);
 const selectedModel = ref("deepseek-chat");
 const inputPrompt = ref("");
 const chatScrollRef = ref<HTMLElement | null>(null);
 
-const models = [
-  { id: "deepseek-chat", name: "DeepSeek-V3 (通用旗舰)", vendor: "DeepSeek" },
-  { id: "deepseek-reasoner", name: "DeepSeek-R1 (深度思考)", vendor: "DeepSeek" },
-  { id: "gpt-4o-mini", name: "OpenAI GPT-4o Mini (极速)", vendor: "OpenAI" },
-  { id: "qwen-max", name: "通义千问 Qwen-Max", vendor: "Alibaba" }
-];
+const models = ref<ModelOption[]>([
+  { id: "deepseek-chat", name: "DeepSeek-V3 (通用旗舰)", vendor: "DeepSeek", hasApiKey: false },
+  { id: "deepseek-reasoner", name: "DeepSeek-R1 (深度思考)", vendor: "DeepSeek", hasApiKey: false },
+  { id: "gpt-4o-mini", name: "OpenAI GPT-4o Mini (极速)", vendor: "OpenAI", hasApiKey: false },
+  { id: "qwen-max", name: "通义千问 Qwen-Max", vendor: "Alibaba", hasApiKey: false }
+]);
+
+const currentModelMeta = computed(() => {
+  return models.value.find((m) => m.id === selectedModel.value) || models.value[0];
+});
+
+async function loadDynamicModels() {
+  try {
+    const list = await fetchPublicAiModels();
+    if (list && list.length > 0) {
+      models.value = list;
+      if (!models.value.some((m) => m.id === selectedModel.value)) {
+        const defaultOne = models.value.find((m) => m.isDefault);
+        selectedModel.value = defaultOne ? defaultOne.id : models.value[0].id;
+      }
+    }
+  } catch {
+    // Keep fallback list
+  }
+}
+
+function goToAiConfig() {
+  visible.value = false;
+  router.push("/system/ai-models");
+}
+
+onMounted(() => {
+  loadDynamicModels();
+});
 
 const quickPrompts = [
   "对比芋道 ruoyi-vue-pro 的核心优势是什么？",
@@ -50,6 +92,7 @@ const messages = ref<ChatMessageItem[]>([
 
 function openDrawer() {
   visible.value = true;
+  loadDynamicModels();
   scrollToBottom();
 }
 
@@ -210,8 +253,22 @@ defineExpose({
               :value="m.id"
             />
           </el-select>
+          <el-button link :icon="Setting" @click="goToAiConfig" title="前往模型与服务商配置网关" />
           <el-button link :icon="Delete" @click="clearChat" title="清空对话" />
         </div>
+      </div>
+
+      <!-- Model Status Strip -->
+      <div class="model-status-strip">
+        <span v-if="currentModelMeta?.hasApiKey" class="status-pill green">
+          ● 真实端点已就绪 ({{ currentModelMeta.vendor }})
+        </span>
+        <span v-else class="status-pill warning" @click="goToAiConfig">
+          ● 离线演示模式 (未配Key · 点击配置)
+        </span>
+        <span v-if="currentModelMeta?.contextWindow" class="status-spec">
+          规格: {{ currentModelMeta.contextWindow }}
+        </span>
       </div>
 
       <!-- Quick prompts -->
@@ -343,6 +400,44 @@ defineExpose({
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.model-status-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 16px;
+  background: var(--el-fill-color-extra-light, #f8fafc);
+  border-bottom: 1px solid var(--el-border-color-extra-light, #f1f5f9);
+  font-size: 11px;
+}
+
+.status-pill {
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.status-pill.green {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.status-pill.warning {
+  background: #fffbeb;
+  color: #d97706;
+}
+
+.status-pill.warning:hover {
+  background: #fef3c7;
+  text-decoration: underline;
+}
+
+.status-spec {
+  color: var(--el-text-color-secondary, #94a3b8);
+  font-family: monospace;
 }
 
 .quick-prompts-bar {
