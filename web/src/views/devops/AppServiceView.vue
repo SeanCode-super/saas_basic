@@ -2703,4 +2703,20 @@ onUnmounted(() => {
   display: flex;
   gap: 10px;
 }
+
+@media (max-width: 960px) {
+  .service-telemetry-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .template-cards-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .template-cards-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 </style>

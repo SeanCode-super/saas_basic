@@ -58,6 +58,9 @@ withDefaults(
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   user-select: none;
 }
 
@@ -69,6 +72,8 @@ withDefaults(
 .brand-text-block {
   display: flex;
   align-items: center;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .brand-name-zh {
@@ -76,6 +81,7 @@ withDefaults(
   font-weight: 700;
   letter-spacing: 0.5px;
   line-height: 1;
+  white-space: nowrap;
   color: #0f172a;
 }
 

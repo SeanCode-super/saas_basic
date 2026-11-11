@@ -668,6 +668,8 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
   padding: 12px 20px;
   background: rgba(255, 255, 255, 0.68);
   backdrop-filter: blur(28px) saturate(200%) contrast(102%);
@@ -681,7 +683,8 @@ onMounted(() => {
 .ios-dashboard__title-group {
   display: flex;
   align-items: center;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .ios-dashboard__title {
@@ -691,6 +694,8 @@ onMounted(() => {
   letter-spacing: -0.025em;
   margin: 0;
   line-height: 1;
+  white-space: nowrap;
+  flex-shrink: 0;
   text-shadow: 0 1px 1px rgba(255, 255, 255, 0.8);
 }
 
@@ -698,6 +703,8 @@ onMounted(() => {
 .ios-segmented-pill {
   display: inline-flex;
   align-items: center;
+  flex-shrink: 0;
+  white-space: nowrap;
   gap: 3px;
   padding: 3px;
   background: rgba(255, 255, 255, 0.55);
@@ -735,6 +742,8 @@ onMounted(() => {
   font-size: 12.5px;
   color: #475569;
   font-weight: 550;
+  white-space: nowrap;
+  flex-shrink: 0;
   background: rgba(255, 255, 255, 0.45);
   padding: 4px 12px;
   border-radius: 9999px;
@@ -745,12 +754,15 @@ onMounted(() => {
 .ios-dashboard__actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .ios-glass-btn {
   display: inline-flex;
   align-items: center;
+  flex-shrink: 0;
+  white-space: nowrap;
   gap: 6px;
   padding: 7px 14px;
   background: rgba(255, 255, 255, 0.65);

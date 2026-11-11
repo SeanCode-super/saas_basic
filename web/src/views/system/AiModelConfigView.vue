@@ -760,7 +760,7 @@ onMounted(() => {
       <!-- Tab 1: Providers & Credential Vault -->
       <div v-if="activeTab === 'providers'" class="tab-pane-content">
         <el-table :data="providers" style="width: 100%" v-loading="loading" row-key="id">
-          <el-table-column prop="providerName" label="服务商名称" min-width="170">
+          <el-table-column prop="providerName" label="服务商名称" min-width="205">
             <template #default="{ row }">
               <div class="name-cell">
                 <span class="provider-title">{{ row.providerName }}</span>
@@ -1362,6 +1362,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  min-width: 0;
 }
 
 .glass-hero-banner {
@@ -1373,16 +1374,21 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
   box-shadow: 0 10px 30px rgb(0 30 80 / 0.05);
 
   .hero-left {
     display: flex;
     align-items: center;
     gap: 18px;
+    min-width: 0;
+    flex: 1 1 380px;
 
     .hero-icon-bubble {
       width: 54px;
       height: 54px;
+      flex-shrink: 0;
       border-radius: 14px;
       background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
       color: #fff;
@@ -1393,8 +1399,12 @@ onMounted(() => {
     }
 
     .hero-title-group {
+      min-width: 0;
+      flex: 1;
+
       .hero-badge-row {
         display: flex;
+        flex-wrap: wrap;
         gap: 8px;
         margin-bottom: 6px;
 
@@ -1403,30 +1413,34 @@ onMounted(() => {
           font-weight: 700;
           color: #2563eb;
           background: rgb(37 99 235 / 0.1);
-          padding: 2px 8px;
+          padding: 2px 10px;
           border-radius: 12px;
+          white-space: nowrap;
         }
 
         .hero-subtag {
           font-size: 11px;
           color: #64748b;
           background: rgb(100 116 139 / 0.1);
-          padding: 2px 8px;
+          padding: 2px 10px;
           border-radius: 12px;
+          white-space: nowrap;
         }
       }
 
       .hero-heading {
         margin: 0 0 6px;
-        font-size: 20px;
+        font-size: 19px;
         font-weight: 700;
         color: #1e293b;
+        line-height: 1.3;
       }
 
       .hero-desc {
         margin: 0;
         font-size: 13px;
         color: #64748b;
+        line-height: 1.5;
       }
     }
   }
@@ -1436,12 +1450,13 @@ onMounted(() => {
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
+    flex-shrink: 0;
   }
 }
 
 .stats-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
 
   .stat-glass-card {
@@ -1450,6 +1465,7 @@ onMounted(() => {
     border: 1px solid rgb(255 255 255 / 0.6);
     border-radius: 14px;
     padding: 18px;
+    min-width: 0;
     display: flex;
     align-items: center;
     gap: 14px;
@@ -1458,6 +1474,7 @@ onMounted(() => {
     .stat-icon-wrap {
       width: 44px;
       height: 44px;
+      flex-shrink: 0;
       border-radius: 12px;
       display: flex;
       align-items: center;
@@ -1472,6 +1489,7 @@ onMounted(() => {
     .stat-content {
       display: flex;
       flex-direction: column;
+      min-width: 0;
 
       .stat-label { font-size: 12px; color: #64748b; }
 
@@ -1482,7 +1500,7 @@ onMounted(() => {
         .stat-unit { font-size: 12px; color: #64748b; margin-left: 4px; }
       }
 
-      .stat-foot { font-size: 11px; color: #94a3b8; }
+      .stat-foot { font-size: 11px; color: #94a3b8; line-height: 1.4; }
     }
   }
 }
@@ -1506,19 +1524,23 @@ onMounted(() => {
 
     .tab-pills {
       display: flex;
-      gap: 8px;
+      gap: 6px;
+      flex: 1 1 auto;
       flex-wrap: wrap;
+      min-width: 0;
 
       .tab-pill {
-        display: flex;
+        display: inline-flex;
         align-items: center;
-        gap: 6px;
-        padding: 8px 14px;
+        gap: 5px;
+        flex-shrink: 0;
+        white-space: nowrap;
+        padding: 6px 10px;
         border-radius: 10px;
         border: 1px solid transparent;
         background: transparent;
         color: #64748b;
-        font-size: 13px;
+        font-size: 12.5px;
         font-weight: 500;
         cursor: pointer;
         transition: all 0.2s ease;
@@ -1534,7 +1556,7 @@ onMounted(() => {
 
         .pill-badge {
           background: rgb(0 0 0 / 0.06);
-          padding: 1px 7px;
+          padding: 1px 6px;
           border-radius: 10px;
           font-size: 11px;
         }
@@ -1544,6 +1566,7 @@ onMounted(() => {
     .tab-quick-actions {
       display: flex;
       gap: 8px;
+      flex-shrink: 0;
     }
   }
 
@@ -1715,6 +1738,56 @@ onMounted(() => {
     max-height: 180px;
     overflow-y: auto;
     white-space: pre-wrap;
+  }
+}
+
+@media (max-width: 1200px) {
+  .ai-config-container {
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .glass-hero-banner {
+    padding: 18px 20px;
+
+    .hero-right {
+      width: 100%;
+    }
+  }
+
+  .stats-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .glass-tabs-card .tab-header-strip {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 640px) {
+  .ai-config-container {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .glass-hero-banner {
+    padding: 14px 16px;
+
+    .hero-left {
+      align-items: flex-start;
+
+      .hero-title-group .hero-badge-row {
+        .hero-tag,
+        .hero-subtag {
+          white-space: normal;
+        }
+      }
+    }
+  }
+
+  .stats-row {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 </style>

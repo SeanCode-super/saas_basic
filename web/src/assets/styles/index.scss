@@ -337,10 +337,78 @@ h1, h2, h3, h4, h5, h6 {
     border-left: none !important;
   }
 
-  /* 2. 彻底消除任何固定列产生的白色条块、伪元素投影与接缝阴影 (Zero Seam / Zero Shadow Guarantee) */
+  /* 2. 当窄屏/缩放触发横向滚动时，固定列自动切换为高不透明度底面 + 柔和高光分隔线，彻底防止底层文字穿透重叠 */
   &.is-scrolling-left,
-  &.is-scrolling-middle,
+  &.is-scrolling-middle {
+    th.el-table__cell.el-table-fixed-column--right,
+    .el-table__fixed-right th.el-table__cell {
+      background: #f8fafc !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      border-left: 1px solid #e2e8f0 !important;
+      box-shadow: -6px 0 12px -6px rgba(15, 23, 42, 0.12) !important;
+    }
+
+    tbody tr:nth-child(odd) > td.el-table__cell.el-table-fixed-column--right,
+    .el-table__fixed-right tbody tr:nth-child(odd) td.el-table__cell {
+      background: #ffffff !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      border-left: 1px solid #e2e8f0 !important;
+      box-shadow: -6px 0 12px -6px rgba(15, 23, 42, 0.08) !important;
+    }
+
+    tbody tr:nth-child(even) > td.el-table__cell.el-table-fixed-column--right,
+    .el-table__fixed-right tbody tr:nth-child(even) td.el-table__cell {
+      background: #f8fafc !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      border-left: 1px solid #e2e8f0 !important;
+      box-shadow: -6px 0 12px -6px rgba(15, 23, 42, 0.08) !important;
+    }
+
+    tbody tr:hover > td.el-table__cell.el-table-fixed-column--right,
+    .el-table__fixed-right tbody tr:hover td.el-table__cell {
+      background: #eff6ff !important;
+    }
+  }
+
   &.is-scrolling-right,
+  &.is-scrolling-middle {
+    th.el-table__cell.el-table-fixed-column--left,
+    .el-table__fixed th.el-table__cell {
+      background: #f8fafc !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      border-right: 1px solid #e2e8f0 !important;
+      box-shadow: 6px 0 12px -6px rgba(15, 23, 42, 0.12) !important;
+    }
+
+    tbody tr:nth-child(odd) > td.el-table__cell.el-table-fixed-column--left,
+    .el-table__fixed tbody tr:nth-child(odd) td.el-table__cell {
+      background: #ffffff !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      border-right: 1px solid #e2e8f0 !important;
+      box-shadow: 6px 0 12px -6px rgba(15, 23, 42, 0.08) !important;
+    }
+
+    tbody tr:nth-child(even) > td.el-table__cell.el-table-fixed-column--left,
+    .el-table__fixed tbody tr:nth-child(even) td.el-table__cell {
+      background: #f8fafc !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      border-right: 1px solid #e2e8f0 !important;
+      box-shadow: 6px 0 12px -6px rgba(15, 23, 42, 0.08) !important;
+    }
+
+    tbody tr:hover > td.el-table__cell.el-table-fixed-column--left,
+    .el-table__fixed tbody tr:hover td.el-table__cell {
+      background: #eff6ff !important;
+    }
+  }
+
+  /* 3. 无横向滚动时隐藏固定列伪元素接缝 */
   &.is-scrolling-none {
     th.el-table-fixed-column--right,
     th.el-table-fixed-column--left,

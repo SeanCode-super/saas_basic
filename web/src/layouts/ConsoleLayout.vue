@@ -1594,6 +1594,8 @@ onMounted(() => {
   }
 
   .console-shell__brand-text,
+  .console-shell__brand-badge,
+  :deep(.brand-text-block),
   .console-shell__rail-label,
   .console-shell__rail-title,
   .console-shell__rail-badge,
@@ -1708,6 +1710,7 @@ onMounted(() => {
   gap: 10px;
   height: 52px;
   padding: 0 14px;
+  overflow: hidden;
   border-bottom: 1px solid var(--rail-brand-border);
   background: var(--rail-brand-bg);
   transition: background 150ms ease, border-color 150ms ease;
@@ -2424,8 +2427,8 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 0 20px;
+  gap: 10px;
+  padding: 0 14px;
   border-radius: 20px;
   border: 1px solid rgba(255, 255, 255, 0.85);
   background: rgba(255, 255, 255, 0.58);
@@ -2442,6 +2445,7 @@ onMounted(() => {
   gap: 6px;
   height: 32px;
   padding: 0 12px;
+  white-space: nowrap;
   border-radius: 9999px;
   background: rgba(255, 255, 255, 0.82);
   border: 1px solid rgba(226, 232, 240, 0.95);
@@ -2500,7 +2504,8 @@ onMounted(() => {
 }
 
 .console-shell__title-block {
-  min-width: 140px;
+  min-width: 0;
+  flex: 1 1 auto;
 
   h1 {
     margin: 2px 0 0;
@@ -2525,23 +2530,30 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  max-width: 100%;
+  overflow: hidden;
   font-size: 14px;
   white-space: nowrap;
 
   .console-shell__breadcrumb-app {
+    flex-shrink: 0;
     color: #475569;
     font-weight: 500;
   }
 
   .console-shell__breadcrumb-sep {
+    flex-shrink: 0;
     color: #94a3b8;
     font-size: 13px;
   }
 
   .console-shell__breadcrumb-page {
+    min-width: 0;
+    overflow: hidden;
     color: #090d16;
     font-weight: 700;
     font-size: 14.5px;
+    text-overflow: ellipsis;
   }
 }
 
@@ -2805,19 +2817,28 @@ onMounted(() => {
 
 .console-shell__topbar-actions {
   min-width: 0;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
+}
+
+.console-shell__topbar-actions :deep(.el-select) {
+  max-width: 122px;
+  flex-shrink: 0;
 }
 
 .console-shell__context-actions {
   display: flex;
   align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .console-shell__quick-jump {
-  flex: 0 1 260px;
-  width: min(260px, 22vw);
+  flex: 0 1 175px;
+  width: min(175px, 16vw);
+  min-width: 110px;
 }
 
 .console-shell__quick-jump :deep(.el-autocomplete) {
@@ -2862,8 +2883,9 @@ onMounted(() => {
 }
 
 .console-shell__icon-btn {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
   display: grid;
   place-items: center;
   border: 1px solid var(--sb-border-color);
@@ -2960,12 +2982,15 @@ onMounted(() => {
 }
 
 .console-shell__locale {
-  width: 84px;
+  width: 68px !important;
+  max-width: 68px !important;
+  flex-shrink: 0;
 }
 
 .console-shell__sla-pill {
   display: inline-flex;
   align-items: center;
+  flex-shrink: 0;
   gap: 6px;
   height: 28px;
   padding: 0 9px;
@@ -3003,9 +3028,11 @@ onMounted(() => {
 .console-shell__ai-btn {
   display: inline-flex;
   align-items: center;
+  flex-shrink: 0;
   gap: 6px;
   height: 34px;
   padding: 0 12px;
+  white-space: nowrap;
   border-radius: 8px;
   border: 1px solid rgb(99 102 241 / 0.3);
   background: linear-gradient(135deg, rgb(99 102 241 / 0.08) 0%, rgb(6 182 212 / 0.08) 100%);
@@ -3036,10 +3063,12 @@ onMounted(() => {
 
 .console-shell__user-trigger {
   min-height: 36px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 9px;
   padding: 3px 12px 3px 6px;
+  white-space: nowrap;
   border: 1px solid rgba(226, 232, 240, 0.85);
   border-radius: 9999px;
   background: rgba(255, 255, 255, 0.65);
@@ -3708,51 +3737,141 @@ onMounted(() => {
   }
 }
 
-@media (max-width: 1120px) {
-  .console-shell {
-    grid-template-columns: 64px minmax(0, 1fr);
+@media (max-width: 1320px) {
+  .console-shell__topbar {
+    gap: 8px;
+    padding: 0 12px;
   }
 
-  .console-shell__brand {
-    justify-content: center;
-    padding: 0;
-
-    .console-shell__brand-text {
-      display: none;
-    }
-  }
-
-  .console-shell__navigation {
-    padding: 10px 7px;
-  }
-
-  .console-shell__rail-label,
-  .console-shell__rail-app strong,
-  .console-shell__submenu,
-  .console-shell__directory-trigger span,
-  .console-shell__nav-state span {
+  .console-shell__sla-pill {
     display: none;
   }
 
+  .console-shell__quick-kbd {
+    display: none;
+  }
+
+  .console-shell__quick-jump {
+    flex: 0 1 150px;
+    width: 150px;
+    min-width: 110px;
+  }
+}
+
+@media (max-width: 1120px) {
+  .console-shell {
+    grid-template-columns: 64px minmax(0, 1fr);
+    padding: 10px 12px;
+    gap: 10px;
+  }
+
+  .console-shell__rail {
+    width: 64px;
+    min-width: 0;
+  }
+
+  .console-shell__rail .console-shell__brand {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .console-shell__rail .console-shell__brand-text,
+  .console-shell__rail .console-shell__brand-badge,
+  .console-shell__rail :deep(.brand-text-block) {
+    display: none;
+  }
+
+  .console-shell__navigation {
+    padding: 10px 6px;
+  }
+
+  .console-shell__rail-label,
+  .console-shell__rail-title,
+  .console-shell__rail-badge,
+  .console-shell__rail-arrow,
+  .console-shell__rail-app strong,
+  .console-shell__submenu,
+  .console-shell__directory-trigger span,
+  .console-shell__footer-icon-btn,
+  .console-shell__nav-state span,
+  .console-shell__cluster-title,
+  .cluster-parent-title,
+  .cluster-parent-arrow,
+  .console-shell__cluster-children,
   .console-shell__collapse-trigger {
     display: none;
   }
 
-  .console-shell__rail-app {
-    display: grid;
-    grid-template-columns: 1fr;
-    justify-items: center;
+  .console-shell__rail-app,
+  .console-shell__cluster-parent {
+    justify-content: center;
+    padding: 6px 0;
+    border-radius: 6px;
+  }
+
+  .console-shell__rail-footer {
     padding: 6px;
+    justify-content: center;
   }
 
   .console-shell__directory-trigger {
+    flex: 0 0 36px;
+    width: 36px;
     justify-content: center;
     padding: 0;
   }
 
+  .console-shell__rail-toggle-pill {
+    display: none;
+  }
+
+  .console-shell__mobile-menu-btn {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border-radius: 8px;
+    border: 1px solid var(--sb-border-color, #e2e8f0);
+    background: #fff;
+    color: var(--sb-text-primary, #0f172a);
+    cursor: pointer;
+    flex-shrink: 0;
+
+    .mobile-menu-icon {
+      font-size: 16px;
+    }
+  }
+
   .console-shell__quick-jump {
-    flex-basis: 180px;
-    width: min(180px, 22vw);
+    display: none;
+  }
+
+  .console-shell__breadcrumb-app,
+  .console-shell__breadcrumb-sep {
+    display: none;
+  }
+
+  .console-shell__workspace {
+    --sb-workspace-x: 16px;
+
+    padding: 14px var(--sb-workspace-x) 24px;
+  }
+}
+
+@media (max-width: 980px) {
+  .console-shell__locale {
+    display: none;
+  }
+
+  .console-shell__user-details {
+    display: none;
+  }
+
+  .console-shell__user-trigger {
+    padding: 3px 6px;
+    gap: 4px;
   }
 }
 
@@ -3797,7 +3916,7 @@ onMounted(() => {
 
   .console-shell__breadcrumb-bar {
     font-size: 13px;
-    max-width: 90px;
+    max-width: 140px;
     overflow: hidden;
     text-overflow: ellipsis;
   }
@@ -3812,7 +3931,8 @@ onMounted(() => {
   }
 
   .console-shell__top-domains,
-  .console-shell__top-menu-bar {
+  .console-shell__top-menu-bar,
+  .console-shell__rail-toggle-pill {
     display: none !important;
   }
 
