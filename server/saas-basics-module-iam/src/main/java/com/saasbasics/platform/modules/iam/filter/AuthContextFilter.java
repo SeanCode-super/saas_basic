@@ -58,6 +58,10 @@ public class AuthContextFilter extends OncePerRequestFilter {
                 return;
             }
             AuthContext.set(principal);
+            request.setAttribute("saas.telemetry.tenantId", principal.tenantId());
+            request.setAttribute("saas.telemetry.userId", principal.userId());
+            org.slf4j.MDC.put("tenantId", String.valueOf(principal.tenantId()));
+            org.slf4j.MDC.put("userId", String.valueOf(principal.userId()));
             try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openAuthenticated(principal)) {
                 filterChain.doFilter(request, response);
             }

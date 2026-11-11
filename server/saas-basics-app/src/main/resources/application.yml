@@ -63,6 +63,22 @@ saas-basics:
       - http://127.0.0.1:8080
     auth:
       session-ttl-minutes: 480
+    vault:
+      enabled: true
+      active-key-version: v1
+      master-key: ${SAAS_VAULT_MASTER_KEY:tianshu-saas-basics-local-vault-master-key-change-in-prod}
+  rate-limit:
+    enabled: true
+    tenant-rpm: 1200
+    ai-tenant-rpm: 60
+    ip-rpm: 600
+    window-seconds: 60
+  telemetry:
+    enabled: true
+    service-name: saas-basics-server
+    otlp-enabled: ${OTEL_EXPORTER_OTLP_ENABLED:false}
+    otlp-endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://127.0.0.1:4318/v1/traces}
+    max-recent-traces: 100
 
 flowable:
   database-schema-update: true

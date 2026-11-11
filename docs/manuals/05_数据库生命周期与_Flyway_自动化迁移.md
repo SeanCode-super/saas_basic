@@ -24,7 +24,7 @@ V{版本号}__{英文下划线业务描述}.sql
 
 ---
 
-## 2. 历史核心版本线速查表 (V1 ~ V63)
+## 2. 历史核心版本线速查表 (V1 ~ V64)
 
 | 版本跨度 | 核心业务主题 | 涉及的核心数据表与能力 |
 | :--- | :--- | :--- |
@@ -41,3 +41,4 @@ V{版本号}__{英文下划线业务描述}.sql
 | **V61** | ERP 进销存唯一索引加固 | 优化多租户模式下物料编号与出入库流水的逻辑删除唯一索引约束 |
 | **V62** | 服务编排与发布中台 | `sys_app_service`, `sys_app_build_record`, `sys_app_artifact` 核心纳管与构建表 |
 | **V63** | AI 智能模型网关与多服务商编排 | `ai_provider`, `ai_model_config` 多云大模型接入、凭证隔离、动态参数编排与连通性探针 |
+| **V64** | M3 AI 治理、凭据库与配额闭环 | `ai_credential_ref`, `ai_prompt`, `ai_prompt_version`, `ai_mcp_server`, `ai_tool`, `ai_run`, `ai_run_step`, `ai_tool_call`, `ai_tenant_quota` |

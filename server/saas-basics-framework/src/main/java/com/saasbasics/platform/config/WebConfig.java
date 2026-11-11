@@ -1,10 +1,11 @@
 package com.saasbasics.platform.config;
 
+import com.saasbasics.platform.ratelimit.GlobalApiRateLimitInterceptor;
+import com.saasbasics.platform.security.DataPermissionInterceptor;
+import com.saasbasics.platform.security.PermissionGuardInterceptor;
+import com.saasbasics.platform.security.TenantFeatureGuardInterceptor;
 import java.util.ArrayList;
 import java.util.List;
-import com.saasbasics.platform.security.PermissionGuardInterceptor;
-import com.saasbasics.platform.security.DataPermissionInterceptor;
-import com.saasbasics.platform.security.TenantFeatureGuardInterceptor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
@@ -19,15 +20,18 @@ public class WebConfig implements WebMvcConfigurer {
     private final DataPermissionInterceptor dataPermissionInterceptor;
     private final TenantFeatureGuardInterceptor tenantFeatureGuardInterceptor;
     private final PermissionGuardInterceptor permissionGuardInterceptor;
+    private final GlobalApiRateLimitInterceptor globalApiRateLimitInterceptor;
 
     public WebConfig(SecurityProperties securityProperties,
                      DataPermissionInterceptor dataPermissionInterceptor,
                      TenantFeatureGuardInterceptor tenantFeatureGuardInterceptor,
-                     PermissionGuardInterceptor permissionGuardInterceptor) {
+                     PermissionGuardInterceptor permissionGuardInterceptor,
+                     GlobalApiRateLimitInterceptor globalApiRateLimitInterceptor) {
         this.securityProperties = securityProperties;
         this.dataPermissionInterceptor = dataPermissionInterceptor;
         this.tenantFeatureGuardInterceptor = tenantFeatureGuardInterceptor;
         this.permissionGuardInterceptor = permissionGuardInterceptor;
+        this.globalApiRateLimitInterceptor = globalApiRateLimitInterceptor;
     }
 
     @Override
@@ -56,6 +60,7 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(globalApiRateLimitInterceptor).addPathPatterns("/api/**");
         registry.addInterceptor(dataPermissionInterceptor).addPathPatterns("/api/**");
         registry.addInterceptor(tenantFeatureGuardInterceptor).addPathPatterns("/api/**");
         registry.addInterceptor(permissionGuardInterceptor).addPathPatterns("/api/**");

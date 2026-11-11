@@ -137,6 +137,11 @@ public class GlobalExceptionHandler {
     }
 
     private HttpStatus resolveStatus(BizException exception) {
+        if ("RATE_LIMIT_EXCEEDED".equals(exception.getCode())
+                || "TOO_MANY_REQUESTS".equals(exception.getCode())
+                || (exception.getCode() != null && exception.getCode().endsWith("_QUOTA_EXCEEDED"))) {
+            return HttpStatus.TOO_MANY_REQUESTS;
+        }
         if ("AUTH_FORBIDDEN".equals(exception.getCode())) {
             return HttpStatus.FORBIDDEN;
         }

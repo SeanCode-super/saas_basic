@@ -27,9 +27,11 @@ import {
 } from "@element-plus/icons-vue";
 import {
   fetchServerMonitor,
+  fetchServerTelemetry,
   fetchThreadDump,
   testAlarmWebhook,
   type ServerMonitorData,
+  type TelemetrySnapshotData,
   type ThreadDumpItem
 } from "@/api/modules/server-monitor";
 
@@ -37,10 +39,11 @@ const loading = ref(false);
 const autoRefreshSeconds = ref(5);
 let timerId: any = null;
 
-// Tab switcher: 4 structured clean tabs
-const activeTab = ref<"apps" | "host" | "jvm" | "dbpool">("apps");
+// Tab switcher: 5 structured clean tabs
+const activeTab = ref<"apps" | "host" | "jvm" | "dbpool" | "telemetry">("apps");
 
 const monitorData = ref<ServerMonitorData | null>(null);
+const telemetryData = ref<TelemetrySnapshotData | null>(null);
 
 // Thread Dump Drawer
 const threadDrawerVisible = ref(false);
@@ -84,7 +87,12 @@ function getProgressColor(rate: number): string {
 async function loadData() {
   loading.value = true;
   try {
-    monitorData.value = await fetchServerMonitor();
+    const [monRes, telRes] = await Promise.all([
+      fetchServerMonitor(),
+      fetchServerTelemetry().catch(() => null)
+    ]);
+    monitorData.value = monRes;
+    telemetryData.value = telRes;
   } catch (err: any) {
     ElMessage.error(err?.message || "获取服务监控指标失败");
   } finally {
@@ -806,6 +814,87 @@ onUnmounted(() => {
               </div>
             </el-col>
           </el-row>
+        </el-tab-pane>
+
+        <!-- TAB 5: 🔭 OpenTelemetry 全链路追踪与 Prometheus 限流遥测 -->
+        <el-tab-pane label="OpenTelemetry 追踪与限流遥测" name="telemetry">
+          <div v-if="telemetryData">
+            <el-row :gutter="12" class="mb-4">
+              <el-col :xs="24" :sm="12" :md="6">
+                <div class="metric-pill">
+                  <span class="pill-title">HTTP 请求总计 / 均耗时</span>
+                  <span class="pill-value text-primary font-mono">
+                    {{ telemetryData.httpTotalRequests }} ({{ telemetryData.avgLatencyMs }} ms)
+                  </span>
+                </div>
+              </el-col>
+              <el-col :xs="24" :sm="12" :md="6">
+                <div class="metric-pill">
+                  <span class="pill-title">网关滑动限流 (放行 / 拦截)</span>
+                  <span class="pill-value font-mono">
+                    <span class="text-success">{{ telemetryData.rateLimitAllowed }}</span>
+                    /
+                    <span class="text-danger">{{ telemetryData.rateLimitRejected }}</span>
+                  </span>
+                </div>
+              </el-col>
+              <el-col :xs="24" :sm="12" :md="6">
+                <div class="metric-pill">
+                  <span class="pill-title">AI 累计调用 / Token</span>
+                  <span class="pill-value text-primary font-mono">
+                    {{ telemetryData.aiRequestsTotal }} 次 / {{ telemetryData.aiPromptTokensTotal + telemetryData.aiCompletionTokensTotal }}
+                  </span>
+                </div>
+              </el-col>
+              <el-col :xs="24" :sm="12" :md="6">
+                <div class="metric-pill">
+                  <span class="pill-title">Vault 凭据主密钥 ({{ telemetryData.vaultActiveKeyVersion }})</span>
+                  <span class="pill-value font-mono" :class="telemetryData.vaultUsingDefaultKey ? 'text-warning' : 'text-success'">
+                    {{ telemetryData.vaultUsingDefaultKey ? "本地开发密钥" : "外部 KMS/Env" }}
+                  </span>
+                </div>
+              </el-col>
+            </el-row>
+
+            <div class="inner-section-card mb-3">
+              <div class="inner-header">
+                <span class="inner-title">
+                  <el-icon color="#409eff"><Share /></el-icon>
+                  OpenTelemetry W3C Trace 链路采样明细 (最近 {{ telemetryData.recentTraces.length }} 条)
+                </span>
+                <div>
+                  <el-tag size="small" type="success" class="mr-2">
+                    限流阈值: 租户 {{ telemetryData.tenantRpmLimit }} RPM · AI {{ telemetryData.aiTenantRpmLimit }} RPM
+                  </el-tag>
+                  <el-tag size="small" :type="telemetryData.otlpEnabled ? 'success' : 'info'">
+                    {{ telemetryData.otlpEnabled ? `OTLP 已推送至 ${telemetryData.otlpEndpoint}` : "进程内 Span 采集 (可开启 OTLP)" }}
+                  </el-tag>
+                </div>
+              </div>
+
+              <el-table :data="telemetryData.recentTraces" stripe border size="small" height="340px">
+                <el-table-column prop="traceId" label="W3C TraceId" min-width="230">
+                  <template #default="{ row }"><code class="font-mono">{{ row.traceId }}</code></template>
+                </el-table-column>
+                <el-table-column prop="spanId" label="SpanId" width="140">
+                  <template #default="{ row }"><code class="font-mono">{{ row.spanId }}</code></template>
+                </el-table-column>
+                <el-table-column prop="method" label="Method" width="80" align="center" />
+                <el-table-column prop="uri" label="API 路径" min-width="200" show-overflow-tooltip />
+                <el-table-column prop="tenantId" label="租户ID" width="80" align="center" />
+                <el-table-column prop="statusCode" label="HTTP" width="80" align="center">
+                  <template #default="{ row }">
+                    <el-tag size="small" :type="row.statusCode >= 500 ? 'danger' : row.statusCode === 429 ? 'warning' : 'success'">
+                      {{ row.statusCode }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="durationMs" label="耗时" width="90" align="right">
+                  <template #default="{ row }"><span class="font-mono">{{ row.durationMs }} ms</span></template>
+                </el-table-column>
+              </el-table>
+            </div>
+          </div>
         </el-tab-pane>
       </el-tabs>
     </el-card>

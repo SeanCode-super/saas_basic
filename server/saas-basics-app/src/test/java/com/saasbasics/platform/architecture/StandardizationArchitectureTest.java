@@ -133,6 +133,34 @@ class StandardizationArchitectureTest {
     }
 
     @Test
+    void aiDomainAndApplicationFollowCleanIsolationContracts() {
+        JavaClasses classes = new ClassFileImporter().importPackages("com.saasbasics.platform");
+
+        noClasses()
+                .that().resideInAPackage("..modules.ai.domain..")
+                .should().dependOnClassesThat().resideInAnyPackage(
+                        "org.springframework..",
+                        "com.baomidou..",
+                        "..modules.ai.infrastructure.."
+                )
+                .allowEmptyShould(false)
+                .check(classes);
+
+        noClasses()
+                .that().resideInAPackage("..modules.ai..")
+                .should().dependOnClassesThat().resideInAnyPackage(
+                        "..modules.iam.mapper..",
+                        "..modules.iam.entity..",
+                        "..modules.tenant.mapper..",
+                        "..modules.tenant.entity..",
+                        "..modules.system.mapper..",
+                        "..modules.system.entity.."
+                )
+                .allowEmptyShould(false)
+                .check(classes);
+    }
+
+    @Test
     void newMigrationsDoNotIntroduceRegionalOrDemoDefaults() throws IOException {
         Resource[] migrations = new PathMatchingResourcePatternResolver().getResources(
                 "classpath*:db/migration/V*.sql"

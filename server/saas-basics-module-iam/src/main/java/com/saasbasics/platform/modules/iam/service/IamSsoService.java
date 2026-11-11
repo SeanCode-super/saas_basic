@@ -11,12 +11,14 @@ import com.saasbasics.platform.modules.iam.dto.SsoConfigResponse;
 import com.saasbasics.platform.modules.iam.dto.SsoConfigSaveRequest;
 import com.saasbasics.platform.modules.iam.entity.IamSsoConfigEntity;
 import com.saasbasics.platform.modules.iam.mapper.IamSsoConfigMapper;
+import com.saasbasics.platform.security.vault.CredentialVaultService;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,11 +27,14 @@ public class IamSsoService {
 
     private final IamSsoConfigMapper ssoConfigMapper;
     private final AuthService authService;
+    private final ObjectProvider<CredentialVaultService> credentialVaultProvider;
 
     public IamSsoService(IamSsoConfigMapper ssoConfigMapper,
-                         AuthService authService) {
+                         AuthService authService,
+                         ObjectProvider<CredentialVaultService> credentialVaultProvider) {
         this.ssoConfigMapper = ssoConfigMapper;
         this.authService = authService;
+        this.credentialVaultProvider = credentialVaultProvider;
     }
 
     public List<SsoConfigResponse> listConfigs() {
@@ -85,7 +90,8 @@ public class IamSsoService {
         entity.setIdpType(req.idpType());
         entity.setAppId(req.appId());
         if (req.appSecret() != null && !req.appSecret().isBlank()) {
-            entity.setAppSecret(req.appSecret());
+            CredentialVaultService vault = credentialVaultProvider.getIfAvailable();
+            entity.setAppSecret(vault != null ? vault.encrypt(req.appSecret()) : req.appSecret());
         }
         entity.setRedirectUri(req.redirectUri() != null ? req.redirectUri() : "");
         entity.setStatus(req.status() != null ? req.status() : "ENABLED");

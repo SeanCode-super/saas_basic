@@ -160,3 +160,43 @@ export async function testAlarmWebhook(): Promise<AlarmTestResult> {
   const res = await http.post<{ data: AlarmTestResult }>("/infra/server-monitor/alarm-test");
   return res.data.data;
 }
+
+export interface TraceRecordItem {
+  traceId: string;
+  spanId: string;
+  parentSpanId: string;
+  method: string;
+  uri: string;
+  tenantId?: number;
+  userId?: number;
+  statusCode: number;
+  durationMs: number;
+  outcome: string;
+  timestamp: string;
+}
+
+export interface TelemetrySnapshotData {
+  serviceName: string;
+  otelEnabled: boolean;
+  otlpEnabled: boolean;
+  otlpEndpoint: string;
+  prometheusEndpoint: string;
+  httpTotalRequests: number;
+  httpErrorRequests: number;
+  avgLatencyMs: number;
+  rateLimitAllowed: number;
+  rateLimitRejected: number;
+  aiRequestsTotal: number;
+  aiPromptTokensTotal: number;
+  aiCompletionTokensTotal: number;
+  vaultUsingDefaultKey: boolean;
+  vaultActiveKeyVersion: string;
+  tenantRpmLimit: number;
+  aiTenantRpmLimit: number;
+  recentTraces: TraceRecordItem[];
+}
+
+export async function fetchServerTelemetry(): Promise<TelemetrySnapshotData | null> {
+  const res = await http.get<{ data: TelemetrySnapshotData | null }>("/infra/server-monitor/telemetry");
+  return res.data.data;
+}

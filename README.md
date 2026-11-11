@@ -131,9 +131,9 @@
 - **Quartz 分布式高可用调度**：主备高可用选举、任务五步流转管线监控、漏触发检测、超时预警与全平台一键应急熔断。
 - **分布式文件资产管理**：统一屏蔽底层的存储差异，支持 Local 本地磁盘、MinIO、阿里云 OSS、腾讯云 COS、华为云 OBS、AWS S3，支持分片秒传、冷热生命周期分层与安全防盗链。
 
-### 9. 🚀 数据库自动化迁移 (Flyway V1 ~ V63)
+### 9. 🚀 数据库自动化迁移 (Flyway V1 ~ V64)
 - **数据库版本强受控**：引入 Flyway 10.x 作为生产数据库迁移的唯一准绳，严禁运维手工执行 DDL。
-- **平滑增量升级**：涵盖从基础架构（V1）到组织架构（V25）、工作流（V35）、ERP/CRM（V48-V50）、Flowable BPMN（V57）、统一支付（V58-V59）、企业预置种子（V60）、库存加固（V61）、服务编排中台（V62）以及 AI 智能模型网关（V63）的全量迁移脚本，应用容器启动自动自愈演进。
+- **平滑增量升级**：涵盖从基础架构（V1）到组织架构（V25）、工作流（V35）、ERP/CRM（V48-V50）、Flowable BPMN（V57）、统一支付（V58-V59）、企业预置种子（V60）、库存加固（V61）、服务编排中台（V62）、AI 智能模型网关（V63）以及 M3 AI 治理、凭据引用、MCP 白名单与 Token 配额中枢（V64）的全量迁移脚本，应用容器启动自动自愈演进。
 
 ### 10. 🛠️ 服务编排与发布中台 (DevOps Service Center & Local CI/CD)
 - **双模驱动纳管引擎**：深度集成宿主机进程树（ProcessTree）与 Docker 容器编排双模，毫秒级探活状态、内存 RSS、CPU 占用、运行耗时与系统 PID。
@@ -141,11 +141,11 @@
 - **本地 CI 流水线与制品回滚**：支持多技术栈一键触发源码构建，实时输出编译标准/错误流，自动计算 MD5 指纹并归档至制品库，线上故障一键秒级平滑回滚。
 - **实时流式日志终端 (SSE Live Stream)**：仿 macOS 深色拟态控制台，支持 15 秒心跳保活、智能滚屏吸底、回溯翻阅自动暂停、悬浮快速回底、正则过滤与本地日志一键导出。
 
-### 11. 🤖 AI 智能模型网关与多服务商编排中心 (AI Gateway & Multi-Provider)
-- **多模型供应商与协议标准化**：开箱支持 DeepSeek 官方开放平台、OpenAI 官方 API、阿里云百炼通义千问与本地私有化 Ollama，基于统一 OpenAI v1 Compatible 协议标准路由。
-- **动态模型字典与超参数编排**：控制台可视化动态增删模型，精细配置上下文窗口规格 (64k/128k)、单次最大输出 Token、采样温度 (Temperature: 0.0~2.0) 与首选主推模型。
-- **真实连通性握手测速探针**：提供一键连通性测试与测速探针，毫秒级获取往返时延（Latency ms）、HTTP 握手状态与模型测试文本片段，直观排查 API Key 凭证失效或内网端点超时。
-- **租户级自带凭证 (BYOK) 与演示自愈降级**：支持平台全局集中供应与租户独立 BYOK 凭证隔离，未配凭证或网络波动时无缝降级为内置智能架构演示响应，保证前台对话高可用不死。
+### 11. 🤖 M3 级 AI 智能核心、安全凭据库与全链路可观测中台
+- **独立模块与整洁分层 (`saas-basics-module-ai`)**：遵循 `AI_CORE_DESIGN` 评审规范拆分为 `api / application / domain / infrastructure / web` 五层；`domain` 层零厂商 SDK 依赖，由 ArchUnit 架构单测刚性守护。
+- **Vault 企业级凭据保险箱 (AES-256-GCM)**：AI 服务商 API Key、MCP 认证 Token、SSO AppSecret、开放平台 AppSecret 全链路使用随机 12 字节 IV + GCM 认证标签加密落盘（`enc:v1:`），提供零停机密钥轮换 (`rotate-all`) 与脱敏审计台账。
+- **MCP 协议网关与高危人机审批状态机**：内置支持 `BUILTIN_LOOPBACK` 与 `STREAMABLE_HTTP` 的 JSON-RPC 2.0 MCP 客户端，严格执行“默认拒绝全部工具，仅显式白名单放行”；高危写入工具自动挂起 Run 状态至 `WAITING_APPROVAL`，需合法权限复核及幂等键验证方可执行。
+- **分布式限流与 OpenTelemetry + Prometheus 可观测大盘**：网关全局按租户/AI RPM 原子 Redis Lua 滑动窗口限流（返回 HTTP `429` 与 `X-RateLimit-*` 响应头），集成 W3C `traceparent` / OpenTelemetry Span 链路采样、自定义 AI Token / 限流 Prometheus 指标与实时可观测看板。
 
 ---
 
@@ -155,10 +155,11 @@
 saas_basics/
 ├── server/                               # 后端 Spring Boot 模块化微服务与单体工程 (Java 17)
 │   ├── saas-basics-common/               # 公共常量、上下文、异常处理、统一响应模型与工具类
-│   ├── saas-basics-framework/            # 核心切面、动态多数据源、MyBatis-Plus 多租户拦截器
+│   ├── saas-basics-framework/            # Vault加密、Lua滑动限流、OpenTelemetry链路追踪、多租户拦截器
 │   ├── saas-basics-app/                  # 核心业务主服务启动入口 (端口 8080)、Web MVC、安全拦截
-│   │   └── src/main/resources/db/migration # Flyway V1 ~ V62 数据库版本化自愈脚本
+│   │   └── src/main/resources/db/migration # Flyway V1 ~ V64 数据库版本化自愈脚本
 │   ├── saas-basics-workflow-app/         # Flowable 7.x 流程引擎独立微服务应用 (端口 8085)
+│   ├── saas-basics-module-ai/            # M3 级 AI 核心模块（网关、Run 状态机、MCP、Prompt、Token 计量）
 │   ├── saas-basics-module-iam/           # 身份认证、组织架构、RBAC 三位一体权限、会话治理
 │   ├── saas-basics-module-tenant/        # 多租户管理、数据隔离、独立门户入口与空间配额
 │   ├── saas-basics-module-workflow/      # Flowable BPMN 2.0 工业级流程引擎模型与工作流中心

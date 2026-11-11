@@ -8,6 +8,7 @@ import com.saasbasics.platform.modules.integration.dto.OpenAppResponse;
 import com.saasbasics.platform.modules.integration.dto.OpenAppSaveRequest;
 import com.saasbasics.platform.modules.integration.entity.PlatOpenAppEntity;
 import com.saasbasics.platform.modules.integration.mapper.PlatOpenAppMapper;
+import com.saasbasics.platform.security.vault.CredentialVaultService;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
@@ -16,6 +17,7 @@ import java.util.List;
 import java.util.UUID;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,9 +25,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class PlatOpenAppService {
 
     private final PlatOpenAppMapper openAppMapper;
+    private final ObjectProvider<CredentialVaultService> credentialVaultProvider;
 
-    public PlatOpenAppService(PlatOpenAppMapper openAppMapper) {
+    public PlatOpenAppService(PlatOpenAppMapper openAppMapper,
+                              ObjectProvider<CredentialVaultService> credentialVaultProvider) {
         this.openAppMapper = openAppMapper;
+        this.credentialVaultProvider = credentialVaultProvider;
     }
 
     public List<OpenAppResponse> listApps() {
@@ -64,7 +69,8 @@ public class PlatOpenAppService {
             entity = new PlatOpenAppEntity();
             entity.setTenantId(tenantId);
             entity.setAppKey("ak_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16));
-            entity.setAppSecret("sk_" + UUID.randomUUID().toString().replace("-", ""));
+            String rawSecret = "sk_" + UUID.randomUUID().toString().replace("-", "");
+            entity.setAppSecret(encryptSecret(rawSecret));
             entity.setCreatedBy(userId);
             entity.setCreatedAt(LocalDateTime.now());
             entity.setDeleted(0);
@@ -108,7 +114,7 @@ public class PlatOpenAppService {
         }
 
         String newSecret = "sk_" + UUID.randomUUID().toString().replace("-", "");
-        entity.setAppSecret(newSecret);
+        entity.setAppSecret(encryptSecret(newSecret));
         entity.setUpdatedAt(LocalDateTime.now());
         openAppMapper.updateById(entity);
 
@@ -164,7 +170,8 @@ public class PlatOpenAppService {
             throw new BizException("OPEN_API_APP_INVALID", "AppKey不存在或应用处于停用状态");
         }
 
-        String expectedSignature = calculateHmacSha256(appKey + timestampStr + nonce, app.getAppSecret());
+        String plainSecret = decryptSecret(app.getAppSecret());
+        String expectedSignature = calculateHmacSha256(appKey + timestampStr + nonce, plainSecret);
         if (!expectedSignature.equalsIgnoreCase(signature)) {
             throw new BizException("OPEN_API_SIGNATURE_MISMATCH", "签名校验失败，请检查 AppSecret 签名计算算法");
         }
@@ -191,9 +198,21 @@ public class PlatOpenAppService {
         }
     }
 
+    private String encryptSecret(String secret) {
+        CredentialVaultService vault = credentialVaultProvider.getIfAvailable();
+        return vault != null ? vault.encrypt(secret) : secret;
+    }
+
+    private String decryptSecret(String storedSecret) {
+        CredentialVaultService vault = credentialVaultProvider.getIfAvailable();
+        return vault != null ? vault.decrypt(storedSecret) : storedSecret;
+    }
+
     private String maskSecret(String secret) {
-        if (secret == null || secret.length() < 8) return "sk_********";
-        return secret.substring(0, 6) + "********" + secret.substring(secret.length() - 4);
+        CredentialVaultService vault = credentialVaultProvider.getIfAvailable();
+        String plain = vault != null ? vault.decrypt(secret) : secret;
+        if (plain == null || plain.length() < 8) return "sk_********";
+        return plain.substring(0, 6) + "********" + plain.substring(plain.length() - 4);
     }
 
     private Long getTenantId() {

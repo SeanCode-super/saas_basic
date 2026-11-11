@@ -6,15 +6,10 @@ import com.saasbasics.platform.common.exception.BizException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.lang.reflect.Method;
-import java.time.Duration;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -23,11 +18,10 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 @Component
 public class RateLimitAspect {
 
-    private final ObjectProvider<StringRedisTemplate> redisTemplateProvider;
-    private final ConcurrentHashMap<String, SlidingWindowCounter> localCounters = new ConcurrentHashMap<>();
+    private final SlidingWindowRateLimiter rateLimiter;
 
-    public RateLimitAspect(ObjectProvider<StringRedisTemplate> redisTemplateProvider) {
-        this.redisTemplateProvider = redisTemplateProvider;
+    public RateLimitAspect(SlidingWindowRateLimiter rateLimiter) {
+        this.rateLimiter = rateLimiter;
     }
 
     @Around("@annotation(rateLimit)")
@@ -36,63 +30,29 @@ public class RateLimitAspect {
         Method method = signature.getMethod();
         String methodName = method.getDeclaringClass().getSimpleName() + "#" + method.getName();
 
-        String limitKey = buildLimitKey(rateLimit.type(), methodName);
-        int maxPermits = rateLimit.permitsPerSecond();
-
-        boolean allowed = tryAcquire(limitKey, maxPermits);
-        if (!allowed) {
-            throw new BizException("RATE_LIMIT_EXCEEDED", rateLimit.message());
-        }
-
         ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-        if (attrs != null) {
-            HttpServletResponse response = attrs.getResponse();
-            if (response != null) {
-                response.setHeader("X-RateLimit-Limit", String.valueOf(maxPermits));
-            }
+        HttpServletRequest request = attrs != null ? attrs.getRequest() : null;
+        HttpServletResponse response = attrs != null ? attrs.getResponse() : null;
+
+        String limitKey = buildLimitKey(rateLimit.type(), methodName, request);
+        int maxPermits = rateLimit.permits() > 0 ? rateLimit.permits() : rateLimit.permitsPerSecond();
+        int windowSeconds = Math.max(1, rateLimit.windowSeconds());
+
+        RateLimitDecision decision = rateLimiter.tryAcquire(limitKey, maxPermits, windowSeconds, rateLimit.type().name());
+        rateLimiter.applyResponseHeaders(response, decision);
+
+        if (!decision.allowed()) {
+            throw new BizException("RATE_LIMIT_EXCEEDED", rateLimit.message());
         }
 
         return joinPoint.proceed();
     }
 
-    private boolean tryAcquire(String key, int maxPermits) {
-        StringRedisTemplate redis = redisTemplateProvider.getIfAvailable();
-        if (redis != null) {
-            try {
-                Long current = redis.opsForValue().increment("ratelimit:" + key);
-                if (current != null && current == 1) {
-                    redis.expire("ratelimit:" + key, Duration.ofSeconds(1));
-                }
-                return current != null && current <= maxPermits;
-            } catch (Exception ignored) {
-                // Redis 偶发波动时平滑降级至本地滑动计数器
-            }
-        }
-
-        long currentSecond = System.currentTimeMillis() / 1000;
-        String localKey = key + ":" + currentSecond;
-        SlidingWindowCounter counter = localCounters.computeIfAbsent(localKey, k -> new SlidingWindowCounter(currentSecond));
-
-        // 清理过期的历史秒级计数器
-        if (localCounters.size() > 500) {
-            localCounters.entrySet().removeIf(e -> e.getValue().second < currentSecond - 5);
-        }
-
-        return counter.count.incrementAndGet() <= maxPermits;
-    }
-
-    private String buildLimitKey(RateLimitType type, String methodName) {
+    private String buildLimitKey(RateLimitType type, String methodName, HttpServletRequest request) {
         AuthPrincipal principal = AuthContext.get();
         Long tenantId = principal != null && principal.tenantId() != null ? principal.tenantId() : 1L;
         Long userId = principal != null && principal.userId() != null ? principal.userId() : 0L;
-
-        ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-        String ip = "127.0.0.1";
-        if (attrs != null) {
-            HttpServletRequest request = attrs.getRequest();
-            String xff = request.getHeader("X-Forwarded-For");
-            ip = (xff != null && !xff.isBlank()) ? xff.split(",")[0].trim() : request.getRemoteAddr();
-        }
+        String ip = rateLimiter.extractClientIp(request);
 
         return switch (type) {
             case TENANT -> "tenant:" + tenantId + ":" + methodName;
@@ -100,14 +60,5 @@ public class RateLimitAspect {
             case IP -> "ip:" + ip + ":" + methodName;
             case GLOBAL -> "global:" + methodName;
         };
-    }
-
-    private static class SlidingWindowCounter {
-        final long second;
-        final AtomicInteger count = new AtomicInteger(0);
-
-        SlidingWindowCounter(long second) {
-            this.second = second;
-        }
     }
 }
