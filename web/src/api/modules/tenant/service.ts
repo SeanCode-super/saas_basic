@@ -82,6 +82,13 @@ export async function exportTenantSnapshot(tenantId?: number): Promise<TenantSna
   return response.data.data;
 }
 
+export async function downloadTenantSnapshotBlob(snapshotId: string): Promise<Blob> {
+  const response = await http.get(`/tenant/snapshot/download/${encodeURIComponent(snapshotId)}`, {
+    responseType: "blob"
+  });
+  return response.data as Blob;
+}
+
 export async function restoreTenantSnapshot(file: File, tenantId?: number): Promise<TenantSnapshotRestoreResult> {
   const formData = new FormData();
   formData.append("file", file);

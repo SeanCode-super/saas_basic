@@ -36,6 +36,7 @@ import {
   fetchTenantMeteringSummary,
   fetchTenantBills,
   exportTenantSnapshot,
+  downloadTenantSnapshotBlob,
   restoreTenantSnapshot,
   fetchTenantAppCatalog,
   toggleTenantAppAuthorization,
@@ -260,6 +261,21 @@ async function handleExportSnapshot(row: TenantRow) {
 function handleRestoreFileChange(uploadFile: any) {
   if (uploadFile.raw) {
     selectedRestoreFile.value = uploadFile.raw;
+  }
+}
+
+async function handleDownloadSnapshot() {
+  if (!snapshotResult.value?.snapshotId) return;
+  try {
+    const blob = await downloadTenantSnapshotBlob(snapshotResult.value.snapshotId);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${snapshotResult.value.snapshotId}.zip`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (err: any) {
+    ElMessage.error(err?.response?.data?.message || err?.message || "下载灾备归档包失败");
   }
 }
 
@@ -1027,16 +1043,16 @@ onMounted(() => {
               <el-descriptions :column="1" border size="small">
                 <el-descriptions-item label="快照批次 ID">{{ snapshotResult.snapshotId }}</el-descriptions-item>
                 <el-descriptions-item label="所属租户">{{ snapshotResult.tenantCode }}</el-descriptions-item>
-                <el-descriptions-item label="归档数据大小">{{ (snapshotResult.fileSizeBytes / 1024).toFixed(2) }} KB</el-descriptions-item>
-                <el-descriptions-item label="SHA-256 校验和">
-                  <span style="font-family: monospace; font-size: 11px;">{{ snapshotResult.checksum }}</span>
+                <el-descriptions-item label="归档数据大小">
+                  {{ (((snapshotResult.archiveSizeBytes ?? snapshotResult.fileSizeBytes ?? 0)) / 1024).toFixed(2) }} KB
                 </el-descriptions-item>
-                <el-descriptions-item label="生成时间">{{ snapshotResult.createdAt }}</el-descriptions-item>
+                <el-descriptions-item label="SHA-256 校验和">
+                  <span style="font-family: monospace; font-size: 11px;">{{ snapshotResult.checksumSha256 ?? snapshotResult.checksum }}</span>
+                </el-descriptions-item>
+                <el-descriptions-item label="生成时间">{{ snapshotResult.generatedAt ?? snapshotResult.createdAt }}</el-descriptions-item>
               </el-descriptions>
               <div style="margin-top: 16px; text-align: right;">
-                <a :href="snapshotResult.downloadUrl" target="_blank" style="text-decoration: none;">
-                  <el-button type="primary" :icon="Download">立即下载快照归档包</el-button>
-                </a>
+                <el-button type="primary" :icon="Download" @click="handleDownloadSnapshot">立即下载快照归档包</el-button>
               </div>
             </div>
           </div>

@@ -1,5 +1,7 @@
 package com.saasbasics.platform.modules.integration.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.saasbasics.platform.common.exception.BizException;
 import com.saasbasics.platform.modules.integration.dto.PayOrderCreateRequest;
 import com.saasbasics.platform.modules.integration.dto.PayOrderResponse;
@@ -7,9 +9,13 @@ import com.saasbasics.platform.modules.integration.entity.PayOrderEntity;
 import com.saasbasics.platform.modules.integration.entity.PayRefundEntity;
 import com.saasbasics.platform.modules.integration.mapper.PayOrderMapper;
 import com.saasbasics.platform.modules.integration.mapper.PayRefundMapper;
+import com.saasbasics.platform.outbox.PlatformOutboxService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +36,10 @@ public class PayCenterService {
 
     private final ObjectProvider<PayOrderMapper> payOrderMapperProvider;
     private final ObjectProvider<PayRefundMapper> payRefundMapperProvider;
+    private final ObjectProvider<PlatformOutboxService> outboxServiceProvider;
+    private final ObjectProvider<PayChannelVerifier> verifierProvider;
+    private final ObjectProvider<Environment> environmentProvider;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     // 内存兜底缓存（仅当无数据库环境时使用）
     private final Map<String, PayOrderResponse> fallbackRegistry = new ConcurrentHashMap<>();
@@ -38,8 +48,22 @@ public class PayCenterService {
             ObjectProvider<PayOrderMapper> payOrderMapperProvider,
             ObjectProvider<PayRefundMapper> payRefundMapperProvider
     ) {
+        this(payOrderMapperProvider, payRefundMapperProvider, null, null, null);
+    }
+
+    @Autowired
+    public PayCenterService(
+            ObjectProvider<PayOrderMapper> payOrderMapperProvider,
+            ObjectProvider<PayRefundMapper> payRefundMapperProvider,
+            ObjectProvider<PlatformOutboxService> outboxServiceProvider,
+            ObjectProvider<PayChannelVerifier> verifierProvider,
+            ObjectProvider<Environment> environmentProvider
+    ) {
         this.payOrderMapperProvider = payOrderMapperProvider;
         this.payRefundMapperProvider = payRefundMapperProvider;
+        this.outboxServiceProvider = outboxServiceProvider;
+        this.verifierProvider = verifierProvider;
+        this.environmentProvider = environmentProvider;
     }
 
     @Transactional
@@ -174,8 +198,37 @@ public class PayCenterService {
         return new java.util.ArrayList<>(fallbackRegistry.values());
     }
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public PayOrderResponse mockPaySuccess(String orderNoOrTradeNo) {
+        Environment env = environmentProvider != null ? environmentProvider.getIfAvailable() : null;
+        if (env != null && env.acceptsProfiles(Profiles.of("prod"))) {
+            throw new BizException("MOCK_PAY_DISABLED_IN_PROD", "生产环境禁止调用模拟支付成功接口，请配置微信/支付宝签名回调");
+        }
+        return completePayment(orderNoOrTradeNo, "CH-" + UUID.randomUUID().toString().replace("-", "").substring(0, 16).toUpperCase());
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public PayOrderResponse handleVerifiedWebhook(String channel, String rawBody, String signature, String timestamp) {
+        PayChannelVerifier verifier = verifierProvider != null ? verifierProvider.getIfAvailable() : null;
+        if (verifier != null) {
+            verifier.verifyOrThrow(channel, rawBody, signature, timestamp);
+        }
+        try {
+            JsonNode root = objectMapper.readTree(rawBody);
+            String orderNo = root.path("orderNo").asText(root.path("out_trade_no").asText(""));
+            if (orderNo == null || orderNo.isBlank()) {
+                throw new BizException("PAY_NOTIFY_ORDER_MISSING", "支付回调报文缺少 orderNo / out_trade_no");
+            }
+            String channelTradeNo = root.path("channelTradeNo").asText(root.path("transaction_id").asText(""));
+            return completePayment(orderNo, channelTradeNo);
+        } catch (BizException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new BizException("PAY_NOTIFY_PARSE_FAILED", "支付回调 JSON 报文解析失败: " + ex.getMessage());
+        }
+    }
+
+    private PayOrderResponse completePayment(String orderNoOrTradeNo, String channelTradeNo) {
         PayOrderMapper mapper = payOrderMapperProvider.getIfAvailable();
         if (mapper != null) {
             PayOrderEntity entity = mapper.selectByOrderNoOrTradeNo(orderNoOrTradeNo);
@@ -189,8 +242,11 @@ public class PayCenterService {
             } else {
                 entity.setStatus("SUCCESS");
                 entity.setSuccessAt(LocalDateTime.now());
-                entity.setChannelTradeNo("CH-" + UUID.randomUUID().toString().replace("-", "").substring(0, 16).toUpperCase());
+                entity.setChannelTradeNo(channelTradeNo != null && !channelTradeNo.isBlank()
+                        ? channelTradeNo
+                        : "CH-" + UUID.randomUUID().toString().replace("-", "").substring(0, 16).toUpperCase());
                 mapper.updateById(entity);
+                publishPaySucceededOutbox(entity);
                 log.info("[PayCenterService] 交易状态机扭转: tradeNo={}, status=SUCCESS, successAt={}",
                         entity.getPayTradeNo(), entity.getSuccessAt());
             }
@@ -228,6 +284,27 @@ public class PayCenterService {
         fallbackRegistry.put(current.orderNo(), updated);
         fallbackRegistry.put(current.payTradeNo(), updated);
         return updated;
+    }
+
+    private void publishPaySucceededOutbox(PayOrderEntity entity) {
+        PlatformOutboxService outbox = outboxServiceProvider != null ? outboxServiceProvider.getIfAvailable() : null;
+        if (outbox == null) {
+            return;
+        }
+        Map<String, Object> payload = new java.util.LinkedHashMap<>();
+        payload.put("payTradeNo", entity.getPayTradeNo());
+        payload.put("orderNo", entity.getOrderNo());
+        payload.put("tenantId", entity.getTenantId() != null ? entity.getTenantId() : 1L);
+        payload.put("amount", entity.getAmount() != null ? entity.getAmount().toPlainString() : "0.00");
+        payload.put("channel", entity.getChannel());
+        payload.put("subject", entity.getSubject() != null ? entity.getSubject() : "SaaS 订阅服务");
+        payload.put("durationDays", 30);
+        outbox.enqueue("PAY_ORDER_SUCCEEDED", "PAY_ORDER", entity.getOrderNo(), entity.getTenantId(), payload);
+        try {
+            outbox.dispatchPendingEvents();
+        } catch (Exception ex) {
+            log.debug("[PayCenterService] 同步投递 Outbox 延迟由后台重试: {}", ex.getMessage());
+        }
     }
 
     @Transactional

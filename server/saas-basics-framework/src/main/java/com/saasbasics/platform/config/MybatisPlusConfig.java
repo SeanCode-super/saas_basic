@@ -34,7 +34,8 @@ public class MybatisPlusConfig {
             "sys_transport_crypto_key",
             "sys_api_endpoint_stat",
             "sys_alert_rule",
-            "sys_alert_event"
+            "sys_alert_event",
+            "plat_outbox_event"
     );
 
     @Bean

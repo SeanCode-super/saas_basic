@@ -62,11 +62,10 @@ public class TenantMeteringController {
 
     @GetMapping("/snapshot/download/{snapshotId}")
     public ResponseEntity<byte[]> downloadSnapshot(@PathVariable String snapshotId) {
-        String mockContent = "{\"snapshotId\": \"" + snapshotId + "\", \"format\": \"SaaS-Basics-Tenant-Backup-v1.0\", \"status\": \"VERIFIED\"}";
-        byte[] bytes = mockContent.getBytes(StandardCharsets.UTF_8);
+        byte[] bytes = meteringService.loadSnapshotArchive(snapshotId);
 
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + snapshotId + ".json\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + snapshotId + ".zip\"")
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .body(bytes);
     }

@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -49,6 +50,21 @@ public class PayCenterController {
         PayOrderResponse response = payCenterService.mockPaySuccess(orderNo);
         if (response == null) {
             return ApiResponse.failure("ORDER_NOT_FOUND", "订单未找到");
+        }
+        return ApiResponse.success(response);
+    }
+
+    @PostMapping("/notify/{channel}")
+    public ApiResponse<PayOrderResponse> payNotifyWebhook(
+            @PathVariable String channel,
+            @RequestBody String rawBody,
+            @RequestHeader(value = "X-Pay-Signature", required = false) String signature,
+            @RequestHeader(value = "Wechatpay-Signature", required = false) String wechatSig,
+            @RequestHeader(value = "X-Pay-Timestamp", required = false) String timestamp) {
+        String effectiveSig = (signature != null && !signature.isBlank()) ? signature : wechatSig;
+        PayOrderResponse response = payCenterService.handleVerifiedWebhook(channel, rawBody, effectiveSig, timestamp);
+        if (response == null) {
+            return ApiResponse.failure("ORDER_NOT_FOUND", "回调关联订单不存在");
         }
         return ApiResponse.success(response);
     }
