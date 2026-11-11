@@ -34,6 +34,12 @@ public class TransportCryptoPolicyEntity extends BaseEntity {
     @TableField("timestamp_skew_seconds")
     private Integer timestampSkewSeconds;
 
+    @TableField("key_rotation_hours")
+    private Integer keyRotationHours;
+
+    @TableField("max_grace_keys")
+    private Integer maxGraceKeys;
+
     @TableField("include_paths_json")
     private String includePathsJson;
 
@@ -116,6 +122,22 @@ public class TransportCryptoPolicyEntity extends BaseEntity {
 
     public void setTimestampSkewSeconds(Integer timestampSkewSeconds) {
         this.timestampSkewSeconds = timestampSkewSeconds;
+    }
+
+    public Integer getKeyRotationHours() {
+        return keyRotationHours;
+    }
+
+    public void setKeyRotationHours(Integer keyRotationHours) {
+        this.keyRotationHours = keyRotationHours;
+    }
+
+    public Integer getMaxGraceKeys() {
+        return maxGraceKeys;
+    }
+
+    public void setMaxGraceKeys(Integer maxGraceKeys) {
+        this.maxGraceKeys = maxGraceKeys;
     }
 
     public String getIncludePathsJson() {

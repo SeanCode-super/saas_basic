@@ -4,6 +4,9 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.saasbasics.platform.modules.audit.service.AuditTrailService;
+import com.saasbasics.platform.modules.system.dto.TransportSecurityDtos.RetainedKeySummary;
+import com.saasbasics.platform.modules.system.dto.TransportSecurityDtos.TransportKeyActivateRequest;
+import com.saasbasics.platform.modules.system.dto.TransportSecurityDtos.TransportKeyConfigureRequest;
 import com.saasbasics.platform.modules.system.dto.TransportSecurityDtos.TransportKeySummary;
 import com.saasbasics.platform.modules.system.dto.TransportSecurityDtos.TransportPolicyUpdateRequest;
 import com.saasbasics.platform.modules.system.dto.TransportSecurityDtos.TransportRoundtripRequest;
@@ -19,6 +22,8 @@ import com.saasbasics.platform.security.transport.TransportCryptoPolicyRepositor
 import com.saasbasics.platform.security.transport.TransportCryptoPolicyService;
 import com.saasbasics.platform.security.transport.TransportCryptoPolicySnapshot;
 import com.saasbasics.platform.security.transport.TransportScopeMode;
+import com.saasbasics.platform.security.vault.CredentialVaultService;
+import com.saasbasics.platform.telemetry.PlatformApiCatalogService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -31,7 +36,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 /**
- * 传输加密动态控制台业务服务：负责数据库持久化、热策略切换、X25519 密钥轮换及合规审计。
+ * 传输加密动态控制台业务服务：负责数据库持久化、热策略切换、X25519 密钥配置/轮换、接口目录统计及合规审计。
  */
 @Service
 public class TransportSecurityService implements TransportCryptoPolicyRepository {
@@ -46,17 +51,23 @@ public class TransportSecurityService implements TransportCryptoPolicyRepository
     private final TransportCryptoKeyRing keyRing;
     private final AuditTrailService auditTrailService;
     private final ObjectMapper objectMapper;
+    private final ObjectProvider<CredentialVaultService> credentialVaultProvider;
+    private final ObjectProvider<PlatformApiCatalogService> apiCatalogProvider;
 
     public TransportSecurityService(ObjectProvider<TransportCryptoPolicyMapper> policyMapperProvider,
                                     TransportCryptoPolicyService policyService,
                                     TransportCryptoKeyRing keyRing,
                                     AuditTrailService auditTrailService,
-                                    ObjectMapper objectMapper) {
+                                    ObjectMapper objectMapper,
+                                    ObjectProvider<CredentialVaultService> credentialVaultProvider,
+                                    ObjectProvider<PlatformApiCatalogService> apiCatalogProvider) {
         this.policyMapperProvider = policyMapperProvider;
         this.policyService = policyService;
         this.keyRing = keyRing;
         this.auditTrailService = auditTrailService;
         this.objectMapper = objectMapper;
+        this.credentialVaultProvider = credentialVaultProvider;
+        this.apiCatalogProvider = apiCatalogProvider;
     }
 
     @Override
@@ -72,6 +83,13 @@ public class TransportSecurityService implements TransportCryptoPolicyRepository
         Instant updated = entity.getUpdatedAt() != null
                 ? entity.getUpdatedAt().toInstant(ZoneOffset.UTC)
                 : Instant.now();
+        int rotationHours = entity.getKeyRotationHours() != null && entity.getKeyRotationHours() > 0
+                ? entity.getKeyRotationHours()
+                : 24;
+        int graceKeys = entity.getMaxGraceKeys() != null && entity.getMaxGraceKeys() > 0
+                ? entity.getMaxGraceKeys()
+                : 3;
+
         return new TransportCryptoPolicySnapshot(
                 parseMode(entity.getMode()),
                 parseScope(entity.getScopeMode()),
@@ -81,6 +99,8 @@ public class TransportSecurityService implements TransportCryptoPolicyRepository
                 Integer.valueOf(1).equals(entity.getEncryptQuery()),
                 Integer.valueOf(1).equals(entity.getReplayProtection()),
                 entity.getTimestampSkewSeconds() != null ? entity.getTimestampSkewSeconds() : 300,
+                rotationHours,
+                graceKeys,
                 readJsonList(entity.getIncludePathsJson()),
                 readJsonList(entity.getExcludePathsJson()),
                 readJsonList(entity.getSensitivePathsJson()),
@@ -108,6 +128,8 @@ public class TransportSecurityService implements TransportCryptoPolicyRepository
         entity.setEncryptQuery(snapshot.encryptQuery() ? 1 : 0);
         entity.setReplayProtection(snapshot.replayProtection() ? 1 : 0);
         entity.setTimestampSkewSeconds(snapshot.timestampSkewSeconds());
+        entity.setKeyRotationHours(snapshot.keyRotationHours());
+        entity.setMaxGraceKeys(snapshot.maxGraceKeys());
         entity.setIncludePathsJson(writeJsonList(snapshot.includePaths()));
         entity.setExcludePathsJson(writeJsonList(snapshot.excludePaths()));
         entity.setSensitivePathsJson(writeJsonList(snapshot.sensitivePaths()));
@@ -127,6 +149,9 @@ public class TransportSecurityService implements TransportCryptoPolicyRepository
 
     public TransportSecurityOverviewResponse updatePolicy(TransportPolicyUpdateRequest request) {
         TransportCryptoPolicySnapshot current = policyService.getCurrentPolicy();
+        int rotationHours = request.keyRotationHours() != null ? request.keyRotationHours() : current.keyRotationHours();
+        int graceKeys = request.maxGraceKeys() != null ? request.maxGraceKeys() : current.maxGraceKeys();
+
         TransportCryptoPolicySnapshot target = new TransportCryptoPolicySnapshot(
                 parseMode(request.mode()),
                 parseScope(request.scopeMode()),
@@ -136,6 +161,8 @@ public class TransportSecurityService implements TransportCryptoPolicyRepository
                 request.encryptQuery(),
                 request.replayProtection(),
                 request.timestampSkewSeconds(),
+                rotationHours,
+                graceKeys,
                 request.includePaths(),
                 request.excludePaths(),
                 request.sensitivePaths(),
@@ -144,6 +171,7 @@ public class TransportSecurityService implements TransportCryptoPolicyRepository
                 request.remark()
         );
         TransportCryptoPolicySnapshot saved = policyService.updatePolicy(target);
+        keyRing.enforceGraceLimit(saved.maxGraceKeys());
         auditTrailService.record(
                 "system",
                 "transport_crypto_policy",
@@ -157,26 +185,19 @@ public class TransportSecurityService implements TransportCryptoPolicyRepository
     }
 
     public TransportSecurityOverviewResponse rotateKey() {
-        String previousKid = keyRing.getActiveKey().keyId();
-        TransportCryptoKeyRing.ServerKeyEntry nextKey = keyRing.rotateKeyPair();
         TransportCryptoPolicySnapshot current = policyService.getCurrentPolicy();
-        // 同步触发策略版本号递增，使客户端响应头感知并无感切换至新公钥
-        TransportCryptoPolicySnapshot bumped = policyService.updatePolicy(new TransportCryptoPolicySnapshot(
-                current.mode(),
-                current.scopeMode(),
-                current.algorithm(),
-                current.encryptRequest(),
-                current.encryptResponse(),
-                current.encryptQuery(),
-                current.replayProtection(),
-                current.timestampSkewSeconds(),
-                current.includePaths(),
-                current.excludePaths(),
-                current.sensitivePaths(),
-                current.policyVersion() + 1L,
-                Instant.now(),
+        String previousKid = keyRing.getActiveKey().keyId();
+        TransportCryptoKeyRing.ServerKeyEntry nextKey = keyRing.rotateKeyPair(
+                null,
+                current.maxGraceKeys(),
+                "管理员手动轮换 X25519 密钥对"
+        );
+        TransportCryptoPolicySnapshot bumped = bumpPolicyVersion(
+                current,
+                current.keyRotationHours(),
+                current.maxGraceKeys(),
                 "管理员手动轮换 X25519 传输密钥对 (" + nextKey.keyId() + ")"
-        ));
+        );
         auditTrailService.record(
                 "system",
                 "transport_crypto_key",
@@ -187,6 +208,85 @@ public class TransportSecurityService implements TransportCryptoPolicyRepository
                 true
         );
         return toOverview(bumped);
+    }
+
+    public TransportSecurityOverviewResponse configureKey(TransportKeyConfigureRequest request) {
+        TransportCryptoPolicySnapshot current = policyService.getCurrentPolicy();
+        int rotationHours = request.keyRotationHours() != null ? request.keyRotationHours() : current.keyRotationHours();
+        int graceKeys = request.maxGraceKeys() != null ? request.maxGraceKeys() : current.maxGraceKeys();
+        String previousKid = keyRing.getActiveKey().keyId();
+
+        String normalizedMode = request.mode().trim().toUpperCase(Locale.ROOT);
+        TransportCryptoKeyRing.ServerKeyEntry updatedKey;
+        String actionName;
+        String remark;
+        if ("CUSTOM".equals(normalizedMode)) {
+            updatedKey = keyRing.configureCustomKeyPair(
+                    request.keyId(),
+                    request.privateKeyInput(),
+                    graceKeys,
+                    request.remark()
+            );
+            actionName = "IMPORT_CUSTOM_KEY";
+            remark = "管理员配置自定义 X25519 传输密钥 (" + updatedKey.keyId() + ")";
+        } else {
+            updatedKey = keyRing.rotateKeyPair(
+                    request.keyId(),
+                    graceKeys,
+                    (request.remark() != null && !request.remark().isBlank()) ? request.remark() : "管理员按配置轮换生成 X25519 密钥"
+            );
+            actionName = "CONFIGURE_GENERATE_KEY";
+            remark = "管理员生成并应用新 X25519 密钥 (" + updatedKey.keyId() + ")";
+        }
+
+        keyRing.enforceGraceLimit(graceKeys);
+        TransportCryptoPolicySnapshot bumped = bumpPolicyVersion(current, rotationHours, graceKeys, remark);
+        auditTrailService.record(
+                "system",
+                "transport_crypto_key",
+                updatedKey.keyId(),
+                actionName,
+                previousKid,
+                updatedKey.keyId(),
+                true
+        );
+        return toOverview(bumped);
+    }
+
+    public TransportSecurityOverviewResponse activateKey(TransportKeyActivateRequest request) {
+        TransportCryptoPolicySnapshot current = policyService.getCurrentPolicy();
+        String previousKid = keyRing.getActiveKey().keyId();
+        TransportCryptoKeyRing.ServerKeyEntry activated = keyRing.activateRetainedKey(request.keyId(), current.maxGraceKeys());
+        TransportCryptoPolicySnapshot bumped = bumpPolicyVersion(
+                current,
+                current.keyRotationHours(),
+                current.maxGraceKeys(),
+                "切换激活历史保留密钥 (" + activated.keyId() + ")"
+        );
+        auditTrailService.record(
+                "system",
+                "transport_crypto_key",
+                activated.keyId(),
+                "ACTIVATE_KEY",
+                previousKid,
+                activated.keyId(),
+                true
+        );
+        return toOverview(bumped);
+    }
+
+    public PlatformApiCatalogService.ApiCatalogSnapshot getApiCatalog() {
+        PlatformApiCatalogService catalog = apiCatalogProvider.getIfAvailable();
+        if (catalog == null) {
+            return new PlatformApiCatalogService.ApiCatalogSnapshot(
+                    new PlatformApiCatalogService.ApiCatalogSummary("saas-basics-server", "主应用服务", 0, 0, 0, 0, 0, 0, 0, 0, 0),
+                    Collections.emptyList(),
+                    Collections.emptyList(),
+                    Collections.emptyList(),
+                    Collections.emptyList()
+            );
+        }
+        return catalog.buildSnapshot(policyService::evaluateDecisionForPattern);
     }
 
     public TransportRoundtripResponse verifyRoundtrip(TransportRoundtripRequest request, HttpServletRequest httpRequest) {
@@ -206,9 +306,47 @@ public class TransportSecurityService implements TransportCryptoPolicyRepository
         );
     }
 
+    private TransportCryptoPolicySnapshot bumpPolicyVersion(
+            TransportCryptoPolicySnapshot current,
+            int rotationHours,
+            int graceKeys,
+            String remark) {
+        return policyService.updatePolicy(new TransportCryptoPolicySnapshot(
+                current.mode(),
+                current.scopeMode(),
+                current.algorithm(),
+                current.encryptRequest(),
+                current.encryptResponse(),
+                current.encryptQuery(),
+                current.replayProtection(),
+                current.timestampSkewSeconds(),
+                rotationHours,
+                graceKeys,
+                current.includePaths(),
+                current.excludePaths(),
+                current.sensitivePaths(),
+                current.policyVersion() + 1L,
+                Instant.now(),
+                remark
+        ));
+    }
+
     private TransportSecurityOverviewResponse toOverview(TransportCryptoPolicySnapshot snapshot) {
         TransportCryptoKeyRing.ServerKeyEntry key = keyRing.getActiveKey();
         TransportCryptoPolicyService.TelemetryStats stats = policyService.getTelemetryStats();
+        CredentialVaultService vault = credentialVaultProvider != null ? credentialVaultProvider.getIfAvailable() : null;
+        List<RetainedKeySummary> retained = keyRing.listRetainedKeys().stream()
+                .map(k -> new RetainedKeySummary(
+                        k.keyId(),
+                        k.keySource(),
+                        k.publicKeyBase64(),
+                        k.fingerprintSha256(),
+                        k.issuedAtEpochMs(),
+                        k.active(),
+                        k.remark()
+                ))
+                .toList();
+
         return new TransportSecurityOverviewResponse(
                 snapshot.mode().name(),
                 snapshot.scopeMode().name(),
@@ -218,6 +356,8 @@ public class TransportSecurityService implements TransportCryptoPolicyRepository
                 snapshot.encryptQuery(),
                 snapshot.replayProtection(),
                 snapshot.timestampSkewSeconds(),
+                snapshot.keyRotationHours(),
+                snapshot.maxGraceKeys(),
                 snapshot.includePaths(),
                 snapshot.excludePaths(),
                 snapshot.sensitivePaths(),
@@ -226,10 +366,16 @@ public class TransportSecurityService implements TransportCryptoPolicyRepository
                 snapshot.remark(),
                 new TransportKeySummary(
                         key.keyId(),
+                        key.keySource(),
                         key.publicKeyBase64(),
                         key.fingerprintSha256(),
                         key.issuedAt().toEpochMilli(),
-                        keyRing.loadedKeyCount()
+                        keyRing.loadedKeyCount(),
+                        snapshot.keyRotationHours(),
+                        snapshot.maxGraceKeys(),
+                        vault == null || vault.isUsingDefaultMasterKey(),
+                        vault != null ? vault.activeKeyVersion() : "v1",
+                        retained
                 ),
                 new TransportTelemetrySummary(
                         stats.totalRequests(),

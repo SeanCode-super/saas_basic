@@ -5,9 +5,12 @@ import com.saasbasics.platform.common.auth.RequirePermission;
 import com.saasbasics.platform.modules.system.dto.ServerMonitorResponse;
 import com.saasbasics.platform.modules.system.dto.ThreadDumpItem;
 import com.saasbasics.platform.modules.system.service.ServerMonitorService;
+import com.saasbasics.platform.security.transport.TransportCryptoPolicyService;
+import com.saasbasics.platform.telemetry.PlatformApiCatalogService;
 import com.saasbasics.platform.telemetry.PlatformTelemetryService;
 import com.saasbasics.platform.telemetry.TelemetrySnapshot;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,12 +24,25 @@ public class ServerMonitorController {
 
     private final ServerMonitorService serverMonitorService;
     private final ObjectProvider<PlatformTelemetryService> telemetryServiceProvider;
+    private final ObjectProvider<PlatformApiCatalogService> apiCatalogServiceProvider;
+    private final ObjectProvider<TransportCryptoPolicyService> transportPolicyServiceProvider;
 
     public ServerMonitorController(
             ServerMonitorService serverMonitorService,
             ObjectProvider<PlatformTelemetryService> telemetryServiceProvider) {
+        this(serverMonitorService, telemetryServiceProvider, null, null);
+    }
+
+    @Autowired
+    public ServerMonitorController(
+            ServerMonitorService serverMonitorService,
+            ObjectProvider<PlatformTelemetryService> telemetryServiceProvider,
+            ObjectProvider<PlatformApiCatalogService> apiCatalogServiceProvider,
+            ObjectProvider<TransportCryptoPolicyService> transportPolicyServiceProvider) {
         this.serverMonitorService = serverMonitorService;
         this.telemetryServiceProvider = telemetryServiceProvider;
+        this.apiCatalogServiceProvider = apiCatalogServiceProvider;
+        this.transportPolicyServiceProvider = transportPolicyServiceProvider;
     }
 
     @GetMapping
@@ -43,6 +59,23 @@ public class ServerMonitorController {
             return ApiResponse.success(null);
         }
         return ApiResponse.success(telemetry.getSnapshot());
+    }
+
+    @GetMapping("/api-stats")
+    @RequirePermission("system:config:query")
+    public ApiResponse<PlatformApiCatalogService.ApiCatalogSnapshot> getApiStats() {
+        PlatformApiCatalogService catalog = apiCatalogServiceProvider != null
+                ? apiCatalogServiceProvider.getIfAvailable()
+                : null;
+        if (catalog == null) {
+            return ApiResponse.success(null);
+        }
+        TransportCryptoPolicyService policyService = transportPolicyServiceProvider != null
+                ? transportPolicyServiceProvider.getIfAvailable()
+                : null;
+        return ApiResponse.success(catalog.buildSnapshot(
+                policyService != null ? policyService::evaluateDecisionForPattern : null
+        ));
     }
 
     @GetMapping("/thread-dump")

@@ -1,22 +1,36 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
-import { ElMessage, ElMessageBox } from "element-plus";
-import { Check, CircleCheck, Connection, Document, Key, Lock, RefreshRight, Setting } from "@element-plus/icons-vue";
+import { ElMessage } from "element-plus";
+import {
+  Check,
+  CircleCheck,
+  Connection,
+  DataAnalysis,
+  Document,
+  Key,
+  Lock,
+  Plus,
+  RefreshRight,
+  Setting
+} from "@element-plus/icons-vue";
 import BaseCard from "@/components/base/BaseCard.vue";
 import { getTransportPolicy, invalidateTransportPolicyCache } from "@/api/http";
 import {
+  fetchTransportApiCatalog,
   fetchTransportSecurityOverview,
-  rotateTransportSecurityKey,
   updateTransportSecurityPolicy,
   verifyTransportRoundtrip
 } from "@/api/modules/system";
 import type {
+  ApiCatalogSnapshot,
   TransportCryptoMode,
   TransportRoundtripResult,
   TransportScopeMode,
   TransportSecurityOverview
 } from "@/api/modules/system";
-import type { TransportCryptoTrace } from "@/utils/transport-crypto";
+import { antMatch, type TransportCryptoTrace } from "@/utils/transport-crypto";
+import TransportKeyManagerDialog from "./components/TransportKeyManagerDialog.vue";
+import ApiRulePickerDialog, { type RuleTargetKey } from "./components/ApiRulePickerDialog.vue";
 
 const props = defineProps<{
   securityPolicy: {
@@ -31,12 +45,22 @@ const props = defineProps<{
 
 const transportLoading = ref(false);
 const transportSaving = ref(false);
-const keyRotating = ref(false);
 const testingRoundtrip = ref(false);
 const testDialogVisible = ref(false);
+const keyDialogVisible = ref(false);
+const pickerDialogVisible = ref(false);
+const pickerTargetField = ref<RuleTargetKey>("sensitive");
 const showPathRules = ref(false);
 
+const rawTextMode = reactive<Record<RuleTargetKey, boolean>>({
+  include: false,
+  sensitive: false,
+  exclude: false
+});
+
 const transportOverview = ref<TransportSecurityOverview | null>(null);
+const apiCatalog = ref<ApiCatalogSnapshot | null>(null);
+
 const transportForm = reactive<{
   mode: TransportCryptoMode;
   scopeMode: TransportScopeMode;
@@ -45,6 +69,8 @@ const transportForm = reactive<{
   encryptQuery: boolean;
   replayProtection: boolean;
   timestampSkewSeconds: number;
+  keyRotationHours: number;
+  maxGraceKeys: number;
   includePathsText: string;
   sensitivePathsText: string;
   excludePathsText: string;
@@ -57,6 +83,8 @@ const transportForm = reactive<{
   encryptQuery: true,
   replayProtection: true,
   timestampSkewSeconds: 300,
+  keyRotationHours: 24,
+  maxGraceKeys: 3,
   includePathsText: "/api/**",
   sensitivePathsText: "/api/auth/login\n/api/auth/refresh-token\n/api/auth/sso/**\n/api/iam/**\n/api/system/**\n/api/ai/**\n/api/tenant/**",
   excludePathsText: "/api/security/transport/policy\n/api/health/**\n/api/ws/**\n/api/file/download/**\n/api/file/preview/**\n/api/file/upload/**",
@@ -79,11 +107,64 @@ const scopeOptions: Array<{ value: TransportScopeMode; label: string }> = [
   { value: "CUSTOM", label: "自定义路径" }
 ];
 
+const rulePanelMeta: Array<{ key: RuleTargetKey; title: string; placeholder: string }> = [
+  { key: "include", title: "包含路径", placeholder: "/api/**" },
+  { key: "sensitive", title: "高敏接口列表", placeholder: "/api/auth/login" },
+  { key: "exclude", title: "明文豁免白名单", placeholder: "/api/health/**" }
+];
+
 function parsePathLines(raw: string): string[] {
-  return raw
-    .split(/[\n,;]+/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
+  return Array.from(
+    new Set(
+      raw
+        .split(/[\n,;]+/)
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0)
+    )
+  );
+}
+
+function getRulesByKey(key: RuleTargetKey): string[] {
+  if (key === "include") return parsePathLines(transportForm.includePathsText);
+  if (key === "sensitive") return parsePathLines(transportForm.sensitivePathsText);
+  return parsePathLines(transportForm.excludePathsText);
+}
+
+function setRulesByKey(key: RuleTargetKey, list: string[]) {
+  const text = Array.from(new Set(list.map((s) => s.trim()).filter(Boolean))).join("\n");
+  if (key === "include") {
+    transportForm.includePathsText = text;
+  } else if (key === "sensitive") {
+    transportForm.sensitivePathsText = text;
+  } else {
+    transportForm.excludePathsText = text;
+  }
+}
+
+function removeRuleItem(key: RuleTargetKey, rule: string) {
+  setRulesByKey(
+    key,
+    getRulesByKey(key).filter((item) => item !== rule)
+  );
+}
+
+function countCatalogMatches(rules: string[]): number {
+  const endpoints = apiCatalog.value?.endpoints ?? [];
+  if (endpoints.length === 0 || rules.length === 0) return 0;
+  return endpoints.filter((ep) => rules.some((rule) => antMatch(rule, ep.antPattern))).length;
+}
+
+function openRulePicker(target: RuleTargetKey) {
+  pickerTargetField.value = target;
+  pickerDialogVisible.value = true;
+}
+
+function handleApplyPickedRules(nextDrafts: Record<RuleTargetKey, string[]>) {
+  setRulesByKey("include", nextDrafts.include);
+  setRulesByKey("sensitive", nextDrafts.sensitive);
+  setRulesByKey("exclude", nextDrafts.exclude);
+  showPathRules.value = true;
+  ElMessage.info("规则已更新到表单，请点击“保存生效”正式下发");
 }
 
 function applyOverviewToForm(data: TransportSecurityOverview) {
@@ -95,6 +176,8 @@ function applyOverviewToForm(data: TransportSecurityOverview) {
   transportForm.encryptQuery = data.encryptQuery;
   transportForm.replayProtection = data.replayProtection;
   transportForm.timestampSkewSeconds = data.timestampSkewSeconds;
+  transportForm.keyRotationHours = data.keyRotationHours || data.keySummary?.keyRotationHours || 24;
+  transportForm.maxGraceKeys = data.maxGraceKeys || data.keySummary?.maxGraceKeys || 3;
   transportForm.includePathsText = (data.includePaths || []).join("\n");
   transportForm.sensitivePathsText = (data.sensitivePaths || []).join("\n");
   transportForm.excludePathsText = (data.excludePaths || []).join("\n");
@@ -106,7 +189,7 @@ function applyOverviewToForm(data: TransportSecurityOverview) {
 
 function selectScope(scope: TransportScopeMode) {
   transportForm.scopeMode = scope;
-  if (scope === "CUSTOM") {
+  if (scope === "CUSTOM" || scope === "SENSITIVE_ONLY") {
     showPathRules.value = true;
   }
 }
@@ -114,8 +197,14 @@ function selectScope(scope: TransportScopeMode) {
 async function loadTransportOverview() {
   transportLoading.value = true;
   try {
-    const data = await fetchTransportSecurityOverview();
-    applyOverviewToForm(data);
+    const [overviewData, catalogData] = await Promise.all([
+      fetchTransportSecurityOverview(),
+      fetchTransportApiCatalog().catch(() => null)
+    ]);
+    applyOverviewToForm(overviewData);
+    if (catalogData) {
+      apiCatalog.value = catalogData;
+    }
   } catch (err: any) {
     ElMessage.error(err?.response?.data?.message ?? "加载传输加密配置失败");
   } finally {
@@ -134,6 +223,8 @@ async function handleSaveTransportPolicy() {
       encryptQuery: transportForm.encryptQuery,
       replayProtection: transportForm.replayProtection,
       timestampSkewSeconds: transportForm.timestampSkewSeconds,
+      keyRotationHours: transportForm.keyRotationHours,
+      maxGraceKeys: transportForm.maxGraceKeys,
       includePaths: parsePathLines(transportForm.includePathsText),
       excludePaths: parsePathLines(transportForm.excludePathsText),
       sensitivePaths: parsePathLines(transportForm.sensitivePathsText),
@@ -142,6 +233,10 @@ async function handleSaveTransportPolicy() {
     applyOverviewToForm(updated);
     invalidateTransportPolicyCache();
     await getTransportPolicy(true);
+    const catalogData = await fetchTransportApiCatalog().catch(() => null);
+    if (catalogData) {
+      apiCatalog.value = catalogData;
+    }
     ElMessage.success(`传输加密策略已生效（${updated.mode} · v${updated.policyVersion}）`);
   } catch (err: any) {
     ElMessage.error(err?.response?.data?.message ?? "保存传输加密策略失败");
@@ -150,28 +245,8 @@ async function handleSaveTransportPolicy() {
   }
 }
 
-async function handleRotateKey() {
-  try {
-    await ElMessageBox.confirm(
-      "将生成新的 X25519 密钥对并无缝切换，历史密钥会在宽限期内保留，不影响在途请求。",
-      "轮换传输密钥",
-      { confirmButtonText: "确认轮换", cancelButtonText: "取消", type: "warning" }
-    );
-  } catch {
-    return;
-  }
-  keyRotating.value = true;
-  try {
-    const updated = await rotateTransportSecurityKey();
-    applyOverviewToForm(updated);
-    invalidateTransportPolicyCache();
-    await getTransportPolicy(true);
-    ElMessage.success(`已轮换密钥：${updated.keySummary.activeKid}`);
-  } catch (err: any) {
-    ElMessage.error(err?.response?.data?.message ?? "轮换密钥失败");
-  } finally {
-    keyRotating.value = false;
-  }
+function handleKeyManagerUpdated(updated: TransportSecurityOverview) {
+  applyOverviewToForm(updated);
 }
 
 async function handleVerifyRoundtrip() {
@@ -223,13 +298,20 @@ const modeTagType = computed(() => {
   return "info";
 });
 
+const keySourceBadge = computed(() => {
+  const ks = transportOverview.value?.keySummary;
+  if (!ks) return "";
+  return ks.keySource === "CUSTOM_IMPORTED" ? "自定义" : `${ks.keyRotationHours || 24}h轮换`;
+});
+
 function handleExportDossier() {
   const dossier = {
     title: "企业安全基线合规报告",
     generatedAt: new Date().toISOString(),
     score: complianceScore.value,
     policy: props.securityPolicy,
-    transportEncryption: transportOverview.value
+    transportEncryption: transportOverview.value,
+    apiCatalogSummary: apiCatalog.value?.summary ?? null
   };
   const blob = new Blob([JSON.stringify(dossier, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -264,15 +346,27 @@ onMounted(() => {
           <el-tag :type="modeTagType" size="small" effect="light">{{ modeLabel }}</el-tag>
         </div>
         <div class="metric-sep" />
-        <div class="metric-pill">
+        <button type="button" class="metric-pill metric-clickable" @click="keyDialogVisible = true">
           <span class="metric-k">密钥</span>
           <code class="metric-code">{{ transportOverview?.keySummary.activeKid || "--" }}</code>
-        </div>
+          <el-tag v-if="keySourceBadge" size="small" type="info" effect="plain">{{ keySourceBadge }}</el-tag>
+        </button>
         <div class="metric-sep" />
         <div class="metric-pill">
           <span class="metric-k">加密 / 拦截</span>
           <strong class="metric-v">{{ transportOverview?.telemetry.encryptedRequests ?? 0 }} / {{ transportOverview?.telemetry.rejectedPlaintext ?? 0 }}</strong>
         </div>
+        <template v-if="apiCatalog">
+          <div class="metric-sep" />
+          <button
+            type="button"
+            class="metric-pill metric-clickable"
+            @click="openRulePicker(transportForm.scopeMode === 'SENSITIVE_ONLY' ? 'sensitive' : 'include')"
+          >
+            <span class="metric-k">已扫描接口</span>
+            <strong class="metric-v">{{ apiCatalog.summary.totalEndpoints }}</strong>
+          </button>
+        </template>
       </div>
 
       <div class="status-actions">
@@ -294,7 +388,7 @@ onMounted(() => {
           </div>
           <div class="card-actions">
             <el-button size="small" :icon="Connection" :loading="testingRoundtrip" @click="handleVerifyRoundtrip">链路自测</el-button>
-            <el-button size="small" :icon="Key" :loading="keyRotating" @click="handleRotateKey">轮换密钥</el-button>
+            <el-button size="small" :icon="Key" @click="keyDialogVisible = true">密钥配置</el-button>
             <el-button type="primary" size="small" :icon="Check" :loading="transportSaving" @click="handleSaveTransportPolicy">保存生效</el-button>
           </div>
         </div>
@@ -327,9 +421,20 @@ onMounted(() => {
           <div class="setting-group-box">
             <div class="group-header">
               <span>适用范围</span>
-              <el-button link type="primary" size="small" :icon="Setting" @click="showPathRules = !showPathRules">
-                {{ showPathRules ? "收起路径规则" : "编辑路径规则" }}
-              </el-button>
+              <div class="group-head-links">
+                <el-button
+                  link
+                  type="primary"
+                  size="small"
+                  :icon="DataAnalysis"
+                  @click="openRulePicker(transportForm.scopeMode === 'SENSITIVE_ONLY' ? 'sensitive' : 'include')"
+                >
+                  多维选接口 / 看统计
+                </el-button>
+                <el-button link type="info" size="small" :icon="Setting" @click="showPathRules = !showPathRules">
+                  {{ showPathRules ? "收起规则" : "展开规则" }}
+                </el-button>
+              </div>
             </div>
             <div class="scope-pills">
               <button
@@ -345,13 +450,13 @@ onMounted(() => {
             </div>
             <div class="scope-summary">
               <template v-if="transportForm.scopeMode === 'ALL_API'">
-                已覆盖全量业务接口，文件流、WebSocket 与健康探针自动豁免。
+                覆盖 {{ apiCatalog ? `${countCatalogMatches(parsePathLines(transportForm.includePathsText))} / ${apiCatalog.summary.totalEndpoints} 个` : "全量" }} 业务接口，文件流、WebSocket 与健康探针自动豁免。
               </template>
               <template v-else-if="transportForm.scopeMode === 'SENSITIVE_ONLY'">
-                仅对登录认证、权限、系统、AI 与租户等 {{ parsePathLines(transportForm.sensitivePathsText).length }} 类敏感路径生效。
+                仅对 {{ parsePathLines(transportForm.sensitivePathsText).length }} 条高敏规则（{{ apiCatalog ? `命中 ${countCatalogMatches(parsePathLines(transportForm.sensitivePathsText))} 个接口` : "敏感路径" }}）启用加密。
               </template>
               <template v-else>
-                按下方自定义包含规则与豁免白名单精准控制生效接口。
+                按下方包含规则与豁免白名单精准生效（{{ apiCatalog ? `命中 ${countCatalogMatches(parsePathLines(transportForm.includePathsText))} 个包含接口` : "自定义" }}）。
               </template>
             </div>
           </div>
@@ -385,19 +490,42 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- 按需展开的高级路径配置 -->
+        <!-- 按需展开的可视化/文本双模式规则栏 -->
         <div v-if="showPathRules" class="path-editor-panel">
-          <div class="path-editor-col">
-            <label>包含路径</label>
-            <el-input v-model="transportForm.includePathsText" type="textarea" :rows="3" placeholder="/api/**" />
-          </div>
-          <div class="path-editor-col">
-            <label>高敏接口列表</label>
-            <el-input v-model="transportForm.sensitivePathsText" type="textarea" :rows="3" placeholder="/api/auth/login" />
-          </div>
-          <div class="path-editor-col">
-            <label>明文豁免白名单</label>
-            <el-input v-model="transportForm.excludePathsText" type="textarea" :rows="3" placeholder="/api/health/**" />
+          <div v-for="panel in rulePanelMeta" :key="panel.key" class="path-editor-col">
+            <div class="rule-col-head">
+              <div class="rule-title-group">
+                <label>{{ panel.title }}</label>
+                <span v-if="apiCatalog" class="hit-badge">命中 {{ countCatalogMatches(getRulesByKey(panel.key)) }}</span>
+              </div>
+              <div class="rule-col-actions">
+                <el-button link type="primary" size="small" :icon="Plus" @click="openRulePicker(panel.key)">选接口/包</el-button>
+                <el-button link type="info" size="small" @click="rawTextMode[panel.key] = !rawTextMode[panel.key]">
+                  {{ rawTextMode[panel.key] ? "标签视图" : "手写文本" }}
+                </el-button>
+              </div>
+            </div>
+
+            <el-input
+              v-if="rawTextMode[panel.key]"
+              v-model="transportForm[panel.key === 'include' ? 'includePathsText' : panel.key === 'sensitive' ? 'sensitivePathsText' : 'excludePathsText']"
+              type="textarea"
+              :rows="3"
+              :placeholder="panel.placeholder"
+            />
+            <div v-else class="rule-tags-box">
+              <el-tag
+                v-for="rule in getRulesByKey(panel.key)"
+                :key="rule"
+                closable
+                size="small"
+                class="rule-chip"
+                @close="removeRuleItem(panel.key, rule)"
+              >
+                <code>{{ rule }}</code>
+              </el-tag>
+              <button type="button" class="add-chip-btn" @click="openRulePicker(panel.key)">+ 添加 / 按包勾选</button>
+            </div>
           </div>
         </div>
       </div>
@@ -470,6 +598,24 @@ onMounted(() => {
         <el-button type="primary" @click="testDialogVisible = false">关闭</el-button>
       </template>
     </el-dialog>
+
+    <!-- 密钥管理与自定义配置弹窗 -->
+    <TransportKeyManagerDialog
+      v-model:visible="keyDialogVisible"
+      :overview="transportOverview"
+      @updated="handleKeyManagerUpdated"
+    />
+
+    <!-- 多维度接口选择器与统计弹窗 -->
+    <ApiRulePickerDialog
+      v-model:visible="pickerDialogVisible"
+      v-model:target-field="pickerTargetField"
+      :include-paths="parsePathLines(transportForm.includePathsText)"
+      :sensitive-paths="parsePathLines(transportForm.sensitivePathsText)"
+      :exclude-paths="parsePathLines(transportForm.excludePathsText)"
+      @apply="handleApplyPickedRules"
+      @catalog-loaded="(snap) => (apiCatalog = snap)"
+    />
   </div>
 </template>
 
@@ -522,6 +668,18 @@ onMounted(() => {
     background: #f1f5f9;
     padding: 1px 6px;
     border-radius: 4px;
+  }
+}
+
+.metric-clickable {
+  border: none;
+  background: transparent;
+  padding: 2px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+
+  &:hover {
+    background: #eff6ff;
   }
 }
 
@@ -698,9 +856,17 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
   font-size: 12.5px;
   font-weight: 600;
   color: #334155;
+}
+
+.group-head-links {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .scope-pills {
@@ -775,12 +941,74 @@ onMounted(() => {
 .path-editor-col {
   display: flex;
   flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.rule-col-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.rule-title-group {
+  display: flex;
+  align-items: center;
   gap: 6px;
 
   label {
     font-size: 12px;
     font-weight: 600;
     color: #334155;
+  }
+
+  .hit-badge {
+    font-size: 11px;
+    color: #1d4ed8;
+    background: #eff6ff;
+    padding: 0 6px;
+    border-radius: 9999px;
+  }
+}
+
+.rule-col-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rule-tags-box {
+  min-height: 76px;
+  max-height: 126px;
+  overflow-y: auto;
+  padding: 8px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 6px;
+}
+
+.rule-chip code {
+  font-family: var(--sb-font-mono, monospace);
+  font-size: 11.5px;
+}
+
+.add-chip-btn {
+  border: 1px dashed #93c5fd;
+  background: #f8fbff;
+  color: #2563eb;
+  font-size: 11.5px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+
+  &:hover {
+    background: #eff6ff;
+    border-color: #2563eb;
   }
 }
 

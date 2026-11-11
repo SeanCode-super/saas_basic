@@ -205,7 +205,8 @@ export function antMatch(pattern: string, path: string): boolean {
   if (!trimmed) return false;
   let regex = antRegexCache.get(trimmed);
   if (!regex) {
-    const expr = trimmed
+    const normalized = trimmed.replace(/\{[^/}]+\}/g, "*");
+    const expr = normalized
       .replace(/[.+^${}()|[\]\\]/g, "\\$&")
       .replace(/\/\*\*|\*\*|\*|\?/g, (token) => {
         if (token === "/**") return "(?:/.*)?";

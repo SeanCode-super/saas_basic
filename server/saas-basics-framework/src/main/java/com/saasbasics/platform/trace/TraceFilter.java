@@ -1,6 +1,7 @@
 package com.saasbasics.platform.trace;
 
 import com.saasbasics.platform.common.trace.TraceContext;
+import com.saasbasics.platform.telemetry.PlatformApiCatalogService;
 import com.saasbasics.platform.telemetry.PlatformTelemetryService;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.context.Context;
@@ -13,6 +14,7 @@ import java.io.IOException;
 import java.util.UUID;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -34,9 +36,18 @@ public class TraceFilter extends OncePerRequestFilter {
     public static final String MDC_USER_ID = "userId";
 
     private final ObjectProvider<PlatformTelemetryService> telemetryServiceProvider;
+    private final ObjectProvider<PlatformApiCatalogService> apiCatalogServiceProvider;
 
     public TraceFilter(ObjectProvider<PlatformTelemetryService> telemetryServiceProvider) {
+        this(telemetryServiceProvider, null);
+    }
+
+    @Autowired
+    public TraceFilter(
+            ObjectProvider<PlatformTelemetryService> telemetryServiceProvider,
+            ObjectProvider<PlatformApiCatalogService> apiCatalogServiceProvider) {
         this.telemetryServiceProvider = telemetryServiceProvider;
+        this.apiCatalogServiceProvider = apiCatalogServiceProvider;
     }
 
     @Override
@@ -96,6 +107,12 @@ public class TraceFilter extends OncePerRequestFilter {
                         durationMs,
                         caughtError
                 );
+            }
+            PlatformApiCatalogService apiCatalog = apiCatalogServiceProvider != null
+                    ? apiCatalogServiceProvider.getIfAvailable()
+                    : null;
+            if (apiCatalog != null && !"OPTIONS".equalsIgnoreCase(request.getMethod())) {
+                apiCatalog.recordHttpCall(request, response.getStatus(), durationMs);
             }
             if (otelScope != null) {
                 otelScope.close();

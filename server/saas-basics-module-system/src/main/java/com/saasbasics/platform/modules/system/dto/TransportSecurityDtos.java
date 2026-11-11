@@ -10,12 +10,29 @@ public final class TransportSecurityDtos {
     private TransportSecurityDtos() {
     }
 
-    public record TransportKeySummary(
-            String activeKid,
+    public record RetainedKeySummary(
+            String keyId,
+            String keySource,
             String publicKey,
             String fingerprintSha256,
             long issuedAtEpochMs,
-            int retainedKeyCount
+            boolean active,
+            String remark
+    ) {
+    }
+
+    public record TransportKeySummary(
+            String activeKid,
+            String keySource,
+            String publicKey,
+            String fingerprintSha256,
+            long issuedAtEpochMs,
+            int retainedKeyCount,
+            int keyRotationHours,
+            int maxGraceKeys,
+            boolean vaultUsingDefaultKey,
+            String vaultActiveKeyVersion,
+            List<RetainedKeySummary> retainedKeys
     ) {
     }
 
@@ -38,6 +55,8 @@ public final class TransportSecurityDtos {
             boolean encryptQuery,
             boolean replayProtection,
             int timestampSkewSeconds,
+            int keyRotationHours,
+            int maxGraceKeys,
             List<String> includePaths,
             List<String> excludePaths,
             List<String> sensitivePaths,
@@ -57,10 +76,27 @@ public final class TransportSecurityDtos {
             boolean encryptQuery,
             boolean replayProtection,
             @Min(30) @Max(3600) int timestampSkewSeconds,
+            @Min(1) @Max(720) Integer keyRotationHours,
+            @Min(1) @Max(10) Integer maxGraceKeys,
             List<String> includePaths,
             List<String> excludePaths,
             List<String> sensitivePaths,
             String remark
+    ) {
+    }
+
+    public record TransportKeyConfigureRequest(
+            @NotBlank String mode,
+            String keyId,
+            String privateKeyInput,
+            @Min(1) @Max(720) Integer keyRotationHours,
+            @Min(1) @Max(10) Integer maxGraceKeys,
+            String remark
+    ) {
+    }
+
+    public record TransportKeyActivateRequest(
+            @NotBlank String keyId
     ) {
     }
 

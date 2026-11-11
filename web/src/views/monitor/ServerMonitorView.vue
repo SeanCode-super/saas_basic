@@ -26,6 +26,7 @@ import {
   Lightning
 } from "@element-plus/icons-vue";
 import {
+  fetchServerApiStats,
   fetchServerMonitor,
   fetchServerTelemetry,
   fetchThreadDump,
@@ -34,6 +35,7 @@ import {
   type TelemetrySnapshotData,
   type ThreadDumpItem
 } from "@/api/modules/server-monitor";
+import type { ApiCatalogSnapshot } from "@/api/modules/system/types";
 
 const loading = ref(false);
 const autoRefreshSeconds = ref(5);
@@ -44,6 +46,8 @@ const activeTab = ref<"apps" | "host" | "jvm" | "dbpool" | "telemetry">("apps");
 
 const monitorData = ref<ServerMonitorData | null>(null);
 const telemetryData = ref<TelemetrySnapshotData | null>(null);
+const apiStatsData = ref<ApiCatalogSnapshot | null>(null);
+const apiStatsKeyword = ref("");
 
 // Thread Dump Drawer
 const threadDrawerVisible = ref(false);
@@ -87,18 +91,29 @@ function getProgressColor(rate: number): string {
 async function loadData() {
   loading.value = true;
   try {
-    const [monRes, telRes] = await Promise.all([
+    const [monRes, telRes, apiStatsRes] = await Promise.all([
       fetchServerMonitor(),
-      fetchServerTelemetry().catch(() => null)
+      fetchServerTelemetry().catch(() => null),
+      fetchServerApiStats().catch(() => null)
     ]);
     monitorData.value = monRes;
     telemetryData.value = telRes;
+    apiStatsData.value = apiStatsRes;
   } catch (err: any) {
     ElMessage.error(err?.message || "获取服务监控指标失败");
   } finally {
     loading.value = false;
   }
 }
+
+const sortedApiEndpoints = computed(() => {
+  const list = apiStatsData.value?.endpoints ?? [];
+  const kw = apiStatsKeyword.value.trim().toLowerCase();
+  const filtered = kw
+    ? list.filter((e) => `${e.pathPattern} ${e.moduleName} ${e.controllerName} ${e.packageName}`.toLowerCase().includes(kw))
+    : list;
+  return [...filtered].sort((a, b) => b.totalCalls - a.totalCalls || b.plaintextCalls - a.plaintextCalls).slice(0, 50);
+});
 
 function handleAutoRefreshChange(val: number) {
   if (timerId) {
@@ -891,6 +906,45 @@ onUnmounted(() => {
                 </el-table-column>
                 <el-table-column prop="durationMs" label="耗时" width="90" align="right">
                   <template #default="{ row }"><span class="font-mono">{{ row.durationMs }} ms</span></template>
+                </el-table-column>
+              </el-table>
+            </div>
+
+            <div v-if="apiStatsData" class="inner-section-card mt-3">
+              <div class="inner-header">
+                <span class="inner-title">
+                  <el-icon color="#409eff"><DataLine /></el-icon>
+                  全量接口调用与传输加密实时统计（已扫描 {{ apiStatsData.summary.totalEndpoints }} 个接口 · 活跃 {{ apiStatsData.summary.activeEndpoints }} 个）
+                </span>
+                <el-input
+                  v-model="apiStatsKeyword"
+                  size="small"
+                  placeholder="过滤接口路径 / 模块 / 包名"
+                  clearable
+                  style="width: 240px;"
+                />
+              </div>
+
+              <el-table :data="sortedApiEndpoints" stripe border size="small" max-height="320px">
+                <el-table-column label="接口模板" min-width="240">
+                  <template #default="{ row }">
+                    <el-tag size="small" effect="plain" class="mr-2">{{ row.httpMethod }}</el-tag>
+                    <code class="font-mono">{{ row.pathPattern }}</code>
+                  </template>
+                </el-table-column>
+                <el-table-column label="模块 / 控制器" min-width="190">
+                  <template #default="{ row }">
+                    <span>{{ row.moduleName }} · {{ row.controllerName }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="totalCalls" label="总调用" width="85" align="right" sortable />
+                <el-table-column prop="encryptedCalls" label="密文" width="80" align="right" sortable />
+                <el-table-column prop="plaintextCalls" label="明文" width="80" align="right" sortable />
+                <el-table-column prop="rejectedCalls" label="拦截" width="80" align="right" sortable />
+                <el-table-column label="平均耗时" width="95" align="right">
+                  <template #default="{ row }">
+                    <span class="font-mono">{{ row.avgLatencyMs }} ms</span>
+                  </template>
                 </el-table-column>
               </el-table>
             </div>

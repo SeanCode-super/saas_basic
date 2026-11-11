@@ -16,7 +16,9 @@ import type {
   JvmInfoData,
   TransportSecurityOverview,
   TransportPolicyUpdatePayload,
-  TransportRoundtripResult
+  TransportKeyConfigurePayload,
+  TransportRoundtripResult,
+  ApiCatalogSnapshot
 } from "./types";
 
 export async function fetchSystemConfigs(): Promise<SystemConfigRow[]> {
@@ -150,6 +152,29 @@ export async function updateTransportSecurityPolicy(payload: TransportPolicyUpda
 
 export async function rotateTransportSecurityKey(): Promise<TransportSecurityOverview> {
   const response = await http.post<ApiResponse<TransportSecurityOverview>>("/system/security/transport/rotate-key");
+  return response.data.data;
+}
+
+export async function configureTransportSecurityKey(
+  payload: TransportKeyConfigurePayload
+): Promise<TransportSecurityOverview> {
+  const response = await http.post<ApiResponse<TransportSecurityOverview>>(
+    "/system/security/transport/configure-key",
+    payload
+  );
+  return response.data.data;
+}
+
+export async function activateTransportSecurityKey(keyId: string): Promise<TransportSecurityOverview> {
+  const response = await http.post<ApiResponse<TransportSecurityOverview>>(
+    "/system/security/transport/activate-key",
+    { keyId }
+  );
+  return response.data.data;
+}
+
+export async function fetchTransportApiCatalog(): Promise<ApiCatalogSnapshot> {
+  const response = await http.get<ApiResponse<ApiCatalogSnapshot>>("/system/security/transport/api-catalog");
   return response.data.data;
 }
 

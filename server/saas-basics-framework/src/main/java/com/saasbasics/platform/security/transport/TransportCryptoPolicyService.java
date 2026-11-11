@@ -1,6 +1,7 @@
 package com.saasbasics.platform.security.transport;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.saasbasics.platform.telemetry.PlatformApiCatalogService;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.http.HttpServletRequest;
@@ -14,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.SmartInitializingSingleton;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -36,6 +38,7 @@ public class TransportCryptoPolicyService implements SmartInitializingSingleton 
     private final ObjectProvider<StringRedisTemplate> redisTemplateProvider;
     private final ObjectProvider<ObjectMapper> objectMapperProvider;
     private final ObjectProvider<MeterRegistry> meterRegistryProvider;
+    private final ObjectProvider<PlatformApiCatalogService> apiCatalogProvider;
     private final RequestMappingHandlerMapping handlerMapping;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
@@ -78,12 +81,26 @@ public class TransportCryptoPolicyService implements SmartInitializingSingleton 
             ObjectProvider<ObjectMapper> objectMapperProvider,
             ObjectProvider<MeterRegistry> meterRegistryProvider,
             @Qualifier("requestMappingHandlerMapping") ObjectProvider<RequestMappingHandlerMapping> handlerMappingProvider) {
+        this(defaultProperties, repositoryProvider, redisTemplateProvider, objectMapperProvider,
+                meterRegistryProvider, handlerMappingProvider, null);
+    }
+
+    @Autowired
+    public TransportCryptoPolicyService(
+            TransportCryptoProperties defaultProperties,
+            ObjectProvider<TransportCryptoPolicyRepository> repositoryProvider,
+            ObjectProvider<StringRedisTemplate> redisTemplateProvider,
+            ObjectProvider<ObjectMapper> objectMapperProvider,
+            ObjectProvider<MeterRegistry> meterRegistryProvider,
+            @Qualifier("requestMappingHandlerMapping") ObjectProvider<RequestMappingHandlerMapping> handlerMappingProvider,
+            ObjectProvider<PlatformApiCatalogService> apiCatalogProvider) {
         this.defaultProperties = defaultProperties;
         this.repositoryProvider = repositoryProvider;
         this.redisTemplateProvider = redisTemplateProvider;
         this.objectMapperProvider = objectMapperProvider;
         this.meterRegistryProvider = meterRegistryProvider;
         this.handlerMapping = handlerMappingProvider.getIfAvailable();
+        this.apiCatalogProvider = apiCatalogProvider;
         this.currentPolicy = buildFromProperties(1L);
     }
 
@@ -117,6 +134,13 @@ public class TransportCryptoPolicyService implements SmartInitializingSingleton 
 
     public synchronized TransportCryptoPolicySnapshot updatePolicy(TransportCryptoPolicySnapshot updated) {
         long nextVersion = Math.max(this.currentPolicy.policyVersion() + 1L, System.currentTimeMillis());
+        int rotationHours = updated.keyRotationHours() > 0
+                ? Math.max(1, Math.min(720, updated.keyRotationHours()))
+                : Math.max(1, this.currentPolicy.keyRotationHours());
+        int graceKeys = updated.maxGraceKeys() > 0
+                ? Math.max(1, Math.min(10, updated.maxGraceKeys()))
+                : Math.max(1, this.currentPolicy.maxGraceKeys());
+
         TransportCryptoPolicySnapshot normalized = new TransportCryptoPolicySnapshot(
                 updated.mode() != null ? updated.mode() : TransportCryptoMode.OPTIONAL,
                 updated.scopeMode() != null ? updated.scopeMode() : TransportScopeMode.ALL_API,
@@ -126,6 +150,8 @@ public class TransportCryptoPolicyService implements SmartInitializingSingleton 
                 updated.encryptQuery(),
                 updated.replayProtection(),
                 Math.max(30, Math.min(3600, updated.timestampSkewSeconds())),
+                rotationHours,
+                graceKeys,
                 cleanPatterns(updated.includePaths(), List.of("/api/**")),
                 mergeMandatoryExcludes(updated.excludePaths()),
                 cleanPatterns(updated.sensitivePaths(), defaultProperties.getSensitivePaths()),
@@ -196,6 +222,10 @@ public class TransportCryptoPolicyService implements SmartInitializingSingleton 
     }
 
     public void recordOutcome(String outcome) {
+        recordOutcome(null, null, outcome);
+    }
+
+    public void recordOutcome(String method, String uri, String outcome) {
         totalRequests.increment();
         switch (outcome) {
             case "encrypted" -> encryptedRequests.increment();
@@ -212,6 +242,75 @@ public class TransportCryptoPolicyService implements SmartInitializingSingleton 
                     .register(registry)
                     .increment();
         }
+        PlatformApiCatalogService catalog = apiCatalogProvider != null ? apiCatalogProvider.getIfAvailable() : null;
+        if (catalog != null && uri != null) {
+            catalog.recordTransportOutcome(method, uri, outcome);
+        }
+    }
+
+    /**
+     * 结合全局策略、白名单与注解规则，评估某个模板接口当前最终应用的加密策略与命中原因。
+     */
+    public PlatformApiCatalogService.PolicyDecision evaluateDecisionForPattern(String antPattern) {
+        TransportCryptoPolicySnapshot policy = getCurrentPolicy();
+        String probeUri = (antPattern == null ? "" : antPattern.replace("*", "sample"));
+        if (!defaultProperties.isEnabled() || policy.mode() == TransportCryptoMode.OFF) {
+            return new PlatformApiCatalogService.PolicyDecision("BYPASS", "全局传输加密已关闭 (OFF)", false);
+        }
+        if (isAlwaysBypassPath(probeUri)) {
+            return new PlatformApiCatalogService.PolicyDecision("BYPASS", "系统强制豁免（策略协商/文件流/探针）", true);
+        }
+        if (matchesPatternRule(antPattern, probeUri, policy.excludePaths())) {
+            return new PlatformApiCatalogService.PolicyDecision("BYPASS", "命中明文豁免白名单", false);
+        }
+        for (AnnotationRule rule : annotationRules) {
+            if (matchesPatternRule(antPattern, probeUri, rule.patterns())) {
+                return switch (rule.rule()) {
+                    case PLAIN -> new PlatformApiCatalogService.PolicyDecision("BYPASS", "@TransportCrypto(PLAIN) 注解强制明文", false);
+                    case OPTIONAL -> new PlatformApiCatalogService.PolicyDecision("OPTIONAL", "@TransportCrypto(OPTIONAL) 注解兼容加密", false);
+                    case REQUIRED -> policy.mode() == TransportCryptoMode.REQUIRED
+                            ? new PlatformApiCatalogService.PolicyDecision("REQUIRED", "@TransportCrypto(REQUIRED) 与全局强制模式一致", false)
+                            : new PlatformApiCatalogService.PolicyDecision("OPTIONAL", "@TransportCrypto(REQUIRED)（兼容模式下支持密文协商）", false);
+                };
+            }
+        }
+        boolean inScope = switch (policy.scopeMode()) {
+            case ALL_API -> matchesPatternRule(antPattern, probeUri, policy.includePaths());
+            case SENSITIVE_ONLY -> matchesPatternRule(antPattern, probeUri, policy.sensitivePaths());
+            case CUSTOM -> matchesPatternRule(antPattern, probeUri, policy.includePaths());
+        };
+        if (!inScope) {
+            String reason = policy.scopeMode() == TransportScopeMode.SENSITIVE_ONLY
+                    ? "未列入高敏接口清单（当前明文旁路）"
+                    : "未命中包含路径范围（当前明文旁路）";
+            return new PlatformApiCatalogService.PolicyDecision("BYPASS", reason, false);
+        }
+        String scopeReason = switch (policy.scopeMode()) {
+            case ALL_API -> "全量业务接口范围覆盖";
+            case SENSITIVE_ONLY -> "命中高敏接口清单";
+            case CUSTOM -> "命中自定义包含路径规则";
+        };
+        return policy.mode() == TransportCryptoMode.REQUIRED
+                ? new PlatformApiCatalogService.PolicyDecision("REQUIRED", scopeReason + " · 强制密文", false)
+                : new PlatformApiCatalogService.PolicyDecision("OPTIONAL", scopeReason + " · 兼容协商", false);
+    }
+
+    private boolean matchesPatternRule(String antPattern, String probeUri, List<String> rules) {
+        if (rules == null || rules.isEmpty()) {
+            return false;
+        }
+        for (String rule : rules) {
+            if (rule == null || rule.isBlank()) {
+                continue;
+            }
+            String trimmed = rule.trim();
+            if (trimmed.equals(antPattern)
+                    || pathMatcher.match(trimmed, probeUri)
+                    || pathMatcher.match(trimmed, antPattern)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public TelemetryStats getTelemetryStats() {
@@ -276,6 +375,8 @@ public class TransportCryptoPolicyService implements SmartInitializingSingleton 
                 defaultProperties.isEncryptQuery(),
                 defaultProperties.isReplayProtection(),
                 defaultProperties.getTimestampSkewSeconds(),
+                Math.max(1, defaultProperties.getKeyRotationHours()),
+                Math.max(1, defaultProperties.getMaxGraceKeys()),
                 cleanPatterns(defaultProperties.getIncludePaths(), List.of("/api/**")),
                 mergeMandatoryExcludes(defaultProperties.getExcludePaths()),
                 cleanPatterns(defaultProperties.getSensitivePaths(), List.of("/api/auth/login")),

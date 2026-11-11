@@ -87,13 +87,13 @@ public class TransportCryptoFilter extends OncePerRequestFilter {
 
         if (!clientSentEncrypted) {
             if (action == TransportCryptoPolicyService.EndpointAction.REQUIRED) {
-                policyService.recordOutcome("rejected_plaintext");
+                policyService.recordOutcome(request.getMethod(), uri, "rejected_plaintext");
                 writeCryptoError(response, 428, "TRANSPORT_ENCRYPTION_REQUIRED",
                         "系统安全策略已强制开启接口传输加密，请刷新配置或使用受控客户端加密调用");
                 return;
             }
             if (action != TransportCryptoPolicyService.EndpointAction.BYPASS) {
-                policyService.recordOutcome("plaintext");
+                policyService.recordOutcome(request.getMethod(), uri, "plaintext");
             }
             filterChain.doFilter(request, response);
             return;
@@ -157,22 +157,22 @@ public class TransportCryptoFilter extends OncePerRequestFilter {
             wrappedRequest = new DecryptedHttpServletRequestWrapper(request, decryptedBody, decryptedQueryParams);
         } catch (TransportCryptoException ex) {
             if ("TRANSPORT_REPLAY_DETECTED".equals(ex.getCode()) || "TRANSPORT_TIMESTAMP_EXPIRED".equals(ex.getCode())) {
-                policyService.recordOutcome("rejected_replay");
+                policyService.recordOutcome(request.getMethod(), uri, "rejected_replay");
             } else {
-                policyService.recordOutcome("decrypt_error");
+                policyService.recordOutcome(request.getMethod(), uri, "decrypt_error");
             }
             writeCryptoError(response, ex.getHttpStatus(), ex.getCode(), ex.getMessage());
             return;
         } catch (Exception ex) {
             log.warn("[TransportCrypto] 请求解析或解密异常: uri={}, err={}", uri, ex.getMessage());
-            policyService.recordOutcome("decrypt_error");
+            policyService.recordOutcome(request.getMethod(), uri, "decrypt_error");
             writeCryptoError(response, 400, "TRANSPORT_DECRYPT_FAILED", "加密请求报文格式无效或解密失败");
             return;
         }
 
         ContentCachingResponseWrapper wrappedResponse = new ContentCachingResponseWrapper(response);
         try {
-            policyService.recordOutcome("encrypted");
+            policyService.recordOutcome(request.getMethod(), uri, "encrypted");
             filterChain.doFilter(wrappedRequest, wrappedResponse);
             writeEncryptedOrPlainResponse(request, wrappedResponse, session, policy);
         } finally {

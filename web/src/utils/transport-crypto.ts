@@ -198,6 +198,16 @@ function wipeBytes(...arrays: Uint8Array[]): void {
   }
 }
 
+export function generateX25519KeyPairHex(): { privateKeyHex: string; publicKeyBase64: string } {
+  const priv = getRandomBytes(32);
+  priv[0] &= 248;
+  priv[31] = (priv[31] & 127) | 64;
+  const pub = x25519.getPublicKey(priv);
+  const privateKeyHex = Array.from(priv, (b) => b.toString(16).padStart(2, "0")).join("");
+  priv.fill(0);
+  return { privateKeyHex, publicKeyBase64: bytesToBase64(pub) };
+}
+
 function randomNonce(): string {
   return bytesToBase64(getRandomBytes(16)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
@@ -222,8 +232,9 @@ export function antMatch(pattern: string, path: string): boolean {
   if (!trimmed) return false;
   let regex = antRegexCache.get(trimmed);
   if (!regex) {
+    const normalized = trimmed.replace(/\{[^/}]+\}/g, "*");
     // Convert Ant /**, *, ? patterns safely in a single pass
-    const expr = trimmed
+    const expr = normalized
       .replace(/[.+^${}()|[\]\\]/g, "\\$&")
       .replace(/\/\*\*|\*\*|\*|\?/g, (token) => {
         if (token === "/**") return "(?:/.*)?";

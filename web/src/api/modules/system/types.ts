@@ -151,13 +151,30 @@ export interface JvmInfoData {
 
 export type TransportCryptoMode = "OFF" | "OPTIONAL" | "REQUIRED";
 export type TransportScopeMode = "ALL_API" | "SENSITIVE_ONLY" | "CUSTOM";
+export type TransportKeySource = "AUTO_GENERATED" | "CUSTOM_IMPORTED";
+
+export interface RetainedKeySummary {
+  keyId: string;
+  keySource: TransportKeySource;
+  publicKey: string;
+  fingerprintSha256: string;
+  issuedAtEpochMs: number;
+  active: boolean;
+  remark?: string;
+}
 
 export interface TransportKeySummary {
   activeKid: string;
+  keySource: TransportKeySource;
   publicKey: string;
   fingerprintSha256: string;
   issuedAtEpochMs: number;
   retainedKeyCount: number;
+  keyRotationHours: number;
+  maxGraceKeys: number;
+  vaultUsingDefaultKey: boolean;
+  vaultActiveKeyVersion: string;
+  retainedKeys: RetainedKeySummary[];
 }
 
 export interface TransportTelemetrySummary {
@@ -178,6 +195,8 @@ export interface TransportSecurityOverview {
   encryptQuery: boolean;
   replayProtection: boolean;
   timestampSkewSeconds: number;
+  keyRotationHours: number;
+  maxGraceKeys: number;
   includePaths: string[];
   excludePaths: string[];
   sensitivePaths: string[];
@@ -196,10 +215,108 @@ export interface TransportPolicyUpdatePayload {
   encryptQuery: boolean;
   replayProtection: boolean;
   timestampSkewSeconds: number;
+  keyRotationHours?: number;
+  maxGraceKeys?: number;
   includePaths: string[];
   excludePaths: string[];
   sensitivePaths: string[];
   remark?: string;
+}
+
+export interface TransportKeyConfigurePayload {
+  mode: "CUSTOM" | "GENERATE";
+  keyId?: string;
+  privateKeyInput?: string;
+  keyRotationHours?: number;
+  maxGraceKeys?: number;
+  remark?: string;
+}
+
+export interface ApiPackageTreeNode {
+  id: string;
+  nodeType: "PROJECT" | "PACKAGE" | "CONTROLLER";
+  label: string;
+  fullName: string;
+  level: number;
+  endpointCount: number;
+  totalCalls: number;
+  encryptedCalls: number;
+  plaintextCalls: number;
+  rejectedCalls: number;
+  suggestedAntPatterns: string[];
+  children: ApiPackageTreeNode[];
+}
+
+export interface ApiPathGroupItem {
+  pattern: string;
+  label: string;
+  depth: number;
+  endpointCount: number;
+  totalCalls: number;
+  encryptedCalls: number;
+  plaintextCalls: number;
+  rejectedCalls: number;
+}
+
+export interface ApiModuleStatItem {
+  moduleCode: string;
+  moduleName: string;
+  endpointCount: number;
+  totalCalls: number;
+  encryptedCalls: number;
+  plaintextCalls: number;
+  rejectedCalls: number;
+  errorCalls: number;
+  suggestedAntPatterns: string[];
+}
+
+export interface ApiEndpointStatView {
+  endpointKey: string;
+  projectCode: string;
+  projectName: string;
+  packageName: string;
+  packageLevels: string[];
+  moduleCode: string;
+  moduleName: string;
+  controllerName: string;
+  handlerMethod: string;
+  httpMethod: string;
+  pathPattern: string;
+  antPattern: string;
+  urlPrefix2: string;
+  urlPrefix3: string;
+  effectiveAction: "REQUIRED" | "OPTIONAL" | "BYPASS";
+  matchedReason: string;
+  alwaysBypass: boolean;
+  totalCalls: number;
+  encryptedCalls: number;
+  plaintextCalls: number;
+  rejectedCalls: number;
+  errorCalls: number;
+  avgLatencyMs: number;
+  lastCalledAtEpochMs: number;
+}
+
+export interface ApiCatalogSummary {
+  projectCode: string;
+  projectName: string;
+  totalEndpoints: number;
+  activeEndpoints: number;
+  totalModules: number;
+  totalPackages: number;
+  totalCalls: number;
+  encryptedCalls: number;
+  plaintextCalls: number;
+  rejectedCalls: number;
+  errorCalls: number;
+}
+
+export interface ApiCatalogSnapshot {
+  summary: ApiCatalogSummary;
+  packageTree: ApiPackageTreeNode[];
+  pathGroups: ApiPathGroupItem[];
+  modules: ApiModuleStatItem[];
+  endpoints: ApiEndpointStatView[];
 }
 
 export interface TransportRoundtripResult {

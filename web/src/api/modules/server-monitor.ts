@@ -1,4 +1,5 @@
 import { http } from "@/api/http";
+import type { ApiCatalogSnapshot } from "@/api/modules/system/types";
 
 export interface CpuInfo {
   cpuNum: number;
@@ -198,5 +199,10 @@ export interface TelemetrySnapshotData {
 
 export async function fetchServerTelemetry(): Promise<TelemetrySnapshotData | null> {
   const res = await http.get<{ data: TelemetrySnapshotData | null }>("/infra/server-monitor/telemetry");
+  return res.data.data;
+}
+
+export async function fetchServerApiStats(): Promise<ApiCatalogSnapshot | null> {
+  const res = await http.get<{ data: ApiCatalogSnapshot | null }>("/infra/server-monitor/api-stats");
   return res.data.data;
 }

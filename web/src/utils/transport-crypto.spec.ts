@@ -7,6 +7,7 @@ import {
   antMatch,
   base64ToBytes,
   bytesToBase64,
+  generateX25519KeyPairHex,
   normalizeApiPathname,
   prepareEncryptedTransmission,
   shouldEncryptRequest,
@@ -50,6 +51,12 @@ describe("transport-crypto", () => {
     expect(antMatch("/api/system/**", "/api/auth/login")).toBe(false);
     expect(antMatch("/api/*/configs", "/api/system/configs")).toBe(true);
     expect(antMatch("/api/*/configs", "/api/system/a/configs")).toBe(false);
+    expect(antMatch("/api/iam/users/{id}/roles", "/api/iam/users/42/roles")).toBe(true);
+    expect(antMatch("/api/iam/users/{id}/roles", "/api/iam/users/42/x/roles")).toBe(false);
+
+    const generated = generateX25519KeyPairHex();
+    expect(generated.privateKeyHex).toMatch(/^[0-9a-f]{64}$/);
+    expect(base64ToBytes(generated.publicKeyBase64)).toHaveLength(32);
   });
 
   it("evaluates controllable encryption policy across modes, scopes and overrides", () => {

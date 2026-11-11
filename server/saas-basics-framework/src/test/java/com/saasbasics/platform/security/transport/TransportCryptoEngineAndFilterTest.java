@@ -231,4 +231,61 @@ class TransportCryptoEngineAndFilterTest {
                 .isInstanceOf(TransportCryptoException.class)
                 .hasMessageContaining("轮换或过期");
     }
+
+    @Test
+    void configuresCustomX25519PrivateKeyInHexAndPemAndRestoresRetainedKey() throws Exception {
+        TestFixture f = newFixture();
+        TransportCryptoKeyRing.ServerKeyEntry initialKey = f.keyRing().getActiveKey();
+
+        // 1. 32-byte raw Hex X25519 scalar
+        byte[] rawSeed = new byte[32];
+        RNG.nextBytes(rawSeed);
+        rawSeed[0] |= 1; // ensure non-zero
+        String hexSeed = java.util.HexFormat.of().formatHex(rawSeed);
+
+        TransportCryptoKeyRing.ServerKeyEntry hexConfigured = f.keyRing().configureCustomKeyPair(
+                "k_custom_hex_2026",
+                hexSeed,
+                3,
+                "custom-hex-import"
+        );
+        assertThat(hexConfigured.keyId()).isEqualTo("k_custom_hex_2026");
+        assertThat(hexConfigured.keySource()).isEqualTo(TransportCryptoKeyRing.SOURCE_CUSTOM);
+        assertThat(hexConfigured.publicKeyRaw32()).hasSize(32);
+
+        ClientSession csHex = clientNegotiate(hexConfigured, "custom-hex-nonce-001");
+        TransportCryptoService.DerivedKeySession hexSession = f.cryptoService().establishSession(
+                csHex.kid(), csHex.epkB64(), csHex.ts(), csHex.nonce(), true, 300);
+        assertThat(hexSession.requestKey()).isEqualTo(csHex.reqKey());
+        assertThat(hexSession.responseKey()).isEqualTo(csHex.respKey());
+
+        // 2. PKCS#8 PEM format from freshly generated X25519 key pair
+        KeyPairGenerator kpg = KeyPairGenerator.getInstance("X25519");
+        KeyPair kp = kpg.generateKeyPair();
+        byte[] expectedPub32 = Arrays.copyOfRange(kp.getPublic().getEncoded(), kp.getPublic().getEncoded().length - 32, kp.getPublic().getEncoded().length);
+        String pem = "-----BEGIN PRIVATE KEY-----\n"
+                + Base64.getMimeEncoder(64, "\n".getBytes(StandardCharsets.UTF_8)).encodeToString(kp.getPrivate().getEncoded())
+                + "\n-----END PRIVATE KEY-----";
+
+        TransportCryptoKeyRing.ServerKeyEntry pemConfigured = f.keyRing().configureCustomKeyPair(
+                "k_custom_pem_2026",
+                pem,
+                3,
+                "custom-pem-import"
+        );
+        assertThat(pemConfigured.keyId()).isEqualTo("k_custom_pem_2026");
+        assertThat(pemConfigured.publicKeyBase64()).isEqualTo(Base64.getEncoder().encodeToString(expectedPub32));
+
+        // 3. Re-activate earlier retained key cleanly
+        TransportCryptoKeyRing.ServerKeyEntry switchedBack = f.keyRing().activateRetainedKey(initialKey.keyId(), 3);
+        assertThat(f.keyRing().getActiveKey().keyId()).isEqualTo(switchedBack.keyId());
+        assertThat(f.keyRing().listRetainedKeys()).anyMatch(k -> k.keyId().equals(initialKey.keyId()) && k.active());
+
+        // 4. Reject all-zero or malformed private key
+        assertThatThrownBy(() -> f.keyRing().configureCustomKeyPair("k_bad", "00".repeat(32), 3, "bad"))
+                .isInstanceOf(TransportCryptoException.class)
+                .hasMessageContaining("全零");
+        assertThatThrownBy(() -> f.keyRing().configureCustomKeyPair("k_bad_len", "not-valid-key", 3, "bad"))
+                .isInstanceOf(TransportCryptoException.class);
+    }
 }
