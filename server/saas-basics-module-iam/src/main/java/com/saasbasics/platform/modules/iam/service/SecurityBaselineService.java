@@ -55,6 +55,8 @@ public class SecurityBaselineService {
         Long tenantId = currentTenantId();
 
         PasswordPolicyEntity pwd = pwdMapper.selectActivePolicy(tenantId);
+        LoginPolicyEntity existingLogin = loginMapper.selectActivePolicy(tenantId);
+        SecurityBaselineResponse beforeSnapshot = toResponse(pwd, existingLogin);
         // 若命中系统默认行（tenant_id = 0）而当前在具体租户空间下修改，也支持更新当前租户专属行或活跃行
         boolean insertPwd = (pwd == null || !tenantId.equals(pwd.getTenantId()));
         PasswordPolicyEntity targetPwd = insertPwd ? new PasswordPolicyEntity() : pwd;
@@ -114,19 +116,33 @@ public class SecurityBaselineService {
             loginMapper.updateById(targetLogin);
         }
 
+        SecurityBaselineResponse afterSnapshot = toResponse(targetPwd, targetLogin);
         AuditRecorder audit = auditRecorderProvider.getIfAvailable();
         if (audit != null) {
-            audit.record(
-                    "iam",
-                    "security_baseline",
-                    String.valueOf(tenantId),
-                    "UPDATE_BASELINE",
-                    "minLength=" + minLen + ",forceMfa=" + request.forceMfa() + ",sessionTimeout=" + request.sessionTimeoutMinutes(),
-                    "ENABLED",
-                    true
-            );
+            try {
+                com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
+                audit.recordDiff(
+                        "iam",
+                        "security_baseline",
+                        String.valueOf(tenantId),
+                        "UPDATE_BASELINE",
+                        om.writeValueAsString(beforeSnapshot),
+                        om.writeValueAsString(afterSnapshot),
+                        true
+                );
+            } catch (Exception ignored) {
+                audit.record(
+                        "iam",
+                        "security_baseline",
+                        String.valueOf(tenantId),
+                        "UPDATE_BASELINE",
+                        "minLength=" + minLen + ",forceMfa=" + request.forceMfa(),
+                        "ENABLED",
+                        true
+                );
+            }
         }
-        return toResponse(targetPwd, targetLogin);
+        return afterSnapshot;
     }
 
     private SecurityBaselineResponse toResponse(PasswordPolicyEntity pwd, LoginPolicyEntity login) {

@@ -30,6 +30,26 @@ export interface OperationLog {
   occurredAt: string;
 }
 
+export interface FieldDiffItem {
+  fieldPath: string;
+  beforeValue?: string | null;
+  afterValue?: string | null;
+  changeType: "ADDED" | "REMOVED" | "MODIFIED";
+}
+
+export interface OperationLogDiffResponse {
+  id: number;
+  bizModule: string;
+  bizType: string;
+  bizId: string;
+  operationType: string;
+  operatorName: string;
+  occurredAt: string;
+  beforeJson?: string | null;
+  afterJson?: string | null;
+  changedFields: FieldDiffItem[];
+}
+
 export interface AuditQueryParam {
   username?: string;
   success?: boolean;

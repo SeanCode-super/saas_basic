@@ -9,4 +9,14 @@ public interface AuditRecorder {
                 String requestBody,
                 String responseBody,
                 boolean success);
+
+    default void recordDiff(String bizModule,
+                            String bizType,
+                            String bizId,
+                            String operationType,
+                            String beforeJson,
+                            String afterJson,
+                            boolean success) {
+        record(bizModule, bizType, bizId, operationType, beforeJson, afterJson, success);
+    }
 }

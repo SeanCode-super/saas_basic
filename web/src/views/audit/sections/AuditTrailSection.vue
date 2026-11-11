@@ -10,8 +10,8 @@ import {
   User,
   View
 } from "@element-plus/icons-vue";
-import { fetchLoginLogs, fetchOperationLogs } from "@/api/modules/audit";
-import type { LoginLog, OperationLog } from "@/api/modules/audit";
+import { fetchLoginLogs, fetchOperationLogDiff, fetchOperationLogs } from "@/api/modules/audit";
+import type { LoginLog, OperationLog, OperationLogDiffResponse } from "@/api/modules/audit";
 
 const props = defineProps<{
   auditPolicy: {
@@ -44,6 +44,8 @@ const loginFilter = reactive({
 // Detail Drawer
 const detailDrawerVisible = ref(false);
 const activeLogDetail = ref<Record<string, any> | null>(null);
+const activeLogDiff = ref<OperationLogDiffResponse | null>(null);
+const diffLoading = ref(false);
 
 async function loadOperationLogs() {
   loadingOperations.value = true;
@@ -82,9 +84,20 @@ function handleTabChange(tab: any) {
   }
 }
 
-function openDetail(row: Record<string, any>) {
+async function openDetail(row: Record<string, any>) {
   activeLogDetail.value = row;
+  activeLogDiff.value = null;
   detailDrawerVisible.value = true;
+  if (row.bizModule && row.id) {
+    diffLoading.value = true;
+    try {
+      activeLogDiff.value = await fetchOperationLogDiff(Number(row.id));
+    } catch {
+      activeLogDiff.value = null;
+    } finally {
+      diffLoading.value = false;
+    }
+  }
 }
 
 function exportCsv(type: "operations" | "logins") {
@@ -321,6 +334,32 @@ onMounted(() => {
           </el-descriptions-item>
           <el-descriptions-item v-if="activeLogDetail.failReason" label="失败原因">{{ activeLogDetail.failReason }}</el-descriptions-item>
         </el-descriptions>
+        <div v-if="activeLogDetail.bizModule" v-loading="diffLoading" style="margin-top: 16px;">
+          <h4 style="margin-bottom: 8px; font-size: 14px; color: #1e293b;">字段级变更对照 (Before / After Diff)</h4>
+          <el-table
+            v-if="activeLogDiff && activeLogDiff.changedFields?.length"
+            :data="activeLogDiff.changedFields"
+            border
+            size="small"
+          >
+            <el-table-column prop="fieldPath" label="字段路径" min-width="130">
+              <template #default="{ row }"><code class="mono-text">{{ row.fieldPath }}</code></template>
+            </el-table-column>
+            <el-table-column prop="changeType" label="类型" width="90" align="center">
+              <template #default="{ row }">
+                <el-tag
+                  size="small"
+                  :type="row.changeType === 'ADDED' ? 'success' : row.changeType === 'REMOVED' ? 'danger' : 'warning'"
+                >
+                  {{ row.changeType }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="beforeValue" label="变更前 (Before)" min-width="110" show-overflow-tooltip />
+            <el-table-column prop="afterValue" label="变更后 (After)" min-width="110" show-overflow-tooltip />
+          </el-table>
+          <el-empty v-else description="该记录未包含结构化前后对比字段" :image-size="48" />
+        </div>
         <div class="json-dump">
           <h4>原始事件载荷 (Event Payload)</h4>
           <pre>{{ JSON.stringify(activeLogDetail, null, 2) }}</pre>

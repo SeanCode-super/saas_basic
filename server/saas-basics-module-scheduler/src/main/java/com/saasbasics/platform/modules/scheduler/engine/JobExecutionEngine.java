@@ -3,21 +3,27 @@ package com.saasbasics.platform.modules.scheduler.engine;
 import com.saasbasics.platform.common.tenant.TenantIgnore;
 import com.saasbasics.platform.modules.scheduler.entity.JobEntity;
 import com.saasbasics.platform.modules.scheduler.entity.JobLogEntity;
+import com.saasbasics.platform.modules.scheduler.entity.JobTriggerEntity;
 import com.saasbasics.platform.modules.scheduler.handler.JobHandler;
 import com.saasbasics.platform.modules.scheduler.mapper.JobLogMapper;
 import com.saasbasics.platform.modules.scheduler.mapper.JobMapper;
+import com.saasbasics.platform.modules.scheduler.mapper.JobTriggerMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.event.EventListener;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.scheduling.support.CronTrigger;
 import org.springframework.stereotype.Component;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,9 +40,16 @@ import java.util.concurrent.ScheduledFuture;
 public class JobExecutionEngine {
 
     private static final Logger log = LoggerFactory.getLogger(JobExecutionEngine.class);
+    private static final String SCHED_LOCK_PREFIX = "saas:sched:job:lock:";
+    private static final DefaultRedisScript<Long> UNLOCK_SCRIPT = new DefaultRedisScript<>(
+            "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
+            Long.class
+    );
 
     private final ObjectProvider<JobMapper> jobMapperProvider;
     private final ObjectProvider<JobLogMapper> jobLogMapperProvider;
+    private final ObjectProvider<JobTriggerMapper> triggerMapperProvider;
+    private final ObjectProvider<StringRedisTemplate> redisTemplateProvider;
     private final ApplicationContext applicationContext;
     private final Map<String, JobHandler> handlerRegistry = new ConcurrentHashMap<>();
     private final Map<Long, ScheduledFuture<?>> activeSchedules = new ConcurrentHashMap<>();
@@ -48,12 +61,28 @@ public class JobExecutionEngine {
             ApplicationContext applicationContext,
             List<JobHandler> handlers
     ) {
+        this(jobMapperProvider, jobLogMapperProvider, null, null, applicationContext, handlers);
+    }
+
+    @Autowired
+    public JobExecutionEngine(
+            ObjectProvider<JobMapper> jobMapperProvider,
+            ObjectProvider<JobLogMapper> jobLogMapperProvider,
+            ObjectProvider<JobTriggerMapper> triggerMapperProvider,
+            ObjectProvider<StringRedisTemplate> redisTemplateProvider,
+            ApplicationContext applicationContext,
+            List<JobHandler> handlers
+    ) {
         this.jobMapperProvider = jobMapperProvider;
         this.jobLogMapperProvider = jobLogMapperProvider;
+        this.triggerMapperProvider = triggerMapperProvider;
+        this.redisTemplateProvider = redisTemplateProvider;
         this.applicationContext = applicationContext;
 
-        for (JobHandler handler : handlers) {
-            handlerRegistry.put(handler.getHandlerName(), handler);
+        if (handlers != null) {
+            for (JobHandler handler : handlers) {
+                handlerRegistry.put(handler.getHandlerName(), handler);
+            }
         }
 
         this.taskScheduler = new ThreadPoolTaskScheduler();
@@ -79,10 +108,20 @@ public class JobExecutionEngine {
             );
 
             log.info("[JobExecutionEngine] 启动扫描，待加载活动定时任务数: {}", enabledJobs.size());
+            JobTriggerMapper triggerMapper = triggerMapperProvider != null ? triggerMapperProvider.getIfAvailable() : null;
             for (JobEntity job : enabledJobs) {
-                // 默认 5 分钟轮询基线
-                String cron = "0 */5 * * * ?";
-                scheduleJob(job, cron);
+                JobTriggerEntity trigger = triggerMapper != null ? triggerMapper.selectPrimaryTriggerByJobId(job.getId()) : null;
+                if (trigger != null && trigger.getStatus() != null && !"ENABLED".equalsIgnoreCase(trigger.getStatus())) {
+                    log.info("[JobExecutionEngine] 跳过触发器已禁用的任务: jobId={}, code={}", job.getId(), job.getJobCode());
+                    continue;
+                }
+                if (trigger != null && trigger.getCronExpr() != null && !trigger.getCronExpr().isBlank()) {
+                    scheduleJob(job, trigger.getCronExpr().trim());
+                } else if (trigger != null && trigger.getFixedIntervalSeconds() != null && trigger.getFixedIntervalSeconds() > 0) {
+                    scheduleJobFixedInterval(job, trigger.getFixedIntervalSeconds());
+                } else {
+                    scheduleJob(job, "0 */5 * * * ?");
+                }
             }
         } catch (Exception ex) {
             log.warn("[JobExecutionEngine] 初始化定时任务调度异常: {}", ex.getMessage());
@@ -106,15 +145,55 @@ public class JobExecutionEngine {
 
         try {
             CronTrigger trigger = new CronTrigger(cronExpr);
-            ScheduledFuture<?> future = taskScheduler.schedule(() -> {
-                String executionNo = "AUTO-" + UUID.randomUUID().toString().replace("-", "").substring(0, 16).toUpperCase();
-                runJobInternal(job, "SCHEDULED", executionNo, 0, "Cron 周期性自动触发");
-            }, trigger);
+            ScheduledFuture<?> future = taskScheduler.schedule(() -> executeScheduledWithDistributedLock(job, cronExpr), trigger);
 
             activeSchedules.put(job.getId(), future);
-            log.info("[JobExecutionEngine] 成功注册动态定时任务: jobId={}, code={}, cron={}", job.getId(), job.getJobCode(), cronExpr);
+            log.info("[JobExecutionEngine] 成功注册 Cron 定时任务: jobId={}, code={}, cron={}", job.getId(), job.getJobCode(), cronExpr);
         } catch (Exception ex) {
             log.error("[JobExecutionEngine] 注册任务调度失败: jobId={}, error={}", job.getId(), ex.getMessage());
+        }
+    }
+
+    public synchronized void scheduleJobFixedInterval(JobEntity job, int intervalSeconds) {
+        if (job == null || job.getId() == null || intervalSeconds <= 0) {
+            return;
+        }
+        cancelScheduledJob(job.getId());
+        ScheduledFuture<?> future = taskScheduler.scheduleAtFixedRate(
+                () -> executeScheduledWithDistributedLock(job, "fixed=" + intervalSeconds + "s"),
+                Duration.ofSeconds(intervalSeconds)
+        );
+        activeSchedules.put(job.getId(), future);
+        log.info("[JobExecutionEngine] 成功注册固定频率任务: jobId={}, code={}, interval={}s", job.getId(), job.getJobCode(), intervalSeconds);
+    }
+
+    public JobLogEntity executeScheduledWithDistributedLock(JobEntity job, String triggerDesc) {
+        String lockKey = SCHED_LOCK_PREFIX + job.getId();
+        String lockToken = UUID.randomUUID().toString();
+        StringRedisTemplate redis = redisTemplateProvider != null ? redisTemplateProvider.getIfAvailable() : null;
+        boolean acquiredRedis = false;
+        if (redis != null) {
+            try {
+                Boolean locked = redis.opsForValue().setIfAbsent(lockKey, lockToken, Duration.ofSeconds(120));
+                if (!Boolean.TRUE.equals(locked)) {
+                    log.debug("[JobExecutionEngine] 任务已被集群其他实例抢占执行，本节点跳过: jobId={}, code={}", job.getId(), job.getJobCode());
+                    return null;
+                }
+                acquiredRedis = true;
+            } catch (Exception ex) {
+                log.warn("[JobExecutionEngine] Redis 分布式锁不可用，降级本地执行: {}", ex.getMessage());
+            }
+        }
+        try {
+            String executionNo = "AUTO-" + UUID.randomUUID().toString().replace("-", "").substring(0, 16).toUpperCase();
+            return runJobInternal(job, "SCHEDULED", executionNo, 0, "分布式调度触发 (" + triggerDesc + ")");
+        } finally {
+            if (acquiredRedis && redis != null) {
+                try {
+                    redis.execute(UNLOCK_SCRIPT, List.of(lockKey), lockToken);
+                } catch (Exception ignored) {
+                }
+            }
         }
     }
 
