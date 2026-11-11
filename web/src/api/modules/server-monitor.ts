@@ -206,3 +206,94 @@ export async function fetchServerApiStats(): Promise<ApiCatalogSnapshot | null> 
   const res = await http.get<{ data: ApiCatalogSnapshot | null }>("/infra/server-monitor/api-stats");
   return res.data.data;
 }
+
+export interface AlertRuleItem {
+  id: number;
+  ruleCode: string;
+  ruleName: string;
+  metricType: string;
+  comparisonOp: string;
+  thresholdValue: number;
+  severity: string;
+  cooldownSeconds: number;
+  notifyChannels: string;
+  webhookUrl?: string | null;
+  enabled: boolean;
+  lastTriggeredAt?: string | null;
+}
+
+export interface AlertRuleSavePayload {
+  ruleCode: string;
+  ruleName: string;
+  metricType: string;
+  comparisonOp: string;
+  thresholdValue: number;
+  severity: string;
+  cooldownSeconds: number;
+  notifyChannels: string;
+  webhookUrl?: string;
+  enabled: boolean;
+}
+
+export interface AlertEventItem {
+  id: number;
+  ruleId: number;
+  ruleCode: string;
+  ruleName: string;
+  severity: string;
+  metricType: string;
+  metricValue: number;
+  thresholdValue: number;
+  targetEndpoint?: string | null;
+  message: string;
+  dispatchStatus: string;
+  dispatchDetail?: string | null;
+  acknowledged: boolean;
+  acknowledgedBy?: string | null;
+  acknowledgedAt?: string | null;
+  triggeredAt: string;
+}
+
+export interface AlertEvaluationSummary {
+  evaluatedRules: number;
+  triggeredEvents: number;
+  newEvents: AlertEventItem[];
+}
+
+export async function fetchAlertRules(): Promise<AlertRuleItem[]> {
+  const res = await http.get<{ data: AlertRuleItem[] }>("/infra/server-monitor/alerts/rules");
+  return res.data.data;
+}
+
+export async function createAlertRule(payload: AlertRuleSavePayload): Promise<AlertRuleItem> {
+  const res = await http.post<{ data: AlertRuleItem }>("/infra/server-monitor/alerts/rules", payload);
+  return res.data.data;
+}
+
+export async function updateAlertRule(id: number, payload: AlertRuleSavePayload): Promise<AlertRuleItem> {
+  const res = await http.put<{ data: AlertRuleItem }>(`/infra/server-monitor/alerts/rules/${id}`, payload);
+  return res.data.data;
+}
+
+export async function deleteAlertRule(id: number): Promise<void> {
+  await http.delete(`/infra/server-monitor/alerts/rules/${id}`);
+}
+
+export async function evaluateAlertRules(ignoreCooldown: boolean = false): Promise<AlertEvaluationSummary> {
+  const res = await http.post<{ data: AlertEvaluationSummary }>("/infra/server-monitor/alerts/evaluate", null, {
+    params: { ignoreCooldown }
+  });
+  return res.data.data;
+}
+
+export async function fetchAlertEvents(limit: number = 50): Promise<AlertEventItem[]> {
+  const res = await http.get<{ data: AlertEventItem[] }>("/infra/server-monitor/alerts/events", {
+    params: { limit }
+  });
+  return res.data.data;
+}
+
+export async function acknowledgeAlertEvent(id: number): Promise<AlertEventItem> {
+  const res = await http.post<{ data: AlertEventItem }>(`/infra/server-monitor/alerts/events/${id}/ack`);
+  return res.data.data;
+}

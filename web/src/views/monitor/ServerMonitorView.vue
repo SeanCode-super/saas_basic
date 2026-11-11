@@ -1,7 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from "vue";
+import { ref, reactive, onMounted, onUnmounted, computed } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
+  Bell,
+  Check,
+  Delete,
+  Plus,
   Monitor,
   Refresh,
   Timer,
@@ -26,11 +30,21 @@ import {
   Lightning
 } from "@element-plus/icons-vue";
 import {
+  acknowledgeAlertEvent,
+  createAlertRule,
+  deleteAlertRule,
+  evaluateAlertRules,
+  fetchAlertEvents,
+  fetchAlertRules,
   fetchServerApiStats,
   fetchServerMonitor,
   fetchServerTelemetry,
   fetchThreadDump,
   testAlarmWebhook,
+  updateAlertRule,
+  type AlertEventItem,
+  type AlertRuleItem,
+  type AlertRuleSavePayload,
   type ServerMonitorData,
   type TelemetrySnapshotData,
   type ThreadDumpItem
@@ -41,13 +55,30 @@ const loading = ref(false);
 const autoRefreshSeconds = ref(5);
 let timerId: any = null;
 
-// Tab switcher: 5 structured clean tabs
-const activeTab = ref<"apps" | "host" | "jvm" | "dbpool" | "telemetry">("apps");
+// Tab switcher: 6 structured clean tabs
+const activeTab = ref<"apps" | "host" | "jvm" | "dbpool" | "telemetry" | "alerts">("apps");
 
 const monitorData = ref<ServerMonitorData | null>(null);
 const telemetryData = ref<TelemetrySnapshotData | null>(null);
 const apiStatsData = ref<ApiCatalogSnapshot | null>(null);
 const apiStatsKeyword = ref("");
+const alertRules = ref<AlertRuleItem[]>([]);
+const alertEvents = ref<AlertEventItem[]>([]);
+const evaluatingAlerts = ref(false);
+const ruleModalVisible = ref(false);
+const editingRuleId = ref<number | null>(null);
+const ruleForm = reactive<AlertRuleSavePayload>({
+  ruleCode: "",
+  ruleName: "",
+  metricType: "API_P99_MS",
+  comparisonOp: "GTE",
+  thresholdValue: 500,
+  severity: "WARNING",
+  cooldownSeconds: 300,
+  notifyChannels: "IN_APP,WEBHOOK",
+  webhookUrl: "",
+  enabled: true
+});
 
 // Thread Dump Drawer
 const threadDrawerVisible = ref(false);
@@ -91,19 +122,117 @@ function getProgressColor(rate: number): string {
 async function loadData() {
   loading.value = true;
   try {
-    const [monRes, telRes, apiStatsRes] = await Promise.all([
+    const [monRes, telRes, apiStatsRes, rulesRes, eventsRes] = await Promise.all([
       fetchServerMonitor(),
       fetchServerTelemetry().catch(() => null),
-      fetchServerApiStats().catch(() => null)
+      fetchServerApiStats().catch(() => null),
+      fetchAlertRules().catch(() => []),
+      fetchAlertEvents(50).catch(() => [])
     ]);
     monitorData.value = monRes;
     telemetryData.value = telRes;
     apiStatsData.value = apiStatsRes;
+    alertRules.value = rulesRes;
+    alertEvents.value = eventsRes;
   } catch (err: any) {
     ElMessage.error(err?.message || "获取服务监控指标失败");
   } finally {
     loading.value = false;
   }
+}
+
+function openRuleModal(rule?: AlertRuleItem) {
+  if (rule) {
+    editingRuleId.value = rule.id;
+    ruleForm.ruleCode = rule.ruleCode;
+    ruleForm.ruleName = rule.ruleName;
+    ruleForm.metricType = rule.metricType;
+    ruleForm.comparisonOp = rule.comparisonOp;
+    ruleForm.thresholdValue = rule.thresholdValue;
+    ruleForm.severity = rule.severity;
+    ruleForm.cooldownSeconds = rule.cooldownSeconds;
+    ruleForm.notifyChannels = rule.notifyChannels;
+    ruleForm.webhookUrl = rule.webhookUrl || "";
+    ruleForm.enabled = rule.enabled;
+  } else {
+    editingRuleId.value = null;
+    ruleForm.ruleCode = `RULE_${Date.now().toString().slice(-6)}`;
+    ruleForm.ruleName = "";
+    ruleForm.metricType = "API_P99_MS";
+    ruleForm.comparisonOp = "GTE";
+    ruleForm.thresholdValue = 500;
+    ruleForm.severity = "WARNING";
+    ruleForm.cooldownSeconds = 300;
+    ruleForm.notifyChannels = "IN_APP,WEBHOOK";
+    ruleForm.webhookUrl = "";
+    ruleForm.enabled = true;
+  }
+  ruleModalVisible.value = true;
+}
+
+async function handleSaveAlertRule() {
+  if (!ruleForm.ruleCode.trim() || !ruleForm.ruleName.trim()) {
+    ElMessage.warning("请填写规则编码和规则名称");
+    return;
+  }
+  try {
+    if (editingRuleId.value) {
+      await updateAlertRule(editingRuleId.value, ruleForm);
+      ElMessage.success("告警规则已更新");
+    } else {
+      await createAlertRule(ruleForm);
+      ElMessage.success("告警规则已创建");
+    }
+    ruleModalVisible.value = false;
+    await loadData();
+  } catch (err: any) {
+    ElMessage.error(err?.response?.data?.message || err?.message || "保存告警规则失败");
+  }
+}
+
+async function handleToggleAlertRule(row: AlertRuleItem) {
+  try {
+    await updateAlertRule(row.id, {
+      ruleCode: row.ruleCode,
+      ruleName: row.ruleName,
+      metricType: row.metricType,
+      comparisonOp: row.comparisonOp,
+      thresholdValue: row.thresholdValue,
+      severity: row.severity,
+      cooldownSeconds: row.cooldownSeconds,
+      notifyChannels: row.notifyChannels,
+      webhookUrl: row.webhookUrl || undefined,
+      enabled: !row.enabled
+    });
+    await loadData();
+  } catch (err: any) {
+    ElMessage.error(err?.message || "切换规则状态失败");
+  }
+}
+
+async function handleDeleteAlertRule(row: AlertRuleItem) {
+  await deleteAlertRule(row.id);
+  ElMessage.success(`规则 [${row.ruleName}] 已删除`);
+  await loadData();
+}
+
+async function handleEvaluateAlertsNow() {
+  evaluatingAlerts.value = true;
+  try {
+    const res = await evaluateAlertRules(true);
+    ElMessage.success(`已评估 ${res.evaluatedRules} 条启用规则，触发 ${res.triggeredEvents} 条新告警`);
+    await loadData();
+  } catch (err: any) {
+    ElMessage.error(err?.message || "巡检执行失败");
+  } finally {
+    evaluatingAlerts.value = false;
+  }
+}
+
+async function handleAckAlertEvent(row: AlertEventItem) {
+  await acknowledgeAlertEvent(row.id);
+  ElMessage.success("已确认该告警事件");
+  await loadData();
 }
 
 const sortedApiEndpoints = computed(() => {
@@ -940,14 +1069,103 @@ onUnmounted(() => {
                 <el-table-column prop="totalCalls" label="总调用" width="85" align="right" sortable />
                 <el-table-column prop="encryptedCalls" label="密文" width="80" align="right" sortable />
                 <el-table-column prop="plaintextCalls" label="明文" width="80" align="right" sortable />
-                <el-table-column prop="rejectedCalls" label="拦截" width="80" align="right" sortable />
-                <el-table-column label="平均耗时" width="95" align="right">
+                <el-table-column prop="rejectedCalls" label="拦截" width="75" align="right" sortable />
+                <el-table-column label="均值" width="82" align="right">
                   <template #default="{ row }">
-                    <span class="font-mono">{{ row.avgLatencyMs }} ms</span>
+                    <span class="font-mono">{{ row.avgLatencyMs }}ms</span>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="p95LatencyMs" label="P95" width="82" align="right" sortable>
+                  <template #default="{ row }">
+                    <span class="font-mono">{{ row.p95LatencyMs ?? 0 }}ms</span>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="p99LatencyMs" label="P99" width="82" align="right" sortable>
+                  <template #default="{ row }">
+                    <span class="font-mono" :class="{ 'text-danger': (row.p99LatencyMs ?? 0) >= 500 }">
+                      {{ row.p99LatencyMs ?? 0 }}ms
+                    </span>
                   </template>
                 </el-table-column>
               </el-table>
             </div>
+          </div>
+        </el-tab-pane>
+
+        <!-- TAB 6: 阈值告警规则引擎与触发事件 -->
+        <el-tab-pane label="阈值告警与联动通知" name="alerts">
+          <div class="inner-section-card mb-4">
+            <div class="inner-header">
+              <span class="inner-title">
+                <el-icon color="#e6a23c"><Bell /></el-icon>
+                告警阈值规则（周期巡检 + 冷却防抖 + 站内信 / Webhook 推送）
+              </span>
+              <div style="display: flex; gap: 8px;">
+                <el-button size="small" type="warning" plain :loading="evaluatingAlerts" @click="handleEvaluateAlertsNow">
+                  立即评估全部规则
+                </el-button>
+                <el-button size="small" type="primary" :icon="Plus" @click="openRuleModal()">新建告警规则</el-button>
+              </div>
+            </div>
+
+            <el-table :data="alertRules" border stripe size="small">
+              <el-table-column prop="ruleCode" label="规则编码" width="190">
+                <template #default="{ row }"><code class="font-mono">{{ row.ruleCode }}</code></template>
+              </el-table-column>
+              <el-table-column prop="ruleName" label="规则名称" min-width="200" />
+              <el-table-column prop="metricType" label="指标维度" width="170" />
+              <el-table-column label="触发阈值" width="120" align="right">
+                <template #default="{ row }">
+                  <span class="font-mono">{{ row.comparisonOp === 'GT' ? '>' : '≥' }} {{ row.thresholdValue }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="级别" width="100" align="center">
+                <template #default="{ row }">
+                  <el-tag size="small" :type="row.severity === 'CRITICAL' ? 'danger' : row.severity === 'WARNING' ? 'warning' : 'info'">
+                    {{ row.severity }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="notifyChannels" label="触达渠道" width="140" />
+              <el-table-column label="状态" width="90" align="center">
+                <template #default="{ row }">
+                  <el-switch :model-value="row.enabled" size="small" @change="handleToggleAlertRule(row)" />
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="130" align="center">
+                <template #default="{ row }">
+                  <el-button link type="primary" size="small" @click="openRuleModal(row)">编辑</el-button>
+                  <el-button link type="danger" size="small" :icon="Delete" @click="handleDeleteAlertRule(row)">删除</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+
+          <div class="inner-section-card">
+            <div class="inner-header">
+              <span class="inner-title">最近触发告警事件（{{ alertEvents.length }} 条）</span>
+            </div>
+            <el-table :data="alertEvents" border stripe size="small" max-height="320px">
+              <el-table-column prop="triggeredAt" label="触发时间" width="175">
+                <template #default="{ row }">{{ String(row.triggeredAt || '').replace('T', ' ').slice(0, 19) }}</template>
+              </el-table-column>
+              <el-table-column prop="ruleName" label="规则" width="180" />
+              <el-table-column label="级别" width="95" align="center">
+                <template #default="{ row }">
+                  <el-tag size="small" :type="row.severity === 'CRITICAL' ? 'danger' : 'warning'">{{ row.severity }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="message" label="告警详情" min-width="260" show-overflow-tooltip />
+              <el-table-column prop="dispatchStatus" label="投递状态" width="110" align="center" />
+              <el-table-column label="响应确认" width="120" align="center">
+                <template #default="{ row }">
+                  <el-tag v-if="row.acknowledged" type="success" size="small">已确认 ({{ row.acknowledgedBy }})</el-tag>
+                  <el-button v-else size="small" type="primary" plain :icon="Check" @click="handleAckAlertEvent(row)">
+                    确认告警
+                  </el-button>
+                </template>
+              </el-table-column>
+            </el-table>
           </div>
         </el-tab-pane>
       </el-tabs>
@@ -1025,6 +1243,58 @@ onUnmounted(() => {
         </el-table-column>
       </el-table>
     </el-drawer>
+
+    <el-dialog v-model="ruleModalVisible" :title="editingRuleId ? '编辑告警规则' : '新建告警规则'" width="540px">
+      <el-form label-position="top">
+        <el-form-item label="规则编码" required>
+          <el-input v-model="ruleForm.ruleCode" :disabled="Boolean(editingRuleId)" />
+        </el-form-item>
+        <el-form-item label="规则名称" required>
+          <el-input v-model="ruleForm.ruleName" placeholder="例如：核心接口 P99 响应超时" />
+        </el-form-item>
+        <el-row :gutter="12">
+          <el-col :span="12">
+            <el-form-item label="监控指标">
+              <el-select v-model="ruleForm.metricType" style="width: 100%">
+                <el-option value="API_P99_MS" label="接口峰值 P99 耗时 (ms)" />
+                <el-option value="API_ERROR_RATE" label="全站 HTTP 异常率 (%)" />
+                <el-option value="TRANSPORT_REJECTED" label="传输拦截/重放次数" />
+                <el-option value="RATE_LIMIT_REJECTED" label="滑动窗口限流拦截次数" />
+                <el-option value="JVM_HEAP_PERCENT" label="JVM 堆内存占用率 (%)" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="阈值">
+              <el-input-number v-model="ruleForm.thresholdValue" :min="0" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="12">
+          <el-col :span="12">
+            <el-form-item label="告警级别">
+              <el-select v-model="ruleForm.severity" style="width: 100%">
+                <el-option value="CRITICAL" label="CRITICAL (严重)" />
+                <el-option value="WARNING" label="WARNING (警告)" />
+                <el-option value="INFO" label="INFO (提示)" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="冷却周期 (秒)">
+              <el-input-number v-model="ruleForm.cooldownSeconds" :min="10" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="Webhook 回调地址（可选）">
+          <el-input v-model="ruleForm.webhookUrl" placeholder="https://oapi.dingtalk.com/robot/send?..." />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="ruleModalVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleSaveAlertRule">保存规则</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 

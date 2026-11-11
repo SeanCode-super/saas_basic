@@ -31,7 +31,10 @@ public class MybatisPlusConfig {
             "sys_app_build_record",
             "sys_app_artifact",
             "sys_transport_crypto_policy",
-            "sys_transport_crypto_key"
+            "sys_transport_crypto_key",
+            "sys_api_endpoint_stat",
+            "sys_alert_rule",
+            "sys_alert_event"
     );
 
     @Bean

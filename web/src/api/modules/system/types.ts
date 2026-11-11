@@ -294,6 +294,8 @@ export interface ApiEndpointStatView {
   rejectedCalls: number;
   errorCalls: number;
   avgLatencyMs: number;
+  p95LatencyMs: number;
+  p99LatencyMs: number;
   lastCalledAtEpochMs: number;
 }
 

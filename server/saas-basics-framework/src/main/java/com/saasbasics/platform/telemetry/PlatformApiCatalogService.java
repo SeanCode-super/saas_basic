@@ -2,6 +2,7 @@ package com.saasbasics.platform.telemetry;
 
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -107,6 +108,25 @@ public class PlatformApiCatalogService implements SmartInitializingSingleton {
             long rejectedCalls,
             long errorCalls,
             double avgLatencyMs,
+            double p95LatencyMs,
+            double p99LatencyMs,
+            long lastCalledAtEpochMs
+    ) {
+    }
+
+    public record EndpointStatDelta(
+            String endpointKey,
+            String httpMethod,
+            String pathPattern,
+            String moduleCode,
+            long totalCallsDelta,
+            long encryptedCallsDelta,
+            long plaintextCallsDelta,
+            long rejectedCallsDelta,
+            long errorCallsDelta,
+            long totalDurationMsDelta,
+            double p95LatencyMs,
+            double p99LatencyMs,
             long lastCalledAtEpochMs
     ) {
     }
@@ -177,6 +197,8 @@ public class PlatformApiCatalogService implements SmartInitializingSingleton {
     }
 
     private static final class EndpointCounters {
+        private static final int LATENCY_WINDOW = 512;
+
         final LongAdder totalCalls = new LongAdder();
         final LongAdder encryptedCalls = new LongAdder();
         final LongAdder plaintextCalls = new LongAdder();
@@ -184,6 +206,38 @@ public class PlatformApiCatalogService implements SmartInitializingSingleton {
         final LongAdder errorCalls = new LongAdder();
         final LongAdder totalDurationMs = new LongAdder();
         final AtomicLong lastCalledAtEpochMs = new AtomicLong(0L);
+
+        final AtomicLong syncedTotalCalls = new AtomicLong(0L);
+        final AtomicLong syncedEncryptedCalls = new AtomicLong(0L);
+        final AtomicLong syncedPlaintextCalls = new AtomicLong(0L);
+        final AtomicLong syncedRejectedCalls = new AtomicLong(0L);
+        final AtomicLong syncedErrorCalls = new AtomicLong(0L);
+        final AtomicLong syncedTotalDurationMs = new AtomicLong(0L);
+
+        private final long[] samples = new long[LATENCY_WINDOW];
+        private int sampleCount = 0;
+        private int sampleCursor = 0;
+        volatile double hydratedP95Ms = 0.0;
+        volatile double hydratedP99Ms = 0.0;
+
+        synchronized void recordLatency(long durationMs) {
+            samples[sampleCursor] = Math.max(0L, durationMs);
+            sampleCursor = (sampleCursor + 1) % LATENCY_WINDOW;
+            if (sampleCount < LATENCY_WINDOW) {
+                sampleCount++;
+            }
+        }
+
+        synchronized double[] computePercentiles() {
+            if (sampleCount == 0) {
+                return new double[]{hydratedP95Ms, hydratedP99Ms};
+            }
+            long[] copy = Arrays.copyOf(samples, sampleCount);
+            Arrays.sort(copy);
+            int p95Idx = Math.min(copy.length - 1, Math.max(0, (int) Math.ceil(copy.length * 0.95) - 1));
+            int p99Idx = Math.min(copy.length - 1, Math.max(0, (int) Math.ceil(copy.length * 0.99) - 1));
+            return new double[]{(double) copy[p95Idx], (double) copy[p99Idx]};
+        }
     }
 
     private final ObjectProvider<RequestMappingHandlerMapping> handlerMappingProvider;
@@ -310,7 +364,9 @@ public class PlatformApiCatalogService implements SmartInitializingSingleton {
         }
         EndpointCounters counters = statsMap.computeIfAbsent(key, ignored -> new EndpointCounters());
         counters.totalCalls.increment();
-        counters.totalDurationMs.add(Math.max(0L, durationMs));
+        long safeDuration = Math.max(0L, durationMs);
+        counters.totalDurationMs.add(safeDuration);
+        counters.recordLatency(safeDuration);
         if (statusCode >= 400) {
             counters.errorCalls.increment();
         }
@@ -381,6 +437,7 @@ public class PlatformApiCatalogService implements SmartInitializingSingleton {
             long rej = c.rejectedCalls.sum();
             long err = c.errorCalls.sum();
             double avgMs = calls > 0 ? Math.round((c.totalDurationMs.sum() * 100.0) / calls) / 100.0 : 0.0;
+            double[] pct = c.computePercentiles();
             PolicyDecision decision = evaluator.apply(ep.antPattern());
             if (calls > 0) {
                 activeCount++;
@@ -415,6 +472,8 @@ public class PlatformApiCatalogService implements SmartInitializingSingleton {
                     rej,
                     err,
                     avgMs,
+                    pct[0],
+                    pct[1],
                     c.lastCalledAtEpochMs.get()
             ));
         }
@@ -776,6 +835,93 @@ public class PlatformApiCatalogService implements SmartInitializingSingleton {
             }
         }
         return out.toString();
+    }
+
+    public void hydrateBaselineStat(
+            String endpointKey,
+            long totalCalls,
+            long encryptedCalls,
+            long plaintextCalls,
+            long rejectedCalls,
+            long errorCalls,
+            long totalDurationMs,
+            double p95Ms,
+            double p99Ms,
+            long lastCalledAtMs) {
+        if (endpointKey == null || endpointKey.isBlank()) {
+            return;
+        }
+        EndpointCounters c = statsMap.computeIfAbsent(endpointKey, ignored -> new EndpointCounters());
+        if (c.totalCalls.sum() == 0 && totalCalls > 0) {
+            c.totalCalls.add(totalCalls);
+            c.encryptedCalls.add(encryptedCalls);
+            c.plaintextCalls.add(plaintextCalls);
+            c.rejectedCalls.add(rejectedCalls);
+            c.errorCalls.add(errorCalls);
+            c.totalDurationMs.add(totalDurationMs);
+            c.syncedTotalCalls.set(totalCalls);
+            c.syncedEncryptedCalls.set(encryptedCalls);
+            c.syncedPlaintextCalls.set(plaintextCalls);
+            c.syncedRejectedCalls.set(rejectedCalls);
+            c.syncedErrorCalls.set(errorCalls);
+            c.syncedTotalDurationMs.set(totalDurationMs);
+            c.hydratedP95Ms = p95Ms;
+            c.hydratedP99Ms = p99Ms;
+            c.lastCalledAtEpochMs.accumulateAndGet(lastCalledAtMs, Math::max);
+        }
+    }
+
+    public List<EndpointStatDelta> drainUnsyncedDeltas() {
+        ensureCatalogInitialized();
+        List<EndpointStatDelta> deltas = new ArrayList<>();
+        for (RegisteredEndpoint ep : this.catalog) {
+            EndpointCounters c = statsMap.get(ep.endpointKey());
+            if (c == null) {
+                continue;
+            }
+            long curTotal = c.totalCalls.sum();
+            long curEnc = c.encryptedCalls.sum();
+            long curPlain = c.plaintextCalls.sum();
+            long curRej = c.rejectedCalls.sum();
+            long curErr = c.errorCalls.sum();
+            long curDur = c.totalDurationMs.sum();
+
+            long dTotal = Math.max(0L, curTotal - c.syncedTotalCalls.get());
+            long dEnc = Math.max(0L, curEnc - c.syncedEncryptedCalls.get());
+            long dPlain = Math.max(0L, curPlain - c.syncedPlaintextCalls.get());
+            long dRej = Math.max(0L, curRej - c.syncedRejectedCalls.get());
+            long dErr = Math.max(0L, curErr - c.syncedErrorCalls.get());
+            long dDur = Math.max(0L, curDur - c.syncedTotalDurationMs.get());
+
+            if (dTotal == 0 && dEnc == 0 && dPlain == 0 && dRej == 0 && dErr == 0) {
+                continue;
+            }
+
+            c.syncedTotalCalls.addAndGet(dTotal);
+            c.syncedEncryptedCalls.addAndGet(dEnc);
+            c.syncedPlaintextCalls.addAndGet(dPlain);
+            c.syncedRejectedCalls.addAndGet(dRej);
+            c.syncedErrorCalls.addAndGet(dErr);
+            c.syncedTotalDurationMs.addAndGet(dDur);
+
+            double[] pct = c.computePercentiles();
+            deltas.add(new EndpointStatDelta(
+                    ep.endpointKey(),
+                    ep.httpMethod(),
+                    ep.pathPattern(),
+                    ep.moduleCode(),
+                    dTotal,
+                    dEnc,
+                    dPlain,
+                    dRej,
+                    dErr,
+                    dDur,
+                    pct[0],
+                    pct[1],
+                    c.lastCalledAtEpochMs.get()
+            ));
+        }
+        return deltas;
     }
 
     private static List<String> extractPackageLevels(String packageName) {

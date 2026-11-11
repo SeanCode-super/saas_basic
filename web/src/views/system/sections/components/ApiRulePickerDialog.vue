@@ -641,7 +641,9 @@ function nodeBadgeLabel(nodeType: ApiPackageTreeNode["nodeType"]): string {
                   <span class="st-enc">密 {{ row.encryptedCalls }}</span>
                   <span v-if="row.plaintextCalls > 0" class="st-plain">明 {{ row.plaintextCalls }}</span>
                   <span v-if="row.rejectedCalls > 0" class="st-rej">拦 {{ row.rejectedCalls }}</span>
-                  <span class="st-ms">{{ row.avgLatencyMs }}ms</span>
+                  <span class="st-ms" :title="`均值 ${row.avgLatencyMs}ms / P95 ${row.p95LatencyMs ?? 0}ms / P99 ${row.p99LatencyMs ?? 0}ms`">
+                    P99 {{ row.p99LatencyMs ?? row.avgLatencyMs }}ms
+                  </span>
                 </div>
                 <span v-else class="st-zero">暂无调用记录</span>
               </template>

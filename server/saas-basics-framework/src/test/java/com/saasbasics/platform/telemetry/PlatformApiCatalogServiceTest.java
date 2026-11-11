@@ -95,7 +95,27 @@ class PlatformApiCatalogServiceTest {
         assertThat(stat.encryptedCalls()).isEqualTo(1L);
         assertThat(stat.plaintextCalls()).isEqualTo(1L);
         assertThat(stat.avgLatencyMs()).isEqualTo(18.0);
+        assertThat(stat.p95LatencyMs()).isEqualTo(18.0);
+        assertThat(stat.p99LatencyMs()).isEqualTo(18.0);
         assertThat(stat.antPattern()).isEqualTo("/api/system/demo/*");
+
+        // Record 99 more requests (1..99ms) to verify exact P95 / P99 and delta drain
+        for (int i = 1; i <= 99; i++) {
+            service.recordHttpCall(req, i == 99 ? 500 : 200, i);
+        }
+        PlatformApiCatalogService.ApiEndpointStatView stat100 = service.buildSnapshot(null).endpoints().stream()
+                .filter(e -> e.pathPattern().equals("/api/system/demo/{id}"))
+                .findFirst()
+                .orElseThrow();
+        assertThat(stat100.totalCalls()).isEqualTo(100L);
+        assertThat(stat100.errorCalls()).isEqualTo(1L);
+        assertThat(stat100.p95LatencyMs()).isGreaterThanOrEqualTo(94.0);
+        assertThat(stat100.p99LatencyMs()).isGreaterThanOrEqualTo(98.0);
+
+        List<PlatformApiCatalogService.EndpointStatDelta> deltas = service.drainUnsyncedDeltas();
+        assertThat(deltas).hasSize(1);
+        assertThat(deltas.get(0).totalCallsDelta()).isEqualTo(100L);
+        assertThat(service.drainUnsyncedDeltas()).isEmpty();
     }
 
     @org.springframework.web.bind.annotation.RestController
