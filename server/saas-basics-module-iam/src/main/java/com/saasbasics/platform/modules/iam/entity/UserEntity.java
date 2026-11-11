@@ -50,6 +50,15 @@ public class UserEntity extends BaseTenantEntity {
     @TableField("need_reset_password")
     private Boolean needResetPassword;
 
+    @TableField("mfa_enabled")
+    private Boolean mfaEnabled;
+
+    @TableField("mfa_secret_enc")
+    private String mfaSecretEnc;
+
+    @TableField("mfa_recovery_codes_enc")
+    private String mfaRecoveryCodesEnc;
+
     public String getPublicId() {
         return publicId;
     }
@@ -160,5 +169,29 @@ public class UserEntity extends BaseTenantEntity {
 
     public void setNeedResetPassword(Boolean needResetPassword) {
         this.needResetPassword = needResetPassword;
+    }
+
+    public Boolean getMfaEnabled() {
+        return mfaEnabled;
+    }
+
+    public void setMfaEnabled(Boolean mfaEnabled) {
+        this.mfaEnabled = mfaEnabled;
+    }
+
+    public String getMfaSecretEnc() {
+        return mfaSecretEnc;
+    }
+
+    public void setMfaSecretEnc(String mfaSecretEnc) {
+        this.mfaSecretEnc = mfaSecretEnc;
+    }
+
+    public String getMfaRecoveryCodesEnc() {
+        return mfaRecoveryCodesEnc;
+    }
+
+    public void setMfaRecoveryCodesEnc(String mfaRecoveryCodesEnc) {
+        this.mfaRecoveryCodesEnc = mfaRecoveryCodesEnc;
     }
 }

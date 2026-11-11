@@ -1,13 +1,19 @@
 package com.saasbasics.platform.modules.iam.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.saasbasics.platform.common.auth.AuthContext;
 import com.saasbasics.platform.common.auth.AuthPrincipal;
 import com.saasbasics.platform.common.exception.BizException;
 import com.saasbasics.platform.modules.iam.dto.UserPasswordUpdateRequest;
 import com.saasbasics.platform.modules.iam.dto.UserProfileResponse;
 import com.saasbasics.platform.modules.iam.dto.UserProfileUpdateRequest;
+import com.saasbasics.platform.modules.iam.entity.PasswordHistoryEntity;
+import com.saasbasics.platform.modules.iam.entity.PasswordPolicyEntity;
 import com.saasbasics.platform.modules.iam.entity.UserEntity;
+import com.saasbasics.platform.modules.iam.mapper.PasswordHistoryMapper;
+import com.saasbasics.platform.modules.iam.mapper.PasswordPolicyMapper;
 import com.saasbasics.platform.modules.iam.mapper.UserMapper;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,13 +28,19 @@ public class UserProfileService {
     private final UserMapper userMapper;
     private final PasswordSecurityService passwordSecurityService;
     private final JdbcTemplate jdbcTemplate;
+    private final ObjectProvider<PasswordPolicyMapper> passwordPolicyMapperProvider;
+    private final ObjectProvider<PasswordHistoryMapper> passwordHistoryMapperProvider;
 
     public UserProfileService(UserMapper userMapper,
                               PasswordSecurityService passwordSecurityService,
-                              JdbcTemplate jdbcTemplate) {
+                              JdbcTemplate jdbcTemplate,
+                              ObjectProvider<PasswordPolicyMapper> passwordPolicyMapperProvider,
+                              ObjectProvider<PasswordHistoryMapper> passwordHistoryMapperProvider) {
         this.userMapper = userMapper;
         this.passwordSecurityService = passwordSecurityService;
         this.jdbcTemplate = jdbcTemplate;
+        this.passwordPolicyMapperProvider = passwordPolicyMapperProvider;
+        this.passwordHistoryMapperProvider = passwordHistoryMapperProvider;
     }
 
     public UserProfileResponse getCurrentProfile() {
@@ -132,10 +144,44 @@ public class UserProfileService {
             throw new BizException("SAME_PASSWORD", "新密码不能与旧密码相同");
         }
 
-        user.setPasswordHash(passwordSecurityService.hash(request.newPassword()));
+        PasswordPolicyMapper policyMapper = passwordPolicyMapperProvider != null ? passwordPolicyMapperProvider.getIfAvailable() : null;
+        PasswordPolicyEntity policy = policyMapper != null ? policyMapper.selectActivePolicy(user.getTenantId()) : null;
+        passwordSecurityService.validate(request.newPassword(), policy);
+
+        PasswordHistoryMapper historyMapper = passwordHistoryMapperProvider != null ? passwordHistoryMapperProvider.getIfAvailable() : null;
+        int limit = (policy != null && policy.getPasswordHistoryLimit() != null) ? policy.getPasswordHistoryLimit() : 5;
+        if (historyMapper != null && limit > 0) {
+            List<PasswordHistoryEntity> recent = historyMapper.selectList(
+                    new LambdaQueryWrapper<PasswordHistoryEntity>()
+                            .eq(PasswordHistoryEntity::getTenantId, user.getTenantId())
+                            .eq(PasswordHistoryEntity::getUserId, user.getId())
+                            .eq(PasswordHistoryEntity::getDeleted, 0)
+                            .orderByDesc(PasswordHistoryEntity::getChangedAt)
+                            .last("LIMIT " + limit)
+            );
+            for (PasswordHistoryEntity h : recent) {
+                if (passwordSecurityService.matches(request.newPassword(), h.getPasswordHash())) {
+                    throw new BizException("PASSWORD_HISTORY_CONFLICT",
+                            "新密码不能与最近 " + limit + " 次使用过的历史密码相同");
+                }
+            }
+        }
+
+        String nextHash = passwordSecurityService.hash(request.newPassword());
+        user.setPasswordHash(nextHash);
         user.setPasswordChangedAt(LocalDateTime.now());
         user.setNeedResetPassword(false);
         user.setUpdatedAt(LocalDateTime.now());
         userMapper.updateById(user);
+
+        if (historyMapper != null) {
+            PasswordHistoryEntity rec = new PasswordHistoryEntity();
+            rec.setTenantId(user.getTenantId());
+            rec.setUserId(user.getId());
+            rec.setPasswordHash(nextHash);
+            rec.setChangedAt(LocalDateTime.now());
+            rec.setChangeReason("USER_PASSWORD_UPDATE");
+            historyMapper.insert(rec);
+        }
     }
 }

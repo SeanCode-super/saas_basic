@@ -1,5 +1,7 @@
 package com.saasbasics.platform.modules.crm.dto;
 
+import com.saasbasics.platform.common.mask.DataMaskType;
+import com.saasbasics.platform.mask.DataMask;
 import java.time.LocalDateTime;
 
 public class CrmCustomerResponse {
@@ -9,8 +11,11 @@ public class CrmCustomerResponse {
     private String industry;
     private String level;
     private String source;
+    @DataMask(type = DataMaskType.MOBILE)
     private String mobile;
+    @DataMask(type = DataMaskType.MOBILE)
     private String telephone;
+    @DataMask(type = DataMaskType.EMAIL)
     private String email;
     private String address;
     private Integer dealStatus;

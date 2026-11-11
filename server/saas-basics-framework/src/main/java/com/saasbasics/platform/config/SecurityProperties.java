@@ -29,6 +29,8 @@ public class SecurityProperties {
     public static class AuthProperties {
 
         private long sessionTtlMinutes = 480;
+        private boolean strictServerCaptcha = false;
+        private boolean strictSsoValidation = false;
 
         public long getSessionTtlMinutes() {
             return sessionTtlMinutes;
@@ -36,6 +38,22 @@ public class SecurityProperties {
 
         public void setSessionTtlMinutes(long sessionTtlMinutes) {
             this.sessionTtlMinutes = sessionTtlMinutes;
+        }
+
+        public boolean isStrictServerCaptcha() {
+            return strictServerCaptcha;
+        }
+
+        public void setStrictServerCaptcha(boolean strictServerCaptcha) {
+            this.strictServerCaptcha = strictServerCaptcha;
+        }
+
+        public boolean isStrictSsoValidation() {
+            return strictSsoValidation;
+        }
+
+        public void setStrictSsoValidation(boolean strictSsoValidation) {
+            this.strictSsoValidation = strictSsoValidation;
         }
     }
 }

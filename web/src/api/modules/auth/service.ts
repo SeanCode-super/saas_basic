@@ -1,6 +1,39 @@
 import { http } from "@/api/http";
 import type { ApiResponse } from "@/types/http";
-import type { AuthCurrentUser, AuthLoginRequest, AuthLoginResponse, OnlineSession } from "./types";
+import type {
+  AuthCurrentUser,
+  AuthLoginRequest,
+  AuthLoginResponse,
+  CaptchaChallenge,
+  MfaSetupResponse,
+  MfaStatusResponse,
+  OnlineSession
+} from "./types";
+
+export async function fetchAuthCaptcha(): Promise<CaptchaChallenge> {
+  const response = await http.get<ApiResponse<CaptchaChallenge>>("/auth/captcha");
+  return response.data.data;
+}
+
+export async function fetchMfaStatus(): Promise<MfaStatusResponse> {
+  const response = await http.get<ApiResponse<MfaStatusResponse>>("/auth/mfa/status");
+  return response.data.data;
+}
+
+export async function setupMfa(): Promise<MfaSetupResponse> {
+  const response = await http.post<ApiResponse<MfaSetupResponse>>("/auth/mfa/setup");
+  return response.data.data;
+}
+
+export async function enableMfa(totpCode: string): Promise<MfaStatusResponse> {
+  const response = await http.post<ApiResponse<MfaStatusResponse>>("/auth/mfa/enable", { totpCode });
+  return response.data.data;
+}
+
+export async function disableMfa(password: string, totpCode: string): Promise<MfaStatusResponse> {
+  const response = await http.post<ApiResponse<MfaStatusResponse>>("/auth/mfa/disable", { password, totpCode });
+  return response.data.data;
+}
 
 export async function loginByPassword(payload: AuthLoginRequest): Promise<AuthLoginResponse> {
   const response = await http.post<ApiResponse<AuthLoginResponse>>("/auth/login", payload);

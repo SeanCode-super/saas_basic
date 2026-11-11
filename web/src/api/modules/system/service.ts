@@ -31,6 +31,11 @@ export async function createSystemConfig(payload: SystemConfigSavePayload): Prom
   return response.data.data;
 }
 
+export async function upsertSystemConfigByKey(payload: SystemConfigSavePayload): Promise<SystemConfigRow> {
+  const response = await http.put<ApiResponse<SystemConfigRow>>("/system/configs/by-key", payload);
+  return response.data.data;
+}
+
 export async function fetchSystemDictTypes(): Promise<SystemDictTypeRow[]> {
   const response = await http.get<ApiResponse<SystemDictTypeRow[]>>("/system/dicts/types");
   return response.data.data;

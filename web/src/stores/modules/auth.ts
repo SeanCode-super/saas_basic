@@ -32,7 +32,16 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
-  async function login(payload: { tenantCode?: string; clientId?: string; terminalCode?: string; captchaCode?: string; username: string; password: string }) {
+  async function login(payload: {
+    tenantCode?: string;
+    clientId?: string;
+    terminalCode?: string;
+    captchaId?: string;
+    captchaCode?: string;
+    totpCode?: string;
+    username: string;
+    password: string;
+  }) {
     const response = await loginByPassword(payload);
     token.value = response.accessToken;
     refreshToken.value = response.refreshToken ?? "";

@@ -11,6 +11,7 @@ import {
   ArrowDown
 } from "@element-plus/icons-vue";
 import { fetchPortalEntry, type PortalEntry } from "@/api/modules/portal";
+import { fetchAuthCaptcha } from "@/api/modules/auth";
 import { useAuthStore } from "@/stores/modules/auth";
 import {
   rememberPortalContext,
@@ -25,13 +26,16 @@ const form = reactive({
   clientId: "",
   terminalCode: "web",
   captchaCode: "",
+  totpCode: "",
   username: "admin",
   password: "Admin@123456"
 });
 const loading = ref(false);
 const booting = ref(false);
 const portal = ref<PortalEntry | null>(null);
-const captchaSeed = ref("");
+const captchaId = ref("");
+const captchaImageUrl = ref("");
+const mfaRequired = ref(false);
 const loginError = ref("");
 
 const router = useRouter();
@@ -61,8 +65,15 @@ function resolveThemeColor(themeCode?: string) {
   }
 }
 
-function refreshCaptcha() {
-  captchaSeed.value = Math.random().toString(36).slice(2, 6).toUpperCase();
+async function refreshCaptcha() {
+  try {
+    const challenge = await fetchAuthCaptcha();
+    captchaId.value = challenge.captchaId;
+    captchaImageUrl.value = challenge.imageDataUrl;
+  } catch {
+    captchaId.value = "";
+    captchaImageUrl.value = "";
+  }
 }
 
 async function bootstrapPortal() {
@@ -76,7 +87,7 @@ async function bootstrapPortal() {
     form.tenantCode = entry.tenantCode;
     document.title = `${entry.portalTitle} | 登录`;
     loginError.value = "";
-    refreshCaptcha();
+    await refreshCaptcha();
     rememberPortalContext({
       clientId: entry.clientId,
       terminalCode: entry.terminal.terminalCode,
@@ -118,16 +129,12 @@ function fillDemoAccount(type: "admin" | "user" = "admin") {
   if (type === "user") {
     form.username = "user";
     form.password = "User@123456";
-    if (captchaSeed.value) {
-      form.captchaCode = captchaSeed.value;
-    }
+    form.captchaCode = "";
     ElMessage.success(`已填入员工凭证 (user，专属企业: ${portal.value?.clientName || form.tenantCode})`);
   } else {
     form.username = "admin";
     form.password = "Admin@123456";
-    if (captchaSeed.value) {
-      form.captchaCode = captchaSeed.value;
-    }
+    form.captchaCode = "";
     ElMessage.success(`已填入管理员凭据 (admin，专属企业: ${portal.value?.clientName || form.tenantCode})`);
   }
 }
@@ -145,6 +152,10 @@ function validateForm() {
     loginError.value = "请输入图形验证码";
     return false;
   }
+  if (mfaRequired.value && !form.totpCode.trim()) {
+    loginError.value = "请输入 6 位 MFA 动态验证码或恢复码";
+    return false;
+  }
   return true;
 }
 
@@ -154,30 +165,33 @@ async function handleLogin() {
     ElMessage.error(loginError.value);
     return;
   }
-  if (captchaEnabled.value && form.captchaCode.trim().toUpperCase() !== captchaSeed.value) {
-    loginError.value = "图形验证码不正确";
-    ElMessage.error(loginError.value);
-    refreshCaptcha();
-    form.captchaCode = "";
-    return;
-  }
   loading.value = true;
   try {
     await authStore.login({
       tenantCode: form.tenantCode.trim() || undefined,
       clientId: form.clientId,
       terminalCode: form.terminalCode,
-      captchaCode: form.captchaCode,
+      captchaId: captchaEnabled.value && captchaId.value ? captchaId.value : undefined,
+      captchaCode: form.captchaCode.trim() || undefined,
+      totpCode: mfaRequired.value ? form.totpCode.trim() : undefined,
       username: form.username.trim(),
       password: form.password.trim()
     });
     const redirect = typeof route.query.redirect === "string" ? route.query.redirect : "/";
     router.push(redirect);
   } catch (error: any) {
-    loginError.value = error?.response?.data?.message ?? "登录失败，请检查账号、密码或验证码";
-    ElMessage.error(loginError.value);
+    const errCode = error?.response?.data?.code;
+    const errMsg = error?.response?.data?.message ?? "登录失败，请检查账号、密码或验证码";
+    if (errCode === "AUTH_MFA_REQUIRED") {
+      mfaRequired.value = true;
+      loginError.value = errMsg;
+      ElMessage.warning(errMsg);
+    } else {
+      loginError.value = errMsg;
+      ElMessage.error(errMsg);
+    }
     if (captchaEnabled.value) {
-      refreshCaptcha();
+      await refreshCaptcha();
       form.captchaCode = "";
     }
   } finally {
@@ -299,7 +313,7 @@ onMounted(() => {
                 <div class="login-page__captcha">
                   <el-input
                     v-model="form.captchaCode"
-                    placeholder="请输入验证码"
+                    placeholder="请输入图形验证码"
                     :prefix-icon="Key"
                     @keyup.enter="handleLogin"
                   />
@@ -309,10 +323,26 @@ onMounted(() => {
                     title="点击刷新验证码"
                     @click="refreshCaptcha"
                   >
-                    <span>{{ captchaSeed }}</span>
+                    <img
+                      v-if="captchaImageUrl"
+                      :src="captchaImageUrl"
+                      alt="安全验证码"
+                      class="captcha-svg-img"
+                    />
+                    <span v-else class="captcha-loading-text">刷新</span>
                     <el-icon class="captcha-refresh-icon"><RefreshRight /></el-icon>
                   </button>
                 </div>
+              </el-form-item>
+
+              <el-form-item v-if="mfaRequired" label="MFA 动态口令 / 恢复码">
+                <el-input
+                  v-model="form.totpCode"
+                  placeholder="请输入 Authenticator 6 位数字或备用恢复码"
+                  maxlength="16"
+                  :prefix-icon="Lock"
+                  @keyup.enter="handleLogin"
+                />
               </el-form-item>
 
               <el-button
@@ -706,7 +736,7 @@ onMounted(() => {
 .login-page__captcha {
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 110px;
+  grid-template-columns: minmax(0, 1fr) 128px;
   gap: 10px;
 }
 
@@ -714,18 +744,31 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 4px;
+  padding: 2px;
+  overflow: hidden;
   border: 1px solid rgba(203, 213, 225, 0.9);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.92);
   color: #2563eb;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 16px;
-  font-weight: 800;
-  letter-spacing: 3px;
+  font-size: 13px;
+  font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
   user-select: none;
+
+  .captcha-svg-img {
+    width: 102px;
+    height: 36px;
+    display: block;
+    border-radius: 8px;
+  }
+
+  .captcha-loading-text {
+    font-size: 12px;
+    letter-spacing: 0;
+  }
 
   &:hover {
     border-color: #2563eb;

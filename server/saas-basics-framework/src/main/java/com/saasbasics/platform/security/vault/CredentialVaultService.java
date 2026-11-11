@@ -9,12 +9,15 @@ import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.Objects;
+import java.util.Optional;
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Service;
 
@@ -35,18 +38,25 @@ public class CredentialVaultService {
     private static final int GCM_TAG_LENGTH_BITS = 128;
 
     private final VaultCryptoProperties properties;
+    private final ObjectProvider<KmsKeyProvider> kmsKeyProvider;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public CredentialVaultService(VaultCryptoProperties properties) {
+        this(properties, null);
+    }
+
+    @Autowired
+    public CredentialVaultService(VaultCryptoProperties properties, ObjectProvider<KmsKeyProvider> kmsKeyProvider) {
         this.properties = properties;
+        this.kmsKeyProvider = kmsKeyProvider;
         if (isUsingDefaultMasterKey()) {
             log.warn("[CredentialVault] 当前使用本地开发默认主密钥，生产环境请配置 SAAS_VAULT_MASTER_KEY");
         }
     }
 
     public boolean isUsingDefaultMasterKey() {
-        String key = properties.getMasterKey();
-        return key == null || key.isBlank() || VaultCryptoProperties.DEV_DEFAULT_MASTER_KEY.equals(key);
+        String resolved = resolveKeyMaterial(activeKeyVersion());
+        return resolved == null || resolved.isBlank() || VaultCryptoProperties.DEV_DEFAULT_MASTER_KEY.equals(resolved);
     }
 
     public String activeKeyVersion() {
@@ -81,7 +91,7 @@ public class CredentialVaultService {
         if (isEncrypted(trimmed)) {
             return trimmed;
         }
-        return sealWithVersion(trimmed, activeKeyVersion(), properties.getMasterKey());
+        return sealWithVersion(trimmed, activeKeyVersion(), resolveKeyMaterial(activeKeyVersion()));
     }
 
     public String decrypt(String storedValue) {
@@ -133,7 +143,7 @@ public class CredentialVaultService {
         if (!properties.isEnabled()) {
             return plaintext;
         }
-        return sealWithVersion(plaintext, activeKeyVersion(), properties.getMasterKey());
+        return sealWithVersion(plaintext, activeKeyVersion(), resolveKeyMaterial(activeKeyVersion()));
     }
 
     public String mask(String storedOrPlain) {
@@ -190,6 +200,13 @@ public class CredentialVaultService {
     }
 
     private String resolveKeyMaterial(String version) {
+        KmsKeyProvider kms = kmsKeyProvider != null ? kmsKeyProvider.getIfAvailable() : null;
+        if (kms != null) {
+            Optional<String> kmsKey = kms.resolveMasterKey(version);
+            if (kmsKey != null && kmsKey.isPresent() && !kmsKey.get().isBlank()) {
+                return kmsKey.get();
+            }
+        }
         if (Objects.equals(activeKeyVersion(), version)) {
             return properties.getMasterKey();
         }

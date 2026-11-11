@@ -6,11 +6,15 @@ import com.saasbasics.platform.modules.iam.dto.LoginPolicyResponse;
 import com.saasbasics.platform.modules.iam.dto.LoginPolicySaveRequest;
 import com.saasbasics.platform.modules.iam.dto.PasswordPolicyResponse;
 import com.saasbasics.platform.modules.iam.dto.PasswordPolicySaveRequest;
+import com.saasbasics.platform.modules.iam.dto.SecurityBaselineDtos.SecurityBaselineResponse;
+import com.saasbasics.platform.modules.iam.dto.SecurityBaselineDtos.SecurityBaselineSaveRequest;
 import com.saasbasics.platform.modules.iam.dto.StatusUpdateRequest;
 import com.saasbasics.platform.modules.iam.service.LoginPolicyService;
 import com.saasbasics.platform.modules.iam.service.PasswordPolicyService;
+import com.saasbasics.platform.modules.iam.service.SecurityBaselineService;
 import jakarta.validation.Valid;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,11 +30,33 @@ public class PolicyController {
 
     private final LoginPolicyService loginPolicyService;
     private final PasswordPolicyService passwordPolicyService;
+    private final SecurityBaselineService securityBaselineService;
 
     public PolicyController(LoginPolicyService loginPolicyService,
                             PasswordPolicyService passwordPolicyService) {
+        this(loginPolicyService, passwordPolicyService, null);
+    }
+
+    @Autowired
+    public PolicyController(LoginPolicyService loginPolicyService,
+                            PasswordPolicyService passwordPolicyService,
+                            SecurityBaselineService securityBaselineService) {
         this.loginPolicyService = loginPolicyService;
         this.passwordPolicyService = passwordPolicyService;
+        this.securityBaselineService = securityBaselineService;
+    }
+
+    @GetMapping("/security-baseline")
+    @RequirePermission("iam:password-policy:query")
+    public ApiResponse<SecurityBaselineResponse> getSecurityBaseline() {
+        return ApiResponse.success(securityBaselineService.getCurrentBaseline());
+    }
+
+    @PutMapping("/security-baseline")
+    @RequirePermission("iam:password-policy:write")
+    public ApiResponse<SecurityBaselineResponse> saveSecurityBaseline(
+            @Valid @RequestBody SecurityBaselineSaveRequest request) {
+        return ApiResponse.success(securityBaselineService.saveBaseline(request));
     }
 
     @GetMapping("/login-policies")

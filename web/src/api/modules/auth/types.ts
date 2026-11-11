@@ -31,9 +31,29 @@ export interface AuthLoginRequest {
   tenantCode?: string;
   clientId?: string;
   terminalCode?: string;
+  captchaId?: string;
   captchaCode?: string;
+  totpCode?: string;
   username: string;
   password: string;
+}
+
+export interface CaptchaChallenge {
+  captchaId: string;
+  imageDataUrl: string;
+  expiresInSeconds: number;
+}
+
+export interface MfaStatusResponse {
+  enabled: boolean;
+  policyForceMfa: boolean;
+  remainingRecoveryCodes: number;
+}
+
+export interface MfaSetupResponse {
+  secret: string;
+  otpAuthUri: string;
+  recoveryCodes: string[];
 }
 
 export interface AuthLoginResponse {

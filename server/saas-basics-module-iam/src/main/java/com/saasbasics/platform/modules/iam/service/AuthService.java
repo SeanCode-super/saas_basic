@@ -2,6 +2,9 @@ package com.saasbasics.platform.modules.iam.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.saasbasics.platform.common.auth.AuthContext;
 import com.saasbasics.platform.common.auth.AuthPrincipal;
 import com.saasbasics.platform.common.auth.OrganizationAccessContext;
@@ -21,6 +24,7 @@ import com.saasbasics.platform.modules.iam.dto.AuthRefreshTokenRequest;
 import com.saasbasics.platform.modules.iam.dto.OnlineSessionResponse;
 import com.saasbasics.platform.modules.iam.dto.SsoCallbackRequest;
 import com.saasbasics.platform.modules.iam.entity.AuthSessionEntity;
+import com.saasbasics.platform.modules.iam.entity.IamSsoConfigEntity;
 import com.saasbasics.platform.modules.iam.entity.LoginFailStatEntity;
 import com.saasbasics.platform.modules.iam.entity.LoginPolicyEntity;
 import com.saasbasics.platform.modules.iam.entity.PasswordHistoryEntity;
@@ -30,6 +34,7 @@ import com.saasbasics.platform.modules.iam.entity.PortalTerminalEntity;
 import com.saasbasics.platform.modules.iam.entity.UserEntity;
 import com.saasbasics.platform.modules.iam.entity.UserPersonBindingEntity;
 import com.saasbasics.platform.modules.iam.mapper.AuthSessionMapper;
+import com.saasbasics.platform.modules.iam.mapper.IamSsoConfigMapper;
 import com.saasbasics.platform.modules.iam.mapper.LoginFailStatMapper;
 import com.saasbasics.platform.modules.iam.mapper.LoginPolicyMapper;
 import com.saasbasics.platform.modules.iam.mapper.PasswordHistoryMapper;
@@ -41,19 +46,30 @@ import com.saasbasics.platform.modules.iam.mapper.UserRoleMapper;
 import com.saasbasics.platform.modules.organization.api.OrganizationDirectory;
 import com.saasbasics.platform.modules.tenant.entity.TenantEntity;
 import com.saasbasics.platform.modules.tenant.mapper.TenantMapper;
+import com.saasbasics.platform.security.vault.CredentialVaultService;
+import java.net.URI;
 import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -106,7 +122,40 @@ public class AuthService {
     private final MenuPermissionService menuPermissionService;
     private final OrganizationDirectory organizationDirectory;
     private final ObjectProvider<TenantFeatureProvider> tenantFeatureProvider;
+    private final ObjectProvider<CaptchaService> captchaServiceProvider;
+    private final ObjectProvider<TotpMfaService> totpMfaServiceProvider;
+    private final ObjectProvider<CredentialVaultService> credentialVaultProvider;
+    private final ObjectProvider<IamSsoConfigMapper> ssoConfigMapperProvider;
+    private final ObjectProvider<StringRedisTemplate> redisTemplateProvider;
+    private final ObjectProvider<ObjectMapper> objectMapperProvider;
+    private final Environment environment;
     private final UuidV7Generator uuidGenerator = new UuidV7Generator();
+    private final ConcurrentHashMap<String, String> localSsoStateStore = new ConcurrentHashMap<>();
+
+    public AuthService(SecurityProperties securityProperties,
+                       PasswordSecurityService passwordSecurityService,
+                       ObjectProvider<UserMapper> userMapperProvider,
+                       ObjectProvider<TenantMapper> tenantMapperProvider,
+                       ObjectProvider<AuthSessionMapper> authSessionMapperProvider,
+                       ObjectProvider<LoginPolicyMapper> loginPolicyMapperProvider,
+                       ObjectProvider<PasswordPolicyMapper> passwordPolicyMapperProvider,
+                       ObjectProvider<LoginFailStatMapper> loginFailStatMapperProvider,
+                       ObjectProvider<PasswordHistoryMapper> passwordHistoryMapperProvider,
+                       ObjectProvider<LoginLogMapper> loginLogMapperProvider,
+                       ObjectProvider<UserRoleMapper> userRoleMapperProvider,
+                       ObjectProvider<RoleApiMapper> roleApiMapperProvider,
+                       ObjectProvider<UserPersonBindingMapper> userPersonBindingMapperProvider,
+                       PortalEntryService portalEntryService,
+                       MenuPermissionService menuPermissionService,
+                       OrganizationDirectory organizationDirectory,
+                       ObjectProvider<TenantFeatureProvider> tenantFeatureProvider) {
+        this(securityProperties, passwordSecurityService, userMapperProvider, tenantMapperProvider,
+                authSessionMapperProvider, loginPolicyMapperProvider, passwordPolicyMapperProvider,
+                loginFailStatMapperProvider, passwordHistoryMapperProvider, loginLogMapperProvider,
+                userRoleMapperProvider, roleApiMapperProvider, userPersonBindingMapperProvider,
+                portalEntryService, menuPermissionService, organizationDirectory, tenantFeatureProvider,
+                null, null, null, null, null, null, null);
+    }
 
     @Autowired
     public AuthService(SecurityProperties securityProperties,
@@ -125,7 +174,14 @@ public class AuthService {
                        PortalEntryService portalEntryService,
                        MenuPermissionService menuPermissionService,
                        OrganizationDirectory organizationDirectory,
-                       ObjectProvider<TenantFeatureProvider> tenantFeatureProvider) {
+                       ObjectProvider<TenantFeatureProvider> tenantFeatureProvider,
+                       ObjectProvider<CaptchaService> captchaServiceProvider,
+                       ObjectProvider<TotpMfaService> totpMfaServiceProvider,
+                       ObjectProvider<CredentialVaultService> credentialVaultProvider,
+                       ObjectProvider<IamSsoConfigMapper> ssoConfigMapperProvider,
+                       ObjectProvider<StringRedisTemplate> redisTemplateProvider,
+                       ObjectProvider<ObjectMapper> objectMapperProvider,
+                       Environment environment) {
         this.securityProperties = securityProperties;
         this.passwordSecurityService = passwordSecurityService;
         this.userMapperProvider = userMapperProvider;
@@ -143,6 +199,13 @@ public class AuthService {
         this.menuPermissionService = menuPermissionService;
         this.organizationDirectory = organizationDirectory;
         this.tenantFeatureProvider = tenantFeatureProvider;
+        this.captchaServiceProvider = captchaServiceProvider;
+        this.totpMfaServiceProvider = totpMfaServiceProvider;
+        this.credentialVaultProvider = credentialVaultProvider;
+        this.ssoConfigMapperProvider = ssoConfigMapperProvider;
+        this.redisTemplateProvider = redisTemplateProvider;
+        this.objectMapperProvider = objectMapperProvider;
+        this.environment = environment;
     }
 
     public AuthService(SecurityProperties securityProperties,
@@ -240,6 +303,16 @@ public class AuthService {
             throw new BizException("LOGIN_POLICY_BLOCKED", "当前租户已关闭密码登录");
         }
 
+        CaptchaService captchaService = captchaServiceProvider != null ? captchaServiceProvider.getIfAvailable() : null;
+        if (captchaService != null) {
+            boolean hasCaptchaId = request.captchaId() != null && !request.captchaId().isBlank();
+            boolean strictCaptcha = securityProperties.getAuth() != null
+                    && securityProperties.getAuth().isStrictServerCaptcha();
+            if (hasCaptchaId || strictCaptcha) {
+                captchaService.verifyAndConsume(request.captchaId(), request.captchaCode());
+            }
+        }
+
         UserEntity user = userMapper.selectByTenantAndUsername(tenant.getId(), request.username());
         if (user == null) {
             recordLoginFailure(tenant.getId(), request.username(), 0L, request.password(), loginIp, userAgent, "用户名或密码错误", loginPolicy);
@@ -257,7 +330,11 @@ public class AuthService {
             recordLoginFailure(tenant.getId(), user.getUsername(), user.getId(), request.password(), loginIp, userAgent, "用户名或密码错误", loginPolicy);
             throw new BizException("AUTH_INVALID_CREDENTIALS", "账号或密码错误");
         }
+        verifyUserMfaIfEnabled(user, request.totpCode());
         validatePasswordExpiry(passwordPolicy, user);
+        if (passwordSecurityService.needsRehash(user.getPasswordHash())) {
+            user.setPasswordHash(passwordSecurityService.hash(request.password()));
+        }
 
         java.time.Instant authenticatedAt = java.time.Instant.now();
         LocalDateTime authenticatedAtLocal = LocalDateTime.ofInstant(authenticatedAt, java.time.ZoneOffset.UTC);
@@ -424,19 +501,34 @@ public class AuthService {
                 ? redirectUri
                 : "http://localhost:9527/login?ssoCallback=true";
         String state = UUID.randomUUID().toString().replace("-", "");
+        storeSsoState(state, ch + "|" + callback);
+
+        IamSsoConfigEntity tenantSso = findEnabledSsoConfig(1L, ch);
+        if (tenantSso != null && tenantSso.getRedirectUri() != null && !tenantSso.getRedirectUri().isBlank() && redirectUri == null) {
+            callback = tenantSso.getRedirectUri();
+        }
+        String appId = (tenantSso != null && tenantSso.getAppId() != null && !tenantSso.getAppId().isBlank())
+                ? tenantSso.getAppId()
+                : null;
 
         String authorizeUrl;
         if ("WECOM".equals(ch)) {
-            authorizeUrl = "https://open.work.weixin.qq.com/wwopen/sso/qrConnect?appid=ww_saas_demo_corp&agentid=1000002&redirect_uri="
-                    + URLEncoder.encode(callback, StandardCharsets.UTF_8) + "&state=" + state;
+            authorizeUrl = "https://open.work.weixin.qq.com/wwopen/sso/qrConnect?appid="
+                    + URLEncoder.encode(appId != null ? appId : "ww_saas_demo_corp", StandardCharsets.UTF_8)
+                    + "&agentid=1000002&redirect_uri=" + URLEncoder.encode(callback, StandardCharsets.UTF_8) + "&state=" + state;
         } else if ("DINGTALK".equals(ch)) {
-            authorizeUrl = "https://login.dingtalk.com/oauth2/auth?client_id=ding_saas_demo_app&response_type=code&scope=openid&prompt=consent&redirect_uri="
-                    + URLEncoder.encode(callback, StandardCharsets.UTF_8) + "&state=" + state;
+            authorizeUrl = "https://login.dingtalk.com/oauth2/auth?client_id="
+                    + URLEncoder.encode(appId != null ? appId : "ding_saas_demo_app", StandardCharsets.UTF_8)
+                    + "&response_type=code&scope=openid&prompt=consent&redirect_uri=" + URLEncoder.encode(callback, StandardCharsets.UTF_8) + "&state=" + state;
         } else if ("FEISHU".equals(ch)) {
-            authorizeUrl = "https://passport.feishu.cn/suite/pas/oauth/authorize?app_id=cli_saas_demo_feishu&redirect_uri="
-                    + URLEncoder.encode(callback, StandardCharsets.UTF_8) + "&state=" + state;
+            authorizeUrl = "https://passport.feishu.cn/suite/pas/oauth/authorize?app_id="
+                    + URLEncoder.encode(appId != null ? appId : "cli_saas_demo_feishu", StandardCharsets.UTF_8)
+                    + "&redirect_uri=" + URLEncoder.encode(callback, StandardCharsets.UTF_8) + "&state=" + state;
         } else {
-            authorizeUrl = callback + "&code=mock_code_" + state + "&channel=" + ch;
+            if (isStrictSsoMode() && appId == null) {
+                throw new BizException("SSO_NOT_CONFIGURED", "生产环境尚未配置外部 OIDC 身份提供商参数");
+            }
+            authorizeUrl = callback + "&code=mock_code_" + state + "&channel=" + ch + "&state=" + state;
         }
 
         return java.util.Map.of("channel", ch, "authorizeUrl", authorizeUrl, "state", state);
@@ -444,6 +536,19 @@ public class AuthService {
 
     @Transactional
     public AuthLoginResponse loginBySso(SsoCallbackRequest request, String loginIp, String userAgent) {
+        String ch = (request.idpType() != null && !request.idpType().isBlank())
+                ? request.idpType().trim().toUpperCase()
+                : "OIDC";
+        boolean strictSso = isStrictSsoMode();
+        if (request.code() != null && request.code().startsWith("mock_code_") && strictSso) {
+            throw new BizException("SSO_SANDBOX_DISABLED", "生产环境已禁用模拟 SSO 授权码直登，请接入真实企业 IdP");
+        }
+        if ((request.state() != null && !request.state().isBlank()) || strictSso) {
+            if (!consumeSsoState(request.state())) {
+                throw new BizException("SSO_STATE_INVALID", "SSO 会话 state 校验失败或已过期，请重新发起单点登录");
+            }
+        }
+
         String tenantCode = (request.tenantCode() != null && !request.tenantCode().isBlank())
                 ? request.tenantCode()
                 : "platform";
@@ -460,12 +565,18 @@ public class AuthService {
         try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openTenant(
                 tenant.getId(), tenant.getTenantCode(), null)) {
             UserMapper userMapper = requiredUserMapper();
-            UserEntity user = userMapper.selectByTenantAndUsername(tenant.getId(), "admin");
+            UserEntity user = resolveUserFromExternalIdp(tenant, ch, request.code(), userMapper);
             if (user == null) {
-                user = userMapper.selectOne(new LambdaQueryWrapper<UserEntity>()
-                        .eq(UserEntity::getTenantId, tenant.getId())
-                        .eq(UserEntity::getDeleted, 0)
-                        .last("LIMIT 1"));
+                if (strictSso) {
+                    throw new BizException("SSO_USER_UNMAPPED", "未能匹配对应外部企业身份用户，请确认已配置 OIDC 端点与账号映射");
+                }
+                user = userMapper.selectByTenantAndUsername(tenant.getId(), "admin");
+                if (user == null) {
+                    user = userMapper.selectOne(new LambdaQueryWrapper<UserEntity>()
+                            .eq(UserEntity::getTenantId, tenant.getId())
+                            .eq(UserEntity::getDeleted, 0)
+                            .last("LIMIT 1"));
+                }
             }
             if (user == null) {
                 throw new BizException("USER_NOT_FOUND", "SSO 用户未关联");
@@ -488,7 +599,7 @@ public class AuthService {
             session.setUsername(user.getUsername());
             session.setNickname(user.getNickname());
             session.setUserType(user.getUserType());
-            session.setLoginType("SSO_" + (request.idpType() != null ? request.idpType().toUpperCase() : "MOCK"));
+            session.setLoginType("SSO_" + ch);
             session.setAccessTokenHash(tokenHash);
             session.setRefreshTokenHash(refreshTokenHash);
             session.setLoginIp(loginIp);
@@ -504,6 +615,183 @@ public class AuthService {
             logLogin(tenant.getId(), user.getId(), user.getUsername(), loginIp, userAgent, true, null);
             return new AuthLoginResponse(accessToken, refreshToken, "Bearer", expireAt, toCurrentUserResponse(principal));
         }
+    }
+
+    private void verifyUserMfaIfEnabled(UserEntity user, String totpCode) {
+        if (user == null || !Boolean.TRUE.equals(user.getMfaEnabled())) {
+            return;
+        }
+        if (totpCode == null || totpCode.isBlank()) {
+            throw new BizException("AUTH_MFA_REQUIRED", "账号已启用多因子认证 (MFA)，请输入 6 位动态验证码或恢复码");
+        }
+        CredentialVaultService vault = credentialVaultProvider != null ? credentialVaultProvider.getIfAvailable() : null;
+        TotpMfaService totp = totpMfaServiceProvider != null ? totpMfaServiceProvider.getIfAvailable() : null;
+        if (totp == null || user.getMfaSecretEnc() == null || user.getMfaSecretEnc().isBlank()) {
+            throw new BizException("AUTH_MFA_CONFIG_ERROR", "MFA 凭据不完整，请联系管理员重置");
+        }
+        String secret = vault != null ? vault.decrypt(user.getMfaSecretEnc()) : user.getMfaSecretEnc();
+        if (totp.verifyCode(secret, totpCode, user.getId())) {
+            return;
+        }
+        // 支持一次性恢复码核销
+        if (user.getMfaRecoveryCodesEnc() != null && !user.getMfaRecoveryCodesEnc().isBlank()) {
+            ObjectMapper om = objectMapperProvider != null ? objectMapperProvider.getIfAvailable() : null;
+            if (om != null) {
+                try {
+                    String plainJson = vault != null ? vault.decrypt(user.getMfaRecoveryCodesEnc()) : user.getMfaRecoveryCodesEnc();
+                    List<String> codes = new ArrayList<>(om.readValue(plainJson, new TypeReference<List<String>>() {}));
+                    String candidate = totpCode.trim().toUpperCase();
+                    if (codes.remove(candidate)) {
+                        String updatedJson = om.writeValueAsString(codes);
+                        user.setMfaRecoveryCodesEnc(vault != null ? vault.encrypt(updatedJson) : updatedJson);
+                        return;
+                    }
+                } catch (Exception ignored) {
+                    // Fallback to failure
+                }
+            }
+        }
+        throw new BizException("AUTH_MFA_INVALID", "动态验证码错误或已过期");
+    }
+
+    private boolean isStrictSsoMode() {
+        boolean cfg = securityProperties.getAuth() != null && securityProperties.getAuth().isStrictSsoValidation();
+        boolean prod = environment != null && environment.acceptsProfiles(Profiles.of("prod"));
+        return cfg || prod;
+    }
+
+    private void storeSsoState(String state, String meta) {
+        StringRedisTemplate redis = redisTemplateProvider != null ? redisTemplateProvider.getIfAvailable() : null;
+        if (redis != null) {
+            try {
+                redis.opsForValue().set("saas:auth:sso:state:" + state, meta, Duration.ofMinutes(5));
+                return;
+            } catch (Exception ignored) {
+                // Fallback
+            }
+        }
+        if (localSsoStateStore.size() > 2048) {
+            localSsoStateStore.clear();
+        }
+        localSsoStateStore.put(state, meta + "|" + (System.currentTimeMillis() + 300_000L));
+    }
+
+    private boolean consumeSsoState(String state) {
+        if (state == null || state.isBlank()) {
+            return false;
+        }
+        StringRedisTemplate redis = redisTemplateProvider != null ? redisTemplateProvider.getIfAvailable() : null;
+        if (redis != null) {
+            try {
+                String val = redis.opsForValue().getAndDelete("saas:auth:sso:state:" + state.trim());
+                if (val != null) {
+                    return true;
+                }
+            } catch (Exception ignored) {
+                // Fallback
+            }
+        }
+        String local = localSsoStateStore.remove(state.trim());
+        if (local == null) {
+            return false;
+        }
+        int lastBar = local.lastIndexOf('|');
+        long exp = lastBar > 0 ? Long.parseLong(local.substring(lastBar + 1)) : 0L;
+        return exp >= System.currentTimeMillis();
+    }
+
+    private IamSsoConfigEntity findEnabledSsoConfig(Long tenantId, String idpType) {
+        IamSsoConfigMapper mapper = ssoConfigMapperProvider != null ? ssoConfigMapperProvider.getIfAvailable() : null;
+        if (mapper == null) {
+            return null;
+        }
+        return mapper.selectOne(new LambdaQueryWrapper<IamSsoConfigEntity>()
+                .eq(IamSsoConfigEntity::getTenantId, tenantId)
+                .eq(IamSsoConfigEntity::getIdpType, idpType)
+                .eq(IamSsoConfigEntity::getStatus, "ENABLED")
+                .eq(IamSsoConfigEntity::getDeleted, 0)
+                .last("LIMIT 1"));
+    }
+
+    private UserEntity resolveUserFromExternalIdp(TenantEntity tenant, String ch, String code, UserMapper userMapper) {
+        IamSsoConfigEntity cfg = findEnabledSsoConfig(tenant.getId(), ch);
+        ObjectMapper om = objectMapperProvider != null ? objectMapperProvider.getIfAvailable() : null;
+        if (cfg == null || om == null || cfg.getConfigJson() == null || code == null || code.startsWith("mock_code_")) {
+            return null;
+        }
+        try {
+            JsonNode root = om.readTree(cfg.getConfigJson());
+            String tokenEndpoint = root.path("tokenEndpoint").asText("");
+            String userInfoEndpoint = root.path("userInfoEndpoint").asText("");
+            if (tokenEndpoint.isBlank() || userInfoEndpoint.isBlank()) {
+                return null;
+            }
+            CredentialVaultService vault = credentialVaultProvider != null ? credentialVaultProvider.getIfAvailable() : null;
+            String secret = (vault != null && cfg.getAppSecret() != null) ? vault.decrypt(cfg.getAppSecret()) : cfg.getAppSecret();
+            HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
+            String formBody = "grant_type=authorization_code"
+                    + "&code=" + URLEncoder.encode(code, StandardCharsets.UTF_8)
+                    + "&client_id=" + URLEncoder.encode(cfg.getAppId() != null ? cfg.getAppId() : "", StandardCharsets.UTF_8)
+                    + "&client_secret=" + URLEncoder.encode(secret != null ? secret : "", StandardCharsets.UTF_8)
+                    + "&redirect_uri=" + URLEncoder.encode(cfg.getRedirectUri() != null ? cfg.getRedirectUri() : "", StandardCharsets.UTF_8);
+
+            HttpRequest tokenReq = HttpRequest.newBuilder()
+                    .uri(URI.create(tokenEndpoint))
+                    .timeout(Duration.ofSeconds(5))
+                    .header("Content-Type", "application/x-www-form-urlencoded")
+                    .POST(HttpRequest.BodyPublishers.ofString(formBody))
+                    .build();
+            HttpResponse<String> tokenResp = client.send(tokenReq, HttpResponse.BodyHandlers.ofString());
+            if (tokenResp.statusCode() < 200 || tokenResp.statusCode() >= 300) {
+                throw new BizException("SSO_TOKEN_EXCHANGE_FAILED", "第三方 SSO Token 交换失败: HTTP " + tokenResp.statusCode());
+            }
+            String accessToken = om.readTree(tokenResp.body()).path("access_token").asText("");
+            if (accessToken.isBlank()) {
+                throw new BizException("SSO_TOKEN_INVALID", "第三方 SSO 未返回有效 access_token");
+            }
+            HttpRequest userReq = HttpRequest.newBuilder()
+                    .uri(URI.create(userInfoEndpoint))
+                    .timeout(Duration.ofSeconds(5))
+                    .header("Authorization", "Bearer " + accessToken)
+                    .GET()
+                    .build();
+            HttpResponse<String> userResp = client.send(userReq, HttpResponse.BodyHandlers.ofString());
+            if (userResp.statusCode() < 200 || userResp.statusCode() >= 300) {
+                throw new BizException("SSO_USERINFO_FAILED", "拉取第三方用户信息失败: HTTP " + userResp.statusCode());
+            }
+            JsonNode userNode = om.readTree(userResp.body());
+            String username = firstNonBlankNode(userNode, "preferred_username", "username", "sub", "email");
+            if (username == null) {
+                return null;
+            }
+            UserEntity matched = userMapper.selectByTenantAndUsername(tenant.getId(), username);
+            if (matched != null) {
+                return matched;
+            }
+            String email = userNode.path("email").asText("");
+            if (!email.isBlank()) {
+                return userMapper.selectOne(new LambdaQueryWrapper<UserEntity>()
+                        .eq(UserEntity::getTenantId, tenant.getId())
+                        .eq(UserEntity::getEmail, email)
+                        .eq(UserEntity::getDeleted, 0)
+                        .last("LIMIT 1"));
+            }
+            return null;
+        } catch (BizException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new BizException("SSO_EXCHANGE_ERROR", "外部单点登录认证交互异常: " + ex.getMessage());
+        }
+    }
+
+    private String firstNonBlankNode(JsonNode node, String... keys) {
+        for (String key : keys) {
+            String val = node.path(key).asText("");
+            if (!val.isBlank()) {
+                return val.trim();
+            }
+        }
+        return null;
     }
 
     public AuthCurrentUserResponse currentUser() {

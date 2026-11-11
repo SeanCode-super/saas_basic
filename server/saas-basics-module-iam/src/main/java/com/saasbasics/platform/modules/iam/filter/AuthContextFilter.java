@@ -22,6 +22,7 @@ public class AuthContextFilter extends OncePerRequestFilter {
 
     private static final Set<String> PUBLIC_PREFIXES = Set.of(
             "/api/auth/login",
+            "/api/auth/captcha",
             "/api/auth/refresh-token",
             "/api/auth/sso",
             "/api/portal/entry",
