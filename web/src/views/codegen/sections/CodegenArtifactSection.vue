@@ -5,7 +5,7 @@ import { Download, DocumentCopy, Folder, Check, RefreshRight, Promotion } from "
 import type { CodegenPreviewFile, CodegenTableModel } from "@/api/modules/codegen";
 import { previewCodegen, downloadCodegenZip, writeCodegenToDisk } from "@/api/modules/codegen";
 
-const props = defineProps<{
+defineProps<{
   outputMatrix?: string[];
 }>();
 

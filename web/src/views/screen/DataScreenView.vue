@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from "vue";
-import { useRouter } from "vue-router";
-import { ArrowLeft, FullScreen, Refresh } from "@element-plus/icons-vue";
+import {
+  useRouter
+} from "vue-router";
+import {
+  ArrowLeft,
+  FullScreen
+} from "@element-plus/icons-vue";
 
 const router = useRouter();
 const currentTime = ref("");

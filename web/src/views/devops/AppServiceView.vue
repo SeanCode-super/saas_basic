@@ -12,11 +12,9 @@ import {
   CircleCheck,
   CircleClose,
   Cpu,
-  Coin,
   SetUp,
   Upload,
   Download,
-  Document,
   Search,
   Delete,
   Edit,
@@ -25,11 +23,9 @@ import {
   Loading,
   CircleCheckFilled,
   CircleCloseFilled,
-  Connection,
   Folder,
   Box,
   CaretRight,
-  Tickets,
   Monitor,
   Lock,
   MagicStick,
@@ -278,7 +274,7 @@ function checkPortConflict(port?: number) {
     portChecking.value = true;
     try {
       portCheckResult.value = await checkAppServicePort(port, editForm.value.id);
-    } catch (e) {
+    } catch {
       portCheckResult.value = null;
     } finally {
       portChecking.value = false;
@@ -647,7 +643,7 @@ async function openTerminal(service: AppServiceItem) {
     const recent = await fetchAppRecentLogs(service.id, 100);
     terminalLogs.value = recent;
     scrollTerminalToBottom();
-  } catch (e) {
+  } catch {
     terminalLogs.value = ["[SYSTEM ERROR] 获取初始日志失败"];
   }
 
@@ -830,7 +826,7 @@ async function loadBuildRecords(serviceId: number) {
     if (buildRecords.value.length > 0) {
       selectBuildRecord(buildRecords.value[0]);
     }
-  } catch (e) {
+  } catch {
     ElMessage.error("获取构建记录失败");
   }
 }
@@ -839,7 +835,7 @@ async function selectBuildRecord(record: AppBuildRecordItem) {
   activeBuildRecord.value = record;
   try {
     liveBuildLogs.value = await fetchAppBuildLogs(record.id);
-  } catch (e) {
+  } catch {
     liveBuildLogs.value = ["[SYSTEM] 获取构建日志失败"];
   }
 }
@@ -942,7 +938,7 @@ async function handleRollback(artifact: AppArtifactItem) {
     }
     await loadArtifacts(artifactService.value.id);
     await loadServices(true);
-  } catch (err) {
+  } catch {
   }
 }
 
@@ -1000,7 +996,7 @@ async function handleDeleteService(service: AppServiceItem) {
     await deleteAppService(service.id);
     ElMessage.success("服务已删除");
     await loadServices();
-  } catch (err) {
+  } catch {
   }
 }
 

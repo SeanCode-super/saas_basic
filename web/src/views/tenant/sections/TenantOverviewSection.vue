@@ -1,23 +1,12 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from "vue";
 import {
-  Calendar,
-  Check,
   CircleCheck,
   Cpu,
-  DataAnalysis,
-  Document,
   Download,
-  Files,
-  Monitor,
-  OfficeBuilding,
   Odometer,
-  Operation,
   Plus,
-  Refresh,
-  Search,
   Timer,
-  User,
   View,
   Warning
 } from "@element-plus/icons-vue";
@@ -230,7 +219,7 @@ function exportTelemetry() {
             </template>
           </el-table-column>
           <el-table-column label="健康评分" width="100" align="center">
-            <template #default="{ row }">
+            <template #default>
               <el-tag size="small" type="success" effect="dark">100 分</el-tag>
             </template>
           </el-table-column>

@@ -1,6 +1,12 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
-import { Edit, Filter, Search } from "@element-plus/icons-vue";
+import {
+  computed,
+  ref
+} from "vue";
+import {
+  Edit,
+  Search
+} from "@element-plus/icons-vue";
 import type {
   IamDataPermissionRuleRow,
   IamMenuPermissionRow,

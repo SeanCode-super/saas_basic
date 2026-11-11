@@ -14,18 +14,10 @@ import {
   Coin,
   Folder,
   CircleCheck,
-  WarningFilled,
-  Search,
-  Download,
   DocumentCopy,
   Tickets,
   Share,
-  Connection,
-  Lock,
-  Box,
-  DocumentChecked,
   Platform,
-  SetUp,
   TrendCharts,
   Lightning
 } from "@element-plus/icons-vue";

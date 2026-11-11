@@ -71,7 +71,7 @@ async function loadProjects() {
         }
       ];
     }
-  } catch (err: any) {
+  } catch {
     ElMessage.warning("加载工程列表失败，已呈现本地推荐基线");
     projects.value = [
       {

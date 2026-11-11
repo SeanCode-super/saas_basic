@@ -2,19 +2,8 @@
 import { reactive, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
-  Bell,
   Check,
-  CircleCheck,
-  Close,
-  Document,
-  Message,
-  OfficeBuilding,
-  Operation,
-  Plus,
-  Refresh,
-  Timer,
-  User,
-  Warning
+  Close
 } from "@element-plus/icons-vue";
 
 import { createTenant } from "@/api/modules/tenant";

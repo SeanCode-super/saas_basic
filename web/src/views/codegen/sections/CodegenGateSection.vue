@@ -1,9 +1,20 @@
 <script setup lang="ts">
-import { reactive, ref } from "vue";
-import { ElMessage } from "element-plus";
-import { Check, Warning, CircleCheck, Search, MagicStick, Setting, ArrowUp, ArrowDown } from "@element-plus/icons-vue";
+import {
+  ref
+} from "vue";
+import {
+  ElMessage
+} from "element-plus";
+import {
+  Check,
+  CircleCheck,
+  Search,
+  MagicStick,
+  Setting,
+  ArrowUp
+} from "@element-plus/icons-vue";
 
-const props = defineProps<{
+defineProps<{
   qualityGate: {
     requireAuditField: boolean;
     requireDictBinding: boolean;
@@ -173,7 +184,7 @@ function handleAutoFix() {
             </template>
           </el-table-column>
           <el-table-column prop="status" label="状态" width="95" align="center">
-            <template #default="{ row }">
+            <template #default>
               <el-tag type="success" size="small"><el-icon><CircleCheck /></el-icon> 通过</el-tag>
             </template>
           </el-table-column>

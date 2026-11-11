@@ -15,7 +15,6 @@ import {
   Printer,
   Search,
   Setting,
-  SwitchButton,
   TrendCharts,
   User
 } from "@element-plus/icons-vue";

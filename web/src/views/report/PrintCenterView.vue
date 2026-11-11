@@ -1,7 +1,11 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
-import { ElMessage } from "element-plus";
-import { Document, Printer, Refresh, Stamp, Tickets } from "@element-plus/icons-vue";
+import {
+  computed,
+  ref
+} from "vue";
+import {
+  Printer
+} from "@element-plus/icons-vue";
 
 type TemplateType = "PURCHASE_IN" | "REIMBURSE" | "SHIPPING_LABEL" | "VAT_INVOICE";
 

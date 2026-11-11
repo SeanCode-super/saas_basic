@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
 import {
-  Check,
   CircleCheck,
-  CircleClose,
   CopyDocument,
   Cpu,
   Download,
@@ -14,9 +12,7 @@ import {
   List,
   OfficeBuilding,
   Plus,
-  Refresh,
   Search,
-  User,
   UserFilled
 } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
@@ -96,10 +92,6 @@ const activeDrawerRole = ref<IamRoleRow | null>(null);
 // Permission Inspector state
 const inspectorVisible = ref(false);
 const inspectorTargetUserId = ref<number | null>(null);
-
-function asUserRows(rows: object[]) {
-  return rows as IamUserRow[];
-}
 
 function asRoleRows(rows: object[]) {
   return rows as IamRoleRow[];

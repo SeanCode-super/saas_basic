@@ -1,7 +1,17 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { ElMessage } from "element-plus";
-import { UploadFilled, Document, CircleCheck, View, Download, CopyDocument, RefreshRight, Plus } from "@element-plus/icons-vue";
+import {
+  ElMessage
+} from "element-plus";
+import {
+  UploadFilled,
+  Document,
+  CircleCheck,
+  View,
+  Download,
+  CopyDocument,
+  Plus
+} from "@element-plus/icons-vue";
 
 const props = defineProps<{
   uploadPolicy: {

@@ -7,8 +7,6 @@ import {
   Refresh,
   Money,
   CircleCheckFilled,
-  WarningFilled,
-  Promotion,
   ShoppingBag
 } from "@element-plus/icons-vue";
 import BaseCard from "@/components/base/BaseCard.vue";

@@ -3,14 +3,12 @@ import { ref, reactive, nextTick, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import {
-  ChatLineRound,
   Delete,
   DocumentCopy,
   Loading,
   Position,
   Cpu,
   Star,
-  RefreshRight,
   Setting
 } from "@element-plus/icons-vue";
 import { fetchPublicAiModels } from "@/api/modules/ai";

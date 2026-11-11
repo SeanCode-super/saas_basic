@@ -1,8 +1,18 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
-import { ElMessage, ElMessageBox } from "element-plus";
-import { Timer, Cpu, VideoPlay, VideoPause, RefreshRight, Document, CircleCheck, Warning } from "@element-plus/icons-vue";
+import {
+  ElMessage,
+  ElMessageBox
+} from "element-plus";
+import {
+  Timer,
+  Cpu,
+  VideoPlay,
+  RefreshRight,
+  Document,
+  CircleCheck
+} from "@element-plus/icons-vue";
 import BaseCard from "@/components/base/BaseCard.vue";
 
 const props = defineProps<{

@@ -3,7 +3,6 @@ import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import {
   ArrowDown,
   ArrowRight,
-  Bell,
   Check,
   Close,
   Expand,
@@ -18,11 +17,8 @@ import {
   Cpu,
   DataBoard,
   Document,
-  Printer,
   SwitchButton,
   User,
-  Promotion,
-  DocumentChecked,
   Switch as SwitchIcon,
   Sunny,
   Moon
@@ -51,11 +47,6 @@ export type LayoutMode = "mix" | "side" | "top";
 type QuickEntry = {
   value: string;
   target: MenuNavItem;
-};
-
-type NavigableTarget = {
-  path: string;
-  query: Record<string, string>;
 };
 
 const route = useRoute();
@@ -479,12 +470,6 @@ function setLayoutMode(mode: LayoutMode) {
   localStorage.setItem("sb_layout_mode", mode);
   const match = layoutModeOptions.find((opt) => opt.key === mode);
   ElMessage.success(`已切换至「${match?.title || mode}」`);
-}
-
-function toggleLayoutMode() {
-  const order: LayoutMode[] = ["mix", "side", "top"];
-  const nextIndex = (order.indexOf(layoutMode.value) + 1) % order.length;
-  setLayoutMode(order[nextIndex]);
 }
 
 function toggleBreadcrumbs(val: any) {

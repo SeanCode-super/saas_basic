@@ -9,7 +9,7 @@ interface IconItem {
   keywords: string;
 }
 
-const props = withDefaults(
+withDefaults(
   defineProps<{
     modelValue?: string;
     placeholder?: string;

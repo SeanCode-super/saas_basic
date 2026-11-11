@@ -1,7 +1,16 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { ElMessage } from "element-plus";
-import { CircleCheck, Refresh, Setting, VideoPlay, Warning, Bell, Key } from "@element-plus/icons-vue";
+import {
+  ElMessage
+} from "element-plus";
+import {
+  CircleCheck,
+  Refresh,
+  Setting,
+  Warning,
+  Bell,
+  Key
+} from "@element-plus/icons-vue";
 import BaseCard from "@/components/base/BaseCard.vue";
 
 defineProps<{

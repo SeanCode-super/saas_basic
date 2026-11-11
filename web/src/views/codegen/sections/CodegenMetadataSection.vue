@@ -1,12 +1,28 @@
 <script setup lang="ts">
-import { reactive, ref, computed, onMounted } from "vue";
+import {
+  reactive,
+  ref,
+  computed
+} from "vue";
 import { useRouter } from "vue-router";
-import { ElMessage } from "element-plus";
-import { Plus, Delete, Download, Connection, Refresh, Check, Search, Promotion, Setting, ArrowUp, ArrowDown } from "@element-plus/icons-vue";
+import {
+  ElMessage
+} from "element-plus";
+import {
+  Plus,
+  Delete,
+  Download,
+  Connection,
+  Check,
+  Search,
+  Promotion,
+  ArrowUp,
+  ArrowDown
+} from "@element-plus/icons-vue";
 import type { CodegenColumnModel, DbTableItem, CodegenTableModel } from "@/api/modules/codegen";
 import { fetchDbTables, fetchDbTableColumns } from "@/api/modules/codegen";
 
-const props = defineProps<{
+defineProps<{
   templatePolicy?: any;
   styleGuide?: any;
   qualityGate?: any;

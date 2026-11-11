@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from "vue";
+import {
+  onMounted,
+  ref
+} from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
@@ -10,11 +13,8 @@ import {
   Delete,
   Check,
   RefreshRight,
-  View,
   Right,
-  Connection,
-  List,
-  Setting
+  List
 } from "@element-plus/icons-vue";
 import BaseCard from "@/components/base/BaseCard.vue";
 import {
@@ -25,7 +25,6 @@ import {
 } from "@/api/modules/codegen/ai-builder";
 import type {
   AiAppDesignResult,
-  DynamicFieldItem,
   DynamicModelItem
 } from "@/api/modules/codegen/ai-builder";
 

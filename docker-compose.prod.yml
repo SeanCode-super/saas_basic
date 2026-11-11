@@ -4,7 +4,7 @@ services:
     container_name: saas-mysql
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD environment variable is required}
       MYSQL_DATABASE: saas_basics
       MYSQL_USER: saas
       MYSQL_PASSWORD: saas
@@ -53,10 +53,19 @@ services:
       DB_HOST: saas-mysql
       DB_PORT: 3306
       DB_NAME: saas_basics
-      DB_USERNAME: root
-      DB_PASSWORD: root
+      DB_USERNAME: ${DB_USERNAME:-saas_app}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD environment variable is required}
       REDIS_HOST: saas-redis
       REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      SAAS_VAULT_MASTER_KEY: ${SAAS_VAULT_MASTER_KEY:?SAAS_VAULT_MASTER_KEY environment variable is required}
+      SAAS_PAY_WEBHOOK_SECRET: ${SAAS_PAY_WEBHOOK_SECRET:-}
+      SAAS_CORS_ORIGIN: ${SAAS_CORS_ORIGIN:-https://console.tianshu.example}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health/readiness | grep -q '\"status\":\"UP\"' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
     ports:
       - "${SAAS_BACKEND_PORT:-8080}:8080"
     networks:

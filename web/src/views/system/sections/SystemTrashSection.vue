@@ -3,21 +3,17 @@ import { computed, onMounted, ref } from "vue";
 import { ElMessage, ElMessageBox, ElNotification } from "element-plus";
 import {
   Delete,
-  DocumentDelete,
   Files,
   Filter,
-  InfoFilled,
   Link,
   Operation,
   Refresh,
   RefreshRight,
-  Search,
   Tickets,
   TrendCharts,
   Briefcase,
   User,
-  Setting,
-  WarningFilled
+  Setting
 } from "@element-plus/icons-vue";
 import {
   fetchTrashAppSummaries,

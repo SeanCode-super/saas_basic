@@ -2,19 +2,13 @@
 import { computed, reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
 import {
-  ArrowRight,
-  Check,
   CircleCheck,
   Cpu,
   DataAnalysis,
-  Document,
-  Download,
   Lock,
   Operation,
   Refresh,
-  Search,
-  VideoPlay,
-  Warning
+  VideoPlay
 } from "@element-plus/icons-vue";
 import type { TenantRow } from "@/api/modules/tenant";
 import BaseCard from "@/components/base/BaseCard.vue";

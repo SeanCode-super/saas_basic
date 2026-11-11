@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from "vue";
+import {
+  onMounted,
+  reactive,
+  ref
+} from "vue";
 import { ElMessage } from "element-plus";
 import {
   Download,
@@ -13,7 +17,7 @@ import {
 import { fetchLoginLogs, fetchOperationLogDiff, fetchOperationLogs } from "@/api/modules/audit";
 import type { LoginLog, OperationLog, OperationLogDiffResponse } from "@/api/modules/audit";
 
-const props = defineProps<{
+defineProps<{
   auditPolicy: {
     retentionDays: number;
     recordPermissionChange: boolean;

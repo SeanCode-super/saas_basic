@@ -1,6 +1,13 @@
 <script setup lang="ts">
-import { ref } from "vue";
-import { Plus, Setting, VideoPlay, Switch, RefreshRight } from "@element-plus/icons-vue";
+import {
+  ref
+} from "vue";
+import {
+  Plus,
+  Setting,
+  VideoPlay,
+  Switch
+} from "@element-plus/icons-vue";
 import ProTable from "@/components/pro/ProTable.vue";
 import type { ProTableColumn } from "@/components/pro/ProTable.vue";
 import BaseStatusTag from "@/components/base/BaseStatusTag.vue";

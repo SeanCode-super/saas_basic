@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import {
+  onMounted,
+  ref
+} from "vue";
 import { ElMessage } from "element-plus";
 import {
   Bell,
   CircleCheck,
   Document,
   Download,
-  Key,
   Lock,
   Operation,
   Refresh,
@@ -29,7 +31,7 @@ async function loadData() {
   loading.value = true;
   try {
     overview.value = await fetchAuditOverview();
-  } catch (err: any) {
+  } catch {
     ElMessage.error("获取审计态势数据失败");
   } finally {
     loading.value = false;

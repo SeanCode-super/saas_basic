@@ -1,6 +1,5 @@
 import type { Component } from "vue";
 import {
-  Bell,
   Briefcase,
   Clock,
   Connection,

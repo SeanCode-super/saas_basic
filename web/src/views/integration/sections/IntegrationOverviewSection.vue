@@ -1,6 +1,14 @@
 <script setup lang="ts">
-import { useRouter } from "vue-router";
-import { Connection, Position, CircleCheck, Timer, Setting, Document, RefreshRight } from "@element-plus/icons-vue";
+import {
+  useRouter
+} from "vue-router";
+import {
+  Connection,
+  Position,
+  CircleCheck,
+  Timer,
+  Setting
+} from "@element-plus/icons-vue";
 import BaseCard from "@/components/base/BaseCard.vue";
 
 defineProps<{

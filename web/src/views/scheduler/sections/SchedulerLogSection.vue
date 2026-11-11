@@ -1,7 +1,16 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { ElMessage, ElMessageBox } from "element-plus";
-import { Search, RefreshRight, Document, CircleCheck, CircleClose, View, Delete, Check } from "@element-plus/icons-vue";
+import {
+  ElMessage,
+  ElMessageBox
+} from "element-plus";
+import {
+  Search,
+  RefreshRight,
+  View,
+  Delete,
+  Check
+} from "@element-plus/icons-vue";
 
 const props = defineProps<{
   schedulerPolicy: {

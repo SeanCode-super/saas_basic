@@ -493,7 +493,7 @@ async function loadFollowUpRecords() {
       bizId: currentFollowUpTarget.value.bizId
     });
     followUpRecords.value = res.data || [];
-  } catch (err: any) {
+  } catch {
     ElMessage.error("加载跟进记录失败");
   }
 }

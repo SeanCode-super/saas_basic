@@ -173,3 +173,49 @@
   --el-table-row-hover-bg-color: rgba(239, 246, 255, 0.65);
   --el-table-current-row-bg-color: rgba(239, 246, 255, 0.75);
 }
+
+html.dark {
+  --sb-text-primary: #f8fafc;
+  --sb-text-secondary: #e2e8f0;
+  --sb-text-tertiary: #cbd5e1;
+  --sb-text-muted: #94a3b8;
+  --sb-text-disabled: #64748b;
+
+  --sb-border-color: #334155;
+  --sb-border-subtle: #1e293b;
+  --sb-border-strong: #475569;
+
+  --sb-glass-bg: rgba(15, 23, 42, 0.78);
+  --sb-glass-bg-hover: rgba(30, 41, 59, 0.88);
+  --sb-glass-bg-active: rgba(30, 41, 59, 0.96);
+  --sb-glass-bg-soft: rgba(15, 23, 42, 0.62);
+  --sb-glass-border: 1px solid rgba(255, 255, 255, 0.12);
+  --sb-glass-border-subtle: 1px solid rgba(255, 255, 255, 0.08);
+  --sb-glass-specular: var(--sb-glass-specular-dark);
+
+  --sb-surface-color: rgba(15, 23, 42, 0.85);
+  --sb-surface-strong: rgba(15, 23, 42, 0.94);
+  --sb-surface-soft: rgba(30, 41, 59, 0.72);
+  --sb-surface-contrast: #1e293b;
+  --sb-panel-muted: rgba(30, 41, 59, 0.65);
+
+  --el-bg-color: #0f172a;
+  --el-bg-color-overlay: #1e293b;
+  --el-fill-color: #1e293b;
+  --el-fill-color-light: rgba(30, 41, 59, 0.7);
+  --el-fill-color-lighter: rgba(30, 41, 59, 0.5);
+  --el-fill-color-blank: rgba(15, 23, 42, 0.82);
+
+  --el-text-color-primary: #f8fafc;
+  --el-text-color-regular: #e2e8f0;
+  --el-text-color-secondary: #94a3b8;
+  --el-border-color: #334155;
+  --el-border-color-light: #1e293b;
+
+  --el-table-header-bg-color: rgba(30, 41, 59, 0.85);
+  --el-table-header-text-color: #f8fafc;
+  --el-table-text-color: #e2e8f0;
+  --el-table-border-color: rgba(51, 65, 85, 0.7);
+  --el-table-row-hover-bg-color: rgba(37, 99, 235, 0.16);
+  --el-table-current-row-bg-color: rgba(37, 99, 235, 0.24);
+}

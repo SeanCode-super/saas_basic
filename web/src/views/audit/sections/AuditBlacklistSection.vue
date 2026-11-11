@@ -1,9 +1,15 @@
 <script setup lang="ts">
 import { reactive, ref } from "vue";
-import { ElMessage, ElMessageBox } from "element-plus";
-import { Delete, Lock, Plus, Refresh, Search, Unlock } from "@element-plus/icons-vue";
+import {
+  ElMessage,
+  ElMessageBox
+} from "element-plus";
+import {
+  Plus,
+  Unlock
+} from "@element-plus/icons-vue";
 
-const props = defineProps<{
+defineProps<{
   riskPolicy: {
     blacklistEnabled: boolean;
   };

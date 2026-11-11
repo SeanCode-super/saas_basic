@@ -61,7 +61,6 @@ const { activeSection, updateSection } = useModuleSection(sectionItems, {
 
 const currentSection = computed(() => props.section || activeSection.value);
 const sectionLocked = computed(() => Boolean(props.section));
-const isOverviewSection = computed(() => currentSection.value === "overview");
 const activeSectionMeta = computed(
   () => sectionItems.find((item) => item.key === currentSection.value) ?? sectionItems[0]
 );

@@ -3,12 +3,10 @@ import { computed, onMounted, reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
 import { useRoute, useRouter } from "vue-router";
 import {
-  OfficeBuilding,
   User,
   Lock,
   Key,
-  RefreshRight,
-  ArrowDown
+  RefreshRight
 } from "@element-plus/icons-vue";
 import { fetchPortalEntry, type PortalEntry } from "@/api/modules/portal";
 import { fetchAuthCaptcha } from "@/api/modules/auth";

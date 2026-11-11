@@ -1,11 +1,17 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
-import { ElMessage } from "element-plus";
-import { Connection, Position, CircleCheck, Search, Document, RefreshRight } from "@element-plus/icons-vue";
-import BaseCard from "@/components/base/BaseCard.vue";
+import { ref } from "vue";
+import {
+  ElMessage
+} from "element-plus";
+import {
+  CircleCheck,
+  Search,
+  Document,
+  RefreshRight
+} from "@element-plus/icons-vue";
 import type { DatasourceRow } from "@/api/modules/integration";
 
-const props = defineProps<{
+defineProps<{
   rows: DatasourceRow[];
 }>();
 
@@ -17,8 +23,6 @@ const probeResults = ref([
   { name: "企业微信消息通知网关", type: "WEBHOOK", endpoint: "https://qyapi.weixin.qq.com/cgi-bin/webhook", status: "HEALTHY", latency: "42.0ms", tls: "TLS 1.3", circuit: "CLOSED" },
   { name: "第三方电子发票开具服务", type: "HTTP/REST", endpoint: "https://invoice.fapiao-saas.com/api/v2", status: "HEALTHY", latency: "88.5ms", tls: "TLS 1.2", circuit: "CLOSED" }
 ]);
-
-const passedCount = computed(() => probeResults.value.filter((item) => item.status === "HEALTHY").length);
 
 function handleRunFullScan() {
   scanning.value = true;

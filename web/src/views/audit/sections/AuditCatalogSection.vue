@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { ElMessage } from "element-plus";
-import { Document, Download, Filter, Key, Lock, Search } from "@element-plus/icons-vue";
+import {
+  ElMessage
+} from "element-plus";
+import {
+  Download
+} from "@element-plus/icons-vue";
 
 interface CatalogItem {
   code: string;

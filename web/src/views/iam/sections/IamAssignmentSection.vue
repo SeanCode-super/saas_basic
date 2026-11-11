@@ -3,17 +3,12 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
   ArrowRight,
-  Check,
-  Close,
   Cpu,
   Delete,
   Key,
-  Link,
-  OfficeBuilding,
   Plus,
   Refresh,
   Search,
-  User,
   UserFilled
 } from "@element-plus/icons-vue";
 import {
@@ -30,7 +25,7 @@ import type {
 } from "@/api/modules/iam";
 import BaseCard from "@/components/base/BaseCard.vue";
 import BaseStatusTag from "@/components/base/BaseStatusTag.vue";
-import ProTable, { type ProTableColumn } from "@/components/pro/ProTable.vue";
+import type { ProTableColumn } from "@/components/pro/ProTable.vue";
 
 const props = withDefaults(
   defineProps<{

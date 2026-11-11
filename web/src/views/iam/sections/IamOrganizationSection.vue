@@ -2,7 +2,6 @@
 import { computed, nextTick, ref, watch } from "vue";
 import {
   ArrowDown,
-  Check,
   CircleCheck,
   CircleClose,
   CopyDocument,
@@ -428,7 +427,7 @@ function getPositionEmployeeList(posId: number) {
 
             <!-- 职能分类 -->
             <el-table-column label="职能分类" min-width="130">
-              <template #default="{ row }">
+              <template #default>
                 <el-tag size="small" type="primary" effect="plain">基准业务岗</el-tag>
               </template>
             </el-table-column>

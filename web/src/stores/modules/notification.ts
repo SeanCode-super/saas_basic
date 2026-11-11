@@ -1,5 +1,9 @@
-import { defineStore } from "pinia";
-import { computed, ref } from "vue";
+import {
+  defineStore
+} from "pinia";
+import {
+  ref
+} from "vue";
 import { ElNotification } from "element-plus";
 import {
   fetchMyNotifications,
@@ -7,7 +11,9 @@ import {
   markAllNotificationsRead,
   markNotificationRead
 } from "@/api/modules/notify";
-import type { NotifyCategory, NotifyMessage } from "@/api/modules/notify";
+import type {
+  NotifyMessage
+} from "@/api/modules/notify";
 import { useAuthStore } from "./auth";
 
 export const useNotificationStore = defineStore("notification", () => {

@@ -4,7 +4,6 @@ import { useRouter } from "vue-router";
 import {
   Cpu,
   Key,
-  Right,
   User,
   UserFilled,
   OfficeBuilding,

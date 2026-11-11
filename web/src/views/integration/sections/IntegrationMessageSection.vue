@@ -4,13 +4,10 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import {
   ChatDotRound,
   Message,
-  DocumentCopy,
   Delete,
   Refresh,
   Position,
   CircleCheckFilled,
-  WarningFilled,
-  Check,
   Promotion
 } from "@element-plus/icons-vue";
 import BaseCard from "@/components/base/BaseCard.vue";

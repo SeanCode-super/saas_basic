@@ -1,9 +1,19 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { ElMessage, ElMessageBox } from "element-plus";
-import { Plus, Check, RefreshRight, Tickets, MagicStick, CircleCheck, Setting, Key } from "@element-plus/icons-vue";
+import {
+  ElMessage,
+  ElMessageBox
+} from "element-plus";
+import {
+  Check,
+  RefreshRight,
+  Tickets,
+  MagicStick,
+  CircleCheck,
+  Setting
+} from "@element-plus/icons-vue";
 
-const props = defineProps<{
+defineProps<{
   sequencePolicy: {
     tenantPrefix: string;
     orderPrefix: string;
@@ -14,8 +24,6 @@ const props = defineProps<{
 }>();
 
 const policyExpanded = ref(false);
-const simulatedTenantSeq = ref(42);
-const simulatedOrderSeq = ref(1089);
 const editDialogVisible = ref(false);
 const editingRule = ref<any>(null);
 

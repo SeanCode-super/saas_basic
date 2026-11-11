@@ -1,7 +1,15 @@
 <script setup lang="ts">
-import { ref } from "vue";
-import { ElMessage, ElMessageBox } from "element-plus";
-import { Plus, Check, Connection, Edit, Delete, RefreshRight, CircleCheck } from "@element-plus/icons-vue";
+import {
+  ref
+} from "vue";
+import {
+  ElMessage
+} from "element-plus";
+import {
+  Plus,
+  Connection,
+  Edit
+} from "@element-plus/icons-vue";
 
 const props = defineProps<{
   storagePolicy: {

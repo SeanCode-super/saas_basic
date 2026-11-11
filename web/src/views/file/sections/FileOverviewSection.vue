@@ -195,7 +195,7 @@ function handleDownload(row: any) {
           </template>
         </el-table-column>
         <el-table-column prop="status" label="状态" width="100">
-          <template #default="{ row }">
+          <template #default>
             <el-tag type="success" size="small"><el-icon><CircleCheck /></el-icon> 正常</el-tag>
           </template>
         </el-table-column>

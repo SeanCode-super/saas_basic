@@ -4,15 +4,9 @@ import { ElMessage } from "element-plus";
 import {
   Check,
   Close,
-  Compass,
   Cpu,
   DataAnalysis,
-  Document,
-  Key,
-  Right,
-  Search,
-  User,
-  Warning
+  Document
 } from "@element-plus/icons-vue";
 import {
   fetchUserPermissionInspection,
@@ -25,7 +19,6 @@ import type {
   PermissionSimulationResponse,
   UserPermissionInspection
 } from "@/api/modules/iam";
-import BaseCard from "@/components/base/BaseCard.vue";
 
 const props = defineProps<{
   visible: boolean;
@@ -127,10 +120,6 @@ async function runSimulator() {
     runningSimulation.value = false;
   }
 }
-
-const currentUserObj = computed(() => {
-  return props.users.find((u) => u.id === selectedUserId.value) ?? null;
-});
 
 // Group visible menus by parent
 const inspectedMenuGroups = computed(() => {

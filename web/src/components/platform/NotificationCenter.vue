@@ -3,9 +3,7 @@ import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import {
   Bell,
-  Check,
   CircleCheck,
-  DocumentChecked,
   Promotion,
   Refresh,
   Timer,

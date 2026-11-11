@@ -10,8 +10,7 @@ import {
   Lock,
   Iphone,
   Search,
-  CircleCheck,
-  WarningFilled
+  CircleCheck
 } from "@element-plus/icons-vue";
 import BaseCard from "@/components/base/BaseCard.vue";
 import { fetchOnlineSessions, kickoutOnlineSession } from "@/api/modules/auth";
@@ -142,7 +141,7 @@ async function handleBatchKickout() {
 
     ElMessage.success(`已批量下线 ${candidates.length} 个活跃会话`);
     await loadSessions();
-  } catch (e) {
+  } catch {
     // cancel
   }
 }

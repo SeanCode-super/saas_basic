@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
@@ -21,7 +21,6 @@ import {
   MagicStick,
   Menu,
   OfficeBuilding,
-  PriceTag,
   Printer,
   Refresh,
   Search,
@@ -29,16 +28,12 @@ import {
   SetUp,
   Share,
   Shop,
-  Switch,
   Timer,
   TrendCharts,
-  UserFilled,
-  Warning
+  UserFilled
 } from "@element-plus/icons-vue";
 import {
   fetchTenantAppCatalog,
-  subscribeTenantApp,
-  updateTenantAppStatus,
   toggleTenantAppAuthorization,
   batchAuthorizeTenantApps,
   resetTenantPackageBaseline,
@@ -46,10 +41,8 @@ import {
 } from "@/api/modules/tenant";
 import type {
   TenantAppCatalogItem,
-  TenantAppSubscribePayload,
   TenantRow
 } from "@/api/modules/tenant";
-import BaseCard from "@/components/base/BaseCard.vue";
 import { useTenantStore } from "@/stores/modules/tenant";
 
 const route = useRoute();
@@ -93,16 +86,6 @@ function setViewMode(mode: "table" | "card") {
 const searchKeyword = ref("");
 const selectedCategory = ref("ALL");
 const selectedStatus = ref("ALL");
-
-// Subscribe dialog state
-const subscribeDialogVisible = ref(false);
-const subscribing = ref(false);
-const currentApp = ref<TenantAppCatalogItem | null>(null);
-const subscribeForm = reactive<TenantAppSubscribePayload>({
-  appCode: "",
-  trialDays: 14,
-  remark: "控制台自助开通试用"
-});
 
 const isolationLabelMap: Record<string, string> = {
   PLATFORM: "平台模式",

@@ -23,7 +23,6 @@ import {
   Download,
   UploadFilled,
   Link,
-  CopyDocument,
   Position
 } from "@element-plus/icons-vue";
 import { buildTenantSubdomainUrl } from "@/utils/portal-context";
@@ -69,7 +68,7 @@ const props = defineProps<{
   openImportDialog: () => void;
 }>();
 
-const emit = defineEmits<{
+defineEmits<{
   (e: "navigate-section", section: string): void;
 }>();
 
@@ -181,7 +180,7 @@ function fallbackCopyText(text: string, tenantName: string) {
       message: `已复制「${tenantName}」专属登录链接：${text}`,
       duration: 4000
     });
-  } catch (e) {
+  } catch {
     ElMessage.info(`专属登录链接为：${text}`);
   }
 }

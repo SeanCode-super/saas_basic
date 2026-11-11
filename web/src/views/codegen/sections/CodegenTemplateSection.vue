@@ -1,9 +1,16 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { ElMessage } from "element-plus";
-import { DocumentCopy, Check, Cpu, Setting, ArrowUp, ArrowDown } from "@element-plus/icons-vue";
+import {
+  ElMessage
+} from "element-plus";
+import {
+  DocumentCopy,
+  Check,
+  Setting,
+  ArrowUp
+} from "@element-plus/icons-vue";
 
-const props = defineProps<{
+defineProps<{
   templatePolicy: {
     generateSql: boolean;
     generatePermission: boolean;

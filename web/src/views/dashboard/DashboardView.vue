@@ -1,39 +1,29 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
 import {
-  ArrowRight,
-  Check,
   CircleCheck,
   Cpu,
   Download,
-  Files,
-  OfficeBuilding,
-  Odometer,
-  Operation,
   Plus,
   Refresh,
   User,
-  DataLine,
   Document,
   Share,
   Money,
   MoreFilled,
   Calendar,
-  TopRight,
-  TrendCharts,
-  Suitcase
+  TrendCharts
 } from "@element-plus/icons-vue";
 import { useRouter } from "vue-router";
-import { ElMessage } from "element-plus";
-import ProStatusDot from "@/components/pro/ProStatusDot.vue";
-import { useAuthStore } from "@/stores/modules/auth";
+import {
+  ElMessage
+} from "element-plus";
 import { useTenantStore } from "@/stores/modules/tenant";
 import { createTenant, fetchTenantPage, type TenantRow } from "@/api/modules/tenant";
 import { createIamUser, fetchIamDepartments, fetchIamUsers, type IamUserRow } from "@/api/modules/iam";
 import { fetchOperationLogs, type OperationLog } from "@/api/modules/audit";
 
 const router = useRouter();
-const authStore = useAuthStore();
 const tenantStore = useTenantStore();
 
 const loading = ref(false);
@@ -52,9 +42,6 @@ const dateTabs = [
 ] as const;
 
 const currentTenantName = computed(() => tenantStore.currentTenant?.name ?? "平台空间");
-const currentUserDisplay = computed(
-  () => authStore.currentUser?.nickname || authStore.currentUser?.username || "管理员"
-);
 
 // Dynamic calendar display
 const now = new Date();

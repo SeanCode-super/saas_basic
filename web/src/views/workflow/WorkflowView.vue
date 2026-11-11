@@ -3,8 +3,6 @@ import { computed, onMounted, onUnmounted, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
   Calendar,
-  Check,
-  CircleCheck,
   Connection,
   Document,
   Key,
@@ -12,8 +10,7 @@ import {
   Plus,
   RefreshRight,
   Tickets,
-  Timer,
-  WarningFilled
+  Timer
 } from "@element-plus/icons-vue";
 import {
   checkWorkflowHealth,

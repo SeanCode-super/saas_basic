@@ -2,22 +2,15 @@
 import { ref } from "vue";
 import { ElMessage } from "element-plus";
 import {
-  Bell,
   CircleCheck,
   Cpu,
-  DataAnalysis,
-  Document,
   Monitor,
   Operation,
-  Refresh,
-  Search,
   Timer,
-  VideoPlay,
-  Warning
+  VideoPlay
 } from "@element-plus/icons-vue";
-import BaseCard from "@/components/base/BaseCard.vue";
 
-const props = defineProps<{
+defineProps<{
   jobs?: Array<Record<string, unknown>>;
   logs?: Array<Record<string, unknown>>;
   loading?: boolean;

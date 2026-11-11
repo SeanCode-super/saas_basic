@@ -1,5 +1,10 @@
 <script setup lang="ts">
-import { computed, nextTick, reactive, ref, watch } from "vue";
+import {
+  computed,
+  reactive,
+  ref,
+  watch
+} from "vue";
 import { ElMessage } from "element-plus";
 import {
   ArrowDown,
@@ -7,32 +12,21 @@ import {
   Check,
   CircleCheck,
   CircleClose,
-  Close,
   CopyDocument,
-  Cpu,
-  DataBoard,
-  Document,
-  DocumentChecked,
-  Edit,
   Expand,
-  Filter,
   Fold,
   Folder,
   Key,
   Link,
   Operation,
   Plus,
-  Promotion,
   Refresh,
   Search,
-  Setting,
-  Switch,
   View
 } from "@element-plus/icons-vue";
 import {
   createIamMenuPermission,
   fetchRoleMenuIds,
-  replaceIamMenuSubjectGrants,
   replaceRoleMenus,
   updateIamMenu,
   updateIamMenuPermission,
@@ -51,8 +45,12 @@ import BaseCard from "@/components/base/BaseCard.vue";
 import BaseStatusTag from "@/components/base/BaseStatusTag.vue";
 import ProTable from "@/components/pro/ProTable.vue";
 import type { ProTableColumn } from "@/components/pro/ProTable.vue";
-import { resolveAppMeta } from "@/config/app-taxonomy";
-import { localizeMenuType, localizeSubjectType } from "../iam-meta";
+import {
+  resolveAppMeta
+} from "@/config/app-taxonomy";
+import {
+  localizeSubjectType
+} from "../iam-meta";
 
 type SubjectType = "USER" | "DEPARTMENT" | "POSITION" | "COMPANY" | "TENANT";
 
@@ -489,7 +487,6 @@ const roleSearchKeyword = ref("");
 const roleGrantFilterKeyword = ref("");
 const selectedRoleId = ref<number | null>(null);
 const selectedMenuIds = ref<number[]>([]);
-const checkStrictly = ref(false);
 const savingRole = ref(false);
 const collapsedModuleIds = ref<Set<number>>(new Set());
 

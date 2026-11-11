@@ -1,9 +1,14 @@
 <script setup lang="ts">
 import { reactive, ref } from "vue";
-import { ElMessage } from "element-plus";
-import { Bell, Cpu, Operation, Search, VideoPlay, Warning } from "@element-plus/icons-vue";
+import {
+  ElMessage
+} from "element-plus";
+import {
+  Cpu,
+  VideoPlay
+} from "@element-plus/icons-vue";
 
-const props = defineProps<{
+defineProps<{
   riskPolicy: {
     abnormalLoginAlert: boolean;
     privilegeEscalationAlert: boolean;

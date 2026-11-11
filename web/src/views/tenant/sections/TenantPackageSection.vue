@@ -4,7 +4,6 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import {
   Box,
   Check,
-  Close,
   Delete,
   Edit,
   Files,
@@ -21,8 +20,10 @@ import {
   fetchTenantPackages,
   updateTenantPackage
 } from "@/api/modules/tenant";
-import type { TenantPackageRow, TenantPackageSavePayload } from "@/api/modules/tenant";
-import BaseCard from "@/components/base/BaseCard.vue";
+import type {
+  TenantPackageRow,
+  TenantPackageSavePayload
+} from "@/api/modules/tenant";
 
 const loading = ref(false);
 const saving = ref(false);
