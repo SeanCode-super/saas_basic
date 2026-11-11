@@ -146,3 +146,68 @@ export interface JvmInfoData {
   availableProcessors: number;
   systemCpuLoad: number;
 }
+
+// ==================== 全链路可控传输加密 (Transport Crypto) ====================
+
+export type TransportCryptoMode = "OFF" | "OPTIONAL" | "REQUIRED";
+export type TransportScopeMode = "ALL_API" | "SENSITIVE_ONLY" | "CUSTOM";
+
+export interface TransportKeySummary {
+  activeKid: string;
+  publicKey: string;
+  fingerprintSha256: string;
+  issuedAtEpochMs: number;
+  retainedKeyCount: number;
+}
+
+export interface TransportTelemetrySummary {
+  totalRequests: number;
+  encryptedRequests: number;
+  plaintextAllowed: number;
+  rejectedPlaintext: number;
+  rejectedReplay: number;
+  decryptErrors: number;
+}
+
+export interface TransportSecurityOverview {
+  mode: TransportCryptoMode;
+  scopeMode: TransportScopeMode;
+  algorithm: string;
+  encryptRequest: boolean;
+  encryptResponse: boolean;
+  encryptQuery: boolean;
+  replayProtection: boolean;
+  timestampSkewSeconds: number;
+  includePaths: string[];
+  excludePaths: string[];
+  sensitivePaths: string[];
+  policyVersion: number;
+  updatedAtEpochMs: number;
+  remark?: string;
+  keySummary: TransportKeySummary;
+  telemetry: TransportTelemetrySummary;
+}
+
+export interface TransportPolicyUpdatePayload {
+  mode: TransportCryptoMode;
+  scopeMode: TransportScopeMode;
+  encryptRequest: boolean;
+  encryptResponse: boolean;
+  encryptQuery: boolean;
+  replayProtection: boolean;
+  timestampSkewSeconds: number;
+  includePaths: string[];
+  excludePaths: string[];
+  sensitivePaths: string[];
+  remark?: string;
+}
+
+export interface TransportRoundtripResult {
+  echoedText: string;
+  transportEncrypted: boolean;
+  mode: string;
+  scopeMode: string;
+  activeKid: string;
+  policyVersion: number;
+  serverHandledAtMs: number;
+}

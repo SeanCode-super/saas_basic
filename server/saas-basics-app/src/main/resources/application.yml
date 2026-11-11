@@ -67,6 +67,17 @@ saas-basics:
       enabled: true
       active-key-version: v1
       master-key: ${SAAS_VAULT_MASTER_KEY:tianshu-saas-basics-local-vault-master-key-change-in-prod}
+    transport:
+      enabled: true
+      mode: OPTIONAL
+      scope-mode: ALL_API
+      encrypt-request: true
+      encrypt-response: true
+      encrypt-query: true
+      replay-protection: true
+      timestamp-skew-seconds: 300
+      key-rotation-hours: 24
+      max-grace-keys: 3
   rate-limit:
     enabled: true
     tenant-rpm: 1200

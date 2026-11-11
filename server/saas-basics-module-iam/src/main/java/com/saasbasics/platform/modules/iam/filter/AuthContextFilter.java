@@ -25,6 +25,7 @@ public class AuthContextFilter extends OncePerRequestFilter {
             "/api/auth/refresh-token",
             "/api/auth/sso",
             "/api/portal/entry",
+            "/api/security/transport/policy",
             "/api/health/ready",
             "/api/ws",
             "/actuator",

@@ -16,6 +16,9 @@
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",
+    "@noble/ciphers": "^2.4.0",
+    "@noble/curves": "^2.4.0",
+    "@noble/hashes": "^2.4.0",
     "@vue/compiler-dom": "^3.5.29",
     "@vue/compiler-sfc": "^3.5.29",
     "@vue/reactivity": "^3.5.29",

@@ -4,8 +4,15 @@
  * 1. 双令牌机制（Access Token + 7天 Refresh Token）无感静默续期
  * 2. 401 并发请求锁与订阅队列重放（防止多个请求同时触发 Token 刷新）
  * 3. 多租户上下文 Header (X-Tenant-Id) 自动注入
- * 4. 超时安全控制与网络断网容灾感知
+ * 4. 可控传输加密（X25519 + HKDF-SHA256 + AES-256-GCM 双向加密与动态策略自动同步）
  */
+import {
+  normalizeApiPathname,
+  prepareEncryptedTransmission,
+  shouldEncryptRequest,
+  type PreparedTransmission,
+  type PublicTransportPolicy
+} from "./transport-crypto";
 
 // #ifdef H5
 const BASE_URL = "";
@@ -25,6 +32,63 @@ export interface ApiResponse<T = any> {
 let isRefreshing = false;
 let refreshSubscribers: Array<(token: string) => void> = [];
 
+let cachedPolicy: PublicTransportPolicy | null = null;
+let policyLoadedAt = 0;
+let inflightPolicyReq: Promise<PublicTransportPolicy | null> | null = null;
+const POLICY_TTL_MS = 60_000;
+
+function readHeaderIgnoreCase(headers: Record<string, any> | undefined, target: string): string | undefined {
+  if (!headers) return undefined;
+  const lower = target.toLowerCase();
+  for (const key of Object.keys(headers)) {
+    if (key.toLowerCase() === lower) {
+      return headers[key] != null ? String(headers[key]) : undefined;
+    }
+  }
+  return undefined;
+}
+
+export async function getMobileTransportPolicy(forceRefresh = false): Promise<PublicTransportPolicy | null> {
+  const now = Date.now();
+  if (!forceRefresh && cachedPolicy && now - policyLoadedAt < POLICY_TTL_MS) {
+    return cachedPolicy;
+  }
+  if (inflightPolicyReq && !forceRefresh) {
+    return inflightPolicyReq;
+  }
+  inflightPolicyReq = new Promise<PublicTransportPolicy | null>((resolve) => {
+    uni.request({
+      url: (BASE_URL || "") + "/api/security/transport/policy",
+      method: "GET",
+      timeout: 5000,
+      success: (res) => {
+        const body = res.data as ApiResponse<PublicTransportPolicy>;
+        if (res.statusCode === 200 && body?.success && body.data?.publicKey) {
+          body.data.clockOffsetMs = body.data.serverTimestampMs ? body.data.serverTimestampMs - Date.now() : 0;
+          cachedPolicy = body.data;
+          policyLoadedAt = Date.now();
+        }
+        resolve(cachedPolicy);
+      },
+      fail: () => resolve(cachedPolicy)
+    });
+  }).finally(() => {
+    inflightPolicyReq = null;
+  });
+  return inflightPolicyReq;
+}
+
+export function invalidateMobileTransportPolicy(): void {
+  policyLoadedAt = 0;
+}
+
+function syncPolicyVersion(headers: Record<string, any> | undefined): void {
+  const ver = readHeaderIgnoreCase(headers, "x-transport-policy-version");
+  if (ver && cachedPolicy && Number(ver) !== cachedPolicy.policyVersion) {
+    invalidateMobileTransportPolicy();
+  }
+}
+
 function subscribeTokenRefresh(cb: (token: string) => void) {
   refreshSubscribers.push(cb);
 }
@@ -38,7 +102,6 @@ function clearSessionAndRedirect() {
   uni.removeStorageSync("sb_access_token");
   uni.removeStorageSync("sb_refresh_token");
   uni.removeStorageSync("sb_current_user");
-  // 避免在登录页死循环跳转
   const pages = getCurrentPages();
   const currentRoute = pages.length ? pages[pages.length - 1].route : "";
   if (!currentRoute?.includes("pages/login/login")) {
@@ -51,72 +114,134 @@ async function doRefreshToken(): Promise<string> {
   if (!refreshToken) {
     throw new Error("NO_REFRESH_TOKEN");
   }
-
-  return new Promise((resolve, reject) => {
-    uni.request({
-      url: (BASE_URL || "") + "/api/auth/refresh-token",
-      method: "POST",
-      data: { refreshToken },
-      header: {
-        "Content-Type": "application/json",
-        "X-Tenant-Id": uni.getStorageSync("sb_tenant_id") || "1",
-        ...(uni.getStorageSync("sb_tenant_code") ? { "X-Tenant-Code": uni.getStorageSync("sb_tenant_code") } : {})
-      },
-      success: (res) => {
-        const body = res.data as ApiResponse<any>;
-        if (res.statusCode === 200 && body.success && body.data?.accessToken) {
-          const newAccessToken = body.data.accessToken;
-          uni.setStorageSync("sb_access_token", newAccessToken);
-          if (body.data.refreshToken) {
-            uni.setStorageSync("sb_refresh_token", body.data.refreshToken);
-          }
-          resolve(newAccessToken);
-        } else {
-          reject(new Error(body?.message || "REFRESH_FAILED"));
-        }
-      },
-      fail: (err) => reject(err)
-    });
+  const data = await request<{ accessToken: string; refreshToken?: string }>({
+    url: "/api/auth/refresh-token",
+    method: "POST",
+    data: { refreshToken },
+    silent: true,
+    _skipAuthRetry: true
   });
+  if (!data?.accessToken) {
+    throw new Error("REFRESH_FAILED");
+  }
+  uni.setStorageSync("sb_access_token", data.accessToken);
+  if (data.refreshToken) {
+    uni.setStorageSync("sb_refresh_token", data.refreshToken);
+  }
+  return data.accessToken;
 }
 
-export function request<T = any>(options: {
+function buildQueryString(params?: Record<string, any>): string {
+  if (!params) return "";
+  return Object.entries(params)
+    .filter(([, v]) => v !== undefined && v !== null && v !== "")
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+    .join("&");
+}
+
+function splitUrlAndQuery(rawUrl: string, params?: Record<string, any>): { cleanUrl: string; queryStr: string } {
+  const qIdx = rawUrl.indexOf("?");
+  const cleanUrl = qIdx >= 0 ? rawUrl.slice(0, qIdx) : rawUrl;
+  const parts: string[] = [];
+  if (qIdx >= 0 && qIdx + 1 < rawUrl.length) {
+    parts.push(rawUrl.slice(qIdx + 1));
+  }
+  const paramStr = buildQueryString(params);
+  if (paramStr) {
+    parts.push(paramStr);
+  }
+  return { cleanUrl, queryStr: parts.join("&") };
+}
+
+export async function request<T = any>(options: {
   url: string;
   method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
   data?: any;
   params?: Record<string, any>;
   silent?: boolean;
   timeout?: number;
+  transportEncrypt?: boolean;
+  _cryptoRetry?: boolean;
+  _skipAuthRetry?: boolean;
 }): Promise<T> {
+  const policy = await getMobileTransportPolicy();
+  const rawFullUrl = options.url.startsWith("http") ? options.url : BASE_URL + options.url;
+  const { cleanUrl, queryStr } = splitUrlAndQuery(rawFullUrl, options.params);
+  const fullPath = normalizeApiPathname(BASE_URL, cleanUrl);
+
+  let session: PreparedTransmission | null = null;
+  let finalUrl = cleanUrl;
+  let finalData = options.data;
+  const extraHeaders: Record<string, string> = {};
+
+  if (shouldEncryptRequest(fullPath, policy, options.transportEncrypt) && policy) {
+    session = prepareEncryptedTransmission({
+      policy,
+      method: options.method || "GET",
+      path: fullPath,
+      body: options.data,
+      queryString: queryStr
+    });
+    Object.assign(extraHeaders, session.headers);
+    if (session.envelope) {
+      finalData = session.envelope;
+    }
+    if (queryStr && !policy.encryptQuery) {
+      finalUrl += `?${queryStr}`;
+    }
+  } else if (queryStr) {
+    finalUrl += `?${queryStr}`;
+  }
+
   return new Promise((resolve, reject) => {
     const token = uni.getStorageSync("sb_access_token") || "";
     const tenantId = uni.getStorageSync("sb_tenant_id") || "1";
     const tenantCode = uni.getStorageSync("sb_tenant_code") || "";
 
-    let finalUrl = options.url.startsWith("http") ? options.url : BASE_URL + options.url;
-    if (options.params) {
-      const query = Object.entries(options.params)
-        .filter(([, v]) => v !== undefined && v !== null && v !== "")
-        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
-        .join("&");
-      if (query) {
-        finalUrl += (finalUrl.includes("?") ? "&" : "?") + query;
-      }
-    }
-
     uni.request({
       url: finalUrl,
-      method: options.method || "GET",
-      data: options.data,
+      method: (options.method || "GET") as UniApp.RequestOptions["method"],
+      data: finalData,
       timeout: options.timeout || 12000,
       header: {
         "Content-Type": "application/json",
         "X-Tenant-Id": tenantId,
         ...(tenantCode ? { "X-Tenant-Code": tenantCode } : {}),
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...extraHeaders
       },
       success: async (res) => {
-        const body = res.data as ApiResponse<T>;
+        syncPolicyVersion(res.header as Record<string, any>);
+        let rawBody = res.data as any;
+        const encHeader = readHeaderIgnoreCase(res.header as Record<string, any>, "x-transport-encrypted");
+        if (session && (encHeader === "1" || rawBody?.encrypted === true)) {
+          try {
+            rawBody = session.decryptResponse(rawBody);
+          } catch (decryptErr) {
+            if (!options.silent) {
+              uni.showToast({ title: "响应密文解密失败", icon: "none" });
+            }
+            reject(decryptErr);
+            return;
+          }
+        }
+
+        const body = rawBody as ApiResponse<T>;
+        const code = body?.code;
+
+        // 密钥过期或策略强制加密 -> 刷新策略与公钥并重试一次
+        if (
+          !options._cryptoRetry &&
+          (res.statusCode === 428 ||
+            code === "TRANSPORT_KEY_EXPIRED" ||
+            code === "TRANSPORT_ENCRYPTION_REQUIRED" ||
+            code === "TRANSPORT_TIMESTAMP_EXPIRED")
+        ) {
+          invalidateMobileTransportPolicy();
+          await getMobileTransportPolicy(true);
+          request<T>({ ...options, _cryptoRetry: true }).then(resolve).catch(reject);
+          return;
+        }
 
         if (res.statusCode === 200) {
           if (body.success) {
@@ -128,14 +253,12 @@ export function request<T = any>(options: {
             reject(new Error(body.message));
           }
         } else if (res.statusCode === 401) {
-          // 如果本身是登录或刷新接口触发401，直接终止
-          if (options.url.includes("/login") || options.url.includes("/refresh-token")) {
+          if (options._skipAuthRetry || options.url.includes("/login") || options.url.includes("/refresh-token")) {
             clearSessionAndRedirect();
             reject(new Error("UNAUTHORIZED"));
             return;
           }
 
-          // 启用双令牌静默刷新重放机制
           const refreshToken = uni.getStorageSync("sb_refresh_token");
           if (!refreshToken) {
             clearSessionAndRedirect();
@@ -147,7 +270,6 @@ export function request<T = any>(options: {
           }
 
           if (isRefreshing) {
-            // 已在刷新中，将当前请求排队加入订阅池
             subscribeTokenRefresh(() => {
               request<T>(options).then(resolve).catch(reject);
             });
@@ -159,7 +281,6 @@ export function request<T = any>(options: {
             const newToken = await doRefreshToken();
             isRefreshing = false;
             onRefreshed(newToken);
-            // 重放本次请求
             request<T>(options).then(resolve).catch(reject);
           } catch (refreshErr) {
             isRefreshing = false;

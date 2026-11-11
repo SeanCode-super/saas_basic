@@ -55,6 +55,17 @@ public class WebConfig implements WebMvcConfigurer {
                 .allowedOriginPatterns(origins.toArray(String[]::new))
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
                 .allowedHeaders("*")
+                .exposedHeaders(
+                        "X-Transport-Encrypted",
+                        "X-Transport-Mode",
+                        "X-Transport-Policy-Version",
+                        "X-Transport-Alg",
+                        "X-RateLimit-Limit",
+                        "X-RateLimit-Remaining",
+                        "X-RateLimit-Reset",
+                        "X-Trace-Id",
+                        "traceparent"
+                )
                 .allowCredentials(true);
     }
 
