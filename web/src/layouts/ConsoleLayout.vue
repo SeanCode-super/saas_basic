@@ -66,7 +66,34 @@ const menuStore = useMenuStore();
 const tenantStore = useTenantStore();
 const directoryVisible = ref(false);
 const mobileDrawerVisible = ref(false);
-const railCollapsed = ref(false);
+const COMPACT_RAIL_QUERY = "(max-width: 1120px)";
+const railCollapsed = ref(
+  typeof window !== "undefined" && typeof window.matchMedia === "function"
+    ? window.matchMedia(COMPACT_RAIL_QUERY).matches
+    : false
+);
+const preCompactRailCollapsed = ref<boolean | null>(
+  typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia(COMPACT_RAIL_QUERY).matches
+    ? false
+    : null
+);
+let railCompactMediaQuery: MediaQueryList | null = null;
+
+function syncRailForViewport(matches: boolean) {
+  if (matches) {
+    if (preCompactRailCollapsed.value === null) {
+      preCompactRailCollapsed.value = railCollapsed.value;
+    }
+    railCollapsed.value = true;
+  } else if (preCompactRailCollapsed.value !== null) {
+    railCollapsed.value = preCompactRailCollapsed.value;
+    preCompactRailCollapsed.value = null;
+  }
+}
+
+function handleCompactViewportChange(e: MediaQueryListEvent) {
+  syncRailForViewport(e.matches);
+}
 
 // Dual-Nav (Top-Side Mix) vs Classic Full Sidebar vs Top Menu Layout (默认采用顶级横向晶透浮动模式，与 iOS 27 视觉完全统一)
 const layoutMode = ref<LayoutMode>(
@@ -113,10 +140,16 @@ function handleGlobalKeydown(e: KeyboardEvent) {
 
 onMounted(() => {
   window.addEventListener("keydown", handleGlobalKeydown);
+  if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
+    railCompactMediaQuery = window.matchMedia(COMPACT_RAIL_QUERY);
+    syncRailForViewport(railCompactMediaQuery.matches);
+    railCompactMediaQuery.addEventListener?.("change", handleCompactViewportChange);
+  }
 });
 
 onUnmounted(() => {
   window.removeEventListener("keydown", handleGlobalKeydown);
+  railCompactMediaQuery?.removeEventListener?.("change", handleCompactViewportChange);
 });
 
 const activeCluster = ref<string>("overview");
@@ -386,6 +419,21 @@ function handleAppClick(app: MenuNavItem) {
   }
 }
 
+function handleCollapsedAppClick(app: MenuNavItem) {
+  if (app.children.length > 0) {
+    railCollapsed.value = false;
+    ensureAppExpanded(app.id);
+    return;
+  }
+  switchApp(app);
+}
+
+function handleCollapsedClusterClick(key: string) {
+  railCollapsed.value = false;
+  activeCluster.value = key;
+  ensureClusterExpanded(key);
+}
+
 function switchCluster(key: string) {
   activeCluster.value = key;
   ensureClusterExpanded(key);
@@ -562,7 +610,7 @@ onMounted(() => {
                     :class="{
                       'is-active': isSectionActive(app)
                     }"
-                    @click="handleAppClick(app)"
+                    @click="handleCollapsedAppClick(app)"
                   >
                     <el-icon class="console-shell__rail-icon">
                       <component :is="resolveAppIcon(app.code, app.icon)" />
@@ -694,7 +742,7 @@ onMounted(() => {
                     :class="{
                       'is-active': isClusterActive(group)
                     }"
-                    @click="switchCluster(group.key)"
+                    @click="handleCollapsedClusterClick(group.key)"
                   >
                     <el-icon class="cluster-parent-icon">
                       <component :is="clusterMetaMap[group.key]?.icon || 'Grid'" />
@@ -3759,88 +3807,24 @@ onMounted(() => {
 }
 
 @media (max-width: 1120px) {
+  .console-shell:not(.console-shell--collapsed, .layout--top) {
+    grid-template-columns: 212px minmax(0, 1fr);
+  }
+
   .console-shell {
-    grid-template-columns: 64px minmax(0, 1fr);
     padding: 10px 12px;
     gap: 10px;
   }
 
-  .console-shell__rail {
-    width: 64px;
-    min-width: 0;
-  }
+  .console-shell:not(.console-shell--collapsed) {
+    .console-shell__locale,
+    .console-shell__user-details {
+      display: none;
+    }
 
-  .console-shell__rail .console-shell__brand {
-    justify-content: center;
-    padding: 0;
-  }
-
-  .console-shell__rail .console-shell__brand-text,
-  .console-shell__rail .console-shell__brand-badge,
-  .console-shell__rail :deep(.brand-text-block) {
-    display: none;
-  }
-
-  .console-shell__navigation {
-    padding: 10px 6px;
-  }
-
-  .console-shell__rail-label,
-  .console-shell__rail-title,
-  .console-shell__rail-badge,
-  .console-shell__rail-arrow,
-  .console-shell__rail-app strong,
-  .console-shell__submenu,
-  .console-shell__directory-trigger span,
-  .console-shell__footer-icon-btn,
-  .console-shell__nav-state span,
-  .console-shell__cluster-title,
-  .cluster-parent-title,
-  .cluster-parent-arrow,
-  .console-shell__cluster-children,
-  .console-shell__collapse-trigger {
-    display: none;
-  }
-
-  .console-shell__rail-app,
-  .console-shell__cluster-parent {
-    justify-content: center;
-    padding: 6px 0;
-    border-radius: 6px;
-  }
-
-  .console-shell__rail-footer {
-    padding: 6px;
-    justify-content: center;
-  }
-
-  .console-shell__directory-trigger {
-    flex: 0 0 36px;
-    width: 36px;
-    justify-content: center;
-    padding: 0;
-  }
-
-  .console-shell__rail-toggle-pill {
-    display: none;
-  }
-
-  .console-shell__mobile-menu-btn {
-    display: inline-flex !important;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    border-radius: 8px;
-    border: 1px solid var(--sb-border-color, #e2e8f0);
-    background: #fff;
-    color: var(--sb-text-primary, #0f172a);
-    cursor: pointer;
-    flex-shrink: 0;
-
-    .mobile-menu-icon {
-      font-size: 16px;
+    .console-shell__user-trigger {
+      padding: 3px 6px;
+      gap: 4px;
     }
   }
 
@@ -3875,8 +3859,22 @@ onMounted(() => {
   }
 }
 
+@media (max-width: 860px) {
+  .console-shell__rail-toggle-pill {
+    width: 32px;
+    padding: 0;
+    justify-content: center;
+
+    .toggle-text {
+      display: none;
+    }
+  }
+}
+
 @media (max-width: 760px) {
-  .console-shell {
+  .console-shell,
+  .console-shell.console-shell--collapsed,
+  .console-shell:not(.console-shell--collapsed, .layout--top) {
     grid-template-columns: minmax(0, 1fr);
   }
 
