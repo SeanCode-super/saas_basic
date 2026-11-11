@@ -17,7 +17,7 @@ export async function fetchOperationLogs(params?: { bizModule?: string; operatio
   return data?.data ?? (data as any) ?? [];
 }
 
-export async function fetchOperationLogDiff(id: number): Promise<OperationLogDiffResponse> {
-  const { data } = await http.get<ApiResponse<OperationLogDiffResponse>>(`/audit/operation-logs/${id}/diff`);
+export async function fetchOperationLogDiff(id: number | string): Promise<OperationLogDiffResponse> {
+  const { data } = await http.get<ApiResponse<OperationLogDiffResponse>>(`/audit/operation-logs/${encodeURIComponent(String(id))}/diff`);
   return data?.data ?? (data as any);
 }

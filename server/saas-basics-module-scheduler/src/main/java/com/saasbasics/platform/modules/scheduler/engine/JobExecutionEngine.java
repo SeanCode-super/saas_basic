@@ -1,5 +1,6 @@
 package com.saasbasics.platform.modules.scheduler.engine;
 
+import com.saasbasics.platform.common.tenant.TenantAccessContextHolder;
 import com.saasbasics.platform.common.tenant.TenantIgnore;
 import com.saasbasics.platform.modules.scheduler.entity.JobEntity;
 import com.saasbasics.platform.modules.scheduler.entity.JobLogEntity;
@@ -184,7 +185,9 @@ public class JobExecutionEngine {
                 log.warn("[JobExecutionEngine] Redis 分布式锁不可用，降级本地执行: {}", ex.getMessage());
             }
         }
-        try {
+        long effectiveTenantId = job.getTenantId() != null && job.getTenantId() > 0 ? job.getTenantId() : 1L;
+        try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openTenant(
+                effectiveTenantId, "tenant-" + effectiveTenantId, 0L)) {
             String executionNo = "AUTO-" + UUID.randomUUID().toString().replace("-", "").substring(0, 16).toUpperCase();
             return runJobInternal(job, "SCHEDULED", executionNo, 0, "分布式调度触发 (" + triggerDesc + ")");
         } finally {

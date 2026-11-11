@@ -95,7 +95,7 @@ async function openDetail(row: Record<string, any>) {
   if (row.bizModule && row.id) {
     diffLoading.value = true;
     try {
-      activeLogDiff.value = await fetchOperationLogDiff(Number(row.id));
+      activeLogDiff.value = await fetchOperationLogDiff(row.id);
     } catch {
       activeLogDiff.value = null;
     } finally {

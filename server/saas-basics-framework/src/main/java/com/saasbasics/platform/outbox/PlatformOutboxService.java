@@ -2,6 +2,8 @@ package com.saasbasics.platform.outbox;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.saasbasics.platform.common.tenant.TenantAccessContext;
+import com.saasbasics.platform.common.tenant.TenantAccessContextHolder;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -165,7 +167,11 @@ public class PlatformOutboxService {
             List<OutboxEventHandler> matched = handlers.stream()
                     .filter(h -> eventType.equalsIgnoreCase(h.supportedEventType()))
                     .toList();
-            try {
+            try (TenantAccessContextHolder.Scope ignored = tenantId != null && tenantId > 0
+                    ? TenantAccessContextHolder.openTenant(tenantId, "tenant-" + tenantId, 0L)
+                    : TenantAccessContextHolder.openSystemBypass(
+                            TenantAccessContext.BypassOperation.SYSTEM_TASK_OR_ANNOTATION_IGNORE,
+                            "Platform Outbox worker dispatch")) {
                 for (OutboxEventHandler h : matched) {
                     h.handle(evt);
                 }

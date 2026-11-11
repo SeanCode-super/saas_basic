@@ -1,9 +1,12 @@
 package com.saasbasics.platform.modules.audit.dto;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import java.time.LocalDateTime;
 import java.util.List;
 
 public record OperationLogDiffResponse(
+        @JsonSerialize(using = ToStringSerializer.class)
         Long id,
         String bizModule,
         String bizType,

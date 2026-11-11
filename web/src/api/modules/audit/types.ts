@@ -18,7 +18,7 @@ export interface LoginLog {
 }
 
 export interface OperationLog {
-  id: number;
+  id: number | string;
   tenantId: number;
   operatorUserId: number;
   operatorName: string;
@@ -38,7 +38,7 @@ export interface FieldDiffItem {
 }
 
 export interface OperationLogDiffResponse {
-  id: number;
+  id: number | string;
   bizModule: string;
   bizType: string;
   bizId: string;

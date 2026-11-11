@@ -3,6 +3,8 @@ package com.saasbasics.platform.modules.integration.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.saasbasics.platform.common.exception.BizException;
+import com.saasbasics.platform.common.tenant.TenantAccessContextHolder;
+import com.saasbasics.platform.common.tenant.TenantIgnore;
 import com.saasbasics.platform.modules.integration.dto.PayOrderCreateRequest;
 import com.saasbasics.platform.modules.integration.dto.PayOrderResponse;
 import com.saasbasics.platform.modules.integration.entity.PayOrderEntity;
@@ -207,25 +209,28 @@ public class PayCenterService {
         return completePayment(orderNoOrTradeNo, "CH-" + UUID.randomUUID().toString().replace("-", "").substring(0, 16).toUpperCase());
     }
 
+    @TenantIgnore(reason = "Payment provider webhook callback arrives without user JWT")
     @Transactional(rollbackFor = Exception.class)
     public PayOrderResponse handleVerifiedWebhook(String channel, String rawBody, String signature, String timestamp) {
         PayChannelVerifier verifier = verifierProvider != null ? verifierProvider.getIfAvailable() : null;
         if (verifier != null) {
             verifier.verifyOrThrow(channel, rawBody, signature, timestamp);
         }
+        String orderNo;
+        String channelTradeNo;
         try {
             JsonNode root = objectMapper.readTree(rawBody);
-            String orderNo = root.path("orderNo").asText(root.path("out_trade_no").asText(""));
+            orderNo = root.path("orderNo").asText(root.path("out_trade_no").asText(""));
             if (orderNo == null || orderNo.isBlank()) {
                 throw new BizException("PAY_NOTIFY_ORDER_MISSING", "支付回调报文缺少 orderNo / out_trade_no");
             }
-            String channelTradeNo = root.path("channelTradeNo").asText(root.path("transaction_id").asText(""));
-            return completePayment(orderNo, channelTradeNo);
+            channelTradeNo = root.path("channelTradeNo").asText(root.path("transaction_id").asText(""));
         } catch (BizException ex) {
             throw ex;
         } catch (Exception ex) {
             throw new BizException("PAY_NOTIFY_PARSE_FAILED", "支付回调 JSON 报文解析失败: " + ex.getMessage());
         }
+        return completePayment(orderNo, channelTradeNo);
     }
 
     private PayOrderResponse completePayment(String orderNoOrTradeNo, String channelTradeNo) {
