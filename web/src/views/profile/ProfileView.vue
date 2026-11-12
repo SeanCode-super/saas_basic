@@ -706,7 +706,7 @@ onMounted(() => {
             </el-tab-pane>
 
             <!-- Tab 2: 组织归属与任职上下文 -->
-            <el-tab-pane name="org">
+            <el-tab-pane name="org" lazy>
               <template #label>
                 <span class="tab-label"><el-icon><OfficeBuilding /></el-icon> 组织任职与权限范围</span>
               </template>
@@ -736,7 +736,7 @@ onMounted(() => {
                       恢复默认视角
                     </el-button>
                   </div>
-                  <el-table :data="profile.employeeInfo.assignments" border stripe size="small">
+                  <el-table :data="profile.employeeInfo.assignments" border stripe size="small" style="width: 100%">
                     <el-table-column prop="organizationName" label="所属组织" min-width="140" />
                     <el-table-column prop="orgUnitName" label="任职部门/单元" min-width="140" />
                     <el-table-column prop="positionName" label="岗位" min-width="120" />
@@ -759,7 +759,7 @@ onMounted(() => {
 
                 <div class="sub-card">
                   <h4 class="sub-card-title">角色与数据权限范围明细</h4>
-                  <el-table :data="profile?.dataScopes || []" border stripe size="small">
+                  <el-table :data="profile?.dataScopes || []" border stripe size="small" style="width: 100%">
                     <el-table-column prop="roleName" label="角色名称" min-width="150" />
                     <el-table-column prop="scopeName" label="数据范围策略" min-width="160" />
                     <el-table-column prop="scopeType" label="范围类型" width="160">
@@ -773,7 +773,7 @@ onMounted(() => {
             </el-tab-pane>
 
             <!-- Tab 3: 云端工作台偏好 -->
-            <el-tab-pane name="preferences">
+            <el-tab-pane name="preferences" lazy>
               <template #label>
                 <span class="tab-label"><el-icon><Setting /></el-icon> 工作台云端偏好</span>
               </template>
@@ -841,7 +841,7 @@ onMounted(() => {
             </el-tab-pane>
 
             <!-- Tab 4: 密码策略、MFA 与本人在线设备 -->
-            <el-tab-pane name="security">
+            <el-tab-pane name="security" lazy>
               <template #label>
                 <span class="tab-label"><el-icon><Checked /></el-icon> 安全凭证与设备</span>
               </template>
@@ -916,7 +916,7 @@ onMounted(() => {
                   </div>
 
                   <div v-if="profile?.identities?.length" style="margin-top: 14px">
-                    <el-table :data="profile.identities" border size="small">
+                    <el-table :data="profile.identities" border size="small" style="width: 100%">
                       <el-table-column prop="identityType" label="身份渠道" width="130" />
                       <el-table-column prop="identifier" label="绑定账号标识" min-width="160" />
                       <el-table-column label="核验状态" width="110">
@@ -948,7 +948,7 @@ onMounted(() => {
                     </div>
                   </div>
 
-                  <el-table :data="mySessions" border stripe size="small" v-loading="loadingSessions">
+                  <el-table :data="mySessions" border stripe size="small" style="width: 100%" v-loading="loadingSessions">
                     <el-table-column label="终端设备" min-width="150">
                       <template #default="{ row }">
                         <div style="display: flex; align-items: center; gap: 6px">
@@ -980,11 +980,11 @@ onMounted(() => {
             </el-tab-pane>
 
             <!-- Tab 5: 登录审计 -->
-            <el-tab-pane name="logs">
+            <el-tab-pane name="logs" lazy>
               <template #label>
                 <span class="tab-label"><el-icon><Clock /></el-icon> 个人登录轨迹</span>
               </template>
-              <el-table :data="profile?.recentLogs || []" border stripe size="small" style="margin-top: 8px">
+              <el-table :data="profile?.recentLogs || []" border stripe size="small" style="width: 100%; margin-top: 8px">
                 <el-table-column label="登录时间" min-width="165">
                   <template #default="{ row }">{{ formatDateTime(row.occurredAt) }}</template>
                 </el-table-column>
@@ -1011,13 +1011,32 @@ onMounted(() => {
 <style scoped lang="scss">
 .profile-grid {
   display: grid;
-  grid-template-columns: 340px 1fr;
+  grid-template-columns: 340px minmax(0, 1fr);
   gap: 16px;
   align-items: start;
+  width: 100%;
+  max-width: 100%;
 
   @media (max-width: 1024px) {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
+}
+
+.profile-sidebar,
+.profile-main,
+.workbench-panel,
+.profile-tabs,
+.tab-section-stack,
+.sub-card {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.profile-main,
+.workbench-panel {
+  width: 100%;
+  overflow: hidden;
 }
 
 .glass-panel {
