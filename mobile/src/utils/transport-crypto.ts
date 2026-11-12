@@ -232,7 +232,10 @@ export function isAlwaysBypassPath(path: string): boolean {
     path.startsWith("/api/ws") ||
     path.startsWith("/api/file/download") ||
     path.startsWith("/api/file/preview") ||
-    path.startsWith("/api/file/upload")
+    path.startsWith("/api/file/upload") ||
+    path.startsWith("/api/file/raw-upload") ||
+    path.startsWith("/api/file/raw-download") ||
+    path === "/api/iam/profile/avatar"
   );
 }
 

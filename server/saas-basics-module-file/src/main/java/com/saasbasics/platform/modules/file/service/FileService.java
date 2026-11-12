@@ -9,7 +9,7 @@ public class FileService {
 
     public FileCapabilityResponse capability() {
         return new FileCapabilityResponse(
-                List.of("MINIO", "OSS", "COS", "OBS", "S3"),
+                List.of("LOCAL", "MINIO", "OSS", "COS", "OBS", "S3"),
                 true,
                 true,
                 true

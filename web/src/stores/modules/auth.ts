@@ -1,7 +1,8 @@
 import { computed, ref } from "vue";
 import { defineStore } from "pinia";
 import { fetchCurrentUser, loginByPassword, loginBySso, logoutSession } from "@/api/modules/auth";
-import type { AuthCurrentUser } from "@/api/modules/auth";
+import type { AuthCurrentUser, UserWorkspacePreferences } from "@/api/modules/auth";
+import { useLocaleStore } from "./locale";
 import { useMenuStore } from "./menu";
 
 const TOKEN_KEY = "sb-access-token";
@@ -16,6 +17,56 @@ export const useAuthStore = defineStore("auth", () => {
 
   const isAuthenticated = computed(() => Boolean(token.value));
 
+  function syncPreferences(prefs?: UserWorkspacePreferences | null, localeOverride?: string | null) {
+    const nextLocale = localeOverride || prefs?.locale;
+    if (nextLocale === "zh-CN" || nextLocale === "en-US") {
+      useLocaleStore().setLocale(nextLocale);
+    }
+    if (!prefs) {
+      return;
+    }
+    if (prefs.layoutMode) {
+      localStorage.setItem("sb_layout_mode", prefs.layoutMode);
+    }
+    if (prefs.railTheme) {
+      localStorage.setItem("sb_rail_theme", prefs.railTheme);
+    }
+    if (typeof prefs.showBreadcrumbs === "boolean") {
+      localStorage.setItem("sb_show_breadcrumbs", String(prefs.showBreadcrumbs));
+    }
+    if (typeof prefs.sidebarAccordion === "boolean") {
+      localStorage.setItem("sb_sidebar_accordion", String(prefs.sidebarAccordion));
+    }
+    if (typeof prefs.enableWatermark === "boolean") {
+      localStorage.setItem("sb_enable_watermark", String(prefs.enableWatermark));
+    }
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("sb-preferences-synced", { detail: prefs }));
+    }
+  }
+
+  function applyCurrentUser(user: AuthCurrentUser) {
+    currentUser.value = user;
+    persistCurrentUser(user);
+    syncPreferences(user.preferences, user.locale);
+  }
+
+  function updateUserSnapshot(partial: Partial<AuthCurrentUser>) {
+    if (!currentUser.value) return;
+    const merged: AuthCurrentUser = {
+      ...currentUser.value,
+      ...partial
+    };
+    applyCurrentUser(merged);
+  }
+
+  async function refreshCurrentUser() {
+    if (!token.value) return null;
+    const nextUser = await fetchCurrentUser();
+    applyCurrentUser(nextUser);
+    return nextUser;
+  }
+
   async function bootstrap() {
     if (bootstrapped.value) {
       return;
@@ -25,8 +76,8 @@ export const useAuthStore = defineStore("auth", () => {
       return;
     }
     try {
-      currentUser.value = await fetchCurrentUser();
-      persistCurrentUser(currentUser.value);
+      const nextUser = await fetchCurrentUser();
+      applyCurrentUser(nextUser);
     } catch {
       // Retain cached currentUser if network fails
     }
@@ -45,12 +96,11 @@ export const useAuthStore = defineStore("auth", () => {
     const response = await loginByPassword(payload);
     token.value = response.accessToken;
     refreshToken.value = response.refreshToken ?? "";
-    currentUser.value = response.currentUser;
     localStorage.setItem(TOKEN_KEY, response.accessToken);
     if (response.refreshToken) {
       localStorage.setItem(REFRESH_TOKEN_KEY, response.refreshToken);
     }
-    persistCurrentUser(response.currentUser);
+    applyCurrentUser(response.currentUser);
     useMenuStore().clear();
   }
 
@@ -58,12 +108,11 @@ export const useAuthStore = defineStore("auth", () => {
     const response = await loginBySso(payload);
     token.value = response.accessToken;
     refreshToken.value = response.refreshToken ?? "";
-    currentUser.value = response.currentUser;
     localStorage.setItem(TOKEN_KEY, response.accessToken);
     if (response.refreshToken) {
       localStorage.setItem(REFRESH_TOKEN_KEY, response.refreshToken);
     }
-    persistCurrentUser(response.currentUser);
+    applyCurrentUser(response.currentUser);
     useMenuStore().clear();
   }
 
@@ -133,6 +182,9 @@ export const useAuthStore = defineStore("auth", () => {
     isAuthenticated,
     isSuperAdmin,
     bootstrap,
+    refreshCurrentUser,
+    updateUserSnapshot,
+    syncPreferences,
     login,
     loginWithSso,
     logout,

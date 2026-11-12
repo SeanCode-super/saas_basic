@@ -6,6 +6,20 @@ export interface OrganizationAccessContext {
   assignmentPublicId: string;
 }
 
+export interface UserWorkspacePreferences {
+  locale: string;
+  timezone: string;
+  layoutMode: "mix" | "side" | "top";
+  railTheme: "light" | "dark";
+  showBreadcrumbs: boolean;
+  sidebarAccordion: boolean;
+  enableWatermark: boolean;
+  emailNotify: boolean;
+  siteNotify: boolean;
+  securityAlertNotify: boolean;
+  defaultAiModel: string;
+}
+
 export interface AuthCurrentUser {
   sessionId: number;
   tenantId: number;
@@ -25,6 +39,10 @@ export interface AuthCurrentUser {
   subjectBindingPublicId?: string | null;
   personPublicId?: string | null;
   organizationContext?: OrganizationAccessContext | null;
+  avatarUrl?: string | null;
+  locale?: string | null;
+  timezone?: string | null;
+  preferences?: UserWorkspacePreferences | null;
 }
 
 export interface AuthLoginRequest {

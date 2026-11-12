@@ -330,7 +330,10 @@ public class TransportCryptoPolicyService implements SmartInitializingSingleton 
                 || uri.startsWith("/api/ws")
                 || uri.startsWith("/api/file/download")
                 || uri.startsWith("/api/file/preview")
-                || uri.startsWith("/api/file/upload");
+                || uri.startsWith("/api/file/upload")
+                || uri.startsWith("/api/file/raw-upload")
+                || uri.startsWith("/api/file/raw-download")
+                || uri.equals("/api/iam/profile/avatar");
     }
 
     private boolean matchesAny(String uri, List<String> patterns) {

@@ -36,6 +36,7 @@ import ProStatusDot from "@/components/pro/ProStatusDot.vue";
 import TianshuLogo from "@/components/brand/TianshuLogo.vue";
 import { resolveAppIcon } from "@/config/app-icons";
 import { resolveAppMeta, resolveSectionMeta } from "@/config/app-taxonomy";
+import { resolveAuthorizedFileUrl } from "@/api/modules/file";
 import { useAuthStore } from "@/stores/modules/auth";
 import { useLocaleStore } from "@/stores/modules/locale";
 import { useMenuStore, type MenuNavItem } from "@/stores/modules/menu";
@@ -103,6 +104,33 @@ const enableWatermark = ref(localStorage.getItem("sb_enable_watermark") === "tru
 const railTheme = ref<"dark" | "light">(
   (localStorage.getItem("sb_rail_theme") as "dark" | "light") || "light"
 );
+const userAvatarUrl = computed(() =>
+  resolveAuthorizedFileUrl(authStore.currentUser?.avatarUrl, authStore.token)
+);
+const avatarLoadError = ref(false);
+watch(userAvatarUrl, () => {
+  avatarLoadError.value = false;
+});
+
+function handlePreferencesSynced(event: Event) {
+  const detail = (event as CustomEvent)?.detail;
+  if (!detail) return;
+  if (detail.layoutMode === "mix" || detail.layoutMode === "side" || detail.layoutMode === "top") {
+    layoutMode.value = detail.layoutMode;
+  }
+  if (detail.railTheme === "light" || detail.railTheme === "dark") {
+    railTheme.value = detail.railTheme;
+  }
+  if (typeof detail.showBreadcrumbs === "boolean") {
+    showBreadcrumbs.value = detail.showBreadcrumbs;
+  }
+  if (typeof detail.sidebarAccordion === "boolean") {
+    sidebarAccordion.value = detail.sidebarAccordion;
+  }
+  if (typeof detail.enableWatermark === "boolean") {
+    enableWatermark.value = detail.enableWatermark;
+  }
+}
 
 function toggleRailTheme() {
   railTheme.value = railTheme.value === "dark" ? "light" : "dark";
@@ -132,6 +160,7 @@ function handleGlobalKeydown(e: KeyboardEvent) {
 
 onMounted(() => {
   window.addEventListener("keydown", handleGlobalKeydown);
+  window.addEventListener("sb-preferences-synced", handlePreferencesSynced);
   if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
     railCompactMediaQuery = window.matchMedia(COMPACT_RAIL_QUERY);
     syncRailForViewport(railCompactMediaQuery.matches);
@@ -141,6 +170,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener("keydown", handleGlobalKeydown);
+  window.removeEventListener("sb-preferences-synced", handlePreferencesSynced);
   railCompactMediaQuery?.removeEventListener?.("change", handleCompactViewportChange);
 });
 
@@ -1313,7 +1343,16 @@ onMounted(() => {
 
           <el-dropdown trigger="click">
             <button class="console-shell__user-trigger" aria-label="用户菜单">
-              <span class="console-shell__user-avatar">{{ userInitial }}</span>
+              <span class="console-shell__user-avatar">
+                <img
+                  v-if="userAvatarUrl && !avatarLoadError"
+                  :src="userAvatarUrl"
+                  alt="avatar"
+                  class="console-shell__user-avatar-img"
+                  @error="avatarLoadError = true"
+                />
+                <template v-else>{{ userInitial }}</template>
+              </span>
               <div class="console-shell__user-details">
                 <span class="console-shell__user-name">
                   {{ authStore.currentUser?.nickname || authStore.currentUser?.username || "用户" }}
@@ -3151,6 +3190,7 @@ onMounted(() => {
 .console-shell__user-avatar {
   width: 28px;
   height: 28px;
+  overflow: hidden;
   display: grid;
   flex: 0 0 28px;
   place-items: center;
@@ -3160,6 +3200,13 @@ onMounted(() => {
   font-size: 12px;
   font-weight: 700;
   box-shadow: 0 1px 3px rgb(37 99 235 / 0.3);
+}
+
+.console-shell__user-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .console-shell__user-details {

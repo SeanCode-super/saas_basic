@@ -5,6 +5,21 @@ export interface FileCapability {
   auditEnabled: boolean;
 }
 
+export interface StorageAvailability {
+  configured: boolean;
+  reasonCode: string;
+  message: string;
+  activeStorageId?: number | null;
+  storageCode?: string | null;
+  storageName?: string | null;
+  storageType?: string | null;
+  uploadMode?: string | null;
+  basePath?: string | null;
+  defaultFolder?: string | null;
+  resolvedTargetDir?: string | null;
+  resolvedPathPattern?: string | null;
+}
+
 export interface FileStorageRow {
   id: number;
   tenantId: number;
@@ -13,8 +28,16 @@ export interface FileStorageRow {
   storageType: string;
   endpoint?: string;
   bucketDefault?: string;
+  regionName?: string;
+  basePath?: string;
+  defaultFolder?: string;
+  pathPattern?: string;
+  maxFileMb?: number;
+  allowedExts?: string;
   publicBaseUrl?: string;
   status: string;
+  isDefault?: boolean;
+  uploadMode?: string;
   remark?: string;
 }
 
@@ -25,15 +48,88 @@ export interface FileStorageSavePayload {
   storageType: string;
   endpoint?: string;
   bucketDefault?: string;
+  regionName?: string;
+  accessKey?: string;
+  secretKey?: string;
+  basePath?: string;
+  defaultFolder?: string;
+  pathPattern?: string;
+  maxFileMb?: number;
+  allowedExts?: string;
   publicBaseUrl?: string;
   status: string;
+  isDefault?: boolean;
+  uploadMode?: string;
   remark?: string;
+}
+
+export interface FileStorageTestStep {
+  step: string;
+  status: string;
+  latency: string;
+  detail: string;
+}
+
+export interface FileStorageTestResult {
+  storageId: number;
+  storageCode: string;
+  storageName: string;
+  storageType: string;
+  reachable: boolean;
+  summary: string;
+  steps: FileStorageTestStep[];
+}
+
+export interface FileUploadRouteRow {
+  id: number;
+  tenantId: number;
+  storageId?: number | null;
+  bizType: string;
+  routeName: string;
+  uploadMode?: string | null;
+  targetDir: string;
+  pathPattern?: string | null;
+  maxFileMb?: number | null;
+  allowedExts?: string | null;
+  priority: number;
+  status: string;
+  remark?: string;
+}
+
+export interface FileUploadRouteSavePayload {
+  tenantId?: number;
+  storageId?: number | null;
+  bizType: string;
+  routeName: string;
+  uploadMode?: string | null;
+  targetDir: string;
+  pathPattern?: string | null;
+  maxFileMb?: number | null;
+  allowedExts?: string | null;
+  priority?: number;
+  status?: string;
+  remark?: string;
+}
+
+export interface RawUploadResult {
+  fileId: number;
+  storageId: number;
+  storageCode: string;
+  storageType: string;
+  uploadMode: string;
+  targetDir: string;
+  objectKey: string;
+  url: string;
+  fileName: string;
+  fileSize: number;
+  contentType: string;
 }
 
 export interface FileObjectRow {
   id: number;
   tenantId: number;
   bucketId: number;
+  storageId?: number | null;
   objectKey: string;
   fileName: string;
   fileExt?: string;
@@ -44,6 +140,9 @@ export interface FileObjectRow {
   versionNo: number;
   status: string;
   storagePath: string;
+  uploadMode?: string;
+  targetDir?: string;
+  publicUrl?: string;
   remark?: string;
 }
 
@@ -74,14 +173,15 @@ export interface FileUploadSessionCompletePayload {
 
 export interface FileUploadSessionCreatePayload {
   tenantId: number;
-  bucketId: number;
-  storageId: number;
-  objectKey: string;
+  bucketId?: number;
+  storageId?: number;
+  objectKey?: string;
   fileName: string;
   fileSize: number;
-  uploadMode: string;
+  uploadMode?: string;
   partCount: number;
   ownerUserId: number;
+  bizType?: string;
 }
 
 export interface FileLifecyclePolicyRow {

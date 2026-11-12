@@ -1203,6 +1203,11 @@ public class AuthService {
     }
 
     private AuthCurrentUserResponse toCurrentUserResponse(AuthPrincipal principal) {
+        UserMapper uMapper = userMapperProvider != null ? userMapperProvider.getIfAvailable() : null;
+        UserEntity user = (uMapper != null && principal.userId() != null) ? uMapper.selectById(principal.userId()) : null;
+        ObjectMapper om = objectMapperProvider != null ? objectMapperProvider.getIfAvailable() : null;
+        com.saasbasics.platform.modules.iam.dto.UserPreferencesData prefs =
+                UserPreferencesHelper.parse(om != null ? om : new ObjectMapper(), user);
         return new AuthCurrentUserResponse(
                 principal.sessionId(),
                 principal.tenantId(),
@@ -1221,7 +1226,11 @@ public class AuthService {
                 principal.userPublicId(),
                 principal.subjectBindingPublicId(),
                 principal.personPublicId(),
-                principal.organizationContext()
+                principal.organizationContext(),
+                user != null ? user.getAvatarUrl() : null,
+                prefs.locale(),
+                prefs.timezone(),
+                prefs
         );
     }
 

@@ -29,11 +29,38 @@ public class UserEntity extends BaseTenantEntity {
     @TableField("status")
     private String status;
 
+    @TableField("avatar_file_id")
+    private Long avatarFileId;
+
+    @TableField("avatar_url")
+    private String avatarUrl;
+
     @TableField("mobile")
     private String mobile;
 
     @TableField("email")
     private String email;
+
+    @TableField("gender")
+    private String gender;
+
+    @TableField("bio")
+    private String bio;
+
+    @TableField("work_location")
+    private String workLocation;
+
+    @TableField("ext_contact")
+    private String extContact;
+
+    @TableField("locale")
+    private String locale;
+
+    @TableField("timezone")
+    private String timezone;
+
+    @TableField("preferences_json")
+    private String preferencesJson;
 
     @TableField("last_login_at")
     private LocalDateTime lastLoginAt;
@@ -115,6 +142,22 @@ public class UserEntity extends BaseTenantEntity {
         this.status = status;
     }
 
+    public Long getAvatarFileId() {
+        return avatarFileId;
+    }
+
+    public void setAvatarFileId(Long avatarFileId) {
+        this.avatarFileId = avatarFileId;
+    }
+
+    public String getAvatarUrl() {
+        return avatarUrl;
+    }
+
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
+    }
+
     public String getMobile() {
         return mobile;
     }
@@ -129,6 +172,62 @@ public class UserEntity extends BaseTenantEntity {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public String getGender() {
+        return gender;
+    }
+
+    public void setGender(String gender) {
+        this.gender = gender;
+    }
+
+    public String getBio() {
+        return bio;
+    }
+
+    public void setBio(String bio) {
+        this.bio = bio;
+    }
+
+    public String getWorkLocation() {
+        return workLocation;
+    }
+
+    public void setWorkLocation(String workLocation) {
+        this.workLocation = workLocation;
+    }
+
+    public String getExtContact() {
+        return extContact;
+    }
+
+    public void setExtContact(String extContact) {
+        this.extContact = extContact;
+    }
+
+    public String getLocale() {
+        return locale;
+    }
+
+    public void setLocale(String locale) {
+        this.locale = locale;
+    }
+
+    public String getTimezone() {
+        return timezone;
+    }
+
+    public void setTimezone(String timezone) {
+        this.timezone = timezone;
+    }
+
+    public String getPreferencesJson() {
+        return preferencesJson;
+    }
+
+    public void setPreferencesJson(String preferencesJson) {
+        this.preferencesJson = preferencesJson;
     }
 
     public LocalDateTime getLastLoginAt() {

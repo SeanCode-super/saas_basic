@@ -312,3 +312,60 @@ export async function request<T = any>(options: {
     });
   });
 }
+
+export function resolveMobileFileUrl(url?: string | null): string {
+  if (!url) return "";
+  const full = url.startsWith("http") ? url : BASE_URL + url;
+  if (!full.includes("/api/file/raw-download/") || full.includes("token=")) {
+    return full;
+  }
+  const token = uni.getStorageSync("sb_access_token") || "";
+  if (!token) return full;
+  const sep = full.includes("?") ? "&" : "?";
+  return `${full}${sep}token=${encodeURIComponent(token)}`;
+}
+
+export function uploadFile<T = any>(options: {
+  url: string;
+  filePath: string;
+  name?: string;
+  formData?: Record<string, string>;
+}): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const token = uni.getStorageSync("sb_access_token") || "";
+    const tenantId = uni.getStorageSync("sb_tenant_id") || "1";
+    const tenantCode = uni.getStorageSync("sb_tenant_code") || "";
+    const fullUrl = options.url.startsWith("http") ? options.url : BASE_URL + options.url;
+
+    uni.uploadFile({
+      url: fullUrl,
+      filePath: options.filePath,
+      name: options.name || "file",
+      formData: options.formData,
+      header: {
+        "X-Tenant-Id": tenantId,
+        ...(tenantCode ? { "X-Tenant-Code": tenantCode } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      success: (res) => {
+        let parsed: ApiResponse<T> | null = null;
+        try {
+          parsed = typeof res.data === "string" ? JSON.parse(res.data) : (res.data as ApiResponse<T>);
+        } catch {
+          parsed = null;
+        }
+        if (res.statusCode === 200 && parsed?.success) {
+          resolve(parsed.data);
+          return;
+        }
+        const msg = parsed?.message || `上传失败 (${res.statusCode})`;
+        uni.showToast({ title: msg, icon: "none" });
+        reject(new Error(msg));
+      },
+      fail: (err) => {
+        uni.showToast({ title: "上传请求失败，请检查网络", icon: "none" });
+        reject(err);
+      }
+    });
+  });
+}

@@ -9,10 +9,40 @@ import type {
   FileObjectRow,
   FileStorageRow,
   FileStorageSavePayload,
-  FileUploadSessionCreatePayload,
+  FileStorageTestResult,
+  FileUploadRouteRow,
+  FileUploadRouteSavePayload,
   FileUploadSessionCompletePayload,
-  FileUploadSessionRow
+  FileUploadSessionCreatePayload,
+  FileUploadSessionRow,
+  RawUploadResult,
+  StorageAvailability
 } from "./types";
+
+export function resolveAuthorizedFileUrl(url?: string | null, token?: string | null): string {
+  if (!url) return "";
+  if (!token || !url.includes("/api/file/raw-download/")) {
+    return url;
+  }
+  const sep = url.includes("?") ? "&" : "?";
+  if (url.includes("token=")) return url;
+  return `${url}${sep}token=${encodeURIComponent(token)}`;
+}
+
+export async function fetchFileStorageStatus(bizType = "COMMON"): Promise<StorageAvailability> {
+  const response = await http.get<ApiResponse<StorageAvailability>>("/file/storage-status", {
+    params: { bizType }
+  });
+  return response.data.data;
+}
+
+export async function uploadRawFile(file: File, bizType = "COMMON"): Promise<RawUploadResult> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("bizType", bizType);
+  const response = await http.post<ApiResponse<RawUploadResult>>("/file/raw-upload", form);
+  return response.data.data;
+}
 
 export async function fetchFileCapability(): Promise<FileCapability> {
   const response = await http.get<ApiResponse<FileCapability>>("/files/capability");
@@ -32,6 +62,39 @@ export async function createFileStorage(payload: FileStorageSavePayload): Promis
 export async function updateFileStorage(id: number, payload: FileStorageSavePayload): Promise<FileStorageRow> {
   const response = await http.put<ApiResponse<FileStorageRow>>(`/files/storages/${id}`, payload);
   return response.data.data;
+}
+
+export async function setDefaultFileStorage(id: number): Promise<FileStorageRow> {
+  const response = await http.post<ApiResponse<FileStorageRow>>(`/files/storages/${id}/set-default`);
+  return response.data.data;
+}
+
+export async function testFileStorage(id: number): Promise<FileStorageTestResult> {
+  const response = await http.post<ApiResponse<FileStorageTestResult>>(`/files/storages/${id}/test`);
+  return response.data.data;
+}
+
+export async function deleteFileStorage(id: number): Promise<void> {
+  await http.delete(`/files/storages/${id}`);
+}
+
+export async function fetchFileUploadRoutes(): Promise<FileUploadRouteRow[]> {
+  const response = await http.get<ApiResponse<FileUploadRouteRow[]>>("/files/upload-routes");
+  return response.data.data;
+}
+
+export async function createFileUploadRoute(payload: FileUploadRouteSavePayload): Promise<FileUploadRouteRow> {
+  const response = await http.post<ApiResponse<FileUploadRouteRow>>("/files/upload-routes", payload);
+  return response.data.data;
+}
+
+export async function updateFileUploadRoute(id: number, payload: FileUploadRouteSavePayload): Promise<FileUploadRouteRow> {
+  const response = await http.put<ApiResponse<FileUploadRouteRow>>(`/files/upload-routes/${id}`, payload);
+  return response.data.data;
+}
+
+export async function deleteFileUploadRoute(id: number): Promise<void> {
+  await http.delete(`/files/upload-routes/${id}`);
 }
 
 export async function fetchFileObjects(): Promise<FileObjectRow[]> {

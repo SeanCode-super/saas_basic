@@ -1,8 +1,6 @@
 <script setup lang="ts">
-import { ref } from "vue";
-import {
-  ElMessage
-} from "element-plus";
+import { computed, ref } from "vue";
+import { ElMessage } from "element-plus";
 import {
   UploadFilled,
   Document,
@@ -10,8 +8,12 @@ import {
   View,
   Download,
   CopyDocument,
-  Plus
+  Plus,
+  Setting
 } from "@element-plus/icons-vue";
+import { resolveAuthorizedFileUrl } from "@/api/modules/file";
+import type { FileObjectRow, FileUploadRouteRow, FileUploadSessionRow, StorageAvailability } from "@/api/modules/file";
+import { useAuthStore } from "@/stores/modules/auth";
 
 const props = defineProps<{
   uploadPolicy: {
@@ -21,9 +23,11 @@ const props = defineProps<{
     imageCompression: boolean;
     virusScan: boolean;
   };
+  storageStatus?: StorageAvailability | null;
+  uploadRoutes?: FileUploadRouteRow[];
   loading?: boolean;
-  objectRows: Array<Record<string, unknown>>;
-  uploadSessions: Array<Record<string, unknown>>;
+  objectRows: FileObjectRow[];
+  uploadSessions: FileUploadSessionRow[];
   uploadForm: {
     objectKey: string;
     fileName: string;
@@ -35,65 +39,161 @@ const props = defineProps<{
     bizType: string;
     remark: string;
   };
-  createUpload: () => void | Promise<void>;
-  completeUpload: (row: Record<string, unknown>) => void | Promise<void>;
+  createUpload: () => boolean | Promise<boolean>;
+  completeUpload: (row: FileUploadSessionRow) => void | Promise<void>;
+  directUpload: (file: File, bizType: string) => Promise<boolean>;
+  goToStorageConfig: () => void;
 }>();
 
+const authStore = useAuthStore();
 const createSessionDialogVisible = ref(false);
-const policyDialogVisible = ref(false);
-const uploadZoneExpanded = ref(false);
+const uploadZoneExpanded = ref(true);
+const uploadingDirect = ref(false);
 const previewVisible = ref(false);
-const previewItem = ref<any>(null);
+const previewItem = ref<FileObjectRow | null>(null);
 const activeFileTab = ref<"objects" | "sessions">("objects");
+const selectedBizType = ref("COMMON");
 
-function handleFileDrop(uploadFile: any) {
-  props.uploadForm.fileName = uploadFile.name;
-  props.uploadForm.fileSize = uploadFile.size || 2048576;
-  props.uploadForm.objectKey = `assets/${Date.now()}_${uploadFile.name}`;
-  props.uploadForm.contentType = uploadFile.raw?.type || "application/octet-stream";
+const bizTypeOptions = computed(() => {
+  const presets = [
+    { value: "COMMON", label: "COMMON · 默认通用目录" },
+    { value: "USER_AVATAR", label: "USER_AVATAR · 用户头像" },
+    { value: "AI_KNOWLEDGE", label: "AI_KNOWLEDGE · AI知识库" },
+    { value: "PORTAL_ASSET", label: "PORTAL_ASSET · 门户素材" },
+    { value: "TENANT_CONTRACT", label: "TENANT_CONTRACT · 合同附件" }
+  ];
+  const seen = new Set(presets.map((p) => p.value));
+  for (const r of props.uploadRoutes ?? []) {
+    if (!seen.has(r.bizType)) {
+      presets.push({ value: r.bizType, label: `${r.bizType} · ${r.routeName}` });
+      seen.add(r.bizType);
+    }
+  }
+  return presets;
+});
+
+const resolvedTargetPreview = computed(() => {
+  if (!props.storageStatus?.configured) {
+    return null;
+  }
+  const route = (props.uploadRoutes ?? []).find(
+    (r) => r.status === "ENABLED" && r.bizType.toUpperCase() === selectedBizType.value.toUpperCase()
+  );
+  const folder = route?.targetDir || props.storageStatus.defaultFolder || "uploads";
+  const mode = route?.uploadMode || props.storageStatus.uploadMode || "DIRECT_SERVER";
+  return {
+    folder,
+    mode,
+    matchedRule: route ? `${route.routeName} (${route.bizType})` : "未匹配专项规则，使用默认目录"
+  };
+});
+
+function isStorageReady(): boolean {
+  if (props.storageStatus && !props.storageStatus.configured) {
+    ElMessage.warning(props.storageStatus.message || "未配置可用文件存储源，请先前往「存储策略」配置并启用");
+    return false;
+  }
+  return true;
+}
+
+async function handleFileDrop(uploadFile: { raw?: File; name: string }) {
+  if (!isStorageReady()) {
+    return;
+  }
+  if (!uploadFile.raw) {
+    return;
+  }
+  uploadingDirect.value = true;
+  try {
+    await props.directUpload(uploadFile.raw, selectedBizType.value);
+  } finally {
+    uploadingDirect.value = false;
+  }
+}
+
+function openCreateSessionDialog() {
+  if (!isStorageReady()) {
+    return;
+  }
+  props.uploadForm.bizType = selectedBizType.value;
+  props.uploadForm.uploadMode = resolvedTargetPreview.value?.mode || "DIRECT_SERVER";
   createSessionDialogVisible.value = true;
-  ElMessage.success(`已解析文件 [${uploadFile.name}]，计算 SHA-256 哈希完成`);
 }
 
 async function handleConfirmCreateSession() {
-  await props.createUpload();
-  createSessionDialogVisible.value = false;
+  const ok = await props.createUpload();
+  if (ok) {
+    createSessionDialogVisible.value = false;
+  }
 }
 
-function handlePreview(row: any) {
+function resolveObjectUrl(row: FileObjectRow): string {
+  const base = row.publicUrl || `/api/file/raw-download/${row.objectKey}`;
+  return resolveAuthorizedFileUrl(base, authStore.token);
+}
+
+function isImageObject(row: FileObjectRow | null): boolean {
+  if (!row) return false;
+  const ct = (row.contentType || "").toLowerCase();
+  const ext = (row.fileExt || "").toLowerCase();
+  return ct.startsWith("image/") || ["png", "jpg", "jpeg", "webp", "gif", "svg"].includes(ext);
+}
+
+function handlePreview(row: FileObjectRow) {
   previewItem.value = row;
   previewVisible.value = true;
 }
 
-function handleCopyDirectUrl(row: any) {
-  const url = row.publicUrl || `https://oss.saas-basics.local/saas-basics/${row.objectKey || row.fileName || 'demo.png'}`;
+function handleCopyDirectUrl(row: FileObjectRow) {
+  const url = `${window.location.origin}${row.publicUrl || `/api/file/raw-download/${row.objectKey}`}`;
   navigator.clipboard.writeText(url);
-  ElMessage.success("已复制对象安全直链至剪贴板");
+  ElMessage.success("已复制对象路径至剪贴板");
 }
 
-function handleDownload(row: any) {
-  ElMessage.success(`正在触发对象 [${row.fileName || '文件'}] 下载...`);
+function handleDownload(row: FileObjectRow) {
+  const url = resolveObjectUrl(row);
+  window.open(url, "_blank");
 }
 </script>
 
 <template>
   <div class="file-upload-studio">
-    <!-- Slim Policy Summary & Action Bar -->
+    <!-- 未配置存储源强制警示横幅 -->
+    <el-alert
+      v-if="storageStatus && !storageStatus.configured"
+      type="error"
+      :closable="false"
+      show-icon
+      class="missing-source-banner"
+    >
+      <template #title>
+        <span style="font-weight: 700">当前未配置可用的文件存储源，无法上传文件</span>
+      </template>
+      <div class="banner-row">
+        <span>{{ storageStatus.message }}</span>
+        <el-button type="danger" size="small" :icon="Setting" @click="goToStorageConfig">前往配置存储源与目录</el-button>
+      </div>
+    </el-alert>
+
+    <!-- 路径预览与操作条 -->
     <div class="upload-action-bar">
       <div class="policy-pills">
         <span class="policy-lead-pill">
           <el-icon><CircleCheck /></el-icon>
-          <span>上传基线</span>
+          <span>上传通道与目录路由</span>
         </span>
-        <span class="policy-chip">单文件上限 <strong>{{ uploadPolicy.maxFileMb }}MB</strong></span>
-        <span class="policy-chip" :class="{ active: uploadPolicy.directUpload }">S3直传</span>
-        <span class="policy-chip" :class="{ active: uploadPolicy.chunkUpload }">分片断点</span>
-        <span class="policy-chip" :class="{ active: uploadPolicy.imageCompression }">智能压缩</span>
-        <span class="policy-chip" :class="{ active: uploadPolicy.virusScan }">安全扫描</span>
+        <el-select v-model="selectedBizType" size="small" style="width: 220px" placeholder="选择业务类型">
+          <el-option v-for="opt in bizTypeOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+        </el-select>
+        <template v-if="resolvedTargetPreview">
+          <span class="policy-chip active">目标文件夹: <strong>/{{ resolvedTargetPreview.folder }}</strong></span>
+          <span class="policy-chip">方式: <strong>{{ resolvedTargetPreview.mode }}</strong></span>
+          <span class="policy-chip">{{ resolvedTargetPreview.matchedRule }}</span>
+        </template>
+        <span v-else class="policy-chip warn">待配置存储源</span>
       </div>
 
       <div class="bar-buttons">
-        <el-button size="small" @click="policyDialogVisible = true">策略设置</el-button>
         <el-button
           size="small"
           :type="uploadZoneExpanded ? 'info' : 'primary'"
@@ -101,39 +201,45 @@ function handleDownload(row: any) {
           :icon="UploadFilled"
           @click="uploadZoneExpanded = !uploadZoneExpanded"
         >
-          {{ uploadZoneExpanded ? '收起上传区' : '拖拽上传文件' }}
+          {{ uploadZoneExpanded ? '收起上传区' : '展开直传区' }}
         </el-button>
-        <el-button size="small" type="primary" :icon="Plus" @click="createSessionDialogVisible = true">
-          新建会话
+        <el-button size="small" type="primary" :icon="Plus" @click="openCreateSessionDialog">
+          新建分片/元数据会话
         </el-button>
       </div>
     </div>
 
-    <!-- Collapsible Upload Dropzone -->
+    <!-- 真实直传拖拽区 -->
     <el-collapse-transition>
-      <div v-show="uploadZoneExpanded" class="compact-dropzone-wrap">
+      <div v-show="uploadZoneExpanded" class="compact-dropzone-wrap" v-loading="uploadingDirect">
         <el-upload
           class="upload-dropzone"
           drag
           action="#"
           :auto-upload="false"
+          :show-file-list="false"
           :on-change="handleFileDrop"
-          multiple
+          :disabled="Boolean(storageStatus && !storageStatus.configured)"
         >
           <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
           <div class="el-upload__text">
-            将文件拖拽至此处，或 <em>点击选取文件上传</em>
+            <template v-if="storageStatus && !storageStatus.configured">
+              请先前往「存储策略」配置并启用存储源，再进行文件上传
+            </template>
+            <template v-else>
+              将文件拖拽至此处，或 <em>点击立即上传</em> 至目录 <strong>/{{ resolvedTargetPreview?.folder }}</strong>
+            </template>
           </div>
           <template #tip>
             <div class="el-upload__tip">
-              支持 JPG, PNG, PDF, DOCX, ZIP 等常见格式，单个文件不能超过 {{ uploadPolicy.maxFileMb }} MB。
+              单文件上限 {{ uploadPolicy.maxFileMb }} MB · 未单独设置目录规则的业务类型将统一存入存储源默认文件夹。
             </div>
           </template>
         </el-upload>
       </div>
     </el-collapse-transition>
 
-    <!-- Unified Object Console Card with Tabs -->
+    <!-- 已落盘对象与会话台账 -->
     <el-card shadow="never" class="main-file-card">
       <template #header>
         <div class="panel-header-row">
@@ -150,21 +256,36 @@ function handleDownload(row: any) {
         </div>
       </template>
 
-      <!-- Tab 1: Object Rows Table -->
       <div v-if="activeFileTab === 'objects'">
         <el-table :data="objectRows" border stripe v-loading="Boolean(loading)" style="width: 100%">
-          <el-table-column prop="objectKey" label="对象 Key / 路径" min-width="240" show-overflow-tooltip />
-          <el-table-column prop="fileName" label="文件名" min-width="190">
+          <el-table-column prop="fileName" label="文件名" min-width="180">
             <template #default="{ row }">
               <div style="display: flex; align-items: center; gap: 8px">
-                <el-icon style="color: #3b82f6"><Document /></el-icon>
-                <span style="font-weight: 500">{{ row.fileName }}</span>
+                <el-icon style="color: #2563eb"><Document /></el-icon>
+                <span style="font-weight: 500; color: #0f172a">{{ row.fileName }}</span>
               </div>
             </template>
           </el-table-column>
-          <el-table-column prop="fileSize" label="大小" width="120">
+          <el-table-column prop="bizType" label="业务类型" width="140">
             <template #default="{ row }">
-              <span>{{ row.fileSize ? (Number(row.fileSize) / 1024).toFixed(1) + ' KB' : '1.0 MB' }}</span>
+              <el-tag size="small" effect="plain">{{ row.bizType || 'COMMON' }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="targetDir" label="落盘目录" min-width="140">
+            <template #default="{ row }">
+              <el-tag v-if="row.targetDir" size="small" type="success" effect="light">/{{ row.targetDir }}</el-tag>
+              <span v-else style="color: #64748b">--</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="uploadMode" label="上传方式" width="130">
+            <template #default="{ row }">
+              <span>{{ row.uploadMode || '--' }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="objectKey" label="对象 Key / 物理路径" min-width="230" show-overflow-tooltip />
+          <el-table-column prop="fileSize" label="大小" width="100">
+            <template #default="{ row }">
+              <span>{{ row.fileSize ? (Number(row.fileSize) / 1024).toFixed(1) + ' KB' : '--' }}</span>
             </template>
           </el-table-column>
           <el-table-column label="操作" min-width="180">
@@ -177,7 +298,6 @@ function handleDownload(row: any) {
         </el-table>
       </div>
 
-      <!-- Tab 2: Upload Sessions Table -->
       <div v-else>
         <el-table :data="uploadSessions" border stripe v-loading="Boolean(loading)" style="width: 100%">
           <el-table-column prop="sessionCode" label="会话编码" min-width="190" />
@@ -186,19 +306,20 @@ function handleDownload(row: any) {
               <span style="font-weight: 600; color: #0f172a">{{ row.fileName }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="uploadMode" label="模式" width="120">
+          <el-table-column prop="objectKey" label="目标路径 Key" min-width="200" show-overflow-tooltip />
+          <el-table-column prop="uploadMode" label="模式" width="130">
             <template #default="{ row }">
               <el-tag size="small">{{ row.uploadMode }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="status" label="会话状态" width="120">
+          <el-table-column prop="status" label="会话状态" width="110">
             <template #default="{ row }">
               <el-tag :type="row.status === 'COMPLETED' ? 'success' : 'warning'" size="small">
-                {{ row.status === 'COMPLETED' ? '已合并入库' : '等待分片' }}
+                {{ row.status === 'COMPLETED' ? '已完成' : '待合并' }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="操作" min-width="140">
+          <el-table-column label="操作" min-width="130">
             <template #default="{ row }">
               <el-button
                 link
@@ -214,34 +335,8 @@ function handleDownload(row: any) {
       </div>
     </el-card>
 
-    <!-- Upload Policy Dialog -->
-    <el-dialog v-model="policyDialogVisible" title="上传治理策略与通道约束" width="560px" destroy-on-close>
-      <el-form label-position="top">
-        <el-form-item label="单文件最大限制 (MB)">
-          <el-input-number v-model="uploadPolicy.maxFileMb" :min="1" :max="10240" style="width: 100%" />
-        </el-form-item>
-        <div class="policy-switches-vertical">
-          <el-form-item>
-            <el-switch v-model="uploadPolicy.directUpload" active-text="允许 S3 预签名直传" />
-          </el-form-item>
-          <el-form-item>
-            <el-switch v-model="uploadPolicy.chunkUpload" active-text="允许大文件分片断点续传" />
-          </el-form-item>
-          <el-form-item>
-            <el-switch v-model="uploadPolicy.imageCompression" active-text="图片无损压缩优化" />
-          </el-form-item>
-          <el-form-item>
-            <el-switch v-model="uploadPolicy.virusScan" active-text="恶意文件安全扫描" />
-          </el-form-item>
-        </div>
-      </el-form>
-      <template #footer>
-        <el-button type="primary" @click="policyDialogVisible = false">确定</el-button>
-      </template>
-    </el-dialog>
-
     <!-- 创建上传会话弹窗 -->
-    <el-dialog v-model="createSessionDialogVisible" title="开辟对象上传会话" width="600px" destroy-on-close>
+    <el-dialog v-model="createSessionDialogVisible" title="创建文件上传会话" width="600px" destroy-on-close>
       <el-form label-position="top">
         <el-row :gutter="16">
           <el-col :span="12">
@@ -255,15 +350,16 @@ function handleDownload(row: any) {
             </el-form-item>
           </el-col>
         </el-row>
-        <el-form-item label="对象 Key (ObjectKey)" required>
-          <el-input v-model="uploadForm.objectKey" />
+        <el-form-item label="自定义对象 Key（留空将自动按业务目录规则生成）">
+          <el-input v-model="uploadForm.objectKey" placeholder="留空将由系统按目录策略自动分配" />
         </el-form-item>
         <el-row :gutter="16">
           <el-col :span="8">
             <el-form-item label="上传模式">
               <el-select v-model="uploadForm.uploadMode" style="width: 100%">
-                <el-option label="单次直传" value="SINGLE" />
-                <el-option label="分片断点" value="CHUNK" />
+                <el-option label="服务端直传 (DIRECT_SERVER)" value="DIRECT_SERVER" />
+                <el-option label="预签名直传 (PRESIGNED)" value="PRESIGNED" />
+                <el-option label="分片断点 (CHUNKED)" value="CHUNKED" />
               </el-select>
             </el-form-item>
           </el-col>
@@ -295,10 +391,16 @@ function handleDownload(row: any) {
     <el-dialog v-model="previewVisible" :title="previewItem?.fileName || '文件预览'" width="580px" destroy-on-close>
       <div style="text-align: center; padding: 16px">
         <img
-          src="https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=1200&q=80"
-          alt="预览图"
-          style="max-width: 100%; max-height: 380px; border-radius: 6px; box-shadow: 0 4px 12px rgb(0 0 0 / 0.1)"
+          v-if="previewItem && isImageObject(previewItem)"
+          :src="resolveObjectUrl(previewItem)"
+          :alt="previewItem.fileName"
+          style="max-width: 100%; max-height: 380px; border-radius: 8px; box-shadow: 0 4px 12px rgb(0 0 0 / 0.1)"
         />
+        <div v-else-if="previewItem" style="color: #334155; padding: 20px">
+          <p><strong>对象路径：</strong>{{ previewItem.objectKey }}</p>
+          <p><strong>物理存储路径：</strong>{{ previewItem.storagePath }}</p>
+          <el-button type="primary" :icon="Download" @click="handleDownload(previewItem)">在新窗口下载/查看</el-button>
+        </div>
       </div>
       <template #footer>
         <el-button @click="previewVisible = false">关闭</el-button>
@@ -314,14 +416,27 @@ function handleDownload(row: any) {
   gap: 12px;
 }
 
+.missing-source-banner {
+  border-radius: 10px;
+}
+
+.banner-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
 .upload-action-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 14px;
-  background: var(--el-bg-color, #fff);
+  padding: 10px 14px;
+  background: #ffffff;
   border: 1px solid var(--sb-border-color, #e2e8f0);
-  border-radius: 8px;
+  border-radius: 10px;
   flex-wrap: wrap;
   gap: 12px;
 
@@ -343,15 +458,21 @@ function handleDownload(row: any) {
 
     .policy-chip {
       font-size: 12px;
-      color: #475569;
-      padding: 2px 8px;
+      color: #334155;
+      padding: 3px 9px;
       background: #f1f5f9;
-      border-radius: 4px;
+      border-radius: 6px;
 
       &.active {
-        background: #e0f2fe;
-        color: #0369a1;
+        background: #ecfdf5;
+        color: #047857;
         font-weight: 500;
+      }
+
+      &.warn {
+        background: #fef2f2;
+        color: #b91c1c;
+        font-weight: 600;
       }
     }
   }
@@ -364,57 +485,15 @@ function handleDownload(row: any) {
 }
 
 .compact-dropzone-wrap {
-  padding: 12px;
-  background: #f8fafc;
-  border: 1px dashed #cbd5e1;
-  border-radius: 8px;
-}
-
-.policy-switches-vertical {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 10px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px;
 }
 
 .panel-header-row {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  gap: 16px;
-
-  .panel-title {
-    margin: 0;
-    font-size: 15px;
-    font-weight: 700;
-    color: #0f172a;
-  }
-}
-
-.policy-switches-row {
-  display: flex;
   align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.upload-dropzone {
-  width: 100%;
-
-  :deep(.el-upload-dragger) {
-    padding: 32px 20px;
-    border-radius: 8px;
-    background: #f8fafc;
-    border: 1px dashed #cbd5e1;
-
-    &:hover {
-      border-color: #3b82f6;
-      background: #eff6ff;
-    }
-  }
-}
-
-.mt-4 {
-  margin-top: 16px;
 }
 </style>

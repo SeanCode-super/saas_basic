@@ -1,7 +1,9 @@
 package com.saasbasics.platform.modules.iam.controller;
 
 import com.saasbasics.platform.common.api.ApiResponse;
+import com.saasbasics.platform.modules.iam.dto.OnlineSessionResponse;
 import com.saasbasics.platform.modules.iam.dto.UserPasswordUpdateRequest;
+import com.saasbasics.platform.modules.iam.dto.UserPreferencesData;
 import com.saasbasics.platform.modules.iam.dto.UserProfileResponse;
 import com.saasbasics.platform.modules.iam.dto.UserProfileUpdateRequest;
 import com.saasbasics.platform.modules.iam.service.UserProfileService;
@@ -9,7 +11,19 @@ import com.saasbasics.platform.ratelimit.LimitType;
 import com.saasbasics.platform.ratelimit.RateLimiter;
 import com.saasbasics.platform.repeat.RepeatSubmit;
 import jakarta.validation.Valid;
-import org.springframework.web.bind.annotation.*;
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/iam/profile")
@@ -30,6 +44,32 @@ public class UserProfileController {
     @RepeatSubmit(interval = 2000, message = "资料保存中，请勿重复点击")
     public ApiResponse<UserProfileResponse> updateProfile(@Valid @RequestBody UserProfileUpdateRequest request) {
         return ApiResponse.success(userProfileService.updateProfile(request));
+    }
+
+    @PostMapping("/avatar")
+    public ApiResponse<UserProfileResponse> uploadAvatar(@RequestParam("file") MultipartFile file) throws IOException {
+        return ApiResponse.success(userProfileService.uploadAvatar(file));
+    }
+
+    @PutMapping("/preferences")
+    public ApiResponse<UserPreferencesData> updatePreferences(@RequestBody UserPreferencesData request) {
+        return ApiResponse.success(userProfileService.updatePreferences(request));
+    }
+
+    @GetMapping("/sessions")
+    public ApiResponse<List<OnlineSessionResponse>> mySessions() {
+        return ApiResponse.success(userProfileService.listMySessions());
+    }
+
+    @DeleteMapping("/sessions/others")
+    public ApiResponse<Map<String, Integer>> revokeOtherSessions() {
+        return ApiResponse.success(Map.of("revokedCount", userProfileService.revokeOtherMySessions()));
+    }
+
+    @DeleteMapping("/sessions/{sessionNo}")
+    public ApiResponse<Void> revokeMySession(@PathVariable String sessionNo) {
+        userProfileService.revokeMySession(sessionNo);
+        return ApiResponse.success(null);
     }
 
     @PutMapping("/password")

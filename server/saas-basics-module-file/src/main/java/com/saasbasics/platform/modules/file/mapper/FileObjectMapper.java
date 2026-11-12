@@ -15,6 +15,7 @@ public interface FileObjectMapper extends BaseMapper<FileObjectEntity> {
               id,
               tenant_id AS tenantId,
               bucket_id AS bucketId,
+              storage_id AS storageId,
               object_key AS objectKey,
               file_name AS fileName,
               file_ext AS fileExt,
@@ -25,6 +26,9 @@ public interface FileObjectMapper extends BaseMapper<FileObjectEntity> {
               version_no AS versionNo,
               status,
               storage_path AS storagePath,
+              upload_mode AS uploadMode,
+              target_dir AS targetDir,
+              CONCAT('/api/file/raw-download/', object_key) AS publicUrl,
               remark
             FROM file_object
             WHERE deleted = 0

@@ -20,12 +20,20 @@ public interface FileStorageMapper extends BaseMapper<FileStorageEntity> {
               storage_type AS storageType,
               endpoint,
               bucket_default AS bucketDefault,
+              region_name AS regionName,
+              base_path AS basePath,
+              default_folder AS defaultFolder,
+              path_pattern AS pathPattern,
+              max_file_mb AS maxFileMb,
+              allowed_exts AS allowedExts,
               public_base_url AS publicBaseUrl,
               status,
+              is_default AS isDefault,
+              upload_mode AS uploadMode,
               remark
             FROM file_storage
             WHERE deleted = 0
-            ORDER BY id DESC
+            ORDER BY is_default DESC, id DESC
             """)
     List<FileStorageResponse> selectStorageList();
 
@@ -38,8 +46,16 @@ public interface FileStorageMapper extends BaseMapper<FileStorageEntity> {
               storage_type AS storageType,
               endpoint,
               bucket_default AS bucketDefault,
+              region_name AS regionName,
+              base_path AS basePath,
+              default_folder AS defaultFolder,
+              path_pattern AS pathPattern,
+              max_file_mb AS maxFileMb,
+              allowed_exts AS allowedExts,
               public_base_url AS publicBaseUrl,
               status,
+              is_default AS isDefault,
+              upload_mode AS uploadMode,
               remark
             FROM file_storage
             WHERE id = #{id}

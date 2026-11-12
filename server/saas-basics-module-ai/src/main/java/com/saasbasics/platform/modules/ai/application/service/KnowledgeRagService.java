@@ -5,6 +5,9 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.saasbasics.platform.common.auth.AuthContext;
 import com.saasbasics.platform.common.auth.AuthPrincipal;
+import com.saasbasics.platform.common.exception.BizException;
+import com.saasbasics.platform.common.file.PlatformFileStorageGateway;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.saasbasics.platform.modules.ai.api.AiGatewayFacade;
 import com.saasbasics.platform.modules.ai.application.dto.AiPlatformDtos.DocumentReviewRequest;
 import com.saasbasics.platform.modules.ai.application.dto.AiPlatformDtos.DocumentReviewResponse;
@@ -60,6 +63,7 @@ public class KnowledgeRagService {
     private final DocumentParserService documentParserService;
     private final AiChatGatewayService chatGatewayService;
     private final ObjectMapper objectMapper;
+    private final ObjectProvider<PlatformFileStorageGateway> fileStorageGatewayProvider;
 
     public KnowledgeRagService(
             ObjectProvider<KnowledgeBaseMapper> kbMapperProvider,
@@ -69,12 +73,27 @@ public class KnowledgeRagService {
             AiChatGatewayService chatGatewayService,
             ObjectMapper objectMapper
     ) {
+        this(kbMapperProvider, docMapperProvider, chunkMapperProvider,
+                documentParserService, chatGatewayService, objectMapper, null);
+    }
+
+    @Autowired
+    public KnowledgeRagService(
+            ObjectProvider<KnowledgeBaseMapper> kbMapperProvider,
+            ObjectProvider<KnowledgeDocMapper> docMapperProvider,
+            ObjectProvider<KnowledgeChunkMapper> chunkMapperProvider,
+            DocumentParserService documentParserService,
+            AiChatGatewayService chatGatewayService,
+            ObjectMapper objectMapper,
+            ObjectProvider<PlatformFileStorageGateway> fileStorageGatewayProvider
+    ) {
         this.kbMapperProvider = kbMapperProvider;
         this.docMapperProvider = docMapperProvider;
         this.chunkMapperProvider = chunkMapperProvider;
         this.documentParserService = documentParserService;
         this.chatGatewayService = chatGatewayService;
         this.objectMapper = objectMapper;
+        this.fileStorageGatewayProvider = fileStorageGatewayProvider;
     }
 
     public List<KnowledgeBaseDTO> listKnowledgeBases() {
@@ -162,6 +181,16 @@ public class KnowledgeRagService {
 
     @Transactional
     public KnowledgeDocDTO uploadDocument(Long kbId, MultipartFile file) throws IOException {
+        PlatformFileStorageGateway gateway = fileStorageGatewayProvider != null
+                ? fileStorageGatewayProvider.getIfAvailable() : null;
+        if (gateway != null) {
+            PlatformFileStorageGateway.StorageAvailability avail = gateway.checkAvailability(currentTenantId(), "AI_KNOWLEDGE");
+            if (!avail.configured()) {
+                throw new BizException(avail.reasonCode(), avail.message());
+            }
+            gateway.uploadBytes(currentTenantId(), "AI_KNOWLEDGE", file.getOriginalFilename(),
+                    file.getContentType(), file.getBytes());
+        }
         ParsedDocument parsed = documentParserService.parseUpload(file);
         return persistIngestedDocument(kbId, parsed.fileName(), parsed.fileType(), parsed.fileSize(),
                 parsed.summary(), parsed.textContent());

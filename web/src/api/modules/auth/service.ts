@@ -70,3 +70,13 @@ export async function loginBySso(payload: { channel: string; authCode: string; s
   return response.data.data;
 }
 
+export async function selectAuthContext(assignmentPublicId: string): Promise<AuthCurrentUser> {
+  const response = await http.put<ApiResponse<AuthCurrentUser>>("/auth/context", { assignmentPublicId });
+  return response.data.data;
+}
+
+export async function clearAuthContext(): Promise<AuthCurrentUser> {
+  const response = await http.delete<ApiResponse<AuthCurrentUser>>("/auth/context");
+  return response.data.data;
+}
+

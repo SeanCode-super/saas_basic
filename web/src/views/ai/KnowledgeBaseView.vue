@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
+import { useRouter } from "vue-router";
+import { fetchFileStorageStatus, type StorageAvailability } from "@/api/modules/file";
 import {
   Collection,
   Delete,
@@ -79,6 +81,8 @@ const chunkDrawerVisible = ref(false);
 const chunkDocTitle = ref("");
 const chunksLoading = ref(false);
 const docChunks = ref<KnowledgeChunkRow[]>([]);
+const router = useRouter();
+const storageStatus = ref<StorageAvailability | null>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const uploading = ref(false);
 
@@ -132,6 +136,10 @@ async function handleCreateKb() {
 }
 
 function triggerFilePick() {
+  if (storageStatus.value && !storageStatus.value.configured) {
+    ElMessage.warning(storageStatus.value.message || "当前未配置可用文件存储源，请先前往「文件中心 -> 存储策略」配置");
+    return;
+  }
   if (!activeKbId.value) {
     ElMessage.warning("请先在左侧选择目标知识库");
     return;
@@ -148,8 +156,8 @@ async function handleFileChange(e: Event) {
     const doc = await uploadKnowledgeDoc(activeKbId.value, file);
     ElMessage.success(`文档「${doc.docName}」已完成解析并切分 ${doc.chunkCount} 个语义块`);
     await loadKbsAndDocs();
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : "上传解析文档失败");
+  } catch (err: any) {
+    ElMessage.error(err?.response?.data?.message || (err instanceof Error ? err.message : "上传解析文档失败"));
   } finally {
     uploading.value = false;
     input.value = "";
@@ -247,6 +255,13 @@ async function handleReviewDocument() {
 
 onMounted(() => {
   void loadKbsAndDocs();
+  void fetchFileStorageStatus("AI_KNOWLEDGE")
+    .then((res) => {
+      storageStatus.value = res;
+    })
+    .catch(() => {
+      storageStatus.value = null;
+    });
 });
 </script>
 
@@ -306,6 +321,21 @@ onMounted(() => {
               <el-button size="small" type="primary" plain :icon="Plus" @click="textDialogVisible = true">录入文本</el-button>
             </div>
           </div>
+
+          <el-alert
+            v-if="storageStatus && !storageStatus.configured"
+            type="warning"
+            :closable="false"
+            show-icon
+            style="margin-bottom: 10px"
+          >
+            <template #title>
+              <span>未配置可用存储源，文件无法归档保存</span>
+            </template>
+            <el-button link type="primary" size="small" @click="router.push('/file/storage')">
+              前往配置存储源
+            </el-button>
+          </el-alert>
 
           <el-table :data="docs" size="small" stripe max-height="360">
             <el-table-column prop="docName" label="文档标题" min-width="115" show-overflow-tooltip />
