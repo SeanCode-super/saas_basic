@@ -17,7 +17,16 @@
    - 生产环境严禁配置 `allowedOrigins("*")`；
    - 仅放行企业合法主域名（`https://*.tianshu.cloud`）与微信小程序白名单域名。
 4. **API 防暴力破解与高频限流**：
-   - 登录鉴权接口基于 Redis 令牌桶算法，单 IP 限制 1 分钟最多 10 次错误尝试，超出自动拉黑 15 分钟。
+   - 登录鉴权接口基于 Redis 令牌桶 / Lua 滑动窗口限流算法，防爆破与 AI 接口租户配额按 RPM 动态拦截（返回 HTTP `429`）。
+5. **可控全链路接口传输加密 (`V65`–`V66`)**：
+   - 支持动态策略配置 (`sys_transport_crypto_policy`，`OFF / OPTIONAL / REQUIRED` 三档热切换与作用域规则)；
+   - 基于 `X25519 + HKDF-SHA256 + AES-256-GCM` 对请求体、响应体及 Query 参数加密，结合 `Timestamp + Nonce` 防重放与密钥环轮换 (`sys_transport_crypto_key`)，可通过控制台 `/api/system/security/transport/*` 实时管控。
+6. **TOTP 多因子认证与 Vault 凭据托管 (`V67`)**：
+   - AI 服务商 Key、MCP 认证 Token、SSO AppSecret 及用户 TOTP MFA 密钥 (`iam_user.mfa_secret_enc`) 统一经 AES-256-GCM Vault 加密落盘并支持轮换；
+   - 支持通过 `/api/auth/mfa/setup`、`/enable`、`/disable` 开启或停用双因子校验。
+7. **接口遥测、告警规则与变更前后审计 Diff (`V68`–`V70`)**：
+   - 持久化接口调用量、加密率、P95/P99 时延 (`sys_api_endpoint_stat`)，并支持阈值告警规则与事件确认 (`sys_alert_rule`, `sys_alert_event`)；
+   - 核心写操作记录变更前后完整 JSON 快照 (`audit_operation_log.before_json`, `after_json`)，支持合规审计回溯。
 
 ---
 

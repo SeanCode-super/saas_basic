@@ -15,16 +15,16 @@
 ```
 V{版本号}__{英文下划线业务描述}.sql
 ```
-*例如：`V57__flowable_bpmn_integration.sql`、`V58__payment_center.sql`、`V62__app_devops_service_center.sql`。*
+*例如：`V57__flowable_bpmn_integration.sql`、`V62__app_devops_service_center.sql`、`V74__profile_extensions_and_file_upload_routing.sql`。*
 
 ### 1.2 生产不可篡改原则
 * 已发布的迁移脚本在发布后，其文本内容的 **Checksum** 会被 Flyway 强校验并记录在数据库的 `flyway_schema_history` 表中；
 * 严禁修改任何已执行的历史脚本内容，否则应用启动时 Flyway 会报 Checksum 校验失败阻断启动；
-* 任何新字段或表结构调整必须递增创建新版本脚本（如 `V63__xxx.sql`）。
+* 任何新字段或表结构调整必须递增创建新版本脚本（如 `V75__xxx.sql`）。
 
 ---
 
-## 2. 历史核心版本线速查表 (V1 ~ V64)
+## 2. 历史核心版本线速查表 (V1 ~ V74)
 
 | 版本跨度 | 核心业务主题 | 涉及的核心数据表与能力 |
 | :--- | :--- | :--- |
@@ -42,3 +42,11 @@ V{版本号}__{英文下划线业务描述}.sql
 | **V62** | 服务编排与发布中台 | `sys_app_service`, `sys_app_build_record`, `sys_app_artifact` 核心纳管与构建表 |
 | **V63** | AI 智能模型网关与多服务商编排 | `ai_provider`, `ai_model_config` 多云大模型接入、凭证隔离、动态参数编排与连通性探针 |
 | **V64** | M3 AI 治理、凭据库与配额闭环 | `ai_credential_ref`, `ai_prompt`, `ai_prompt_version`, `ai_mcp_server`, `ai_tool`, `ai_run`, `ai_run_step`, `ai_tool_call`, `ai_tenant_quota` |
+| **V65 ~ V66** | 可控接口传输加密与密钥环 | `sys_transport_crypto_policy`, `sys_transport_crypto_key`（X25519 + HKDF-SHA256 + AES-256-GCM 动态策略与防重放） |
+| **V67** | TOTP 多因子认证与安全基线 | `iam_user` 新增 `mfa_enabled`, `mfa_secret_enc`, `mfa_recovery_codes_enc`（Vault AES-256-GCM 托管） |
+| **V68** | 接口指标持久化与告警规则 | `sys_api_endpoint_stat`, `sys_alert_rule`, `sys_alert_event` 接口遥测、阈值告警与事件确认 |
+| **V69** | 事务发件箱与租户灾备快照 | `plat_outbox_event`, `plat_tenant_snapshot_record` 异步事件补偿与租户快照打包恢复 |
+| **V70** | 审计变更前后快照 Diff | `audit_operation_log` 增补 `before_json`, `after_json` 字段支撑结构化数据对比 |
+| **V71** | AI ⌘K 指令、NL2SQL 与导出下载中心 | `ai_command_history`, `sys_export_task`, `sys_export_template` 自然语言取数与带水印异步导出队列 |
+| **V72 ~ V73** | AI 知识库 RAG、Agent 工坊、LoRA 微调与定时报表 | `sys_report_schedule`, `ai_knowledge_base`, `ai_knowledge_doc`, `ai_knowledge_chunk`, `ai_agent`, `ai_agent_session`, `ai_finetune_dataset`, `ai_finetune_sample`, `ai_finetune_job`（含 `V73` 增补 `remark` 列） |
+| **V74** | 个人资料云端偏好与文件上传路由 | `iam_user`（`avatar_url`, `gender`, `bio`, `work_location`, `ext_contact`, `locale`, `timezone`, `preferences_json`）、`file_storage`（`is_default`, `upload_mode`, `default_folder`, `path_pattern`, `max_file_mb`, `allowed_exts`）、`file_object`（`storage_id`, `upload_mode`, `target_dir`）与 `file_upload_route` |

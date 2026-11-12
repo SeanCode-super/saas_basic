@@ -54,7 +54,9 @@
 │   ├─ 服务编排与发布中台 (DevOps Center): 进程树/Docker双模纳管 · 本地CI构建 · 制品回滚   │
 │   │                                   : SSE 实时流式终端 · 智能滚屏吸底 · 端口冲突探针  │
 │   ├─ 安全治理与会话强退               : 全局 Access/Refresh Token · 多端在线强退 · 脱敏 │
-│   ├─ 数据库版本自动化演进             : Flyway 10.x 增量迁移规范 (V1 ~ V62 持续受控)    │
+│   ├─ 数据库版本自动化演进             : Flyway 10.x 增量迁移规范 (V1 ~ V74 持续受控)    │
+│   ├─ 全链路安全与数字身份             : X25519+AES-GCM 传输加密 · TOTP MFA · 个人工作台│
+│   ├─ AI 智能中枢与导出打印            : NL2SQL · 混合 RAG · 智能体 · 微调 · 异步导出打印 │
 │   └─ 基础设施运行时监控               : Actuator 探活 · 慢 SQL 智能诊断 · Redis 键空间  │
 └────────────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -129,9 +131,11 @@
 
 ### 8. ⏱️ 分布式调度与文件资产中枢
 - **Quartz 分布式高可用调度**：主备高可用选举、任务五步流转管线监控、漏触发检测、超时预警与全平台一键应急熔断。
-- **分布式文件资产管理**：统一屏蔽底层的存储差异，支持 Local 本地磁盘、MinIO、阿里云 OSS、腾讯云 COS、华为云 OBS、AWS S3，支持分片秒传、冷热生命周期分层与安全防盗链。
+- **分布式文件资产管理 & 可配置目录路由**：统一屏蔽底层存储差异，支持 Local 本地磁盘、MinIO、阿里云 OSS、腾讯云 COS、华为云 OBS、AWS S3（支持分片秒传、生命周期与访问审计）；支持按租户默认存储源及业务类型（如 `USER_AVATAR`、`AI_KNOWLEDGE`）动态路由上传方式与目标目录，并在未配置启用存储源时触发前置拦截提示。
+- **全链路传输加密、TOTP MFA 与个人数字身份中心**：内置可热更新的 `X25519 + HKDF-SHA256 + AES-256-GCM` 接口传输加密策略与防重放密钥环、TOTP 多因子认证、Vault 密钥托管、变更前后审计快照 (`before_json`/`after_json`)，以及 PC + 移动端对齐的企业级个人中心（头像上传、组织任职切换、云端工作台偏好同步与多端会话自管理）。
+- **AI 智能中枢、全局导出队列与单据套打**：内置模型网关、⌘K 自然语言指令 & NL2SQL 副驾驶、企业知识库（Mixed/Hybrid RAG 切片与引用溯源）、可视化 Agent 智能体工坊、微调数据集与 LoRA 评测中心，以及支持水印/脱敏/计划任务定时投递的全局异步导出下载中心与单据套打中心。
 
-### 9. 🚀 数据库自动化迁移 (Flyway V1 ~ V64)
+### 9. 🚀 数据库自动化迁移 (Flyway V1 ~ V74)
 - **数据库版本强受控**：引入 Flyway 10.x 作为生产数据库迁移的唯一准绳，严禁运维手工执行 DDL。
 - **平滑增量升级**：涵盖从基础架构（V1）到组织架构（V25）、工作流（V35）、ERP/CRM（V48-V50）、Flowable BPMN（V57）、统一支付（V58-V59）、企业预置种子（V60）、库存加固（V61）、服务编排中台（V62）、AI 智能模型网关（V63）以及 M3 AI 治理、凭据引用、MCP 白名单与 Token 配额中枢（V64）的全量迁移脚本，应用容器启动自动自愈演进。
 
@@ -155,37 +159,40 @@
 saas_basics/
 ├── server/                               # 后端 Spring Boot 模块化微服务与单体工程 (Java 17)
 │   ├── saas-basics-common/               # 公共常量、上下文、异常处理、统一响应模型与工具类
-│   ├── saas-basics-framework/            # Vault加密、Lua滑动限流、OpenTelemetry链路追踪、多租户拦截器
+│   ├── saas-basics-framework/            # Vault加密、X25519+GCM传输加密、Lua限流、OTel追踪、多租户拦截器
 │   ├── saas-basics-app/                  # 核心业务主服务启动入口 (端口 8080)、Web MVC、安全拦截
-│   │   └── src/main/resources/db/migration # Flyway V1 ~ V64 数据库版本化自愈脚本
+│   │   └── src/main/resources/db/migration # Flyway V1 ~ V74 数据库版本化自愈脚本
 │   ├── saas-basics-workflow-app/         # Flowable 7.x 流程引擎独立微服务应用 (端口 8085)
-│   ├── saas-basics-module-ai/            # M3 级 AI 核心模块（网关、Run 状态机、MCP、Prompt、Token 计量）
-│   ├── saas-basics-module-iam/           # 身份认证、组织架构、RBAC 三位一体权限、会话治理
-│   ├── saas-basics-module-tenant/        # 多租户管理、数据隔离、独立门户入口与空间配额
+│   ├── saas-basics-module-dashboard/     # 经营驾驶舱与平台监控聚合指标
+│   ├── saas-basics-module-organization/  # 五级标准化组织域核心 (UUIDv7、组织单元、人员、岗位与任职)
+│   ├── saas-basics-module-ai/            # M3 AI 模块 (网关、NL2SQL、知识库 RAG、Agent、LoRA 微调)
+│   ├── saas-basics-module-iam/           # 身份认证、TOTP MFA、RBAC 权限、个人数字身份与会话治理
+│   ├── saas-basics-module-tenant/        # 多租户管理、数据隔离、空间配额与租户灾备快照
 │   ├── saas-basics-module-workflow/      # Flowable BPMN 2.0 工业级流程引擎模型与工作流中心
 │   ├── saas-basics-module-scheduler/     # Quartz 分布式高可用调度中心与管线监控
-│   ├── saas-basics-module-file/          # 分布式文件中心、MinIO / S3 多存储适配
-│   ├── saas-basics-module-codegen/       # 低代码逆向代码生成中心
-│   ├── saas-basics-module-integration/   # 消息网关、数据源探针、Webhook 与死信补偿
-│   ├── saas-basics-module-audit/         # 全链路行为审计、风控识别与黑名单阻断
-│   └── saas-basics-module-system/        # 系统配置、数据字典、ERP/CRM 底座、DevOps 服务编排中枢
+│   ├── saas-basics-module-file/          # 文件中心、可配置存储源与目录路由、全局导出与定时报表
+│   ├── saas-basics-module-codegen/       # 低代码逆向代码生成中心与 AI 应用工坊
+│   ├── saas-basics-module-integration/   # CRM / ERP 业务中台、收银台、Open API 与消息/Webhook 网关
+│   ├── saas-basics-module-audit/         # 全链路行为审计 (before/after diff)、风控识别与黑名单阻断
+│   └── saas-basics-module-system/        # 系统配置、传输加密策略、告警规则、发件箱 Outbox、DevOps 编排
 │       └── devops/                       # 进程树管理、本地 CI 流水线、SSE 终端流、制品仓库
 ├── web/                                  # 前端 Vue3 + TypeScript PC 端控制台 (端口 9527)
 │   ├── src/
-│   │   ├── api/                          # 前端 API 模块化请求层 (Axios 封装)
+│   │   ├── api/                          # 前端 API 模块化请求层 (Axios 封装 + X25519 传输加密)
 │   │   ├── assets/                       # 视觉资源、iOS 27 动态壁纸、矢量图标
-│   │   ├── components/                   # 公共业务组件 (ProTable, SchemaForm, 状态徽标等)
+│   │   ├── components/                   # 公共组件 (CommandPaletteDialog, ExportDialog, ProTable 等)
+│   │   ├── layouts/                      # 高透动态流光毛玻璃布局框架 (ConsoleLayout 侧边/顶部 + 云端偏好)
 │   │   ├── router/                       # 动态路由守卫、多租户 URL 隔离与鉴权拦截
-│   │   ├── stores/                       # Pinia 全局状态管理 (Auth, Tenant, Theme, Tags)
+│   │   ├── stores/modules/               # Pinia 状态模块 (auth, tenant, menu, dict, locale, notification)
 │   │   ├── styles/                       # iOS 27 Liquid Glassmorphism 毛玻璃视觉样式系统
-│   │   └── views/                        # 业务中心视图层 (CRM, ERP, IAM, 租户, 流程, 审计, DevOps编排)
+│   │   └── views/                        # 业务视图层 (AI, 导出, 文件, 个人中心, 套打, IAM, CRM, ERP, DevOps)
 │   │       └── devops/AppServiceView.vue # 服务编排与发布中台全屏毛玻璃控制台
 │   ├── nginx.conf                        # 生产静态托管与反向代理配置
 │   ├── package.json
 │   └── vite.config.ts
 ├── mobile/                               # 移动端跨端工作台 (uni-app / Vue 3 / TS, 端口 5173)
 │   ├── src/
-│   │   ├── pages/                        # 移动端页面 (工作台、流程审批、CRM、ERP、个人空间)
+│   │   ├── pages/                        # 9 大移动域 (工作台, 审批, CRM, ERP, 通讯录, AI, 通知, 个人空间, 登录)
 │   │   ├── components/                   # 移动端悬浮灵动岛 TabBar、毛玻璃卡片组件
 │   │   ├── api/                          # 移动端轻量 API 请求封装
 │   │   └── stores/                       # Pinia 移动端状态中枢 (用户状态、租户绑定)
@@ -193,7 +200,7 @@ saas_basics/
 │   └── vite.config.ts
 ├── docs/                                 # 架构白皮书与技术文档中心
 │   ├── DEPLOYMENT_AND_ARCHITECTURE_GUIDE.md # 生产部署与系统架构全景指南 (可一键导入语雀)
-│   ├── manuals/                          # 13 卷独立知识库实战手册专栏
+│   ├── manuals/                          # 15 卷独立知识库实战手册专栏
 │   ├── backend-enterprise-architecture.md# 后端架构规范与设计决策
 │   └── frontend-vue-architecture.md     # 前端架构规范与组件体系
 ├── docker-compose.prod.yml               # 生产环境全栈容器化一键编排配置
@@ -216,7 +223,7 @@ saas_basics/
 | **Quartz** | 2.3.2 | 分布式高可用任务调度引擎 |
 | **Redis & Lettuce** | 7.2+ | 分布式会话缓存、字典缓存与分布式锁 |
 | **Caffeine** | 3.1.8 | 高性能本地一级缓存，构成二级混合缓存 |
-| **Flyway** | 10.x | 数据库版本控制与结构迁移自动化 (V1~V59) |
+| **Flyway** | 10.x | 数据库版本控制与结构迁移自动化 (V1~V74) |
 | **HikariCP** | 5.1.0 | 极致性能数据库连接池 |
 | **Spring Security** | 6.x | 企业级细粒度安全与鉴权中心 |
 
@@ -245,7 +252,7 @@ saas_basics/
 
 ### 2. 数据库配置
 1. 创建数据库 `saas_basics`，字符集推荐使用 `utf8mb4`，排序规则 `utf8mb4_unicode_ci`。
-2. 后端集成 **Flyway** 自动版本迁移，启动时会自动按序扫描并执行 `V1` 至 `V62` 全量脚本，无需手动导入 SQL。
+2. 后端集成 **Flyway** 自动版本迁移，启动时会自动按序扫描并执行 `V1` 至 `V74` 全量脚本，无需手动导入 SQL。
 
 ### 3. 后端服务启动 (Backend)
 ```bash
@@ -316,9 +323,9 @@ docker compose -f docker-compose.prod.yml up -d
 
 ---
 
-## 📚 详细设计与 13 卷实战知识库 (Yuque Manuals)
+## 📚 详细设计与 15 卷实战知识库 (Yuque Manuals)
 
-本项目提供完整的现代化架构指南与已模块化的 13 卷实战手册，支持一键导入语雀等知识库：
+本项目提供完整的现代化架构指南与已模块化的 15 卷实战手册，支持一键导入语雀等知识库：
 
 | 卷号与实战手册 | 文档直达链接 | 核心内容提要 |
 | :--- | :--- | :--- |
@@ -326,7 +333,7 @@ docker compose -f docker-compose.prod.yml up -d
 | **卷 02. 核心生产端实机视觉呈现** | [`docs/manuals/02_核心生产端实机视觉呈现_UI_Showcase.md`](./docs/manuals/02_核心生产端实机视觉呈现_UI_Showcase.md) | PC 流光毛玻璃驾驶舱与移动端悬浮灵动岛实机高清图解 |
 | **卷 03. Docker Compose 一键生产编排部署** | [`docs/manuals/03_Docker_Compose_一键生产编排部署.md`](./docs/manuals/03_Docker_Compose_一键生产编排部署.md) | 包含生产 compose 文件详解、健康检查、日志轮转与备份 |
 | **卷 04. 生产级 Nginx 泛域名网关与 SSL 配置** | [`docs/manuals/04_生产级_Nginx_泛域名网关与_SSL_配置.md`](./docs/manuals/04_生产级_Nginx_泛域名网关与_SSL_配置.md) | 泛域名 SSL 通配符终结、子域名提取注入 `X-Tenant-Code`、跨域防刷 |
-| **卷 05. 数据库生命周期与 Flyway 自动化迁移** | [`docs/manuals/05_数据库生命周期与_Flyway_自动化迁移.md`](./docs/manuals/05_数据库生命周期与_Flyway_自动化迁移.md) | Flyway 10.x 迁移准绳、V1~V62 全量核心版本线与防篡改策略 |
+| **卷 05. 数据库生命周期与 Flyway 自动化迁移** | [`docs/manuals/05_数据库生命周期与_Flyway_自动化迁移.md`](./docs/manuals/05_数据库生命周期与_Flyway_自动化迁移.md) | Flyway 10.x 迁移准绳、V1~V74 全量核心版本线与防篡改策略 |
 | **卷 06. 跨端工作台生产构建 (PC/H5/小程序)** | [`docs/manuals/06_跨端工作台生产构建_PC_H5_微信小程序.md`](./docs/manuals/06_跨端工作台生产构建_PC_H5_微信小程序.md) | Vue 3 PC 控制台与 uni-app 跨端工作台全平台打包与发布规范 |
 | **卷 07. 生产安全基线 SecOps 与高可用运维保障**| [`docs/manuals/07_生产安全基线_SecOps_与高可用运维保障.md`](./docs/manuals/07_生产安全基线_SecOps_与高可用运维保障.md) | 凭证隔离、网络安全域、数据库冷备份脚本与异常应急预案 |
 | **卷 08. 组织架构与企业级 IAM 权限配置指南** | [`docs/manuals/08_组织架构与企业级_IAM_权限配置指南.md`](./docs/manuals/08_组织架构与企业级_IAM_权限配置指南.md) | 集团-企业-部门-岗位-员工五级实体架构，菜单/按钮/行级数据范围 |
@@ -335,6 +342,8 @@ docker compose -f docker-compose.prod.yml up -d
 | **卷 11. ERP 进销存与云仓物料管理实战** | [`docs/manuals/11_ERP_进销存与云仓物料管理实战.md`](./docs/manuals/11_ERP_进销存与云仓物料管理实战.md) | 物料多规格档案、采购订单、出入库流水核算与高低库存预警 |
 | **卷 12. 开放平台 Open API 与企业 SSO 对接指南** | [`docs/manuals/12_开放平台_Open_API_与企业_SSO_对接指南.md`](./docs/manuals/12_开放平台_Open_API_与企业_SSO_对接指南.md) | Open API 签名网关、AppKey/HMAC 鉴权与 SAML/OIDC/企微免登 |
 | **卷 13. 服务编排与发布中台 DevOps 运维实战** | [`docs/manuals/13_服务编排与发布中台_DevOps_CI_CD_运维实战.md`](./docs/manuals/13_服务编排与发布中台_DevOps_CI_CD_运维实战.md) | 双驱动编排引擎、本地 CI 构建流水线、制品秒级回滚与 SSE 流式终端 |
+| **卷 14. AI 智能中枢、混合 RAG 与全局导出套打** | [`docs/manuals/14_AI_智能中枢与企业_RAG_数据导出实战.md`](./docs/manuals/14_AI_智能中枢与企业_RAG_数据导出实战.md) | ⌘K NL2SQL 副驾驶、混合 RAG 知识库、Agent/LoRA 工坊与导出套打中心 |
+| **卷 15. 文件存储路由与个人数字身份工作台** | [`docs/manuals/15_文件中心存储路由与个人数字身份工作台.md`](./docs/manuals/15_文件中心存储路由与个人数字身份工作台.md) | 多存储源上传模式与目录路由、未配置源前置拦截、个人中心与云端偏好同步 |
 
 - 📖 **生产部署与系统架构全景白皮书**：[`docs/DEPLOYMENT_AND_ARCHITECTURE_GUIDE.md`](./docs/DEPLOYMENT_AND_ARCHITECTURE_GUIDE.md)
 - 📐 **后端企业级微服务架构规范**：[`docs/backend-enterprise-architecture.md`](./docs/backend-enterprise-architecture.md)

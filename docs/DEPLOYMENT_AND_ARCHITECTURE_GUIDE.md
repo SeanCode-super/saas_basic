@@ -52,7 +52,7 @@
                          +--------------------+           +--------------------+   +--------------------+
                          |  MySQL 8.3 数据库  |           |   Redis 7.2 缓存   |   |   MinIO 对象存储   |
                          | - Flyway 自动迁移  |           | - 会话/Refresh 令牌|   | - 附件/合同/媒体   |
-                         |   (V1 ~ V62 脚本)  |           | - 分布式锁 / 限流  |   | - S3 协议高可用    |
+                         |   (V1 ~ V74 脚本)  |           | - 分布式锁 / 限流  |   | - S3/本地路由落盘  |
                          +--------------------+           +--------------------+   +--------------------+
 ```
 
@@ -413,8 +413,8 @@ server {
 天枢云基引入 **Flyway 10.x** 作为生产数据库迁移的唯一准绳，严禁运维工程师在生产数据库手工执行 DDL 语句。
 
 ### 5.1 数据库自动迁移规则
-1. **命名规范**：`V{版本号}__{英文描述}.sql`，例如 `V57__flowable_bpmn_integration.sql`、`V62__app_devops_service_center.sql`。
-2. **不可篡改性**：已发布的迁移脚本（V1 至 V62）在发布后其文件内容 Checksum 强校验，严禁修改历史脚本内容；新需求必须递增创建新脚本（如 `V63__xxx.sql`）。
+1. **命名规范**：`V{版本号}__{英文描述}.sql`，例如 `V57__flowable_bpmn_integration.sql`、`V62__app_devops_service_center.sql`、`V74__profile_extensions_and_file_upload_routing.sql`。
+2. **不可篡改性**：已发布的迁移脚本（V1 至 V74）在发布后其文件内容 Checksum 强校验，严禁修改历史脚本内容；新需求必须递增创建新脚本（如 `V75__xxx.sql`）。
 3. **自动化执行**：后端 Spring Boot 服务容器启动时，Flyway 会自动扫描 `db/migration` 目录，获取当前数据库 `flyway_schema_history` 表执行最新增量脚本，执行成功后应用才对外开放健康检查探针。
 
 ### 5.2 历史核心版本线速查 (Baseline Highlights)
@@ -430,6 +430,11 @@ server {
 * **V60**：企业级开箱预置演示数据与安全策略初始基线。
 * **V61**：ERP 进销存唯一索引加固与物料出入库逻辑删除冲突防护。
 * **V62**：服务编排与发布中台数据表 (`app_managed_service`, `app_build_record`, `app_service_artifact`) 与系统运维菜单权限。
+* **V63 ~ V64**：AI 模型网关 (`ai_provider`, `ai_model_config`)、M3 治理凭据库与 MCP 工具运行时闭环 (`ai_credential_ref`, `ai_prompt`, `ai_mcp_server`, `ai_run`, `ai_tenant_quota`)。
+* **V65 ~ V67**：全链路接口传输加密动态策略与 X25519 密钥环 (`sys_transport_crypto_policy`, `sys_transport_crypto_key`)，以及 `iam_user` TOTP MFA 安全增强。
+* **V68 ~ V70**：接口监控告警策略 (`sys_api_endpoint_stat`, `sys_alert_rule`, `sys_alert_event`)、事务性发件箱与租户灾备快照 (`plat_outbox_event`, `plat_tenant_snapshot_record`)、变更前后审计快照 (`audit_operation_log` 增补 `before_json`/`after_json`)。
+* **V71 ~ V73**：AI ⌘K 指令与 NL2SQL 副驾驶 (`ai_command_history`)、全局导出下载中心与定时报表 (`sys_export_task`, `sys_export_template`, `sys_report_schedule`)、企业知识库 RAG (`ai_knowledge_base`, `ai_knowledge_doc`, `ai_knowledge_chunk`)、Agent 工坊与微调评测 (`ai_agent`, `ai_agent_session`, `ai_finetune_dataset`, `ai_finetune_sample`, `ai_finetune_job`)。
+* **V74**：个人数字身份与工作台云端偏好扩展（`iam_user` 头像 URL/性别/简介/办公地/分机/语言时区/`preferences_json`），以及文件存储源默认开关/上传模式/目录模板与按业务路由表 (`file_storage`, `file_object`, `file_upload_route`)。
 
 ---
 
@@ -504,7 +509,7 @@ npm run build:mp-weixin
 
 ---
 
-## 九、 13 卷专栏实战手册速查 (Yuque Knowledge Base Index)
+## 九、 15 卷专栏实战手册速查 (Yuque Knowledge Base Index)
 
 天枢云基已完成全套生产指南的模块化拆分，各专栏手册均可一键导入语雀（Yuque）等知识库系统中独立共享与学习：
 
@@ -514,15 +519,17 @@ npm run build:mp-weixin
 | **02. 核心生产端实机视觉呈现** | [`docs/manuals/02_核心生产端实机视觉呈现_UI_Showcase.md`](./manuals/02_核心生产端实机视觉呈现_UI_Showcase.md) | PC 流光毛玻璃驾驶舱与移动端悬浮灵动岛实机高清图解 |
 | **03. Docker Compose 一键生产编排部署** | [`docs/manuals/03_Docker_Compose_一键生产编排部署.md`](./manuals/03_Docker_Compose_一键生产编排部署.md) | 包含生产 compose 文件详解、健康检查、日志轮转与备份 |
 | **04. 生产级 Nginx 泛域名网关与 SSL 配置** | [`docs/manuals/04_生产级_Nginx_泛域名网关与_SSL_配置.md`](./manuals/04_生产级_Nginx_泛域名网关与_SSL_配置.md) | 泛域名 SSL 通配符终结、子域名提取注入 `X-Tenant-Code`、跨域防刷 |
-| **05. 数据库生命周期与 Flyway 自动化迁移** | [`docs/manuals/05_数据库生命周期与_Flyway_自动化迁移.md`](./manuals/05_数据库生命周期与_Flyway_自动化迁移.md) | Flyway 10.x 迁移准绳、V1~V62 全量核心版本线与防篡改策略 |
+| **05. 数据库生命周期与 Flyway 自动化迁移** | [`docs/manuals/05_数据库生命周期与_Flyway_自动化迁移.md`](./manuals/05_数据库生命周期与_Flyway_自动化迁移.md) | Flyway 10.x 迁移准绳、V1~V74 全量核心版本线与防篡改策略 |
 | **06. 跨端工作台生产构建 (PC/H5/小程序)** | [`docs/manuals/06_跨端工作台生产构建_PC_H5_微信小程序.md`](./manuals/06_跨端工作台生产构建_PC_H5_微信小程序.md) | Vue 3 PC 控制台与 uni-app 跨端工作台全平台打包与发布规范 |
-| **07. 生产安全基线 SecOps 与高可用运维保障**| [`docs/manuals/07_生产安全基线_SecOps_与高可用运维保障.md`](./manuals/07_生产安全基线_SecOps_与高可用运维保障.md) | 凭证隔离、网络安全域、数据库冷备份脚本与异常应急预案 |
-| **08. 组织架构与企业级 IAM 权限配置指南** | [`docs/manuals/08_组织架构与企业级_IAM_权限配置指南.md`](./manuals/08_组织架构与企业级_IAM_权限配置指南.md) | 集团-企业-部门-岗位-员工五级实体架构，菜单/按钮/行级数据范围 |
+| **07. 生产安全基线 SecOps 与高可用运维保障**| [`docs/manuals/07_生产安全基线_SecOps_与高可用运维保障.md`](./manuals/07_生产安全基线_SecOps_与高可用运维保障.md) | X25519+GCM 传输加密、TOTP MFA、审计 diff、告警与应急备份 |
+| **08. 组织架构与企业级 IAM 权限配置指南** | [`docs/manuals/08_组织架构与企业级_IAM_权限配置指南.md`](./manuals/08_组织架构与企业级_IAM_权限配置指南.md) | 五级组织模型、RBAC 三位一体权限、个人身份名片与云端偏好 |
 | **09. Flowable BPMN 2.0 工业级工作流实战** | [`docs/manuals/09_Flowable_BPMN_2_0_工业级工作流实战.md`](./manuals/09_Flowable_BPMN_2_0_工业级工作流实战.md) | Flowable 7.x 审批流、串并行会签、驳回加签与移动端快捷签批 |
 | **10. CRM 客户全生命周期与商机管理实战** | [`docs/manuals/10_CRM_客户全生命周期与商机管理实战.md`](./manuals/10_CRM_客户全生命周期与商机管理实战.md) | 线索跟进、商机阶段漏斗、客户公海池流转与合同回款流水管理 |
 | **11. ERP 进销存与云仓物料管理实战** | [`docs/manuals/11_ERP_进销存与云仓物料管理实战.md`](./manuals/11_ERP_进销存与云仓物料管理实战.md) | 物料多规格档案、采购订单、出入库流水核算与高低库存预警 |
 | **12. 开放平台 Open API 与企业 SSO 对接指南** | [`docs/manuals/12_开放平台_Open_API_与企业_SSO_对接指南.md`](./manuals/12_开放平台_Open_API_与企业_SSO_对接指南.md) | Open API 签名网关、AppKey/HMAC 鉴权与 SAML/OIDC/企微免登 |
 | **13. 服务编排与发布中台 DevOps 运维实战** | [`docs/manuals/13_服务编排与发布中台_DevOps_CI_CD_运维实战.md`](./manuals/13_服务编排与发布中台_DevOps_CI_CD_运维实战.md) | 双驱动编排引擎、本地 CI 构建流水线、制品秒级回滚与 SSE 流式终端 |
+| **14. AI 智能中枢与企业 RAG 数据导出实战** | [`docs/manuals/14_AI_智能中枢与企业_RAG_数据导出实战.md`](./manuals/14_AI_智能中枢与企业_RAG_数据导出实战.md) | ⌘K NL2SQL 副驾驶、混合 RAG 知识库、Agent/LoRA 工坊与导出套打 |
+| **15. 文件中心存储路由与个人数字身份工作台** | [`docs/manuals/15_文件中心存储路由与个人数字身份工作台.md`](./manuals/15_文件中心存储路由与个人数字身份工作台.md) | 可配置上传模式与目录路由、未配置源拦截、个人资料与会话治理 |
 
 ---
 *本文档由天枢云基研发团队与系统架构委员会联合编制，持续跟踪生产演进。*

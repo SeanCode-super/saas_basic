@@ -50,3 +50,13 @@
 在「权限管理」中内置**权限穿透模拟器**：
 * 输入任意用户工号与操作代码（如 `erp:stock:adjust`）；
 * 毫秒级输出命中规则链、决策判定结果（`PASS / DENY`）以及底层 MyBatis-Plus 自动拼装的 SQL 过滤条件，大幅降低权限排查成本。
+
+---
+
+## 4. 个人数字身份与云端工作台偏好 (`V74`)
+
+PC 控制台（`ProfileView.vue`）与移动端（`mobile/src/pages/profile/profile.vue`）共同提供了企业级**个人中心与安全工作台**（后端接口前缀 `/api/iam/profile`）：
+* **个人数字名片与头像闭环**：支持查看与编辑昵称、姓名、手机号、邮箱、性别 (`UNKNOWN/MALE/FEMALE/OTHER`)、个人简介 (`bio`)、办公地点 (`work_location`)、分机/扩展联系 (`ext_contact`)、语言/时区 (`locale`/`timezone`)，以及调用 `POST /api/iam/profile/avatar` 上传真实头像（按 `USER_AVATAR` 业务路由落盘并即时生效）；
+* **组织任职上下文切换**：联动 `saas-basics-module-organization`，展示人员编号、组织主体、部门、岗位与主/辅任职列表，支持用户在授权任职上下文间切换（`/api/auth/context`）；
+* **云端工作台偏好同步**：`PUT /api/iam/profile/preferences` 将侧边/顶部导航模式、壁纸、紧凑密度、圆角等前端布局偏好持久化至 `iam_user.preferences_json`，跨设备登录自动恢复且尊重显式本地默认配置；
+* **账户安全评分与本人会话自管理**：实时呈现 MFA/手机/邮箱安全分，提供 `GET /api/iam/profile/sessions` 查看当前本人活跃设备会话，以及一键踢除其他设备 (`DELETE /api/iam/profile/sessions/others`) 或单设备下线 (`DELETE /api/iam/profile/sessions/{sessionNo}`)。
