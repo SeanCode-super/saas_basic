@@ -1,14 +1,21 @@
 # 天枢云基 (Tianshu Cloud) · 企业级多租户数字化 PaaS 底座与协同中枢
 
 <p align="center">
+  <b>简体中文</b> | <a href="./README_EN.md">English</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/SeanCode-super/saas_basic/actions/workflows/ci.yml"><img src="https://github.com/SeanCode-super/saas_basic/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/SeanCode-super/saas_basic/releases"><img src="https://img.shields.io/github/v/release/SeanCode-super/saas_basic?include_prereleases&label=Release" alt="Release"></a>
+  <a href="https://github.com/SeanCode-super/saas_basic/stargazers"><img src="https://img.shields.io/github/stars/SeanCode-super/saas_basic?style=flat" alt="Stars"></a>
   <img src="https://img.shields.io/badge/Spring%20Boot-3.3.5-brightgreen.svg" alt="Spring Boot">
   <img src="https://img.shields.io/badge/Java-17%2B-blue.svg" alt="Java">
   <img src="https://img.shields.io/badge/Flowable%20BPMN-7.x-orange.svg" alt="Flowable BPMN">
-  <img src="https://img.shields.io/badge/Vue-3.4%2B-green.svg" alt="Vue">
+  <img src="https://img.shields.io/badge/Vue-3.5-green.svg" alt="Vue">
   <img src="https://img.shields.io/badge/uni--app-Vue%203-blueviolet.svg" alt="uni-app">
   <img src="https://img.shields.io/badge/TypeScript-5.x-blue.svg" alt="TypeScript">
-  <img src="https://img.shields.io/badge/Vite-5.x%2F6.x-purple.svg" alt="Vite">
-  <img src="https://img.shields.io/badge/UI%20Style-iOS%2027%20Liquid%20Glass-cyan.svg" alt="Liquid Glass">
+  <img src="https://img.shields.io/badge/Vite-6.x-purple.svg" alt="Vite">
+  <img src="https://img.shields.io/badge/Flyway-V1--V74-teal.svg" alt="Flyway V1-V74">
   <img src="https://img.shields.io/badge/MySQL-8.3%2B-blue.svg" alt="MySQL">
   <img src="https://img.shields.io/badge/Redis-7.2%2B-red.svg" alt="Redis">
   <img src="https://img.shields.io/badge/License-Apache%202.0-orange.svg" alt="License">
@@ -74,6 +81,8 @@
 | <img src="docs/images/pc_erp_inventory.png" width="480" alt="ERP 进销存与物料仓储中枢" /> | <img src="docs/images/pc_crm_customer.png" width="480" alt="CRM 客户全生命周期与商机漏斗" /> |
 | **集团多层级组织架构与权限矩阵** | **服务编排与发布中台 (DevOps Console)** |
 | <img src="docs/images/pc_iam_permissions.png" width="480" alt="集团多层级组织架构与权限矩阵" /> | <img src="docs/images/pc_devops_service.png" width="480" alt="服务编排与发布中台 (DevOps Console)" /> |
+| **个人数字身份与云端工作台 (V74)** | **文件存储源与业务目录路由 (V74)** |
+| <img src="docs/images/pc_profile_workspace.png" width="480" alt="个人数字身份与云端工作台" /> | <img src="docs/images/pc_file_routing.png" width="480" alt="文件存储源与业务目录路由" /> |
 | **多租户动态 URL 空间隔离认证** | |
 | <img src="docs/images/pc_tenant_login.png" width="480" alt="多租户动态 URL 空间隔离认证" /> | |
 
