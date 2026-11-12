@@ -174,6 +174,16 @@ function hydrateForms(data: UserProfileData) {
 
   if (data.preferences) {
     Object.assign(prefForm, data.preferences);
+  } else {
+    const localLayout = localStorage.getItem("sb_layout_mode");
+    const localRail = localStorage.getItem("sb_rail_theme");
+    prefForm.layoutMode = localLayout === "mix" || localLayout === "side" || localLayout === "top" ? localLayout : "top";
+    prefForm.railTheme = localRail === "dark" ? "dark" : "light";
+    prefForm.showBreadcrumbs = localStorage.getItem("sb_show_breadcrumbs") !== "false";
+    prefForm.sidebarAccordion = localStorage.getItem("sb_sidebar_accordion") === "true";
+    prefForm.enableWatermark = localStorage.getItem("sb_enable_watermark") === "true";
+    prefForm.locale = data.locale || "zh-CN";
+    prefForm.timezone = data.timezone || "Asia/Shanghai";
   }
 }
 
@@ -190,9 +200,9 @@ async function loadData() {
       authStore.updateUserSnapshot({
         nickname: profileRes.value.data.nickname,
         avatarUrl: profileRes.value.data.avatarUrl,
-        locale: profileRes.value.data.locale,
-        timezone: profileRes.value.data.timezone,
-        preferences: profileRes.value.data.preferences
+        ...(profileRes.value.data.locale ? { locale: profileRes.value.data.locale } : {}),
+        ...(profileRes.value.data.timezone ? { timezone: profileRes.value.data.timezone } : {}),
+        ...(profileRes.value.data.preferences ? { preferences: profileRes.value.data.preferences } : {})
       });
     }
     if (storageRes.status === "fulfilled") {
@@ -279,9 +289,9 @@ async function handleSaveBasic() {
       hydrateForms(res.data);
       authStore.updateUserSnapshot({
         nickname: res.data.nickname,
-        locale: res.data.locale,
-        timezone: res.data.timezone,
-        preferences: res.data.preferences
+        ...(res.data.locale ? { locale: res.data.locale } : {}),
+        ...(res.data.timezone ? { timezone: res.data.timezone } : {}),
+        ...(res.data.preferences ? { preferences: res.data.preferences } : {})
       });
       ElMessage.success("个人基本与扩展资料已保存");
     }

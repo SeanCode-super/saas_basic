@@ -84,7 +84,7 @@ export interface UserProfileData {
   dataScopes: DataScopeSummaryItem[];
   identities: IdentityBindingItem[];
   employeeInfo?: EmployeeProfileInfo | null;
-  preferences: UserWorkspacePreferences;
+  preferences?: UserWorkspacePreferences | null;
   recentLogs: PersonalLoginLogItem[];
 }
 

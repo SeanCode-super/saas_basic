@@ -37,6 +37,8 @@ import TianshuLogo from "@/components/brand/TianshuLogo.vue";
 import { resolveAppIcon } from "@/config/app-icons";
 import { resolveAppMeta, resolveSectionMeta } from "@/config/app-taxonomy";
 import { resolveAuthorizedFileUrl } from "@/api/modules/file";
+import { updateUserPreferences } from "@/api/modules/profile";
+import type { UserWorkspacePreferences } from "@/api/modules/auth";
 import { useAuthStore } from "@/stores/modules/auth";
 import { useLocaleStore } from "@/stores/modules/locale";
 import { useMenuStore, type MenuNavItem } from "@/stores/modules/menu";
@@ -132,9 +134,36 @@ function handlePreferencesSynced(event: Event) {
   }
 }
 
+function persistShellPreferences() {
+  if (!authStore.isAuthenticated) return;
+  const existing = authStore.currentUser?.preferences;
+  const payload: UserWorkspacePreferences = {
+    locale: localeStore.locale,
+    timezone: authStore.currentUser?.timezone || existing?.timezone || "Asia/Shanghai",
+    layoutMode: layoutMode.value,
+    railTheme: railTheme.value,
+    showBreadcrumbs: showBreadcrumbs.value,
+    sidebarAccordion: sidebarAccordion.value,
+    enableWatermark: enableWatermark.value,
+    emailNotify: existing?.emailNotify ?? true,
+    siteNotify: existing?.siteNotify ?? true,
+    securityAlertNotify: existing?.securityAlertNotify ?? true,
+    defaultAiModel: existing?.defaultAiModel ?? ""
+  };
+  authStore.updateUserSnapshot({ preferences: payload, locale: payload.locale });
+  void updateUserPreferences(payload).catch(() => undefined);
+}
+
+function handleLocaleChange(value: unknown) {
+  const next = (String(value) === "en-US" ? "en-US" : "zh-CN") as "zh-CN" | "en-US";
+  localeStore.setLocale(next);
+  persistShellPreferences();
+}
+
 function toggleRailTheme() {
   railTheme.value = railTheme.value === "dark" ? "light" : "dark";
   localStorage.setItem("sb_rail_theme", railTheme.value);
+  persistShellPreferences();
   ElMessage.success(`已切换侧栏风格为「${railTheme.value === "dark" ? "深钛金灰" : "极简雅白"}」`);
 }
 
@@ -148,6 +177,7 @@ const watermarkContent = computed(() => {
 function toggleWatermark(val: any) {
   enableWatermark.value = Boolean(val);
   localStorage.setItem("sb_enable_watermark", String(val));
+  persistShellPreferences();
 }
 
 
@@ -500,30 +530,39 @@ const layoutModeText = computed(() => {
   return match?.title || "混合双导航模式";
 });
 
-function setLayoutMode(mode: LayoutMode) {
+function setLayoutMode(mode: LayoutMode, silent = false) {
   layoutMode.value = mode;
   localStorage.setItem("sb_layout_mode", mode);
-  const match = layoutModeOptions.find((opt) => opt.key === mode);
-  ElMessage.success(`已切换至「${match?.title || mode}」`);
+  persistShellPreferences();
+  if (!silent) {
+    const match = layoutModeOptions.find((opt) => opt.key === mode);
+    ElMessage.success(`已切换至「${match?.title || mode}」`);
+  }
 }
 
-function toggleBreadcrumbs(val: any) {
+function toggleBreadcrumbs(val: any, syncServer = true) {
   showBreadcrumbs.value = Boolean(val);
   localStorage.setItem("sb_show_breadcrumbs", String(showBreadcrumbs.value));
+  if (syncServer) {
+    persistShellPreferences();
+  }
 }
 
-function toggleSidebarAccordion(val: any) {
+function toggleSidebarAccordion(val: any, syncServer = true) {
   sidebarAccordion.value = Boolean(val);
   localStorage.setItem("sb_sidebar_accordion", String(sidebarAccordion.value));
   if (sidebarAccordion.value && currentApp.value) {
     expandedAppIds.value = [currentApp.value.id];
   }
+  if (syncServer) {
+    persistShellPreferences();
+  }
 }
 
 function resetLayoutSettings() {
-  setLayoutMode("mix");
-  toggleBreadcrumbs(true);
-  toggleSidebarAccordion(false);
+  toggleBreadcrumbs(true, false);
+  toggleSidebarAccordion(false, false);
+  setLayoutMode("mix", true);
   ElMessage.success("已恢复平台默认布局与显示设置");
 }
 
@@ -1335,7 +1374,7 @@ onMounted(() => {
           <el-select
             class="console-shell__locale"
             :model-value="localeStore.locale"
-            @change="(value: any) => localeStore.setLocale(String(value) as 'zh-CN' | 'en-US')"
+            @change="handleLocaleChange"
           >
             <el-option label="中文" value="zh-CN" />
             <el-option label="EN" value="en-US" />

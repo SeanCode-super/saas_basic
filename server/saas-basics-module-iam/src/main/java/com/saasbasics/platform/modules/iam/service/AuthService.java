@@ -1207,7 +1207,11 @@ public class AuthService {
         UserEntity user = (uMapper != null && principal.userId() != null) ? uMapper.selectById(principal.userId()) : null;
         ObjectMapper om = objectMapperProvider != null ? objectMapperProvider.getIfAvailable() : null;
         com.saasbasics.platform.modules.iam.dto.UserPreferencesData prefs =
-                UserPreferencesHelper.parse(om != null ? om : new ObjectMapper(), user);
+                UserPreferencesHelper.parseSavedOrNull(om != null ? om : new ObjectMapper(), user);
+        String resolvedLocale = user != null && user.getLocale() != null && !user.getLocale().isBlank()
+                ? UserPreferencesHelper.normalizeLocale(user.getLocale()) : null;
+        String resolvedTimezone = user != null && user.getTimezone() != null && !user.getTimezone().isBlank()
+                ? UserPreferencesHelper.normalizeTimezone(user.getTimezone()) : null;
         return new AuthCurrentUserResponse(
                 principal.sessionId(),
                 principal.tenantId(),
@@ -1228,8 +1232,8 @@ public class AuthService {
                 principal.personPublicId(),
                 principal.organizationContext(),
                 user != null ? user.getAvatarUrl() : null,
-                prefs.locale(),
-                prefs.timezone(),
+                resolvedLocale,
+                resolvedTimezone,
                 prefs
         );
     }

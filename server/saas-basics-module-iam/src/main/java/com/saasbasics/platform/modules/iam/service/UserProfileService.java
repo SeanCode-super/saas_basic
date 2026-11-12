@@ -103,7 +103,11 @@ public class UserProfileService {
         }
 
         int score = calculateSecurityScore(user, daysRemaining);
-        UserPreferencesData prefs = UserPreferencesHelper.parse(objectMapper, user);
+        UserPreferencesData prefs = UserPreferencesHelper.parseSavedOrNull(objectMapper, user);
+        String effectiveLocale = user.getLocale() != null && !user.getLocale().isBlank()
+                ? UserPreferencesHelper.normalizeLocale(user.getLocale()) : null;
+        String effectiveTimezone = user.getTimezone() != null && !user.getTimezone().isBlank()
+                ? UserPreferencesHelper.normalizeTimezone(user.getTimezone()) : null;
 
         return new UserProfileResponse(
                 user.getId(),
@@ -122,8 +126,8 @@ public class UserProfileService {
                 user.getBio(),
                 user.getWorkLocation(),
                 user.getExtContact(),
-                prefs.locale(),
-                prefs.timezone(),
+                effectiveLocale,
+                effectiveTimezone,
                 user.getUserType(),
                 user.getStatus(),
                 user.getCreatedAt(),

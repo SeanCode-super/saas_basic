@@ -12,6 +12,13 @@ final class UserPreferencesHelper {
     private UserPreferencesHelper() {
     }
 
+    static UserPreferencesData parseSavedOrNull(ObjectMapper objectMapper, UserEntity user) {
+        if (user == null || user.getPreferencesJson() == null || user.getPreferencesJson().isBlank()) {
+            return null;
+        }
+        return parse(objectMapper, user);
+    }
+
     static UserPreferencesData parse(ObjectMapper objectMapper, UserEntity user) {
         if (user == null) {
             return UserPreferencesData.defaults("zh-CN", "Asia/Shanghai");
