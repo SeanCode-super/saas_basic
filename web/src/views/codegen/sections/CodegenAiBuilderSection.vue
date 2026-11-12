@@ -627,7 +627,7 @@ onMounted(() => {
 
     .ai-subtitle {
       font-size: 13px;
-      color: #64748b;
+      color: #475569;
       margin: 0;
       line-height: 1.6;
       max-width: 780px;
@@ -637,15 +637,14 @@ onMounted(() => {
       display: flex;
       align-items: center;
       gap: 8px;
-      background: rgba(255, 255, 255, 0.65);
-      backdrop-filter: blur(14px);
+      background: rgba(255, 255, 255, 0.94);
       padding: 8px 14px;
       border-radius: 14px;
-      border: 1px solid rgba(255, 255, 255, 0.88);
+      border: 1px solid #cbd5e1;
 
       .selector-label {
         font-size: 13px;
-        color: #475569;
+        color: #334155;
         font-weight: 500;
         white-space: nowrap;
       }
@@ -703,7 +702,7 @@ onMounted(() => {
 
       .tip-text {
         font-size: 12px;
-        color: #94a3b8;
+        color: #475569;
       }
 
       .generate-btn {
@@ -729,7 +728,7 @@ onMounted(() => {
 
   .sub-tip {
     font-size: 12px;
-    color: #94a3b8;
+    color: #475569;
     font-weight: normal;
     margin-left: 6px;
   }
@@ -753,7 +752,7 @@ onMounted(() => {
     justify-content: space-between;
     align-items: center;
     padding: 18px 24px;
-    background: rgba(255, 255, 255, 0.58);
+    background: rgba(255, 255, 255, 0.90);
     backdrop-filter: blur(28px) saturate(210%) contrast(104%);
     -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
     border-radius: 20px;
@@ -807,7 +806,7 @@ onMounted(() => {
 
   .success-desc {
     font-size: 13px;
-    color: #64748b;
+    color: #475569;
     line-height: 1.6;
     margin: 0 0 20px;
   }
@@ -828,7 +827,7 @@ onMounted(() => {
       gap: 8px;
 
       .label {
-        color: #64748b;
+        color: #475569;
         width: 80px;
       }
     }

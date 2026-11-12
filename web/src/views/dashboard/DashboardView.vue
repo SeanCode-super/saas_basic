@@ -658,12 +658,12 @@ onMounted(() => {
   flex-wrap: wrap;
   gap: 12px;
   padding: 12px 20px;
-  background: rgba(255, 255, 255, 0.68);
-  backdrop-filter: blur(28px) saturate(200%) contrast(102%);
-  -webkit-backdrop-filter: blur(28px) saturate(200%) contrast(102%);
-  border: 1px solid rgba(255, 255, 255, 0.92);
+  background: var(--sb-glass-bg, rgba(255, 255, 255, 0.90));
+  backdrop-filter: blur(22px) saturate(165%);
+  -webkit-backdrop-filter: blur(22px) saturate(165%);
+  border: 1px solid rgba(226, 232, 240, 0.92);
   border-radius: 18px;
-  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.95), 0 8px 24px -4px rgba(15, 23, 42, 0.05);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.98), 0 6px 20px -6px rgba(15, 23, 42, 0.06);
   margin-bottom: 2px;
 }
 
@@ -694,12 +694,10 @@ onMounted(() => {
   white-space: nowrap;
   gap: 3px;
   padding: 3px;
-  background: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.75);
+  background: rgba(241, 245, 249, 0.92);
+  border: 1px solid #cbd5e1;
   border-radius: 9999px;
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.9), 0 4px 14px rgba(15, 23, 42, 0.05);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.9);
 
   &__item {
     border: none;
@@ -727,15 +725,14 @@ onMounted(() => {
 
 .ios-dashboard__meta-tag {
   font-size: 12.5px;
-  color: #475569;
+  color: #334155;
   font-weight: 550;
   white-space: nowrap;
   flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.45);
+  background: rgba(248, 250, 252, 0.94);
   padding: 4px 12px;
   border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.8);
+  border: 1px solid #cbd5e1;
 }
 
 .ios-dashboard__actions {
@@ -752,31 +749,30 @@ onMounted(() => {
   white-space: nowrap;
   gap: 6px;
   padding: 7px 14px;
-  background: rgba(255, 255, 255, 0.65);
-  backdrop-filter: blur(20px) saturate(190%);
-  -webkit-backdrop-filter: blur(20px) saturate(190%);
-  border: 1px solid rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid #cbd5e1;
   border-radius: 9999px;
   color: #1e293b;
   font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.95), 0 4px 14px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
   transition: all 150ms ease;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.88);
+    background: #ffffff;
+    border-color: #475569;
     transform: translateY(-1px);
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.95), 0 8px 20px rgba(15, 23, 42, 0.08);
+    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.07);
   }
 
   &--highlight {
-    background: rgba(37, 99, 235, 0.12);
-    border-color: rgba(37, 99, 235, 0.35);
+    background: rgba(239, 246, 255, 0.96);
+    border-color: #93c5fd;
     color: #1d4ed8;
 
     &:hover {
-      background: rgba(37, 99, 235, 0.20);
+      background: #dbeafe;
     }
   }
 }
@@ -786,27 +782,22 @@ onMounted(() => {
    ----------------------------------------------------------------------------- */
 .ios-glass-card {
   position: relative;
-  background: rgba(255, 255, 255, 0.62);
-  backdrop-filter: blur(28px) saturate(190%) contrast(102%);
-  -webkit-backdrop-filter: blur(28px) saturate(190%) contrast(102%);
-  border: 1px solid rgba(255, 255, 255, 0.75);
-  border-radius: 26px;
-  box-shadow: 
-    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.95),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
-    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.02),
-    0 16px 38px -8px rgba(12, 34, 56, 0.08),
-    0 4px 12px -2px rgba(12, 34, 56, 0.03);
+  background: rgba(255, 255, 255, 0.90);
+  backdrop-filter: blur(22px) saturate(160%);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  border-radius: 24px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    0 10px 28px -8px rgba(15, 23, 42, 0.06);
   padding: 22px 24px;
   box-sizing: border-box;
   transition: transform 180ms ease, box-shadow 180ms ease;
 
   &:hover {
-    box-shadow: 
-      inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
-      inset 0 0 0 1px rgba(255, 255, 255, 0.45),
-      0 22px 48px -10px rgba(12, 34, 56, 0.12),
-      0 6px 16px -2px rgba(12, 34, 56, 0.05);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 1),
+      0 14px 36px -10px rgba(15, 23, 42, 0.09);
   }
 }
 
@@ -852,20 +843,20 @@ onMounted(() => {
 }
 
 .ios-icon-btn {
-  border: none;
-  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.92);
   width: 28px;
   height: 28px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #64748b;
+  color: #475569;
   cursor: pointer;
   transition: all 120ms ease;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.85);
+    background: #ffffff;
     color: #0f172a;
   }
 }
@@ -873,7 +864,7 @@ onMounted(() => {
 .ios-icon-btn-sm {
   border: none;
   background: transparent;
-  color: #94a3b8;
+  color: #475569;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1020,8 +1011,8 @@ onMounted(() => {
   font-size: 11px;
   font-weight: 600;
   border-radius: 50%;
-  color: #64748b;
-  background: rgba(255, 255, 255, 0.45);
+  color: #475569;
+  background: #f1f5f9;
 
   &.is-active {
     background: #0284c7;
@@ -1048,7 +1039,7 @@ onMounted(() => {
 
   &__count {
     font-size: 11px;
-    color: #64748b;
+    color: #475569;
   }
 }
 
@@ -1062,15 +1053,16 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.50);
-  border: 1px solid rgba(255, 255, 255, 0.65);
+  padding: 9px 12px;
+  background: rgba(248, 250, 252, 0.96);
+  border: 1px solid #e2e8f0;
   border-radius: 12px;
   cursor: pointer;
   transition: all 120ms ease;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.85);
+    background: #eff6ff;
+    border-color: #bfdbfe;
     transform: translateX(2px);
   }
 
@@ -1088,7 +1080,7 @@ onMounted(() => {
 
   &__stage {
     font-size: 10.5px;
-    color: #64748b;
+    color: #475569;
     background: rgba(15, 23, 42, 0.05);
     padding: 1px 6px;
     border-radius: 4px;
@@ -1173,7 +1165,7 @@ onMounted(() => {
     small {
       font-size: 12px;
       font-weight: 550;
-      color: #64748b;
+      color: #475569;
       margin-left: 2px;
     }
   }
@@ -1189,7 +1181,7 @@ onMounted(() => {
 
   &__subtext {
     font-size: 11px;
-    color: #64748b;
+    color: #475569;
   }
 }
 
@@ -1288,7 +1280,7 @@ onMounted(() => {
   justify-content: flex-end;
   gap: 10px;
   font-size: 10px;
-  color: #64748b;
+  color: #475569;
 
   .dot {
     display: inline-block;
@@ -1337,8 +1329,8 @@ onMounted(() => {
 .ios-chart-ticks {
   display: flex;
   justify-content: space-between;
-  font-size: 10px;
-  color: #94a3b8;
+  font-size: 10.5px;
+  color: #475569;
   font-family: var(--sb-font-mono, monospace);
   margin-top: 4px;
 }
@@ -1380,10 +1372,8 @@ onMounted(() => {
   gap: 12px;
   padding: 10px 14px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.45);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.9);
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
 
   &__icon {
     font-size: 18px;
@@ -1404,7 +1394,7 @@ onMounted(() => {
   &__desc {
     margin: 2px 0 0;
     font-size: 11.5px;
-    color: #64748b;
+    color: #475569;
   }
 }
 

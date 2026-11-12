@@ -61,34 +61,32 @@ h1, h2, h3, h4, h5, h6 {
 .base-card,
 .ep-card,
 .workbench-card {
-  border: 1px solid rgba(255, 255, 255, 0.85) !important;
+  border: 1px solid rgba(226, 232, 240, 0.92) !important;
   border-radius: var(--sb-radius-glass) !important;
-  background: rgba(255, 255, 255, 0.58) !important;
-  backdrop-filter: blur(28px) saturate(210%) contrast(104%) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%) !important;
+  background: var(--sb-glass-bg) !important;
+  backdrop-filter: var(--sb-glass-blur) !important;
+  -webkit-backdrop-filter: var(--sb-glass-blur) !important;
   box-shadow:
-    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
-    0 16px 40px -10px rgba(12, 34, 56, 0.08) !important;
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    0 10px 28px -8px rgba(15, 23, 42, 0.06) !important;
   transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 180ms ease, border-color 180ms ease;
 
   &:hover {
     box-shadow:
-      inset 0 1.5px 2px 0 rgba(255, 255, 255, 1),
-      inset 0 0 0 1px rgba(255, 255, 255, 0.45),
-      0 22px 50px -12px rgba(12, 34, 56, 0.12) !important;
+      inset 0 1px 0 rgba(255, 255, 255, 1),
+      0 14px 34px -10px rgba(15, 23, 42, 0.09) !important;
   }
 
   .el-card__header,
   .ep-card__header {
     padding: 14px 22px;
-    border-bottom: 1px solid rgba(226, 232, 240, 0.6) !important;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.85) !important;
     font-size: 14.5px;
     font-weight: 650;
     color: var(--sb-text-primary);
-    background: rgba(255, 255, 255, 0.40) !important;
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
+    background: rgba(248, 250, 252, 0.94) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border-radius: var(--sb-radius-glass) var(--sb-radius-glass) 0 0;
   }
 
@@ -107,14 +105,14 @@ h1, h2, h3, h4, h5, h6 {
   justify-content: space-between;
   gap: 12px;
   padding: 10px 18px;
-  background: rgba(255, 255, 255, 0.58) !important;
-  backdrop-filter: blur(28px) saturate(210%) contrast(104%) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.85) !important;
+  background: var(--sb-glass-bg) !important;
+  backdrop-filter: var(--sb-glass-blur) !important;
+  -webkit-backdrop-filter: var(--sb-glass-blur) !important;
+  border: 1px solid rgba(226, 232, 240, 0.92) !important;
   border-radius: 18px !important;
   box-shadow:
-    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
-    0 10px 25px -5px rgba(12, 34, 56, 0.05) !important;
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    0 6px 20px -6px rgba(15, 23, 42, 0.05) !important;
   margin-bottom: 16px;
 }
 
@@ -129,25 +127,23 @@ h1, h2, h3, h4, h5, h6 {
   padding: 0 14px;
   transition: all 140ms cubic-bezier(0.16, 1, 0.3, 1);
 
-  /* 默认次级按钮 (iOS 27 晶透白底微倒角光晕) */
+  /* 默认次级按钮 (清晰白底微边) */
   &:not(.el-button--primary, .el-button--success, .el-button--warning, .el-button--danger, .is-link, .is-text) {
-    border: 1px solid rgba(255, 255, 255, 0.85);
-    background: rgba(255, 255, 255, 0.65);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid #cbd5e1;
+    background: rgba(255, 255, 255, 0.92);
     color: var(--sb-text-secondary);
-    box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.95), 0 2px 6px rgba(15, 23, 42, 0.04);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 
     &:hover {
-      background: rgba(255, 255, 255, 0.92);
-      border-color: rgba(255, 255, 255, 0.98);
+      background: #ffffff;
+      border-color: #94a3b8;
       color: var(--sb-text-primary);
-      box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 1), 0 4px 12px rgba(15, 23, 42, 0.08);
+      box-shadow: 0 3px 10px rgba(15, 23, 42, 0.07);
       transform: translateY(-0.5px);
     }
 
     &:active {
-      background: rgba(241, 245, 249, 0.85);
+      background: #f1f5f9;
       transform: translateY(0);
     }
   }
@@ -182,21 +178,21 @@ h1, h2, h3, h4, h5, h6 {
 .el-select__wrapper,
 .el-textarea__inner {
   border-radius: var(--sb-radius-glass-sm);
-  background: rgba(255, 255, 255, 0.70) !important;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.9), 0 0 0 1px rgba(203, 213, 225, 0.7) inset !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: 0 0 0 1px #cbd5e1 inset !important;
   transition: all 160ms cubic-bezier(0.16, 1, 0.3, 1);
 
   &:hover {
-    background: rgba(255, 255, 255, 0.85) !important;
-    box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 1), 0 0 0 1px rgba(148, 163, 184, 0.9) inset !important;
+    background: #ffffff !important;
+    box-shadow: 0 0 0 1px #94a3b8 inset !important;
   }
 
   &.is-focus,
   &:focus-within {
-    background: rgba(255, 255, 255, 0.95) !important;
-    box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 1), 0 0 0 1.5px var(--sb-primary-color) inset, 0 0 0 4px rgba(37, 99, 235, 0.18) !important;
+    background: #ffffff !important;
+    box-shadow: 0 0 0 1.5px var(--sb-primary-color) inset, 0 0 0 3px rgba(37, 99, 235, 0.14) !important;
   }
 }
 
@@ -206,27 +202,26 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ==========================================================================
-   5. iOS 27 / visionOS 晶透数据表格与斑马纹 (Aether Specular Tabular Engine)
+   5. iOS 27 / visionOS 高对比数据表格 (Clean Luminous Data Grid)
    ========================================================================== */
 .el-table {
-  --el-table-border: 1px solid rgba(226, 232, 240, 0.55);
-  --el-table-border-color: rgba(226, 232, 240, 0.55);
+  --el-table-border: 1px solid #e2e8f0;
+  --el-table-border-color: #e2e8f0;
   --el-table-fixed-left-column: none !important;
   --el-table-fixed-right-column: none !important;
   --el-table-fixed-box-shadow: none !important;
-  --el-table-header-bg-color: transparent !important;
-  --el-table-bg-color: transparent !important;
-  --el-table-tr-bg-color: transparent !important;
+  --el-table-header-bg-color: #f8fafc !important;
+  --el-table-bg-color: rgba(255, 255, 255, 0.96) !important;
+  --el-table-tr-bg-color: rgba(255, 255, 255, 0.96) !important;
 
-  border: 1px solid rgba(255, 255, 255, 0.85) !important;
+  border: 1px solid rgba(226, 232, 240, 0.95) !important;
   border-radius: var(--sb-radius-glass) !important;
-  background: rgba(255, 255, 255, 0.58) !important;
-  backdrop-filter: blur(28px) saturate(210%) contrast(104%) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%) !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(18px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(140%) !important;
   box-shadow:
-    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
-    0 16px 40px -10px rgba(12, 34, 56, 0.08) !important;
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    0 10px 28px -8px rgba(15, 23, 42, 0.06) !important;
   color: var(--sb-text-secondary);
   font-size: 13px;
   overflow: hidden;
@@ -246,56 +241,56 @@ h1, h2, h3, h4, h5, h6 {
     background: transparent !important;
   }
 
-  /* 表头：液态毛玻璃底色 + 粗体深色文字 */
+  /* 表头：清澈浅灰蓝表头 + 锐利深色表头字 */
   th.el-table__cell {
-    background: rgba(248, 250, 252, 0.65) !important;
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
+    background: rgba(248, 250, 252, 0.98) !important;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
     color: var(--sb-text-primary) !important;
     font-weight: 650 !important;
     font-size: 13px !important;
-    border-bottom: 1.5px solid rgba(203, 213, 225, 0.7) !important;
+    border-bottom: 1.5px solid #e2e8f0 !important;
     border-right: none !important;
     border-left: none !important;
     padding: 11px 0 !important;
     letter-spacing: -0.01em;
   }
 
-  /* 行级单元格：透光微边，消除纵向割裂线 */
+  /* 行级单元格：纯净分隔线，告别透明透色混淆 */
   td.el-table__cell {
-    border-bottom: 1px solid rgba(226, 232, 240, 0.55) !important;
+    border-bottom: 1px solid #f1f5f9 !important;
     border-right: none !important;
     border-left: none !important;
     padding: 10px 0 !important;
     color: var(--sb-text-secondary);
   }
 
-  /* 全站所有列表隔行换色 (Zebra Striping / 奇偶行交替差异) */
+  /* 全站所有列表隔行换色 (Clean High-Clarity Zebra Striping) */
   tbody tr:nth-child(odd) > td.el-table__cell {
-    background-color: rgba(255, 255, 255, 0.35) !important;
+    background-color: rgba(255, 255, 255, 0.98) !important;
   }
 
   tbody tr:nth-child(even) > td.el-table__cell,
   &--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
-    background-color: rgba(241, 245, 249, 0.65) !important;
+    background-color: rgba(248, 250, 252, 0.98) !important;
   }
 
-  /* 悬浮行：高光微蓝晶板 */
+  /* 悬浮行：清爽微蓝高亮 */
   tbody tr:hover > td.el-table__cell,
   .el-table__row:hover > td.el-table__cell {
-    background-color: rgba(219, 234, 254, 0.75) !important;
-    backdrop-filter: blur(8px);
+    background-color: rgba(239, 246, 255, 0.98) !important;
+    backdrop-filter: none;
   }
 
-  /* 1. 默认与非穿透滚动状态：操作列与数据列 100% 相同底色，全景一体通透毛玻璃 (彻底消除拼接感) */
+  /* 1. 默认与非穿透滚动状态：固定列与数据列 100% 统一纯澈白/浅灰底色 */
   th.el-table__cell.el-table-fixed-column--right,
   th.el-table__cell.el-table-fixed-column--left,
   .el-table__fixed-right th.el-table__cell,
   .el-table__fixed th.el-table__cell,
   .el-table__header-wrapper th.el-table-fixed-column--right {
-    background: rgba(248, 250, 252, 0.68) !important;
-    backdrop-filter: blur(24px) saturate(210%) contrast(104%) !important;
-    -webkit-backdrop-filter: blur(24px) saturate(210%) contrast(104%) !important;
+    background: rgba(248, 250, 252, 0.98) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
     z-index: 4 !important;
     border-right: none !important;
     border-left: none !important;
@@ -305,9 +300,9 @@ h1, h2, h3, h4, h5, h6 {
   tbody tr:nth-child(odd) > td.el-table__cell.el-table-fixed-column--left,
   .el-table__fixed-right tbody tr:nth-child(odd) td.el-table__cell,
   .el-table__fixed tbody tr:nth-child(odd) td.el-table__cell {
-    background: rgba(255, 255, 255, 0.35) !important;
-    backdrop-filter: blur(24px) saturate(210%) contrast(104%) !important;
-    -webkit-backdrop-filter: blur(24px) saturate(210%) contrast(104%) !important;
+    background: rgba(255, 255, 255, 0.98) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
     box-shadow: none !important;
     border-right: none !important;
     border-left: none !important;
@@ -317,9 +312,9 @@ h1, h2, h3, h4, h5, h6 {
   tbody tr:nth-child(even) > td.el-table__cell.el-table-fixed-column--left,
   .el-table__fixed-right tbody tr:nth-child(even) td.el-table__cell,
   .el-table__fixed tbody tr:nth-child(even) td.el-table__cell {
-    background: rgba(241, 245, 249, 0.65) !important;
-    backdrop-filter: blur(24px) saturate(210%) contrast(104%) !important;
-    -webkit-backdrop-filter: blur(24px) saturate(210%) contrast(104%) !important;
+    background: rgba(248, 250, 252, 0.98) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
     box-shadow: none !important;
     border-right: none !important;
     border-left: none !important;
@@ -329,9 +324,9 @@ h1, h2, h3, h4, h5, h6 {
   tbody tr:hover > td.el-table__cell.el-table-fixed-column--left,
   .el-table__fixed-right tbody tr:hover td.el-table__cell,
   .el-table__fixed tbody tr:hover td.el-table__cell {
-    background: rgba(219, 234, 254, 0.75) !important;
-    backdrop-filter: blur(24px) saturate(210%) contrast(104%) !important;
-    -webkit-backdrop-filter: blur(24px) saturate(210%) contrast(104%) !important;
+    background: rgba(239, 246, 255, 0.98) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
     box-shadow: none !important;
     border-right: none !important;
     border-left: none !important;
@@ -709,15 +704,14 @@ h1, h2, h3, h4, h5, h6 {
    7. 对话框与抽屉 (iOS 27 晶透悬浮微倒角毛玻璃)
    ========================================================================== */
 .el-dialog {
-  border-radius: 26px !important;
-  border: 1px solid rgba(255, 255, 255, 0.90) !important;
-  background: rgba(255, 255, 255, 0.78) !important;
-  backdrop-filter: blur(36px) saturate(210%) contrast(104%) !important;
-  -webkit-backdrop-filter: blur(36px) saturate(210%) contrast(104%) !important;
+  border-radius: 22px !important;
+  border: 1px solid rgba(226, 232, 240, 0.95) !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  backdrop-filter: blur(28px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(160%) !important;
   box-shadow:
-    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.40),
-    0 24px 60px -12px rgba(12, 34, 56, 0.16) !important;
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 24px 60px -12px rgba(15, 23, 42, 0.16) !important;
   overflow: hidden;
   position: relative;
 
@@ -736,8 +730,8 @@ h1, h2, h3, h4, h5, h6 {
   .el-dialog__header {
     padding: 16px 22px 14px;
     margin-right: 0;
-    border-bottom: 1px solid rgba(226, 232, 240, 0.6) !important;
-    background: transparent !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    background: rgba(248, 250, 252, 0.95) !important;
 
     .el-dialog__title {
       font-size: 16px;
@@ -754,27 +748,26 @@ h1, h2, h3, h4, h5, h6 {
 
   .el-dialog__footer {
     padding: 14px 22px;
-    border-top: 1px solid rgba(226, 232, 240, 0.6) !important;
-    background: rgba(255, 255, 255, 0.35) !important;
+    border-top: 1px solid #e2e8f0 !important;
+    background: rgba(248, 250, 252, 0.92) !important;
   }
 }
 
 .el-drawer {
-  background: rgba(255, 255, 255, 0.80) !important;
-  backdrop-filter: blur(36px) saturate(210%) contrast(104%) !important;
-  -webkit-backdrop-filter: blur(36px) saturate(210%) contrast(104%) !important;
-  border-left: 1px solid rgba(255, 255, 255, 0.90) !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  backdrop-filter: blur(28px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(160%) !important;
+  border-left: 1px solid #e2e8f0 !important;
   box-shadow:
-    inset 1px 0 2px 0 rgba(255, 255, 255, 0.98),
-    -10px 0 40px rgba(12, 34, 56, 0.12) !important;
+    -10px 0 40px rgba(15, 23, 42, 0.12) !important;
 
   .el-drawer__header {
     padding: 16px 22px 14px;
     margin-bottom: 0;
-    border-bottom: 1px solid rgba(226, 232, 240, 0.6) !important;
+    border-bottom: 1px solid #e2e8f0 !important;
     color: var(--sb-text-primary);
     font-weight: 700;
-    background: transparent !important;
+    background: rgba(248, 250, 252, 0.95) !important;
   }
 
   .el-drawer__body {
@@ -783,8 +776,8 @@ h1, h2, h3, h4, h5, h6 {
 
   .el-drawer__footer {
     padding: 14px 22px;
-    border-top: 1px solid rgba(226, 232, 240, 0.6) !important;
-    background: rgba(255, 255, 255, 0.35) !important;
+    border-top: 1px solid #e2e8f0 !important;
+    background: rgba(248, 250, 252, 0.92) !important;
   }
 }
 
@@ -805,20 +798,20 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .el-tabs--border-card {
-  background: rgba(255, 255, 255, 0.58) !important;
-  backdrop-filter: blur(28px) saturate(210%) contrast(104%) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.85) !important;
+  background: var(--sb-glass-bg) !important;
+  backdrop-filter: var(--sb-glass-blur) !important;
+  -webkit-backdrop-filter: var(--sb-glass-blur) !important;
+  border: 1px solid rgba(226, 232, 240, 0.92) !important;
   border-radius: 22px !important;
   box-shadow:
-    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
-    0 14px 38px -6px rgba(12, 34, 56, 0.08) !important;
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    0 10px 28px -8px rgba(15, 23, 42, 0.06) !important;
   overflow: hidden;
 
   .el-tabs__header {
-    background: rgba(255, 255, 255, 0.40) !important;
-    backdrop-filter: blur(14px) !important;
-    border-bottom: 1px solid rgba(226, 232, 240, 0.6) !important;
+    background: rgba(248, 250, 252, 0.94) !important;
+    backdrop-filter: blur(12px) !important;
+    border-bottom: 1px solid #e2e8f0 !important;
   }
 
   .el-tabs__content {
@@ -829,7 +822,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .el-tabs__nav-wrap::after {
   height: 1px !important;
-  background-color: rgba(203, 213, 225, 0.6) !important;
+  background-color: #e2e8f0 !important;
 }
 
 .el-tabs__item {
@@ -865,13 +858,14 @@ h1, h2, h3, h4, h5, h6 {
   .btn-prev,
   .btn-next,
   .el-pager li {
-    background: rgba(255, 255, 255, 0.60) !important;
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(226, 232, 240, 0.7);
+    background: rgba(255, 255, 255, 0.92) !important;
+    backdrop-filter: none;
+    border: 1px solid #cbd5e1;
     border-radius: 6px;
     margin: 0 3px;
     font-size: 12.5px;
     font-weight: 550;
+    color: var(--sb-text-secondary);
     font-family: var(--sb-font-mono);
 
     &.is-active {
@@ -961,22 +955,21 @@ h1, h2, h3, h4, h5, h6 {
 [class*="-role-sidebar"],
 [class*="-matrix-card"],
 [class*="-stat-card"] {
-  background: rgba(255, 255, 255, 0.58) !important;
-  backdrop-filter: blur(28px) saturate(210%) contrast(104%) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.88) !important;
-  border-radius: var(--sb-radius-glass, 24px) !important;
+  background: var(--sb-glass-bg) !important;
+  backdrop-filter: var(--sb-glass-blur) !important;
+  -webkit-backdrop-filter: var(--sb-glass-blur) !important;
+  border: 1px solid rgba(226, 232, 240, 0.92) !important;
+  border-radius: var(--sb-radius-glass, 22px) !important;
   box-shadow:
-    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
-    0 16px 40px -10px rgba(12, 34, 56, 0.08) !important;
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    0 10px 28px -8px rgba(15, 23, 42, 0.06) !important;
 
   .el-card__body {
     background: transparent !important;
   }
 }
 
-/* 指挥台、遥测指标条、工具栏：悬浮微光胶囊 */
+/* 指挥台、遥测指标条、工具栏：高可读清透胶囊 */
 .command-surface,
 .filter-toolbar,
 .table-toolbar,
@@ -999,28 +992,27 @@ h1, h2, h3, h4, h5, h6 {
 [class*="-control-bar"],
 [class*="-action-toolbar"],
 [class*="-filter-panel"] {
-  background: rgba(255, 255, 255, 0.58) !important;
-  backdrop-filter: blur(28px) saturate(210%) contrast(104%) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.85) !important;
-  border-radius: var(--sb-radius-glass-md, 18px) !important;
+  background: var(--sb-glass-bg) !important;
+  backdrop-filter: var(--sb-glass-blur) !important;
+  -webkit-backdrop-filter: var(--sb-glass-blur) !important;
+  border: 1px solid rgba(226, 232, 240, 0.92) !important;
+  border-radius: var(--sb-radius-glass-md, 16px) !important;
   box-shadow:
-    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
-    0 10px 25px -5px rgba(12, 34, 56, 0.05) !important;
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    0 6px 20px -6px rgba(15, 23, 42, 0.05) !important;
 }
 
-/* 浮动下拉与气泡菜单：晶透高折射 */
+/* 浮动下拉与气泡菜单 */
 .el-popper.is-light,
 .el-select-dropdown,
 .el-dropdown-menu {
-  background: rgba(255, 255, 255, 0.82) !important;
-  backdrop-filter: blur(32px) saturate(210%) contrast(104%) !important;
-  -webkit-backdrop-filter: blur(32px) saturate(210%) contrast(104%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.92) !important;
-  border-radius: 16px !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  backdrop-filter: blur(22px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(160%) !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 14px !important;
   box-shadow:
-    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
-    0 16px 40px -8px rgba(12, 34, 56, 0.12) !important;
+    0 14px 34px -8px rgba(15, 23, 42, 0.12) !important;
 
   .el-select-dropdown__item,
   .el-dropdown-menu__item {

@@ -377,14 +377,22 @@ onMounted(() => {
 }
 
 .agent-item {
-  padding: 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(148 163 184 / 0.25);
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   cursor: pointer;
+  transition: all 0.16s ease;
+
+  &:hover {
+    border-color: #93c5fd;
+    background: #f8fafc;
+  }
 
   &.is-selected {
     border-color: #2563eb;
-    background: rgba(37 99 235 / 0.06);
+    background: #eff6ff;
+    box-shadow: 0 2px 10px rgba(37, 99, 235, 0.10);
   }
 }
 
@@ -404,9 +412,13 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
 
+  strong {
+    color: #0f172a;
+  }
+
   span {
     font-size: 12px;
-    color: #64748b;
+    color: #475569;
   }
 }
 
@@ -418,8 +430,8 @@ onMounted(() => {
 }
 
 .runs-text {
-  font-size: 11px;
-  color: #64748b;
+  font-size: 11.5px;
+  color: #475569;
 }
 
 .two-cols {
@@ -437,24 +449,26 @@ onMounted(() => {
 
 .tool-chk-item {
   height: auto;
-  padding: 8px 10px;
+  padding: 10px 12px;
   margin-right: 0;
-  border-radius: 8px;
-  border: 1px solid rgba(148 163 184 / 0.22);
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
 }
 
 .tool-chk-body {
   display: flex;
   flex-direction: column;
-  line-height: 1.35;
+  line-height: 1.4;
 
   strong {
     font-size: 13px;
+    color: #0f172a;
   }
 
   span {
-    font-size: 11px;
-    color: #64748b;
+    font-size: 11.5px;
+    color: #475569;
     white-space: normal;
   }
 }
@@ -527,7 +541,7 @@ onMounted(() => {
 .bubble-foot {
   margin-top: 6px;
   font-size: 11px;
-  color: #94a3b8;
+  color: #475569;
 }
 
 @media (max-width: 1240px) {

@@ -227,15 +227,15 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 20px;
-  background: rgba(255, 255, 255, 0.58);
-  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
-  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  padding: 12px 20px;
+  background: var(--sb-glass-bg, rgba(255, 255, 255, 0.90));
+  backdrop-filter: var(--sb-glass-blur);
+  -webkit-backdrop-filter: var(--sb-glass-blur);
   border-radius: var(--sb-radius-glass-md, 18px);
-  border: 1px solid rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(226, 232, 240, 0.92);
   box-shadow:
-    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
-    0 10px 25px -5px rgba(12, 34, 56, 0.05);
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    0 6px 20px -6px rgba(15, 23, 42, 0.05);
 
   .strip-left {
     display: flex;
@@ -267,7 +267,7 @@ onMounted(() => {
     align-items: center;
     gap: 6px;
     padding: 4px 12px;
-    background: rgba(255, 255, 255, 0.50);
+    background: rgba(255, 255, 255, 0.90);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(226, 232, 240, 0.6);
@@ -275,7 +275,7 @@ onMounted(() => {
     font-size: 12px;
 
     .label {
-      color: #64748b;
+      color: #475569;
     }
 
     .value {

@@ -690,28 +690,34 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 0;
+  flex-wrap: wrap;
+  gap: 14px 20px;
+  padding: 6px 0;
 }
 
 .ctrl-group {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
 .ctrl-label {
   font-size: 13px;
-  font-weight: 500;
-  color: var(--el-text-color-regular);
+  font-weight: 600;
+  color: #334155;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* 打印纸张画布样式 */
 .print-sheet-wrapper {
   display: flex;
   justify-content: center;
-  padding: 30px 0;
-  background: var(--el-fill-color-darker);
-  border-radius: 12px;
+  padding: 32px 16px;
+  background: rgba(241, 245, 249, 0.85);
+  border: 1px solid #cbd5e1;
+  border-radius: 16px;
 }
 
 .print-paper {
@@ -766,7 +772,7 @@ onMounted(async () => {
 .company-name {
   font-size: 12px;
   letter-spacing: 2px;
-  color: #64748b;
+  color: #475569;
   font-family: sans-serif;
 }
 

@@ -414,7 +414,7 @@ async function handleActivateRetained(row: RetainedKeySummary) {
 
 .key-sub-meta {
   font-size: 12px;
-  color: #64748b;
+  color: #475569;
   margin-top: 2px;
 }
 
@@ -438,7 +438,7 @@ async function handleActivateRetained(row: RetainedKeySummary) {
 .copy-label {
   display: block;
   font-size: 11.5px;
-  color: #64748b;
+  color: #475569;
   margin-bottom: 4px;
 }
 
@@ -532,6 +532,6 @@ async function handleActivateRetained(row: RetainedKeySummary) {
 
 .time-text {
   font-size: 12px;
-  color: #64748b;
+  color: #475569;
 }
 </style>

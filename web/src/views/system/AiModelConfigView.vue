@@ -1370,17 +1370,17 @@ onMounted(() => {
 }
 
 .glass-hero-banner {
-  background: linear-gradient(135deg, rgb(255 255 255 / 0.78) 0%, rgb(240 244 255 / 0.65) 100%);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.94) 0%, rgba(240, 246, 255, 0.94) 100%);
   backdrop-filter: blur(20px);
-  border: 1px solid rgb(255 255 255 / 0.6);
-  border-radius: 16px;
-  padding: 22px 26px;
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  border-radius: 18px;
+  padding: 20px 24px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   gap: 16px;
-  box-shadow: 0 10px 30px rgb(0 30 80 / 0.05);
+  box-shadow: 0 8px 24px -6px rgba(15, 23, 42, 0.06);
 
   .hero-left {
     display: flex;
@@ -1424,7 +1424,7 @@ onMounted(() => {
 
         .hero-subtag {
           font-size: 11px;
-          color: #64748b;
+          color: #475569;
           background: rgb(100 116 139 / 0.1);
           padding: 2px 10px;
           border-radius: 12px;
@@ -1443,7 +1443,7 @@ onMounted(() => {
       .hero-desc {
         margin: 0;
         font-size: 13px;
-        color: #64748b;
+        color: #475569;
         line-height: 1.5;
       }
     }
@@ -1464,16 +1464,16 @@ onMounted(() => {
   gap: 16px;
 
   .stat-glass-card {
-    background: rgb(255 255 255 / 0.72);
+    background: rgba(255, 255, 255, 0.92);
     backdrop-filter: blur(16px);
-    border: 1px solid rgb(255 255 255 / 0.6);
-    border-radius: 14px;
+    border: 1px solid rgba(226, 232, 240, 0.92);
+    border-radius: 16px;
     padding: 18px;
     min-width: 0;
     display: flex;
     align-items: center;
     gap: 14px;
-    box-shadow: 0 4px 16px rgb(0 0 0 / 0.03);
+    box-shadow: 0 6px 20px -6px rgba(15, 23, 42, 0.05);
 
     .stat-icon-wrap {
       width: 44px;
@@ -1495,27 +1495,27 @@ onMounted(() => {
       flex-direction: column;
       min-width: 0;
 
-      .stat-label { font-size: 12px; color: #64748b; }
+      .stat-label { font-size: 12px; color: #334155; font-weight: 500; }
 
       .stat-number-row {
         margin: 2px 0;
 
-        .stat-num { font-size: 22px; font-weight: 700; color: #1e293b; }
-        .stat-unit { font-size: 12px; color: #64748b; margin-left: 4px; }
+        .stat-num { font-size: 22px; font-weight: 700; color: #0f172a; }
+        .stat-unit { font-size: 12px; color: #475569; margin-left: 4px; }
       }
 
-      .stat-foot { font-size: 11px; color: #94a3b8; line-height: 1.4; }
+      .stat-foot { font-size: 11.5px; color: #475569; line-height: 1.4; }
     }
   }
 }
 
 .glass-tabs-card {
-  background: rgb(255 255 255 / 0.78);
+  background: rgba(255, 255, 255, 0.93);
   backdrop-filter: blur(20px);
-  border: 1px solid rgb(255 255 255 / 0.6);
-  border-radius: 16px;
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  border-radius: 18px;
   overflow: hidden;
-  box-shadow: 0 10px 30px rgb(0 0 0 / 0.04);
+  box-shadow: 0 10px 28px -8px rgba(15, 23, 42, 0.06);
 
   .tab-header-strip {
     padding: 14px 18px;
@@ -1543,7 +1543,7 @@ onMounted(() => {
         border-radius: 10px;
         border: 1px solid transparent;
         background: transparent;
-        color: #64748b;
+        color: #475569;
         font-size: 12.5px;
         font-weight: 500;
         cursor: pointer;
@@ -1661,7 +1661,7 @@ onMounted(() => {
     color: #059669;
   }
 
-  .key-missing { font-size: 12px; color: #94a3b8; }
+  .key-missing { font-size: 12px; color: #475569; }
 }
 
 .model-id-badge {
@@ -1697,7 +1697,7 @@ onMounted(() => {
   background: #f8fafc;
   border-radius: 8px;
 
-  .preset-label { font-size: 12px; color: #64748b; }
+  .preset-label { font-size: 12px; color: #475569; }
 
   .preset-pill-btn {
     border: 1px solid #cbd5e1;

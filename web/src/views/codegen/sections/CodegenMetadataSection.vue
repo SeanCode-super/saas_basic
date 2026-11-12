@@ -605,7 +605,7 @@ function handleGoToArtifacts() {
         gap: 4px;
 
         .chip-k {
-          color: #64748b;
+          color: #475569;
         }
 
         .chip-v {
@@ -646,7 +646,7 @@ function handleGoToArtifacts() {
   .config-expanded-body {
     padding: 12px 14px;
     border-top: 1px solid rgba(226, 232, 240, 0.6);
-    background: rgba(255, 255, 255, 0.45);
+    background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(12px);
 
     :deep(.el-form-item) {
@@ -698,7 +698,7 @@ function handleGoToArtifacts() {
 
   .db-tables-count {
     font-size: 13px;
-    color: #64748b;
+    color: #475569;
   }
 }
 

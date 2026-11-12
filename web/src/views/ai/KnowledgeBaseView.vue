@@ -545,15 +545,22 @@ onMounted(() => {
 }
 
 .kb-card {
-  padding: 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(148 163 184 / 0.25);
+  padding: 14px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.16s ease;
+
+  &:hover {
+    border-color: #93c5fd;
+    background: #f8fafc;
+  }
 
   &.is-active {
     border-color: #2563eb;
-    background: rgba(37 99 235 / 0.06);
+    background: #eff6ff;
+    box-shadow: 0 2px 10px rgba(37, 99, 235, 0.10);
   }
 }
 
@@ -562,6 +569,7 @@ onMounted(() => {
   align-items: center;
   gap: 6px;
   margin-bottom: 6px;
+  color: #0f172a;
 }
 
 .kb-card-meta {
@@ -569,14 +577,15 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   font-size: 12px;
-  color: #64748b;
+  color: #334155;
+  font-weight: 500;
 }
 
 .kb-remark {
   margin: 6px 0 0;
   font-size: 12px;
-  color: #64748b;
-  line-height: 1.45;
+  color: #475569;
+  line-height: 1.5;
 }
 
 .workspace-tabs {
@@ -590,10 +599,12 @@ onMounted(() => {
 
 .active-kb-badge {
   font-size: 12px;
-  color: #475569;
-  padding: 4px 10px;
+  color: #334155;
+  font-weight: 500;
+  padding: 4px 12px;
   border-radius: 999px;
   background: #f1f5f9;
+  border: 1px solid #e2e8f0;
 }
 
 .quick-prompts {
@@ -606,7 +617,8 @@ onMounted(() => {
 
 .prompt-lbl {
   font-size: 12px;
-  color: #64748b;
+  color: #475569;
+  font-weight: 500;
 }
 
 .q-tag {
@@ -617,8 +629,8 @@ onMounted(() => {
   margin-top: 16px;
   padding: 16px;
   border-radius: 12px;
-  background: rgba(239 246 255 / 0.65);
-  border: 1px solid rgba(59 130 246 / 0.25);
+  background: rgba(239, 246, 255, 0.94);
+  border: 1px solid #bfdbfe;
 }
 
 .answer-meta {
@@ -630,7 +642,7 @@ onMounted(() => {
 
 .latency-txt {
   font-size: 12px;
-  color: #64748b;
+  color: #475569;
 }
 
 .answer-body {
@@ -650,8 +662,8 @@ onMounted(() => {
 .citation-card {
   padding: 12px;
   border-radius: 10px;
-  border: 1px solid rgba(148 163 184 / 0.25);
-  background: rgba(255 255 255 / 0.85);
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
 }
 
 .cit-header {
@@ -661,11 +673,12 @@ onMounted(() => {
   flex-wrap: wrap;
   margin-bottom: 6px;
   font-size: 12px;
+  color: #0f172a;
 }
 
 .cit-page,
 .cit-score {
-  color: #64748b;
+  color: #475569;
 }
 
 .cit-excerpt {
@@ -766,7 +779,7 @@ onMounted(() => {
 
 .policy-ref {
   font-size: 12px;
-  color: #64748b;
+  color: #475569;
 }
 
 .risk-excerpt,
@@ -812,7 +825,7 @@ onMounted(() => {
 .chunk-kws {
   margin-top: 6px;
   font-size: 11px;
-  color: #64748b;
+  color: #475569;
 }
 
 @media (max-width: 1100px) {

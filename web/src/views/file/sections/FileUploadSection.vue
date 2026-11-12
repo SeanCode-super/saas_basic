@@ -343,7 +343,7 @@ function handleDownload(row: any) {
 
     .policy-chip {
       font-size: 12px;
-      color: #64748b;
+      color: #475569;
       padding: 2px 8px;
       background: #f1f5f9;
       border-radius: 4px;

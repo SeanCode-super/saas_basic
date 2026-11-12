@@ -311,7 +311,7 @@ onMounted(() => {
 
     .file-path {
       font-size: 11px;
-      color: #94a3b8;
+      color: #475569;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -341,7 +341,7 @@ onMounted(() => {
     .code-view-path {
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       font-size: 12px;
-      color: #94a3b8;
+      color: #475569;
     }
   }
 

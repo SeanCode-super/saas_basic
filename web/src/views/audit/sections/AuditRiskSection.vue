@@ -193,7 +193,7 @@ function runSimulation() {
   padding: 16px 18px;
   border: 1px solid rgba(255, 255, 255, 0.88);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), 0 10px 25px -5px rgba(12, 34, 56, 0.05);
@@ -229,13 +229,13 @@ function runSimulation() {
   justify-content: space-between;
   align-items: center;
   font-size: 12px;
-  color: #64748b;
+  color: #475569;
   border-top: 1px dashed var(--sb-border-color);
   padding-top: 8px;
 
   .mono-code {
     font-family: ui-monospace, SFMono-Regular, monospace;
-    color: #94a3b8;
+    color: #475569;
   }
 }
 
@@ -256,7 +256,7 @@ function runSimulation() {
     .latency {
       margin-left: auto;
       font-size: 12px;
-      color: #64748b;
+      color: #475569;
     }
   }
 

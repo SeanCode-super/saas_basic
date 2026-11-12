@@ -288,16 +288,16 @@ onMounted(() => {
         </div>
 
         <el-table v-if="activeTab === 'samples'" v-loading="loading" :data="samples" stripe>
-          <el-table-column prop="instruction" label="系统指令 (Instruction)" min-width="180" show-overflow-tooltip />
-          <el-table-column prop="inputText" label="业务输入 (Input)" min-width="180" show-overflow-tooltip />
-          <el-table-column prop="outputText" label="期望标准输出 (Output)" min-width="220" show-overflow-tooltip />
-          <el-table-column label="脱敏 / 来源" width="140">
+          <el-table-column prop="instruction" label="系统指令 (Instruction)" min-width="124" show-overflow-tooltip />
+          <el-table-column prop="inputText" label="业务输入 (Input)" min-width="112" show-overflow-tooltip />
+          <el-table-column prop="outputText" label="期望标准输出 (Output)" min-width="126" show-overflow-tooltip />
+          <el-table-column label="脱敏 / 来源" width="122" show-overflow-tooltip>
             <template #default="{ row }">
               <el-tag size="small" type="warning" v-if="row.desensitized">PII已脱敏</el-tag>
               <div class="sub-txt">{{ row.sourceType }}</div>
             </template>
           </el-table-column>
-          <el-table-column label="审核状态" width="110">
+          <el-table-column label="审核状态" width="94" align="center">
             <template #default="{ row }">
               <el-tag
                 size="small"
@@ -307,7 +307,7 @@ onMounted(() => {
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="130" fixed="right">
+          <el-table-column label="操作" width="134" align="center">
             <template #default="{ row }">
               <el-button link type="success" :icon="Check" @click="handleReviewSample(row, 'APPROVED')">核准</el-button>
               <el-button link type="danger" :icon="Close" @click="handleReviewSample(row, 'REJECTED')">剔除</el-button>
@@ -430,23 +430,26 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  padding: 18px 22px;
-  border-radius: 16px;
+  padding: 16px 22px;
+  border-radius: 18px;
   margin-bottom: 16px;
-  background: linear-gradient(135deg, #0f172a, #1e3a8a);
-  color: #f8fafc;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.96) 0%, rgba(239, 246, 255, 0.96) 60%, rgba(238, 242, 255, 0.96) 100%);
+  border: 1px solid #bfdbfe;
+  box-shadow: 0 6px 20px -6px rgba(37, 99, 235, 0.10);
+  color: #0f172a;
   flex-wrap: wrap;
 }
 
 .eval-eyebrow {
-  font-size: 12px;
-  color: #93c5fd;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #1d4ed8;
 }
 
 .eval-metrics {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 20px;
   margin-top: 8px;
 }
 
@@ -457,21 +460,22 @@ onMounted(() => {
 
   span {
     font-size: 12px;
-    color: #cbd5e1;
+    color: #475569;
   }
 
   strong {
     font-size: 22px;
+    color: #0f172a;
   }
 
   &.is-highlight strong {
-    color: #34d399;
+    color: #059669;
   }
 }
 
 .metric-arrow {
   font-size: 20px;
-  color: #60a5fa;
+  color: #2563eb;
 }
 
 .loss-bars {
@@ -482,32 +486,34 @@ onMounted(() => {
 
 .loss-lbl {
   font-size: 12px;
-  color: #cbd5e1;
+  font-weight: 500;
+  color: #475569;
 }
 
 .loss-track {
   display: flex;
   align-items: flex-end;
   gap: 6px;
-  height: 54px;
+  height: 52px;
 }
 
 .loss-bar {
   width: 14px;
   border-radius: 4px 4px 0 0;
-  background: linear-gradient(180deg, #38bdf8, #818cf8);
+  background: linear-gradient(180deg, #2563eb, #6366f1);
 }
 
 .ft-grid {
   display: grid;
-  grid-template-columns: 320px minmax(0, 1fr);
+  grid-template-columns: 292px minmax(0, 1fr);
   gap: 16px;
 }
 
 .panel-head h3 {
   margin: 0 0 12px;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 650;
+  color: #0f172a;
 }
 
 .ds-list {
@@ -517,14 +523,22 @@ onMounted(() => {
 }
 
 .ds-card {
-  padding: 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(148 163 184 / 0.25);
+  padding: 14px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   cursor: pointer;
+  transition: all 0.16s ease;
+
+  &:hover {
+    border-color: #93c5fd;
+    background: #f8fafc;
+  }
 
   &.is-active {
     border-color: #2563eb;
-    background: rgba(37 99 235 / 0.06);
+    background: #eff6ff;
+    box-shadow: 0 2px 10px rgba(37, 99, 235, 0.10);
   }
 }
 
@@ -533,21 +547,28 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+
+  strong {
+    color: #0f172a;
+    font-size: 14px;
+  }
 }
 
 .ds-meta {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 6px;
+  margin-top: 8px;
   font-size: 12px;
-  color: #64748b;
+  color: #334155;
+  font-weight: 500;
 }
 
 .ds-remark {
   margin: 6px 0 0;
   font-size: 12px;
-  color: #64748b;
+  color: #475569;
+  line-height: 1.5;
 }
 
 .toolbar {
@@ -567,7 +588,7 @@ onMounted(() => {
 
 .sub-txt {
   font-size: 12px;
-  color: #64748b;
+  color: #475569;
 }
 
 @media (max-width: 1080px) {

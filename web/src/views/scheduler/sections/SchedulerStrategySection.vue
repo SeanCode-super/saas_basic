@@ -263,7 +263,7 @@ async function handleSavePolicy() {
   justify-content: space-between;
   padding: 14px 20px;
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   border: 1px solid rgba(255, 255, 255, 0.88);
@@ -282,7 +282,7 @@ async function handleSavePolicy() {
 
     .radar-label {
       font-size: 12px;
-      color: #64748b;
+      color: #475569;
     }
 
     strong {

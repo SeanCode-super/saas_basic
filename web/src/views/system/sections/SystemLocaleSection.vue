@@ -506,7 +506,7 @@ function resolveTagCustomStyle(color?: string) {
   border-radius: 20px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.88);
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), 0 16px 40px -10px rgba(12, 34, 56, 0.08);
@@ -545,7 +545,7 @@ function resolveTagCustomStyle(color?: string) {
     justify-content: space-between;
     padding: 12px 14px;
     border-bottom: 1px solid rgba(226, 232, 240, 0.6);
-    background: rgba(255, 255, 255, 0.45);
+    background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(14px);
 
     .sidebar-title {
@@ -557,7 +557,7 @@ function resolveTagCustomStyle(color?: string) {
 
       .sidebar-count {
         font-size: 11px;
-        color: #64748b;
+        color: #475569;
         background: #f1f5f9;
         padding: 1px 6px;
         border-radius: 10px;
@@ -574,7 +574,7 @@ function resolveTagCustomStyle(color?: string) {
 
   .sidebar-search {
     padding: 10px 12px;
-    background: rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.95);
     border-bottom: 1px solid rgba(226, 232, 240, 0.5);
   }
 
@@ -597,7 +597,7 @@ function resolveTagCustomStyle(color?: string) {
   position: relative;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.85);
-  background: rgba(255, 255, 255, 0.52);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(16px);
   padding: 10px 12px;
   cursor: pointer;
@@ -667,7 +667,7 @@ function resolveTagCustomStyle(color?: string) {
   &__code {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-size: 11.5px;
-    color: #64748b;
+    color: #475569;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -713,7 +713,7 @@ function resolveTagCustomStyle(color?: string) {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #94a3b8;
+  color: #475569;
   cursor: pointer;
   opacity: 0.3;
   transition: all 0.15s ease;
@@ -743,7 +743,7 @@ function resolveTagCustomStyle(color?: string) {
   align-items: flex-start;
   justify-content: space-between;
   padding: 16px 20px;
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   border: 1px solid rgba(255, 255, 255, 0.88);
@@ -811,7 +811,7 @@ function resolveTagCustomStyle(color?: string) {
 
 .dict-hero-desc {
   font-size: 13px;
-  color: #64748b;
+  color: #475569;
   line-height: 1.5;
 }
 
@@ -829,7 +829,7 @@ function resolveTagCustomStyle(color?: string) {
 
   .items-count-text {
     font-size: 12.5px;
-    color: #64748b;
+    color: #475569;
   }
 }
 
@@ -838,7 +838,7 @@ function resolveTagCustomStyle(color?: string) {
   border: 1px solid rgba(255, 255, 255, 0.88);
   border-radius: 20px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), 0 16px 40px -10px rgba(12, 34, 56, 0.08);
@@ -869,13 +869,13 @@ function resolveTagCustomStyle(color?: string) {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(14px);
   border-top: 1px solid rgba(226, 232, 240, 0.6);
 
   .pagination-info {
     font-size: 13px;
-    color: #64748b;
+    color: #475569;
   }
 }
 
@@ -947,7 +947,7 @@ function resolveTagCustomStyle(color?: string) {
     p {
       margin: 0;
       font-size: 13px;
-      color: #64748b;
+      color: #475569;
     }
   }
 }

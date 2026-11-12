@@ -237,7 +237,7 @@ function navigateTo(path: string) {
     }
 
     .telemetry-label {
-      color: #64748b;
+      color: #475569;
       font-size: 12px;
     }
 
@@ -277,7 +277,7 @@ function navigateTo(path: string) {
   gap: 16px;
 
   .panel-title { margin: 0 0 4px; font-size: 15px; font-weight: 700; color: #0f172a; }
-  .panel-subtitle { margin: 0; font-size: 12px; color: #64748b; }
+  .panel-subtitle { margin: 0; font-size: 12px; color: #475569; }
 }
 
 .matrix-grid {
@@ -316,7 +316,7 @@ function navigateTo(path: string) {
     p {
       margin: 0;
       font-size: 11px;
-      color: #64748b;
+      color: #475569;
       line-height: 1.4;
     }
   }
@@ -343,7 +343,7 @@ function navigateTo(path: string) {
       gap: 2px;
 
       .signal-title { font-size: 13px; font-weight: 600; color: #1e293b; }
-      .signal-desc { font-size: 11px; color: #94a3b8; }
+      .signal-desc { font-size: 11px; color: #475569; }
     }
 
     .signal-val {

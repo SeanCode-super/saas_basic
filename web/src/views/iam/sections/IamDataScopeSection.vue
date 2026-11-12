@@ -749,7 +749,7 @@ async function batchUpdateRules(rows: IamDataPermissionRuleRow[], status: "ENABL
   gap: 16px;
   padding: 12px 20px;
   border-radius: var(--sb-radius-glass-md, 18px);
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   border: 1px solid rgba(255, 255, 255, 0.85);
@@ -824,7 +824,7 @@ async function batchUpdateRules(rows: IamDataPermissionRuleRow[], status: "ENABL
 
   .scope-hint-desc {
     font-size: 12px;
-    color: #64748b;
+    color: #475569;
     line-height: 1.5;
   }
 }
@@ -847,7 +847,7 @@ async function batchUpdateRules(rows: IamDataPermissionRuleRow[], status: "ENABL
 
     .custom-scope-subtitle {
       font-size: 12px;
-      color: #64748b;
+      color: #475569;
       margin-top: 2px;
     }
   }

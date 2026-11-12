@@ -344,7 +344,7 @@ function runAstTest() {
   align-items: center;
   justify-content: space-between;
   padding: 10px 20px;
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   border-radius: var(--sb-radius-glass-md, 18px);
@@ -386,7 +386,7 @@ function runAstTest() {
 
 .arch-card {
   padding: 18px 20px;
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   border: 1px solid rgba(255, 255, 255, 0.85);
@@ -444,7 +444,7 @@ function runAstTest() {
   flex-direction: column;
   gap: 4px;
   font-size: 11px;
-  color: #64748b;
+  color: #475569;
 
   strong {
     color: #0f172a;
@@ -514,7 +514,7 @@ function runAstTest() {
     p {
       margin: 2px 0 0;
       font-size: 11px;
-      color: #64748b;
+      color: #475569;
       line-height: 1.4;
     }
   }
@@ -537,7 +537,7 @@ function runAstTest() {
     margin: 0;
     padding-left: 18px;
     font-size: 11px;
-    color: #64748b;
+    color: #475569;
     line-height: 1.6;
   }
 }
@@ -558,7 +558,7 @@ function runAstTest() {
 
     .tag-running { color: #0284c7; }
     .tag-done { color: #10b981; font-weight: 600; }
-    .tag-ready { color: #64748b; }
+    .tag-ready { color: #475569; }
   }
 
   .steps-stack {
@@ -572,7 +572,7 @@ function runAstTest() {
     display: flex;
     gap: 10px;
     padding: 10px 14px;
-    background: rgba(255, 255, 255, 0.52);
+    background: rgba(255, 255, 255, 0.90);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-radius: 8px;
@@ -597,7 +597,7 @@ function runAstTest() {
 
     .step-text {
       strong { font-size: 12px; color: #0f172a; }
-      p { margin: 1px 0 0; font-size: 11px; color: #64748b; }
+      p { margin: 1px 0 0; font-size: 11px; color: #475569; }
     }
   }
 }
@@ -633,7 +633,7 @@ function runAstTest() {
   .ast-hint {
     margin: 8px 0 0;
     font-size: 11px;
-    color: #64748b;
+    color: #475569;
     line-height: 1.5;
   }
 }

@@ -641,36 +641,36 @@ onMounted(() => {
           </div>
 
           <el-table :data="paginatedCrmList" v-loading="loading" stripe border style="width: 100%">
-            <el-table-column prop="customerCode" label="客户编号" width="160" />
-            <el-table-column prop="name" label="企业客户名称" min-width="200">
+            <el-table-column prop="customerCode" label="客户编号" width="136" show-overflow-tooltip />
+            <el-table-column prop="name" label="企业客户名称" min-width="172" show-overflow-tooltip>
               <template #default="{ row }">
                 <span class="customer-name-link" @click="openFollowUpDrawer('CUSTOMER', row.id, row.name)">{{ row.name }}</span>
                 <el-tag size="small" type="danger" v-if="row.lockStatus === 1" style="margin-left: 6px">锁定</el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="level" label="客户级别" width="100" align="center">
+            <el-table-column prop="level" label="级别" width="78" align="center">
               <template #default="{ row }">
                 <el-tag :type="row.level === 'A' ? 'danger' : row.level === 'B' ? 'warning' : 'info'" effect="dark">
                   {{ row.level }} 级
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="industry" label="所属行业" width="130" />
-            <el-table-column prop="mobile" label="联系电话" width="130" />
-            <el-table-column prop="dealStatus" label="成交状态" width="100" align="center">
+            <el-table-column prop="industry" label="所属行业" min-width="136" show-overflow-tooltip />
+            <el-table-column prop="mobile" label="联系电话" width="122" />
+            <el-table-column prop="dealStatus" label="成交状态" width="90" align="center">
               <template #default="{ row }">
                 <el-tag :type="row.dealStatus === 1 ? 'success' : 'info'">
                   {{ row.dealStatus === 1 ? "已成交" : "未成交" }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="ownerUserName" label="当前归属" width="120">
+            <el-table-column prop="ownerUserName" label="当前归属" width="102" show-overflow-tooltip>
               <template #default="{ row }">
                 <span :class="row.isPool === 1 ? 'pool-owner' : 'active-owner'">{{ row.ownerUserName || '公海池' }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="lastContactTime" label="最后跟进时间" width="160" />
-            <el-table-column label="操作" min-width="260">
+            <el-table-column prop="lastContactTime" label="最后跟进时间" width="128" show-overflow-tooltip />
+            <el-table-column label="操作" width="246" fixed="right">
               <template #default="{ row }">
                 <el-button v-if="row.isPool === 1" link type="success" size="small" :icon="TrendCharts" @click="handleClaim(row)">抢单认领</el-button>
                 <template v-else>
@@ -1178,16 +1178,15 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 20px;
-  background: rgba(255, 255, 255, 0.58);
-  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
-  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  border-radius: 20px;
+  padding: 12px 20px;
+  background: var(--sb-glass-bg, rgba(255, 255, 255, 0.90));
+  backdrop-filter: var(--sb-glass-blur);
+  -webkit-backdrop-filter: var(--sb-glass-blur);
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  border-radius: 18px;
   box-shadow:
-    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
-    0 12px 32px -8px rgba(12, 34, 56, 0.07);
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    0 6px 20px -6px rgba(15, 23, 42, 0.05);
   margin-bottom: 16px;
 
   .telemetry-left {
@@ -1210,12 +1209,12 @@ onMounted(() => {
 
     .label {
       font-size: 13px;
-      color: #64748b;
+      color: #475569;
     }
 
     .value {
       font-size: 13px;
-      font-weight: 600;
+      font-weight: 650;
       color: #0f172a;
     }
   }
@@ -1223,20 +1222,19 @@ onMounted(() => {
   .divider {
     width: 1px;
     height: 14px;
-    background: rgba(203, 213, 225, 0.6);
+    background: #cbd5e1;
   }
 }
 
 .main-card {
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.58) !important;
-  backdrop-filter: blur(28px) saturate(210%) contrast(104%) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.85) !important;
+  border-radius: 22px;
+  background: var(--sb-glass-bg, rgba(255, 255, 255, 0.90)) !important;
+  backdrop-filter: var(--sb-glass-blur) !important;
+  -webkit-backdrop-filter: var(--sb-glass-blur) !important;
+  border: 1px solid rgba(226, 232, 240, 0.92) !important;
   box-shadow:
-    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
-    0 16px 40px -10px rgba(12, 34, 56, 0.08) !important;
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    0 10px 28px -8px rgba(15, 23, 42, 0.06) !important;
 }
 
 .tab-toolbar {
@@ -1315,7 +1313,7 @@ onMounted(() => {
 
 .timeline-operator {
   font-size: 12px;
-  color: #64748b;
+  color: #475569;
 }
 
 .timeline-content {

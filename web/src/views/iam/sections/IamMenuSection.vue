@@ -1609,7 +1609,7 @@ function resolveMenuTypeTag(type: string) {
   :deep(.el-tabs__header) {
     margin: 0 0 16px;
     padding: 4px 6px;
-    background: rgba(255, 255, 255, 0.55);
+    background: rgba(255, 255, 255, 0.90);
     backdrop-filter: blur(14px);
     border: 1px solid rgba(255, 255, 255, 0.85);
     border-radius: var(--sb-radius-glass-md, 18px);
@@ -1644,7 +1644,7 @@ function resolveMenuTypeTag(type: string) {
       border-radius: 6px;
       border: none;
       background: transparent;
-      color: #64748b;
+      color: #475569;
       font-size: 13px;
       font-weight: 500;
       cursor: pointer;
@@ -1667,7 +1667,7 @@ function resolveMenuTypeTag(type: string) {
 
       &:hover {
         color: #1e293b;
-        background: rgb(255 255 255 / 0.6);
+        background: rgba(255, 255, 255, 0.90);
       }
 
       &.is-active {
@@ -1735,7 +1735,7 @@ function resolveMenuTypeTag(type: string) {
     .resource-code-hint {
       font-family: var(--sb-font-mono, monospace);
       font-size: 11px;
-      color: #94a3b8;
+      color: #475569;
       background: #f8fafc;
       padding: 1px 6px;
       border-radius: 4px;
@@ -1847,7 +1847,7 @@ function resolveMenuTypeTag(type: string) {
 
   .comp-path {
     font-size: 12px;
-    color: #64748b;
+    color: #475569;
     font-family: var(--sb-font-mono, monospace);
   }
 }
@@ -1860,7 +1860,7 @@ function resolveMenuTypeTag(type: string) {
 }
 
 .role-sidebar {
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   border: 1px solid rgba(255, 255, 255, 0.85);
@@ -1920,7 +1920,7 @@ function resolveMenuTypeTag(type: string) {
 
     .role-code {
       font-size: 11.5px;
-      color: #64748b;
+      color: #475569;
       font-family: monospace;
       margin-top: 2px;
     }
@@ -1935,7 +1935,7 @@ function resolveMenuTypeTag(type: string) {
       padding: 1px 6px;
       border-radius: 9999px;
       background: #f1f5f9;
-      color: #64748b;
+      color: #475569;
       font-size: 10.5px;
       font-weight: 600;
     }
@@ -1980,7 +1980,7 @@ function resolveMenuTypeTag(type: string) {
 
       .matrix-stat-text {
         font-size: 13px;
-        color: #64748b;
+        color: #475569;
         margin-left: 8px;
       }
     }
@@ -2050,7 +2050,7 @@ function resolveMenuTypeTag(type: string) {
 
       .domain-header-desc {
         font-size: 12px;
-        color: #64748b;
+        color: #475569;
       }
 
       .domain-header-pill {
@@ -2083,7 +2083,7 @@ function resolveMenuTypeTag(type: string) {
   box-sizing: border-box;
   border: 1px solid rgba(255, 255, 255, 0.85);
   border-radius: var(--sb-radius-glass-md, 18px);
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   overflow: hidden;
@@ -2137,7 +2137,7 @@ function resolveMenuTypeTag(type: string) {
 
       .module-counter-pill {
         font-size: 12px;
-        color: #64748b;
+        color: #475569;
         background: #fff;
         padding: 2px 8px;
         border-radius: 12px;
@@ -2194,13 +2194,13 @@ function resolveMenuTypeTag(type: string) {
 
         .page-code-tag {
           font-family: monospace;
-          color: #94a3b8;
+          color: #475569;
           font-size: 11px;
         }
 
         .page-route-tag {
           font-family: monospace;
-          color: #64748b;
+          color: #475569;
           font-size: 11px;
           background: #f1f5f9;
           padding: 1px 4px;
@@ -2226,7 +2226,7 @@ function resolveMenuTypeTag(type: string) {
           padding: 3px 8px;
           border-radius: 6px;
           border: 1px solid rgba(255, 255, 255, 0.85);
-          background: rgba(255, 255, 255, 0.65);
+          background: rgba(255, 255, 255, 0.90);
           color: #475569;
           font-size: 11px;
           cursor: pointer;
@@ -2247,7 +2247,7 @@ function resolveMenuTypeTag(type: string) {
           padding: 4px 10px;
           border-radius: 8px;
           border: 1px solid rgba(255, 255, 255, 0.85);
-          background: rgba(255, 255, 255, 0.65);
+          background: rgba(255, 255, 255, 0.90);
           backdrop-filter: blur(8px);
           color: #334155;
           font-size: 12px;
@@ -2266,7 +2266,7 @@ function resolveMenuTypeTag(type: string) {
           .chip-code {
             font-family: monospace;
             font-size: 10px;
-            color: #94a3b8;
+            color: #475569;
           }
 
           &:hover {
@@ -2290,7 +2290,7 @@ function resolveMenuTypeTag(type: string) {
 
       .no-actions-indicator {
         font-size: 12px;
-        color: #94a3b8;
+        color: #475569;
         font-style: italic;
       }
     }
@@ -2300,7 +2300,7 @@ function resolveMenuTypeTag(type: string) {
 .empty-matrix-hint {
   padding: 40px 0;
   text-align: center;
-  color: #94a3b8;
+  color: #475569;
   font-size: 13.5px;
 }
 
@@ -2417,7 +2417,7 @@ function resolveMenuTypeTag(type: string) {
 
       .col-item-desc {
         font-size: 11px;
-        color: #94a3b8;
+        color: #475569;
       }
     }
   }

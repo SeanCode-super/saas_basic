@@ -344,7 +344,7 @@ function handleClear(event: MouseEvent) {
 }
 
 .placeholder-text {
-  color: #94a3b8;
+  color: #475569;
   font-size: 13px;
 }
 
@@ -352,7 +352,7 @@ function handleClear(event: MouseEvent) {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #94a3b8;
+  color: #475569;
 
   .clear-btn {
     font-size: 14px;
@@ -461,7 +461,7 @@ function handleClear(event: MouseEvent) {
     text-align: center;
     font-size: 10px;
     font-family: var(--sb-font-mono, monospace);
-    color: #64748b;
+    color: #475569;
   }
 
   &:hover {
@@ -504,7 +504,7 @@ function handleClear(event: MouseEvent) {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #94a3b8;
+  color: #475569;
   font-size: 13px;
 }
 
@@ -520,7 +520,7 @@ function handleClear(event: MouseEvent) {
     display: flex;
     align-items: center;
     gap: 6px;
-    color: #64748b;
+    color: #475569;
 
     .selected-text {
       display: inline-flex;
@@ -531,7 +531,7 @@ function handleClear(event: MouseEvent) {
     }
 
     .text-muted {
-      color: #94a3b8;
+      color: #475569;
     }
   }
 }

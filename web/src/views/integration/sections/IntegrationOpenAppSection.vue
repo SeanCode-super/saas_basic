@@ -414,7 +414,7 @@ onMounted(() => {
 }
 
 .section-header-card {
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   border: 1px solid rgba(255, 255, 255, 0.88);
@@ -443,7 +443,7 @@ onMounted(() => {
     p {
       margin: 0;
       font-size: 13px;
-      color: #64748b;
+      color: #475569;
     }
   }
 
@@ -474,7 +474,7 @@ onMounted(() => {
 .debugger-drawer-content {
   .drawer-desc {
     font-size: 13px;
-    color: #64748b;
+    color: #475569;
     margin-bottom: 16px;
   }
 

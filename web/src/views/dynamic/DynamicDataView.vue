@@ -1262,17 +1262,17 @@ onMounted(() => {
   align-items: center;
   gap: 14px;
   padding: 16px;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.58);
-  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
-  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
-  border: 1px solid rgba(255, 255, 255, 0.88);
-  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), 0 10px 25px -5px rgba(12, 34, 56, 0.05);
+  border-radius: 18px;
+  background: var(--sb-glass-bg, rgba(255, 255, 255, 0.90));
+  backdrop-filter: var(--sb-glass-blur);
+  -webkit-backdrop-filter: var(--sb-glass-blur);
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.98), 0 8px 22px -6px rgba(15, 23, 42, 0.05);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 
   &:hover {
     transform: translateY(-2px);
-    box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 1), 0 16px 36px -8px rgba(12, 34, 56, 0.10);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 1), 0 12px 28px -8px rgba(15, 23, 42, 0.08);
   }
 
   .kpi-icon-box {
@@ -1311,26 +1311,27 @@ onMounted(() => {
 
     .kpi-label {
       font-size: 13px;
-      color: #64748b;
+      color: #334155;
+      font-weight: 500;
       margin-bottom: 4px;
     }
 
     .kpi-val {
       font-size: 22px;
       font-weight: 700;
-      color: #1e293b;
+      color: #0f172a;
       line-height: 1.2;
 
       .kpi-unit {
         font-size: 13px;
         font-weight: normal;
-        color: #94a3b8;
+        color: #475569;
       }
     }
 
     .kpi-sub {
       font-size: 12px;
-      color: #94a3b8;
+      color: #475569;
       margin-top: 4px;
       display: flex;
       align-items: center;
@@ -1368,7 +1369,7 @@ onMounted(() => {
 
       .pills-label {
         font-size: 13px;
-        color: #64748b;
+        color: #475569;
       }
     }
   }
@@ -1435,7 +1436,7 @@ onMounted(() => {
     .lane-header {
       padding: 12px 16px;
       border-bottom: 1px solid rgba(226, 232, 240, 0.6);
-      background: rgba(255, 255, 255, 0.5);
+      background: rgba(255, 255, 255, 0.90);
       backdrop-filter: blur(14px);
       border-radius: 18px 18px 0 0;
 
@@ -1459,14 +1460,14 @@ onMounted(() => {
       .lane-empty {
         text-align: center;
         padding: 30px 10px;
-        color: #94a3b8;
+        color: #475569;
         font-size: 13px;
       }
     }
   }
 
   .kanban-card {
-    background: rgba(255, 255, 255, 0.58);
+    background: rgba(255, 255, 255, 0.90);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border: 1px solid rgba(255, 255, 255, 0.88);
@@ -1490,7 +1491,7 @@ onMounted(() => {
 
       .card-id {
         font-size: 12px;
-        color: #94a3b8;
+        color: #475569;
         font-family: monospace;
       }
     }
@@ -1505,7 +1506,7 @@ onMounted(() => {
 
     &__meta {
       font-size: 12px;
-      color: #64748b;
+      color: #475569;
       display: flex;
       flex-direction: column;
       gap: 4px;
@@ -1515,7 +1516,7 @@ onMounted(() => {
         justify-content: space-between;
 
         .meta-k {
-          color: #94a3b8;
+          color: #475569;
         }
 
         .meta-v {
@@ -1553,7 +1554,7 @@ onMounted(() => {
       margin-bottom: 6px;
 
       .item-stats {
-        color: #64748b;
+        color: #475569;
       }
     }
   }
@@ -1582,7 +1583,7 @@ onMounted(() => {
 
       p {
         font-size: 12px;
-        color: #64748b;
+        color: #475569;
         margin: 4px 0 0;
         line-height: 1.5;
       }
@@ -1615,7 +1616,7 @@ onMounted(() => {
 
     .hero-sub {
       font-size: 12px;
-      color: #94a3b8;
+      color: #475569;
     }
   }
 
@@ -1658,7 +1659,7 @@ onMounted(() => {
 }
 
 .text-muted {
-  color: #94a3b8;
+  color: #475569;
 }
 
 .py-6 {

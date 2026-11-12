@@ -309,7 +309,7 @@ onMounted(() => {
   padding: 0 12px;
   border: 1px solid rgba(255, 255, 255, 0.85);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.65);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   cursor: pointer;
@@ -347,7 +347,7 @@ onMounted(() => {
     margin-left: auto;
     font-size: 11px;
     font-weight: 500;
-    color: #64748b;
+    color: #475569;
     background: #f1f5f9;
     padding: 1px 7px;
     border-radius: 9999px;
@@ -356,7 +356,7 @@ onMounted(() => {
 
   .pill-arrow {
     font-size: 11px;
-    color: #94a3b8;
+    color: #475569;
     flex-shrink: 0;
     transition: all 120ms ease;
   }
@@ -394,7 +394,7 @@ onMounted(() => {
   .panel-subtitle {
     margin: 0;
     font-size: 12px;
-    color: #64748b;
+    color: #475569;
   }
 
   .panel-actions {

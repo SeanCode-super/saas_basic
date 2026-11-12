@@ -162,17 +162,17 @@ onMounted(() => {
               <span class="mono-text">{{ row.occurredAt?.replace('T', ' ')?.substring(0, 19) }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="operatorName" label="操作人" width="140">
+          <el-table-column prop="operatorName" label="操作人" width="120">
             <template #default="{ row }">
               <el-tag size="small" type="info" effect="plain">{{ row.operatorName || `UID #${row.operatorUserId}` }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="bizModule" label="所属模块" width="130">
+          <el-table-column prop="bizModule" label="所属模块" width="100">
             <template #default="{ row }">
               <el-tag size="small" type="primary">{{ row.bizModule }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="operationType" label="操作动作" width="150">
+          <el-table-column prop="operationType" label="操作动作" width="168">
             <template #default="{ row }">
               <el-tag size="small" :type="row.operationType?.includes('DELETE') ? 'danger' : row.operationType?.includes('UPDATE') ? 'warning' : 'success'">
                 {{ row.operationType }}
@@ -371,7 +371,7 @@ onMounted(() => {
 }
 
 .audit-tabs {
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   border-radius: 20px;

@@ -416,7 +416,7 @@ function exportTelemetry() {
   align-items: center;
   justify-content: space-between;
   padding: 10px 20px;
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   border-radius: var(--sb-radius-glass-md, 18px);
@@ -509,7 +509,7 @@ function exportTelemetry() {
   align-items: center;
   padding: 10px 14px;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.52);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(226, 232, 240, 0.6);
@@ -574,7 +574,7 @@ function exportTelemetry() {
   justify-content: space-between;
   align-items: center;
   padding: 14px 18px;
-  background: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border-radius: 12px;
@@ -594,7 +594,7 @@ function exportTelemetry() {
 
   .meter-box {
     padding: 12px 14px;
-    background: rgba(255, 255, 255, 0.55);
+    background: rgba(255, 255, 255, 0.90);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
     border-radius: 10px;
@@ -605,7 +605,7 @@ function exportTelemetry() {
       justify-content: space-between;
       margin-bottom: 6px;
       font-size: 12px;
-      color: #64748b;
+      color: #475569;
 
       strong {
         color: #0f172a;

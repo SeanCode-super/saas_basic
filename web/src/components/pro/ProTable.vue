@@ -315,22 +315,22 @@ function exportRows(rows: object[], mode: "selected" | "current") {
 
 .pro-table__grid :deep(.el-table__header th) {
   height: 42px;
-  background: rgba(248, 250, 252, 0.65) !important;
-  backdrop-filter: blur(24px) saturate(210%) contrast(104%);
-  -webkit-backdrop-filter: blur(24px) saturate(210%) contrast(104%);
+  background: rgba(248, 250, 252, 0.98) !important;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   color: var(--sb-text-primary) !important;
   font-size: 13px;
   font-weight: 650;
-  border-bottom: 1.5px solid rgba(203, 213, 225, 0.7) !important;
+  border-bottom: 1.5px solid #e2e8f0 !important;
   border-right: none !important;
   border-left: none !important;
 }
 
 .pro-table__grid :deep(.el-table__header th.el-table-fixed-column--right),
 .pro-table__grid :deep(.el-table__header th.el-table-fixed-column--left) {
-  background: rgba(248, 250, 252, 0.68) !important;
-  backdrop-filter: blur(24px) saturate(210%) contrast(104%) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(210%) contrast(104%) !important;
+  background: rgba(248, 250, 252, 0.98) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   z-index: 5 !important;
   box-shadow: none !important;
   border-right: none !important;
@@ -348,9 +348,9 @@ function exportRows(rows: object[], mode: "selected" | "current") {
 
 .pro-table__grid :deep(.el-table__body tr:nth-child(odd) > td.el-table-fixed-column--right),
 .pro-table__grid :deep(.el-table__body tr:nth-child(odd) > td.el-table-fixed-column--left) {
-  background: rgba(255, 255, 255, 0.35) !important;
-  backdrop-filter: blur(24px) saturate(210%) contrast(104%) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(210%) contrast(104%) !important;
+  background: rgba(255, 255, 255, 0.98) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   box-shadow: none !important;
   border-right: none !important;
   border-left: none !important;
@@ -358,9 +358,9 @@ function exportRows(rows: object[], mode: "selected" | "current") {
 
 .pro-table__grid :deep(.el-table__body tr:nth-child(even) > td.el-table-fixed-column--right),
 .pro-table__grid :deep(.el-table__body tr:nth-child(even) > td.el-table-fixed-column--left) {
-  background: rgba(241, 245, 249, 0.65) !important;
-  backdrop-filter: blur(24px) saturate(210%) contrast(104%) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(210%) contrast(104%) !important;
+  background: rgba(248, 250, 252, 0.98) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   box-shadow: none !important;
   border-right: none !important;
   border-left: none !important;
@@ -368,9 +368,9 @@ function exportRows(rows: object[], mode: "selected" | "current") {
 
 .pro-table__grid :deep(.el-table__body tr:hover > td.el-table-fixed-column--right),
 .pro-table__grid :deep(.el-table__body tr:hover > td.el-table-fixed-column--left) {
-  background: rgba(219, 234, 254, 0.75) !important;
-  backdrop-filter: blur(24px) saturate(210%) contrast(104%) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(210%) contrast(104%) !important;
+  background: rgba(239, 246, 255, 0.98) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   box-shadow: none !important;
   border-right: none !important;
   border-left: none !important;
@@ -384,8 +384,8 @@ function exportRows(rows: object[], mode: "selected" | "current") {
 }
 
 .pro-table__grid :deep(.el-table__row:hover > td.el-table__cell) {
-  background: rgba(219, 234, 254, 0.75) !important;
-  backdrop-filter: blur(8px);
+  background: rgba(239, 246, 255, 0.98) !important;
+  backdrop-filter: none;
 }
 
 .pro-table__pagination {
@@ -393,9 +393,9 @@ function exportRows(rows: object[], mode: "selected" | "current") {
   justify-content: flex-end;
   align-items: center;
   padding: 12px 16px;
-  border-top: 1px solid rgba(226, 232, 240, 0.6);
-  background: rgba(255, 255, 255, 0.35);
-  backdrop-filter: blur(10px);
+  border-top: 1px solid #e2e8f0;
+  background: rgba(248, 250, 252, 0.94);
+  backdrop-filter: none;
 }
 
 .pro-table__empty {

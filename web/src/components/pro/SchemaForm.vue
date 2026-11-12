@@ -79,14 +79,14 @@ function updateField(field: string, value: string | number | undefined) {
 <style scoped lang="scss">
 .schema-form-shell {
   padding: 14px 18px 4px;
-  border: 1px solid rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(226, 232, 240, 0.92);
   border-radius: var(--sb-radius-glass-md, 16px);
-  background: rgba(255, 255, 255, 0.58);
-  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
-  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  background: var(--sb-glass-bg, rgba(255, 255, 255, 0.90));
+  backdrop-filter: blur(18px) saturate(155%);
+  -webkit-backdrop-filter: blur(18px) saturate(155%);
   box-shadow:
-    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
-    0 10px 25px -5px rgba(12, 34, 56, 0.05);
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    0 6px 20px -6px rgba(15, 23, 42, 0.05);
   margin-bottom: 12px;
 }
 

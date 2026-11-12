@@ -963,9 +963,9 @@ async function handleSave() {
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: #64748b;
+  color: #475569;
   margin-bottom: 24px;
-  background: rgba(255, 255, 255, 0.52);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(14px);
   padding: 10px 16px;
   border-radius: 14px;
@@ -1108,7 +1108,7 @@ async function handleSave() {
 .branch-column {
   flex: 1;
   min-width: 200px;
-  background: rgba(255, 255, 255, 0.52);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(14px);
   border: 1px solid rgba(255, 255, 255, 0.85);
   border-radius: 14px;
@@ -1142,7 +1142,7 @@ async function handleSave() {
 
 .branch-rule {
   font-size: 11px;
-  color: #64748b;
+  color: #475569;
   margin-top: 4px;
 }
 
@@ -1261,7 +1261,7 @@ async function handleSave() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   border: 1px solid rgba(255, 255, 255, 0.88);
   border-radius: 12px;
   padding: 8px 12px;
@@ -1282,7 +1282,7 @@ async function handleSave() {
 
 .field-type-tag {
   font-size: 11px;
-  color: #64748b;
+  color: #475569;
   background: rgba(241, 245, 249, 0.8);
   padding: 2px 6px;
   border-radius: 6px;
@@ -1290,7 +1290,7 @@ async function handleSave() {
 }
 
 .field-editor-box {
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(14px);
   border: 1px solid rgba(255, 255, 255, 0.88);
   box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.95);
@@ -1306,7 +1306,7 @@ async function handleSave() {
 }
 
 .designer-right-pane {
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.88);
@@ -1318,7 +1318,7 @@ async function handleSave() {
 .preview-title {
   font-size: 13px;
   font-weight: 600;
-  color: #64748b;
+  color: #475569;
   margin-bottom: 16px;
 }
 
@@ -1340,7 +1340,7 @@ async function handleSave() {
 
 .preview-header .sub-text {
   font-size: 12px;
-  color: #64748b;
+  color: #475569;
   margin-bottom: 16px;
 }
 
@@ -1352,7 +1352,7 @@ async function handleSave() {
 
 .help-text {
   font-size: 12px;
-  color: #94a3b8;
+  color: #475569;
   margin-top: 4px;
 }
 
@@ -1362,7 +1362,7 @@ async function handleSave() {
   border-radius: 6px;
   padding: 10px;
   font-size: 12px;
-  color: #64748b;
+  color: #475569;
   line-height: 1.5;
 }
 
@@ -1393,7 +1393,7 @@ async function handleSave() {
 
 .bpmn-tip {
   font-size: 12px;
-  color: #64748b;
+  color: #475569;
 }
 
 .bpmn-code-box {

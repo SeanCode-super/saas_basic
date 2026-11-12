@@ -278,7 +278,7 @@ const activeTab = ref("baseline");
     }
 
     .telemetry-label {
-      color: #64748b;
+      color: #475569;
       font-size: 12px;
     }
 
@@ -306,7 +306,7 @@ const activeTab = ref("baseline");
   border-radius: var(--sb-radius-glass, 24px);
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.88);
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   box-shadow:
@@ -374,7 +374,7 @@ const activeTab = ref("baseline");
 
     .counter-label {
       font-size: 11px;
-      color: #64748b;
+      color: #475569;
     }
 
     .counter-value {
@@ -387,7 +387,7 @@ const activeTab = ref("baseline");
 
     .counter-sub {
       font-size: 10px;
-      color: #94a3b8;
+      color: #475569;
     }
   }
 }
@@ -406,7 +406,7 @@ const activeTab = ref("baseline");
   p {
     margin: 0;
     font-size: 12px;
-    color: #64748b;
+    color: #475569;
   }
 }
 
@@ -415,7 +415,7 @@ const activeTab = ref("baseline");
   flex-direction: column;
   border: 1px solid rgba(255, 255, 255, 0.88);
   border-radius: var(--sb-radius-glass, 20px);
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   overflow: hidden;
@@ -457,7 +457,7 @@ const activeTab = ref("baseline");
     .policy-desc {
       margin: 0;
       font-size: 12px;
-      color: #64748b;
+      color: #475569;
     }
   }
 
@@ -470,7 +470,7 @@ const activeTab = ref("baseline");
 
     .source-label {
       font-size: 11px;
-      color: #94a3b8;
+      color: #475569;
     }
 
     code {
@@ -523,7 +523,7 @@ const activeTab = ref("baseline");
   p {
     margin: 0;
     font-size: 12px;
-    color: #64748b;
+    color: #475569;
     line-height: 1.5;
     flex: 1;
   }
@@ -537,7 +537,7 @@ const activeTab = ref("baseline");
     .entity-pill {
       font-size: 11px;
       padding: 3px 8px;
-      background: rgba(255, 255, 255, 0.65);
+      background: rgba(255, 255, 255, 0.90);
       border: 1px solid rgba(255, 255, 255, 0.85);
       border-radius: 6px;
       color: #334155;
@@ -556,7 +556,7 @@ const activeTab = ref("baseline");
   padding: 16px 20px;
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.85);
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.95), 0 4px 12px rgba(12, 34, 56, 0.04);
@@ -592,7 +592,7 @@ const activeTab = ref("baseline");
   .cap-desc {
     margin: 0;
     font-size: 12px;
-    color: #64748b;
+    color: #475569;
   }
 }
 
@@ -634,7 +634,7 @@ const activeTab = ref("baseline");
     p {
       margin: 0 0 10px;
       font-size: 13px;
-      color: #64748b;
+      color: #475569;
       line-height: 1.6;
     }
   }

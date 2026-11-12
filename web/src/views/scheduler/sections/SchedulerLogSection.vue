@@ -208,7 +208,7 @@ function handleClearLogs() {
     gap: 10px;
 
     .panel-title { margin: 0; font-size: 15px; font-weight: 700; color: #0f172a; }
-    .panel-subtitle { margin: 0; font-size: 12px; color: #64748b; }
+    .panel-subtitle { margin: 0; font-size: 12px; color: #475569; }
   }
 
   .panel-actions-wrap {
@@ -229,7 +229,7 @@ function handleClearLogs() {
       color: #475569;
 
       .inline-unit {
-        color: #64748b;
+        color: #475569;
       }
     }
 
@@ -274,7 +274,7 @@ function handleClearLogs() {
         gap: 2px;
         font-size: 12px;
 
-        .k { color: #64748b; }
+        .k { color: #475569; }
         .v { font-weight: 600; color: #0f172a; font-family: monospace; }
       }
     }

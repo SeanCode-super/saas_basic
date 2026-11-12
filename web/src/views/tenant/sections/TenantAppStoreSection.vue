@@ -642,7 +642,7 @@ onMounted(() => {
 
 /* Unified Command Surface */
 .command-surface {
-  background: rgba(255, 255, 255, 0.60);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   border: 1px solid rgba(255, 255, 255, 0.88);
@@ -704,7 +704,7 @@ onMounted(() => {
 
   .option-code {
     font-size: 11px;
-    color: #64748b;
+    color: #475569;
     font-family: ui-monospace, monospace;
   }
 }
@@ -738,7 +738,7 @@ onMounted(() => {
     align-items: center;
     gap: 5px;
     font-size: 12px;
-    color: #64748b;
+    color: #475569;
 
     .status-dot {
       width: 6px;
@@ -797,7 +797,7 @@ onMounted(() => {
   font-size: 12px;
 
   .chip-label {
-    color: #64748b;
+    color: #475569;
   }
 
   .chip-val {
@@ -822,7 +822,7 @@ onMounted(() => {
     padding: 3px 8px;
     border-radius: 4px;
     font-size: 12px;
-    color: #64748b;
+    color: #475569;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -844,7 +844,7 @@ onMounted(() => {
 
 /* VIEW A: Matrix Table */
 .matrix-table-container {
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   border: 1px solid rgba(255, 255, 255, 0.88);
@@ -865,7 +865,7 @@ onMounted(() => {
   }
 
   :deep(.el-table__header-wrapper th) {
-    background: rgba(255, 255, 255, 0.45) !important;
+    background: rgba(255, 255, 255, 0.95) !important;
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
     color: var(--sb-text-primary);
@@ -951,7 +951,7 @@ onMounted(() => {
 
 .app-category-badge {
   font-size: 11px;
-  color: #64748b;
+  color: #475569;
   background: #f1f5f9;
   border-radius: 4px;
   padding: 1px 5px;
@@ -973,7 +973,7 @@ onMounted(() => {
 
 .package-addon-pill {
   font-size: 12px;
-  color: #94a3b8;
+  color: #475569;
 }
 
 .switch-cell-wrapper {
@@ -994,7 +994,7 @@ onMounted(() => {
 }
 
 .compact-app-card {
-  background: rgba(255, 255, 255, 0.60);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(24px) saturate(200%);
   -webkit-backdrop-filter: blur(24px) saturate(200%);
   border: 1px solid rgba(255, 255, 255, 0.85);
@@ -1059,7 +1059,7 @@ onMounted(() => {
 
 .card-cat-chip {
   font-size: 10px;
-  color: #64748b;
+  color: #475569;
   background: #f1f5f9;
   border-radius: 4px;
   padding: 1px 4px;
@@ -1067,7 +1067,7 @@ onMounted(() => {
 
 .card-desc-line {
   font-size: 12px;
-  color: #64748b;
+  color: #475569;
   display: -webkit-box;
   -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;

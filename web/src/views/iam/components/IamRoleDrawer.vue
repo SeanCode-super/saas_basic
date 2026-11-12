@@ -1177,14 +1177,14 @@ async function handleSaveAll() {
 
     .role-desc {
       font-size: 13px;
-      color: #64748b;
+      color: #475569;
       line-height: 1.5;
     }
   }
 }
 
 .drawer-tabs-wrapper {
-  background: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   padding: 12px 24px;
@@ -1269,7 +1269,7 @@ async function handleSaveAll() {
 }
 
 .empty-search-box {
-  background: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.95);
   border-radius: 14px;
   border: 1px dashed rgba(203, 213, 225, 0.8);
   padding: 32px 0;
@@ -1283,7 +1283,7 @@ async function handleSaveAll() {
 }
 
 .menu-group-card {
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-radius: 18px;
@@ -1320,7 +1320,7 @@ async function handleSaveAll() {
 
       .chevron-icon {
         font-size: 13px;
-        color: #94a3b8;
+        color: #475569;
         transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 
         &.is-open {
@@ -1355,7 +1355,7 @@ async function handleSaveAll() {
 
       &.inactive {
         background: #f1f5f9;
-        color: #94a3b8;
+        color: #475569;
       }
     }
   }
@@ -1408,7 +1408,7 @@ async function handleSaveAll() {
         .page-code {
           margin-left: 6px;
           font-size: 11px;
-          color: #94a3b8;
+          color: #475569;
           font-family: ui-monospace, monospace;
         }
       }
@@ -1423,7 +1423,7 @@ async function handleSaveAll() {
           padding: 2px 8px;
           border-radius: 10px;
           font-size: 11px;
-          color: #94a3b8;
+          color: #475569;
           background: #f1f5f9;
           cursor: help;
           user-select: none;
@@ -1438,7 +1438,7 @@ async function handleSaveAll() {
           border: 1px solid #e2e8f0;
           background: #fff;
           font-size: 11px;
-          color: #64748b;
+          color: #475569;
           cursor: pointer;
           transition: all 0.15s ease;
           outline: none;
@@ -1496,7 +1496,7 @@ async function handleSaveAll() {
           align-items: center;
           gap: 6px;
           font-size: 11px;
-          color: #64748b;
+          color: #475569;
           font-weight: 500;
 
           .guide-icon {
@@ -1536,7 +1536,7 @@ async function handleSaveAll() {
 
           .act-code {
             font-size: 10px;
-            color: #94a3b8;
+            color: #475569;
             font-family: ui-monospace, monospace;
           }
 
@@ -1605,7 +1605,7 @@ async function handleSaveAll() {
 }
 
 .scope-select-card {
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.88);
@@ -1666,13 +1666,13 @@ async function handleSaveAll() {
   .card-sub {
     margin-left: 26px;
     font-size: 12px;
-    color: #64748b;
+    color: #475569;
     line-height: 1.45;
   }
 }
 
 .custom-scope-box {
-  background: rgba(255, 255, 255, 0.52);
+  background: rgba(255, 255, 255, 0.90);
   border: 1px solid rgba(255, 255, 255, 0.85);
   border-radius: 16px;
   box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.95);
@@ -1688,7 +1688,7 @@ async function handleSaveAll() {
 }
 
 .preview-sql-box {
-  background: rgba(255, 255, 255, 0.52);
+  background: rgba(255, 255, 255, 0.90);
   border: 1px solid rgba(255, 255, 255, 0.85);
   border-radius: 14px;
   padding: 12px 16px;
@@ -1734,7 +1734,7 @@ async function handleSaveAll() {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(14px);
   border: 1px solid rgba(255, 255, 255, 0.88);
   border-radius: 14px;
@@ -1772,13 +1772,13 @@ async function handleSaveAll() {
 
       .user-handle {
         font-size: 12px;
-        color: #94a3b8;
+        color: #475569;
       }
     }
 
     .user-sub-line {
       font-size: 11px;
-      color: #64748b;
+      color: #475569;
       margin-top: 2px;
     }
   }
@@ -1845,7 +1845,7 @@ async function handleSaveAll() {
 
         .log-operator {
           font-size: 12px;
-          color: #64748b;
+          color: #475569;
         }
       }
     }
@@ -1892,7 +1892,7 @@ async function handleSaveAll() {
 
   .summary-stat {
     font-size: 13px;
-    color: #64748b;
+    color: #475569;
 
     strong {
       color: #1e293b;

@@ -237,7 +237,7 @@ function handleAutoFix() {
 
     .gate-summary-text {
       font-size: 12px;
-      color: #64748b;
+      color: #475569;
     }
   }
 
@@ -277,7 +277,7 @@ function handleAutoFix() {
       display: flex;
       align-items: flex-start;
       gap: 8px;
-      background: rgba(255, 255, 255, 0.58);
+      background: rgba(255, 255, 255, 0.90);
       backdrop-filter: blur(14px);
       padding: 8px 10px;
       border-radius: 12px;
@@ -296,7 +296,7 @@ function handleAutoFix() {
 
         .toggle-desc {
           font-size: 11px;
-          color: #64748b;
+          color: #475569;
           line-height: 1.3;
         }
       }

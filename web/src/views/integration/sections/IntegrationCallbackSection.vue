@@ -252,7 +252,7 @@ function handleReplay(row: WebhookEvent) {
     }
 
     .telemetry-label {
-      color: #64748b;
+      color: #475569;
       font-size: 12px;
     }
 

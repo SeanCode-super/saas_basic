@@ -1187,7 +1187,7 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
 
       .hero-no {
         font-size: 12px;
-        color: #64748b;
+        color: #475569;
         font-family: var(--sb-font-mono, monospace);
       }
     }
@@ -1210,7 +1210,7 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
       span {
         display: block;
         font-size: 12px;
-        color: #64748b;
+        color: #475569;
         margin-bottom: 2px;
       }
 
@@ -1251,7 +1251,7 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
         font-size: 13px;
         font-weight: 600;
         background: #f1f5f9;
-        color: #64748b;
+        color: #475569;
         border: 2px solid #cbd5e1;
         transition: all 0.2s ease;
       }
@@ -1266,7 +1266,7 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
 
         .node-state-text {
           font-size: 11px;
-          color: #94a3b8;
+          color: #475569;
           white-space: nowrap;
         }
       }
@@ -1342,7 +1342,7 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
 .section-card {
   border: 1px solid rgba(255, 255, 255, 0.88);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.95), 0 8px 24px -6px rgba(12, 34, 56, 0.05);
@@ -1365,11 +1365,11 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
 
     span {
       font-size: 12px;
-      color: #64748b;
+      color: #475569;
     }
 
     .sub-hint {
-      color: #64748b;
+      color: #475569;
       font-size: 12px;
     }
   }
@@ -1389,7 +1389,7 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
     .val-label {
       display: block;
       font-size: 12px;
-      color: #64748b;
+      color: #475569;
       margin-bottom: 3px;
     }
 
@@ -1419,7 +1419,7 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
 
       .node-badge {
         font-size: 12px;
-        color: #64748b;
+        color: #475569;
         background: #f1f5f9;
         padding: 2px 6px;
         border-radius: 4px;
@@ -1534,7 +1534,7 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
 
         .sub {
           font-size: 12px;
-          color: #64748b;
+          color: #475569;
         }
       }
     }
@@ -1633,7 +1633,7 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
 
         .radio-desc {
           font-size: 12px;
-          color: #64748b;
+          color: #475569;
         }
       }
     }
@@ -1679,7 +1679,7 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
 
       .username {
         font-size: 12px;
-        color: #64748b;
+        color: #475569;
       }
 
       .type-tag {
@@ -1691,7 +1691,7 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
 
     .sub-line {
       font-size: 11px;
-      color: #94a3b8;
+      color: #475569;
       display: flex;
       gap: 8px;
     }
@@ -1710,7 +1710,7 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
 
 .sub-trace-text {
   font-size: 12px;
-  color: #64748b;
+  color: #475569;
 }
 
 .flowable-trace-list {
@@ -1774,6 +1774,6 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
   flex-wrap: wrap;
   gap: 12px;
   font-size: 12px;
-  color: #64748b;
+  color: #475569;
 }
 </style>

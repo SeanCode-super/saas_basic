@@ -759,14 +759,14 @@ function handleExportUsers() {
               </el-table-column>
 
               <!-- Status -->
-              <el-table-column label="账号状态" min-width="100" align="center">
+              <el-table-column label="账号状态" width="96" align="center">
                 <template #default="{ row }">
                   <BaseStatusTag :status="String(row.status)" :type="row.status === 'ENABLED' ? 'success' : 'danger'" />
                 </template>
               </el-table-column>
 
               <!-- Actions -->
-              <el-table-column label="操作" min-width="210">
+              <el-table-column label="操作" width="205" fixed="right">
                 <template #default="{ row }">
                   <div class="action-cell">
                     <el-button
@@ -995,7 +995,7 @@ function handleExportUsers() {
 }
 
 .user-tree-panel {
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   border: 1px solid rgba(255, 255, 255, 0.88);
@@ -1081,7 +1081,7 @@ function handleExportUsers() {
 
     .node-icon {
       font-size: 15px;
-      color: #64748b;
+      color: #475569;
     }
 
     .node-label {
@@ -1114,7 +1114,7 @@ function handleExportUsers() {
   align-items: center;
   padding: 14px 16px;
   border-top: 1px solid rgba(226, 232, 240, 0.6);
-  background: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
 }
 
@@ -1163,7 +1163,7 @@ function handleExportUsers() {
     }
 
     .telemetry-label {
-      color: #64748b;
+      color: #475569;
       font-size: 12px;
     }
 
@@ -1248,7 +1248,7 @@ function handleExportUsers() {
   background: transparent !important;
 
   :deep(.el-table__header) th {
-    background: rgba(255, 255, 255, 0.45) !important;
+    background: rgba(255, 255, 255, 0.95) !important;
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
     color: var(--sb-text-primary);
@@ -1311,7 +1311,7 @@ function handleExportUsers() {
           font-size: 11px;
           font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
           background: #f1f5f9;
-          color: #64748b;
+          color: #475569;
           padding: 1px 5px;
           border-radius: 4px;
         }
@@ -1326,7 +1326,7 @@ function handleExportUsers() {
           gap: 4px;
           padding: 0;
           font-size: 11px;
-          color: #94a3b8;
+          color: #475569;
           font-family: ui-monospace, SFMono-Regular, monospace;
           cursor: pointer;
           transition: color 0.15s ease;
@@ -1374,7 +1374,7 @@ function handleExportUsers() {
 
       .emp-no {
         font-size: 11px;
-        color: #64748b;
+        color: #475569;
         font-family: monospace;
       }
     }
@@ -1399,12 +1399,12 @@ function handleExportUsers() {
       color: #334155;
 
       &.text-muted {
-        color: #64748b;
+        color: #475569;
       }
     }
 
     .text-placeholder {
-      color: #94a3b8;
+      color: #475569;
     }
   }
 
@@ -1434,7 +1434,7 @@ function handleExportUsers() {
 
     .pop-label {
       width: 66px;
-      color: #64748b;
+      color: #475569;
       flex-shrink: 0;
     }
 
@@ -1461,7 +1461,7 @@ function handleExportUsers() {
     align-items: center;
     justify-content: space-between;
     padding: 12px 20px;
-    background: rgba(255, 255, 255, 0.58);
+    background: rgba(255, 255, 255, 0.90);
     backdrop-filter: blur(28px) saturate(210%) contrast(104%);
     -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
     border-radius: var(--sb-radius-glass-md, 18px);

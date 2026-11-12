@@ -455,7 +455,7 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 10px 20px;
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   border-radius: var(--sb-radius-glass-md, 18px);
@@ -483,7 +483,7 @@ onMounted(() => {
 
     .label {
       font-size: 13px;
-      color: #64748b;
+      color: #475569;
     }
 
     .value {
@@ -512,7 +512,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   padding: 12px 20px;
@@ -535,7 +535,7 @@ onMounted(() => {
   gap: 20px;
 
   .plan-card {
-    background: rgba(255, 255, 255, 0.60);
+    background: rgba(255, 255, 255, 0.90);
     backdrop-filter: blur(28px) saturate(210%) contrast(104%);
     -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
     border: 1px solid rgba(255, 255, 255, 0.88);
@@ -601,14 +601,14 @@ onMounted(() => {
 
     .plan-desc {
       font-size: 12px;
-      color: #64748b;
+      color: #475569;
       line-height: 1.5;
       min-height: 36px;
       margin-bottom: 16px;
     }
 
     .plan-specs-box {
-      background: rgba(255, 255, 255, 0.45);
+      background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
       border: 1px solid rgba(226, 232, 240, 0.6);
@@ -626,7 +626,7 @@ onMounted(() => {
         font-size: 13px;
 
         .spec-label {
-          color: #64748b;
+          color: #475569;
           display: flex;
           align-items: center;
           gap: 6px;
@@ -647,7 +647,7 @@ onMounted(() => {
       .features-label {
         font-size: 11px;
         font-weight: 600;
-        color: #94a3b8;
+        color: #475569;
         margin-bottom: 8px;
         text-transform: uppercase;
       }
@@ -666,7 +666,7 @@ onMounted(() => {
 
         .no-feature {
           font-size: 12px;
-          color: #94a3b8;
+          color: #475569;
         }
       }
     }
@@ -683,7 +683,7 @@ onMounted(() => {
         align-items: center;
         gap: 6px;
         font-size: 12px;
-        color: #64748b;
+        color: #475569;
 
         strong {
           color: #0f172a;

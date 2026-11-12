@@ -944,7 +944,7 @@ function nodeBadgeLabel(nodeType: ApiPackageTreeNode["nodeType"]): string {
 
 .node-count {
   font-size: 11px;
-  color: #64748b;
+  color: #475569;
   background: #f1f5f9;
   border-radius: 9999px;
   padding: 0 5px;
@@ -1062,7 +1062,7 @@ function nodeBadgeLabel(nodeType: ApiPackageTreeNode["nodeType"]): string {
     justify-content: space-between;
     margin-top: 4px;
     font-size: 11px;
-    color: #64748b;
+    color: #475569;
   }
 }
 
@@ -1097,7 +1097,7 @@ function nodeBadgeLabel(nodeType: ApiPackageTreeNode["nodeType"]): string {
 
   .showing-count {
     font-weight: 400;
-    color: #64748b;
+    color: #475569;
     font-size: 12px;
   }
 }
@@ -1123,7 +1123,7 @@ function nodeBadgeLabel(nodeType: ApiPackageTreeNode["nodeType"]): string {
 
 .ep-sub-line {
   font-size: 11px;
-  color: #64748b;
+  color: #475569;
   margin-top: 2px;
 }
 
@@ -1150,13 +1150,13 @@ function nodeBadgeLabel(nodeType: ApiPackageTreeNode["nodeType"]): string {
   }
 
   .st-ms {
-    color: #64748b;
+    color: #475569;
   }
 }
 
 .st-zero {
   font-size: 11.5px;
-  color: #94a3b8;
+  color: #475569;
 }
 
 .draft-bar {
@@ -1213,13 +1213,13 @@ function nodeBadgeLabel(nodeType: ApiPackageTreeNode["nodeType"]): string {
 
   .tag-hit-num {
     margin-left: 3px;
-    color: #64748b;
+    color: #475569;
     font-size: 11px;
   }
 }
 
 .empty-draft {
   font-size: 12px;
-  color: #94a3b8;
+  color: #475569;
 }
 </style>

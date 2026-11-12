@@ -653,7 +653,7 @@ onMounted(() => {
 
   .metric-k {
     font-size: 12px;
-    color: #64748b;
+    color: #475569;
   }
 
   .metric-v {
@@ -828,7 +828,7 @@ onMounted(() => {
 
   .mode-btn-hint {
     font-size: 12px;
-    color: #64748b;
+    color: #475569;
   }
 }
 
@@ -846,7 +846,7 @@ onMounted(() => {
   padding: 12px 14px;
   border-radius: 10px;
   border: 1px solid #e2e8f0;
-  background: rgb(255 255 255 / 0.65);
+  background: rgba(255, 255, 255, 0.90);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1040,7 +1040,7 @@ onMounted(() => {
 
   label {
     font-size: 12px;
-    color: #64748b;
+    color: #475569;
   }
 }
 
@@ -1050,7 +1050,7 @@ onMounted(() => {
   gap: 10px;
   padding: 10px 14px;
   border-radius: 10px;
-  background: rgb(255 255 255 / 0.65);
+  background: rgba(255, 255, 255, 0.90);
   border: 1px solid #e2e8f0;
 }
 

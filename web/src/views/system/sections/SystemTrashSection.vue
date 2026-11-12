@@ -397,7 +397,7 @@ onMounted(() => {
 
 /* 检索过滤工具条 */
 .trash-filter-toolbar {
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   border: 1px solid rgba(255, 255, 255, 0.88);
@@ -421,7 +421,7 @@ onMounted(() => {
 
 .filter-right {
   font-size: 13px;
-  color: #64748b;
+  color: #475569;
 
   strong {
     color: #2563eb;
@@ -439,7 +439,7 @@ onMounted(() => {
 
   .app-icon {
     font-size: 15px;
-    color: #64748b;
+    color: #475569;
   }
 }
 
@@ -508,7 +508,7 @@ onMounted(() => {
 .deleted-at-mono {
   font-family: monospace;
   font-size: 12px;
-  color: #64748b;
+  color: #475569;
 }
 
 .record-id-mono {
@@ -517,7 +517,7 @@ onMounted(() => {
 }
 
 .trash-table-card {
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   border: 1px solid rgba(255, 255, 255, 0.88);

@@ -320,7 +320,7 @@ function handleSetDefault(row: any) {
 
     .policy-chip {
       font-size: 12px;
-      color: #64748b;
+      color: #475569;
       padding: 2px 8px;
       background: #f1f5f9;
       border-radius: 4px;
@@ -361,7 +361,7 @@ function handleSetDefault(row: any) {
     .panel-subtitle {
       margin: 0;
       font-size: 12px;
-      color: #64748b;
+      color: #475569;
     }
   }
 }
@@ -391,7 +391,7 @@ function handleSetDefault(row: any) {
 
     .target-endpoint {
       font-size: 12px;
-      color: #64748b;
+      color: #475569;
       font-family: monospace;
     }
   }
@@ -402,7 +402,7 @@ function handleSetDefault(row: any) {
     gap: 10px;
 
     .ping-step-row {
-      background: rgba(255, 255, 255, 0.45);
+      background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(12px);
       border: 1px solid rgba(255, 255, 255, 0.8);
       border-radius: 12px;
@@ -423,7 +423,7 @@ function handleSetDefault(row: any) {
       .step-detail {
         margin: 4px 0 0;
         font-size: 12px;
-        color: #64748b;
+        color: #475569;
       }
     }
   }

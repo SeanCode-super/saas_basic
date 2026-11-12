@@ -416,7 +416,7 @@ onUnmounted(() => {
 
 .chip-label {
   font-size: 12px;
-  color: #64748b;
+  color: #334155;
   font-weight: 600;
 }
 
@@ -432,6 +432,7 @@ onUnmounted(() => {
 .result-title-area h3 {
   margin: 0 0 6px;
   font-size: 17px;
+  color: #0f172a;
 }
 
 .meta-badges {
@@ -447,14 +448,16 @@ onUnmounted(() => {
 }
 
 .insights-banner {
-  background: linear-gradient(135deg, rgba(37 99 235 / 0.08), rgba(14 165 233 / 0.05));
+  background: rgba(239, 246, 255, 0.94);
+  border: 1px solid #bfdbfe;
   border-left: 4px solid #2563eb;
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 12px 16px;
   margin-bottom: 14px;
+  color: #1e293b;
 
   .insights-title {
-    font-weight: 600;
+    font-weight: 650;
     font-size: 13px;
     margin-bottom: 6px;
     color: #1e3a8a;
@@ -531,21 +534,24 @@ onUnmounted(() => {
 
 .schema-item,
 .history-item {
-  padding: 8px 10px;
-  border-radius: 8px;
+  padding: 9px 11px;
+  border-radius: 10px;
   cursor: pointer;
-  background: var(--app-surface-muted, #f8fafc);
-  transition: background 0.15s ease;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  transition: all 0.15s ease;
 
   &:hover {
-    background: rgba(37 99 235 / 0.08);
+    background: #eff6ff;
+    border-color: #93c5fd;
   }
 }
 
 .schema-name,
 .history-cmd {
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
+  color: #0f172a;
 }
 
 .schema-meta,
@@ -554,8 +560,8 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-top: 4px;
-  font-size: 11px;
-  color: #64748b;
+  font-size: 11.5px;
+  color: #475569;
 }
 
 @media (max-width: 1120px) {

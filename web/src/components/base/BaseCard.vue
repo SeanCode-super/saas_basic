@@ -24,34 +24,32 @@ const cardClass = computed(() => [`base-card--${props.tone}`]);
 
 <style scoped lang="scss">
 .base-card {
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  border-radius: var(--sb-radius-glass, 24px);
-  background: rgba(255, 255, 255, 0.58);
-  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
-  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  border-radius: var(--sb-radius-glass, 22px);
+  background: var(--sb-glass-bg, rgba(255, 255, 255, 0.90));
+  backdrop-filter: blur(22px) saturate(165%);
+  -webkit-backdrop-filter: blur(22px) saturate(165%);
   box-shadow:
-    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
-    0 16px 40px -10px rgba(12, 34, 56, 0.08);
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    0 10px 28px -8px rgba(15, 23, 42, 0.06);
   transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 180ms ease, border-color 180ms ease;
 
   &:hover {
     box-shadow:
-      inset 0 1.5px 2px 0 rgba(255, 255, 255, 1),
-      inset 0 0 0 1px rgba(255, 255, 255, 0.45),
-      0 22px 50px -12px rgba(12, 34, 56, 0.12);
+      inset 0 1px 0 rgba(255, 255, 255, 1),
+      0 14px 34px -10px rgba(15, 23, 42, 0.09);
   }
 }
 
 .base-card :deep(.el-card__header) {
   padding: 14px 20px;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.85);
   font-weight: 650;
   color: var(--sb-text-primary);
-  background: rgba(255, 255, 255, 0.40);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border-radius: var(--sb-radius-glass, 24px) var(--sb-radius-glass, 24px) 0 0;
+  background: rgba(248, 250, 252, 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: var(--sb-radius-glass, 22px) var(--sb-radius-glass, 22px) 0 0;
 }
 
 .base-card :deep(.el-card__body) {
@@ -61,11 +59,11 @@ const cardClass = computed(() => [`base-card--${props.tone}`]);
 
 .base-card--soft,
 .base-card--contrast {
-  background: rgba(255, 255, 255, 0.52);
+  background: rgba(248, 250, 252, 0.92);
 }
 
 .base-card--accent {
-  border-color: rgba(147, 197, 253, 0.85);
-  background: rgba(239, 246, 255, 0.55);
+  border-color: rgba(147, 197, 253, 0.95);
+  background: rgba(239, 246, 255, 0.94);
 }
 </style>

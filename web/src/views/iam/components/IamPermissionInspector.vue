@@ -409,7 +409,7 @@ const inspectedMenuGroups = computed(() => {
   :deep(.el-dialog__footer) {
     padding: 14px 24px;
     border-top: 1px solid rgba(226, 232, 240, 0.6);
-    background: rgba(255, 255, 255, 0.45);
+    background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(14px);
   }
 }
@@ -441,7 +441,7 @@ const inspectedMenuGroups = computed(() => {
     display: flex;
     align-items: center;
     gap: 16px;
-    background: rgba(255, 255, 255, 0.58);
+    background: rgba(255, 255, 255, 0.90);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border: 1px solid rgba(255, 255, 255, 0.88);
@@ -479,13 +479,13 @@ const inspectedMenuGroups = computed(() => {
 
         .user-handle {
           font-size: 13px;
-          color: #64748b;
+          color: #475569;
         }
       }
 
       .org-line {
         font-size: 12px;
-        color: #64748b;
+        color: #475569;
         margin-top: 4px;
         display: flex;
         gap: 6px;
@@ -508,7 +508,7 @@ const inspectedMenuGroups = computed(() => {
 
       .pill-label {
         font-size: 11px;
-        color: #94a3b8;
+        color: #475569;
       }
 
       .roles-chips {
@@ -519,7 +519,7 @@ const inspectedMenuGroups = computed(() => {
 
         .no-role-text {
           font-size: 12px;
-          color: #94a3b8;
+          color: #475569;
         }
       }
     }
@@ -561,7 +561,7 @@ const inspectedMenuGroups = computed(() => {
 }
 
 .module-group-box {
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.88);
   box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.95);
@@ -606,7 +606,7 @@ const inspectedMenuGroups = computed(() => {
 
 .button-permissions-section {
   margin-top: 16px;
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.88);
   box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.95);
@@ -674,7 +674,7 @@ const inspectedMenuGroups = computed(() => {
   gap: 10px;
 
   .scope-rule-item {
-    background: rgba(255, 255, 255, 0.58);
+    background: rgba(255, 255, 255, 0.90);
     backdrop-filter: blur(14px);
     border: 1px solid rgba(255, 255, 255, 0.88);
     box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.95);
@@ -696,7 +696,7 @@ const inspectedMenuGroups = computed(() => {
 
     .rule-desc {
       font-size: 12px;
-      color: #64748b;
+      color: #475569;
     }
 
     .depts-resolved-box {
@@ -706,7 +706,7 @@ const inspectedMenuGroups = computed(() => {
 
       .dept-box-label {
         font-size: 11px;
-        color: #94a3b8;
+        color: #475569;
         display: block;
         margin-bottom: 4px;
       }
@@ -722,7 +722,7 @@ const inspectedMenuGroups = computed(() => {
 
 /* Simulator Tab */
 .simulator-config-box {
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.88);
@@ -757,7 +757,7 @@ const inspectedMenuGroups = computed(() => {
 }
 
 .simulation-result-card {
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-radius: 18px;
@@ -839,7 +839,7 @@ const inspectedMenuGroups = computed(() => {
     .sql-title {
       font-size: 12px;
       font-weight: 600;
-      color: #64748b;
+      color: #475569;
       margin-bottom: 6px;
     }
 

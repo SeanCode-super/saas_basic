@@ -164,7 +164,7 @@ function navigateTo(path: string) {
   align-items: center;
   justify-content: space-between;
   padding: 10px 18px;
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   border-radius: 18px;
@@ -190,7 +190,7 @@ function navigateTo(path: string) {
 
     .label {
       font-size: 13px;
-      color: #64748b;
+      color: #475569;
     }
 
     .value {
@@ -232,7 +232,7 @@ function navigateTo(path: string) {
   gap: 16px;
 
   .panel-title { margin: 0 0 4px; font-size: 16px; font-weight: 700; color: #0f172a; }
-  .panel-subtitle { margin: 0; font-size: 12px; color: #64748b; }
+  .panel-subtitle { margin: 0; font-size: 12px; color: #475569; }
 }
 
 .matrix-grid {
@@ -270,7 +270,7 @@ function navigateTo(path: string) {
     p {
       margin: 0;
       font-size: 11px;
-      color: #64748b;
+      color: #475569;
       line-height: 1.4;
     }
   }
@@ -301,7 +301,7 @@ function navigateTo(path: string) {
 
     .proto-stat {
       font-size: 12px;
-      color: #64748b;
+      color: #475569;
     }
   }
 }

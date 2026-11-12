@@ -195,14 +195,14 @@ function closeAllTags() {
 .tags-view-container {
   height: 40px;
   width: 100%;
-  background: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(28px) saturate(200%);
-  -webkit-backdrop-filter: blur(28px) saturate(200%);
-  border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border-radius: 16px;
+  border: 1px solid rgba(226, 232, 240, 0.90);
   box-shadow:
-    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
-    0 8px 24px -6px rgba(15, 23, 42, 0.04);
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    0 6px 18px -6px rgba(15, 23, 42, 0.05);
   display: flex;
   align-items: center;
   position: relative;
@@ -229,34 +229,32 @@ function closeAllTags() {
   align-items: center;
   height: 28px;
   line-height: 28px;
-  border: 1px solid rgba(255, 255, 255, 0.75);
-  color: #475569;
-  background: rgba(255, 255, 255, 0.45);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(226, 232, 240, 0.90);
+  color: #334155;
+  background: rgba(248, 250, 252, 0.92);
   padding: 0 12px;
   font-size: 12px;
   font-weight: 550;
   border-radius: 9999px;
-  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.9);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
   cursor: pointer;
   transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
   gap: 6px;
 
   &:hover {
-    color: var(--sb-text-primary, #090d16);
-    background: rgba(255, 255, 255, 0.85);
-    border-color: rgba(255, 255, 255, 0.95);
-    box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 1), 0 2px 8px rgba(15, 23, 42, 0.06);
+    color: var(--sb-text-primary, #0f172a);
+    background: #ffffff;
+    border-color: #cbd5e1;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
     transform: translateY(-0.5px);
   }
 
   &.is-active {
     background: #ffffff;
     color: #1d4ed8;
-    border-color: rgba(255, 255, 255, 0.95);
-    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.10);
+    border-color: #bfdbfe;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.10);
     font-weight: 650;
   }
 }

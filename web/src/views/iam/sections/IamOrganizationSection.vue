@@ -1116,7 +1116,7 @@ function getPositionEmployeeList(posId: number) {
 }
 
 .org-tree-panel {
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   border: 1px solid rgba(255, 255, 255, 0.88);
@@ -1205,7 +1205,7 @@ function getPositionEmployeeList(posId: number) {
 
     .node-icon {
       font-size: 15px;
-      color: #64748b;
+      color: #475569;
       flex-shrink: 0;
     }
 
@@ -1227,7 +1227,7 @@ function getPositionEmployeeList(posId: number) {
       padding: 1px 6px;
       border-radius: 10px;
       background-color: #f1f5f9;
-      color: #64748b;
+      color: #475569;
       font-variant-numeric: tabular-nums;
     }
 
@@ -1252,7 +1252,7 @@ function getPositionEmployeeList(posId: number) {
 }
 
 .dept-hero-card {
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   border: 1px solid rgba(255, 255, 255, 0.88);
@@ -1270,7 +1270,7 @@ function getPositionEmployeeList(posId: number) {
     .hero-title-group {
       .hero-breadcrumb {
         font-size: 12px;
-        color: #64748b;
+        color: #475569;
         margin-bottom: 4px;
       }
 
@@ -1316,7 +1316,7 @@ function getPositionEmployeeList(posId: number) {
 
       .meta-label {
         font-size: 12px;
-        color: #64748b;
+        color: #475569;
       }
 
       .meta-value {
@@ -1396,7 +1396,7 @@ function getPositionEmployeeList(posId: number) {
     gap: 14px;
     padding: 16px 20px;
     border-radius: var(--sb-radius-glass-md, 18px);
-    background: rgba(255, 255, 255, 0.58);
+    background: rgba(255, 255, 255, 0.90);
     backdrop-filter: blur(28px) saturate(210%) contrast(104%);
     -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
     border: 1px solid rgba(255, 255, 255, 0.85);
@@ -1428,7 +1428,7 @@ function getPositionEmployeeList(posId: number) {
 
       .stat-label {
         font-size: 12px;
-        color: #64748b;
+        color: #475569;
         font-weight: 500;
       }
 
@@ -1447,7 +1447,7 @@ function getPositionEmployeeList(posId: number) {
 
       .stat-sub {
         font-size: 11px;
-        color: #94a3b8;
+        color: #475569;
       }
     }
   }
@@ -1462,7 +1462,7 @@ function getPositionEmployeeList(posId: number) {
 }
 
 .emp-dept-sidebar {
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   border: 1px solid rgba(255, 255, 255, 0.85);
@@ -1478,7 +1478,7 @@ function getPositionEmployeeList(posId: number) {
     justify-content: space-between;
     padding: 14px 18px;
     border-bottom: 1px solid rgba(226, 232, 240, 0.6);
-    background: rgba(255, 255, 255, 0.40);
+    background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(14px);
 
     .sidebar-title {
@@ -1526,7 +1526,7 @@ function getPositionEmployeeList(posId: number) {
         padding: 1px 6px;
         border-radius: 9999px;
         background: #f1f5f9;
-        color: #64748b;
+        color: #475569;
         font-size: 11px;
         font-weight: 600;
       }
@@ -1549,7 +1549,7 @@ function getPositionEmployeeList(posId: number) {
         padding: 0 5px;
         border-radius: 9999px;
         background: #f1f5f9;
-        color: #64748b;
+        color: #475569;
         font-size: 10px;
       }
     }
@@ -1569,7 +1569,7 @@ function getPositionEmployeeList(posId: number) {
   flex-wrap: wrap;
   gap: 12px;
   padding: 12px 20px;
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   border: 1px solid rgba(255, 255, 255, 0.85);
@@ -1588,7 +1588,7 @@ function getPositionEmployeeList(posId: number) {
 
 .enterprise-employee-table,
 .enterprise-position-table {
-  background: rgba(255, 255, 255, 0.58) !important;
+  background: rgba(255, 255, 255, 0.90) !important;
   backdrop-filter: blur(28px) saturate(210%) contrast(104%) !important;
   -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   border: 1px solid rgba(255, 255, 255, 0.88);
@@ -1604,7 +1604,7 @@ function getPositionEmployeeList(posId: number) {
   }
 
   :deep(.el-table__header-wrapper th) {
-    background: rgba(255, 255, 255, 0.45) !important;
+    background: rgba(255, 255, 255, 0.95) !important;
     backdrop-filter: blur(14px);
     border-bottom: 1px solid rgba(203, 213, 225, 0.6) !important;
   }
@@ -1651,7 +1651,7 @@ function getPositionEmployeeList(posId: number) {
 
       .emp-gender {
         font-size: 11px;
-        color: #94a3b8;
+        color: #475569;
       }
     }
   }
@@ -1686,7 +1686,7 @@ function getPositionEmployeeList(posId: number) {
 
   .date-text {
     font-family: monospace;
-    color: #64748b;
+    color: #475569;
     font-size: 12px;
   }
 }
@@ -1762,7 +1762,7 @@ function getPositionEmployeeList(posId: number) {
   }
 
   .text-muted {
-    color: #94a3b8;
+    color: #475569;
     margin: 0;
   }
 }
@@ -1820,7 +1820,7 @@ function getPositionEmployeeList(posId: number) {
         gap: 6px;
         margin-top: 4px;
         font-size: 12.5px;
-        color: #64748b;
+        color: #475569;
 
         .hero-empno {
           font-family: monospace;
@@ -1861,7 +1861,7 @@ function getPositionEmployeeList(posId: number) {
 
       .detail-label {
         font-size: 11.5px;
-        color: #94a3b8;
+        color: #475569;
       }
 
       .detail-val {

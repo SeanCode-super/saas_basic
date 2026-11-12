@@ -269,35 +269,35 @@ function resetForm() {
       <div class="trade-history-panel mt-4">
         <BaseCard title="支付交易流水与结算对账台账">
           <el-table :data="tradeHistory" stripe border style="width: 100%">
-            <el-table-column type="index" label="#" width="60" align="center" />
-            <el-table-column prop="payTradeNo" label="平台支付流水号" width="220" />
-            <el-table-column prop="orderNo" label="商户业务单号" width="180" />
-            <el-table-column prop="amount" label="金额 (元)" width="120" align="right">
+            <el-table-column type="index" label="#" width="50" align="center" />
+            <el-table-column prop="payTradeNo" label="平台支付流水号" min-width="180" show-overflow-tooltip />
+            <el-table-column prop="orderNo" label="商户业务单号" min-width="150" show-overflow-tooltip />
+            <el-table-column prop="amount" label="金额 (元)" width="96" align="right">
               <template #default="{ row }">
                 <strong class="text-primary font-mono">¥{{ row.amount.toFixed(2) }}</strong>
               </template>
             </el-table-column>
-            <el-table-column prop="channel" label="支付渠道" width="130" align="center">
+            <el-table-column prop="channel" label="支付渠道" width="96" align="center">
               <template #default="{ row }">
                 <el-tag size="small" :type="row.channel === 'WECHAT' ? 'success' : 'primary'" effect="plain">
                   {{ row.channel }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="status" label="状态" width="120" align="center">
+            <el-table-column prop="status" label="状态" width="94" align="center">
               <template #default="{ row }">
                 <el-tag size="small" :type="row.status === 'SUCCESS' ? 'success' : row.status === 'REFUNDED' ? 'danger' : 'warning'">
                   {{ row.status === 'SUCCESS' ? '支付成功' : row.status === 'REFUNDED' ? '已退款' : '待付款' }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="expireAt" label="过期时间" width="180" />
-            <el-table-column prop="paidAt" label="完成支付时间" min-width="180">
+            <el-table-column prop="expireAt" label="过期时间" width="150" show-overflow-tooltip />
+            <el-table-column prop="paidAt" label="完成支付时间" width="150" show-overflow-tooltip>
               <template #default="{ row }">
                 <span>{{ row.paidAt || '--' }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="操作与对账" min-width="140" align="center">
+            <el-table-column label="操作与对账" width="125" align="center" fixed="right">
               <template #default="{ row }">
                 <el-button
                   v-if="row.status === 'SUCCESS'"
@@ -341,7 +341,7 @@ function resetForm() {
 
     .label {
       font-size: 13px;
-      color: #64748b;
+      color: #475569;
     }
 
     .value {
@@ -389,7 +389,7 @@ function resetForm() {
 
     .cashier-no {
       font-size: 13px;
-      color: #64748b;
+      color: #475569;
       font-family: var(--sb-font-mono, monospace);
     }
   }
@@ -462,7 +462,7 @@ function resetForm() {
       p {
         margin: 4px 0 0;
         font-size: 13px;
-        color: #64748b;
+        color: #475569;
       }
 
       .channel-hint {
@@ -487,7 +487,7 @@ function resetForm() {
   justify-content: center;
   padding: 60px 20px;
   text-align: center;
-  color: #64748b;
+  color: #475569;
 
   .empty-icon {
     font-size: 48px;
@@ -504,7 +504,7 @@ function resetForm() {
 
   .sub {
     font-size: 12px;
-    color: #94a3b8;
+    color: #475569;
     margin-top: 4px;
   }
 }

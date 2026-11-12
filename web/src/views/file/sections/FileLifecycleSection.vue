@@ -246,7 +246,7 @@ function formatScope(scope: any) {
   align-items: center;
   justify-content: space-between;
   padding: 10px 18px;
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
   border-radius: 18px;
@@ -272,7 +272,7 @@ function formatScope(scope: any) {
 
     .label {
       font-size: 13px;
-      color: #64748b;
+      color: #475569;
     }
 
     .value {

@@ -872,16 +872,15 @@ watch(workspaceSubTab, () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 20px;
-  background: rgba(255, 255, 255, 0.58);
-  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
-  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  border-radius: 20px;
+  padding: 12px 20px;
+  background: var(--sb-glass-bg, rgba(255, 255, 255, 0.90));
+  backdrop-filter: var(--sb-glass-blur);
+  -webkit-backdrop-filter: var(--sb-glass-blur);
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  border-radius: 18px;
   box-shadow:
-    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
-    0 12px 32px -8px rgba(12, 34, 56, 0.07);
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    0 6px 20px -6px rgba(15, 23, 42, 0.05);
 
   .strip-left {
     display: flex;
@@ -924,7 +923,7 @@ watch(workspaceSubTab, () => {
     align-items: center;
     gap: 6px;
     padding: 3px 12px;
-    background: rgba(255, 255, 255, 0.55);
+    background: rgba(255, 255, 255, 0.90);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.75);
@@ -950,7 +949,7 @@ watch(workspaceSubTab, () => {
     }
 
     .label {
-      color: #64748b;
+      color: #475569;
     }
 
     .value {
@@ -968,16 +967,15 @@ watch(workspaceSubTab, () => {
 
 /* iOS 27 晶透主工作台容器卡片 (.hub-tabs-container) */
 .hub-tabs-container {
-  background: rgba(255, 255, 255, 0.58);
-  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
-  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  border-radius: 24px;
+  background: var(--sb-glass-bg, rgba(255, 255, 255, 0.90));
+  backdrop-filter: var(--sb-glass-blur);
+  -webkit-backdrop-filter: var(--sb-glass-blur);
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  border-radius: 22px;
   padding: 20px 24px;
   box-shadow:
-    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
-    0 16px 40px -10px rgba(12, 34, 56, 0.08);
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    0 10px 28px -8px rgba(15, 23, 42, 0.06);
 }
 
 .tab-label {
@@ -1039,7 +1037,7 @@ watch(workspaceSubTab, () => {
 .filter-label {
   font-size: 13px;
   font-weight: 600;
-  color: #64748b;
+  color: #475569;
 }
 
 .templates-grid {
@@ -1049,16 +1047,14 @@ watch(workspaceSubTab, () => {
 }
 
 .template-card {
-  background: rgba(255, 255, 255, 0.65);
-  backdrop-filter: blur(20px) saturate(190%);
-  -webkit-backdrop-filter: blur(20px) saturate(190%);
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
   padding: 18px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.95), 0 8px 24px -4px rgba(12, 34, 56, 0.06);
+  box-shadow: 0 4px 16px -4px rgba(15, 23, 42, 0.05);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -1103,7 +1099,7 @@ watch(workspaceSubTab, () => {
 
 .version-tag {
   font-size: 11px;
-  color: #94a3b8;
+  color: #475569;
   background: #f1f5f9;
   padding: 1px 6px;
   border-radius: 4px;
@@ -1111,7 +1107,7 @@ watch(workspaceSubTab, () => {
 
 .template-desc {
   font-size: 13px;
-  color: #64748b;
+  color: #475569;
   line-height: 1.5;
   margin: 0 0 16px;
   min-height: 38px;
@@ -1127,7 +1123,7 @@ watch(workspaceSubTab, () => {
 
 .code-text {
   font-size: 12px;
-  color: #94a3b8;
+  color: #475569;
   font-family: monospace;
 }
 
@@ -1147,7 +1143,7 @@ watch(workspaceSubTab, () => {
 
 .left-tips {
   font-size: 13px;
-  color: #64748b;
+  color: #475569;
 }
 
 .def-title-cell {
@@ -1158,7 +1154,7 @@ watch(workspaceSubTab, () => {
 
 .ver-badge {
   font-size: 11px;
-  color: #64748b;
+  color: #475569;
   background: #f1f5f9;
   padding: 1px 6px;
   border-radius: 4px;
@@ -1203,7 +1199,7 @@ watch(workspaceSubTab, () => {
   justify-content: flex-end;
   padding: 12px 16px;
   border-top: 1px solid rgba(226, 232, 240, 0.6);
-  background: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
 }
 </style>

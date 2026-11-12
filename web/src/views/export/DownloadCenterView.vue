@@ -354,7 +354,7 @@ onUnmounted(() => {
       </div>
 
       <el-table v-if="activeTab === 'tasks'" v-loading="loading" :data="filteredTasks" stripe>
-        <el-table-column prop="taskName" label="导出任务名称" min-width="210">
+        <el-table-column prop="taskName" label="导出任务名称" min-width="200">
           <template #default="{ row }">
             <div class="task-name-cell">
               <strong>{{ row.taskName }}</strong>
@@ -367,7 +367,7 @@ onUnmounted(() => {
           </template>
         </el-table-column>
 
-        <el-table-column prop="exportFormat" label="格式" width="110">
+        <el-table-column prop="exportFormat" label="格式" width="90">
           <template #default="{ row }">
             <el-tag
               :type="row.exportFormat === 'PDF' ? 'danger' : row.exportFormat === 'HTML_REPORT' ? 'success' : 'primary'"
@@ -378,7 +378,7 @@ onUnmounted(() => {
           </template>
         </el-table-column>
 
-        <el-table-column label="安全水印与追溯码" min-width="200">
+        <el-table-column label="安全水印与追溯码" min-width="195">
           <template #default="{ row }">
             <div class="trace-cell">
               <el-tag size="small" effect="plain" class="trace-tag" @click="copyText(row.traceCode, '追溯码')">
@@ -391,14 +391,14 @@ onUnmounted(() => {
           </template>
         </el-table-column>
 
-        <el-table-column label="行数 / 体积" width="130">
+        <el-table-column label="行数 / 体积" width="110">
           <template #default="{ row }">
             <div>{{ row.totalRows }} 行</div>
             <div class="sub-text">{{ formatBytes(row.fileSize) }}</div>
           </template>
         </el-table-column>
 
-        <el-table-column label="状态与进度" width="170">
+        <el-table-column label="状态与进度" width="135">
           <template #default="{ row }">
             <el-tag size="small" :type="formatStatusTagType(row.status)">
               {{
@@ -418,13 +418,13 @@ onUnmounted(() => {
           </template>
         </el-table-column>
 
-        <el-table-column label="创建时间" width="165">
+        <el-table-column label="创建时间" width="160">
           <template #default="{ row }">
             <span>{{ formatTime(row.createdAt) }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="210" fixed="right">
+        <el-table-column label="操作" width="165" fixed="right">
           <template #default="{ row }">
             <template v-if="row.status === 'PENDING_APPROVAL'">
               <el-button type="success" link :icon="Check" @click="handleApproveTask(row)">通过</el-button>
@@ -558,14 +558,16 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 4px;
   padding: 16px 18px;
-  border-radius: 14px;
-  background: var(--app-surface-card, rgba(255 255 255 / 0.85));
-  border: 1px solid var(--app-border-soft, rgba(148 163 184 / 0.25));
+  border-radius: 16px;
+  background: var(--app-surface-card, rgba(255, 255, 255, 0.92));
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  box-shadow: 0 6px 18px -6px rgba(15, 23, 42, 0.05);
 }
 
 .kpi-label {
   font-size: 12px;
-  color: var(--app-text-secondary, #64748b);
+  font-weight: 500;
+  color: var(--app-text-secondary, #334155);
 }
 
 .kpi-value {
@@ -576,7 +578,7 @@ onUnmounted(() => {
 
 .kpi-note {
   font-size: 12px;
-  color: var(--app-text-muted, #64748b);
+  color: var(--app-text-muted, #475569);
 }
 
 .toolbar {
@@ -597,7 +599,7 @@ onUnmounted(() => {
 .task-meta,
 .sub-text {
   font-size: 12px;
-  color: #64748b;
+  color: #475569;
 }
 
 .trace-cell {

@@ -212,7 +212,7 @@ async function handleSubmit() {
   p {
     margin: 0;
     font-size: 12px;
-    color: #64748b;
+    color: #475569;
     line-height: 1.4;
   }
 }

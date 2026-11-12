@@ -1631,7 +1631,7 @@ onUnmounted(() => {
 
 .stack-meta {
   font-size: 12px;
-  color: #94a3b8;
+  color: #475569;
   margin-bottom: 8px;
 }
 

@@ -518,13 +518,13 @@ onMounted(() => {
 }
 
 .profile-card {
-  background: rgba(255, 255, 255, 0.58);
-  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
-  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
-  border-radius: 24px;
+  background: var(--sb-glass-bg, rgba(255, 255, 255, 0.90));
+  backdrop-filter: var(--sb-glass-blur);
+  -webkit-backdrop-filter: var(--sb-glass-blur);
+  border-radius: 22px;
   padding: 24px;
-  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), inset 0 0 0 1px rgba(255, 255, 255, 0.35), 0 16px 40px -10px rgba(12, 34, 56, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.88);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.98), 0 10px 28px -8px rgba(15, 23, 42, 0.06);
+  border: 1px solid rgba(226, 232, 240, 0.92);
 }
 
 .profile-card__avatar-wrap {
@@ -558,7 +558,7 @@ onMounted(() => {
 
 .profile-card__username {
   font-size: 13px;
-  color: #64748b;
+  color: #475569;
   font-family: monospace;
 }
 
@@ -584,7 +584,7 @@ onMounted(() => {
 }
 
 .meta-label {
-  color: #64748b;
+  color: #475569;
 }
 
 .meta-val {
@@ -622,18 +622,18 @@ onMounted(() => {
 
 .security-desc {
   font-size: 11px;
-  color: #94a3b8;
+  color: #475569;
   margin: 6px 0 0;
 }
 
 .profile-content {
-  background: rgba(255, 255, 255, 0.58);
-  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
-  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
-  border-radius: 24px;
+  background: var(--sb-glass-bg, rgba(255, 255, 255, 0.90));
+  backdrop-filter: var(--sb-glass-blur);
+  -webkit-backdrop-filter: var(--sb-glass-blur);
+  border-radius: 22px;
   padding: 20px 24px;
-  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), inset 0 0 0 1px rgba(255, 255, 255, 0.35), 0 16px 40px -10px rgba(12, 34, 56, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.88);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.98), 0 10px 28px -8px rgba(15, 23, 42, 0.06);
+  border: 1px solid rgba(226, 232, 240, 0.92);
 }
 
 .pane-wrap {
@@ -656,7 +656,7 @@ onMounted(() => {
 
 .pane-subtitle {
   font-size: 13px;
-  color: #64748b;
+  color: #475569;
   margin: 0 0 20px;
 }
 
@@ -730,7 +730,7 @@ onMounted(() => {
 }
 
 .mfa-field-label {
-  color: #64748b;
+  color: #475569;
   min-width: 90px;
 }
 

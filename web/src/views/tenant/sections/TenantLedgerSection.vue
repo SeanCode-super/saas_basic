@@ -1218,7 +1218,7 @@ onMounted(() => {
   display: flex;
   gap: 16px;
   font-size: 12px;
-  color: #64748b;
+  color: #475569;
   flex-wrap: wrap;
 }
 
@@ -1257,7 +1257,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(226, 232, 240, 0.6);
@@ -1293,7 +1293,7 @@ onMounted(() => {
 
 .drawer-app-desc {
   font-size: 12px;
-  color: #64748b;
+  color: #475569;
   line-height: 1.4;
 }
 
@@ -1325,7 +1325,7 @@ onMounted(() => {
   gap: 6px;
   margin-top: 6px;
   font-size: 12px;
-  color: #64748b;
+  color: #475569;
 }
 
 .quota-drawer-content {
@@ -1362,7 +1362,7 @@ onMounted(() => {
     align-items: center;
     gap: 16px;
     font-size: 13px;
-    color: #64748b;
+    color: #475569;
 
     .pkg-name {
       color: #2563eb;
@@ -1384,7 +1384,7 @@ onMounted(() => {
     gap: 14px;
 
     .quota-card {
-      background: rgba(255, 255, 255, 0.58);
+      background: rgba(255, 255, 255, 0.90);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
       border: 1px solid rgba(255, 255, 255, 0.85);
@@ -1409,7 +1409,7 @@ onMounted(() => {
 
         .quota-values {
           font-size: 13px;
-          color: #64748b;
+          color: #475569;
           font-family: ui-monospace, monospace;
 
           .used-val {
@@ -1419,7 +1419,7 @@ onMounted(() => {
 
           .unit-span {
             font-size: 11px;
-            color: #94a3b8;
+            color: #475569;
           }
         }
       }

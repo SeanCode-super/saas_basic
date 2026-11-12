@@ -944,15 +944,15 @@ onMounted(() => {
           />
         </div>
 
-        <!-- 侧栏/混合模式下的面包屑导航 -->
-        <div v-else-if="showBreadcrumbs" class="console-shell__breadcrumb-bar">
+        <!-- 侧栏模式下的面包屑导航 (mix 模式顶栏主域导航优先，避免双栏挤压截断) -->
+        <div v-else-if="showBreadcrumbs && layoutMode !== 'mix'" class="console-shell__breadcrumb-bar">
           <span class="console-shell__breadcrumb-app">{{ currentApp?.title ?? "控制台" }}</span>
           <template v-if="currentApp?.title && currentSectionMeta.label && currentApp.title !== currentSectionMeta.label">
             <span class="console-shell__breadcrumb-sep">/</span>
             <span class="console-shell__breadcrumb-page">{{ currentSectionMeta.label }}</span>
           </template>
         </div>
-        <div v-else class="console-shell__title-block console-shell__title-block--minimal">
+        <div v-else-if="layoutMode !== 'mix'" class="console-shell__title-block console-shell__title-block--minimal">
           <h1>{{ currentSectionMeta.label }}</h1>
         </div>
 
@@ -1237,18 +1237,14 @@ onMounted(() => {
 
           <div class="console-shell__quick-jump" @click="commandPaletteVisible = true">
             <el-autocomplete
-
               popper-class="console-shell__quick-popper"
               :fetch-suggestions="querySearch"
-              placeholder="搜索功能或指令..."
+              placeholder="搜索功能 (⌘K)..."
               clearable
               @select="handleQuickSelect"
             >
               <template #prefix>
                 <Search />
-              </template>
-              <template #suffix>
-                <kbd class="console-shell__quick-kbd">搜索</kbd>
               </template>
               <template #default="{ item }">
                 <span class="console-shell__quick-option">{{ item.value }}</span>
@@ -1619,6 +1615,8 @@ onMounted(() => {
   grid-template-columns: 242px minmax(0, 1fr);
   overflow: hidden;
   background: var(--sb-shell-main);
+  backdrop-filter: blur(22px) saturate(135%);
+  -webkit-backdrop-filter: blur(22px) saturate(135%);
   transition: grid-template-columns 160ms cubic-bezier(0.4, 0, 0.2, 1);
   padding: 12px 14px 12px 14px;
   gap: 14px;
@@ -1686,66 +1684,72 @@ onMounted(() => {
   backdrop-filter: var(--sb-glass-blur);
   -webkit-backdrop-filter: var(--sb-glass-blur);
 
-  /* 主题 A：深钛金黑曜石毛玻璃 (Classic Dark Slate Obsidian Glass) */
-  --rail-bg: rgba(15, 23, 42, 0.75);
-  --rail-border: rgba(255, 255, 255, 0.10);
-  --rail-brand-bg: rgba(11, 17, 32, 0.45);
-  --rail-brand-border: rgba(255, 255, 255, 0.08);
-  --rail-text-cluster: #94a3b8;
+  /* 主题 A：深钛金黑曜石高对比侧栏 (High-Clarity Obsidian Glass) */
+  --rail-bg: rgba(15, 23, 42, 0.90);
+  --rail-border: rgba(255, 255, 255, 0.12);
+  --rail-brand-bg: rgba(15, 23, 42, 0.95);
+  --rail-brand-border: rgba(255, 255, 255, 0.10);
+  --rail-text-cluster: #cbd5e1;
   --rail-text-cluster-hover: #ffffff;
   --rail-text-cluster-active: #38bdf8;
-  --rail-text-app: #cbd5e1;
+  --rail-text-app: #e2e8f0;
   --rail-text-app-hover: #ffffff;
   --rail-text-app-active: #ffffff;
-  --rail-app-bg-hover: rgba(255, 255, 255, 0.08);
-  --rail-app-bg-active: rgba(37, 99, 235, 0.32);
-  --rail-icon-color: #64748b;
+  --rail-app-bg-hover: rgba(255, 255, 255, 0.10);
+  --rail-app-bg-active: rgba(37, 99, 235, 0.35);
+  --rail-expanded-bg: rgba(255, 255, 255, 0.10);
+  --rail-expanded-text: #f8fafc;
+  --rail-expanded-icon: #38bdf8;
+  --rail-icon-color: #94a3b8;
   --rail-icon-active: #38bdf8;
   --rail-indicator: #38bdf8;
   --rail-indicator-glow: 0 0 12px rgba(56, 189, 248, 0.7);
-  --rail-arrow-color: #64748b;
-  --rail-tree-line: rgba(255, 255, 255, 0.1);
-  --rail-footer-bg: rgba(11, 17, 32, 0.45);
-  --rail-footer-border: rgba(255, 255, 255, 0.08);
-  --rail-btn-text: #94a3b8;
-  --rail-btn-border: rgba(255, 255, 255, 0.1);
+  --rail-arrow-color: #94a3b8;
+  --rail-tree-line: rgba(255, 255, 255, 0.14);
+  --rail-footer-bg: rgba(15, 23, 42, 0.95);
+  --rail-footer-border: rgba(255, 255, 255, 0.10);
+  --rail-btn-text: #cbd5e1;
+  --rail-btn-border: rgba(255, 255, 255, 0.14);
 
   background: var(--rail-bg);
   border: 1px solid var(--rail-border);
   color: var(--rail-text-app);
-  box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.25), 0 20px 40px -10px rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.18), 0 20px 40px -10px rgba(0, 0, 0, 0.35);
 
-  /* 主题 B：iOS 27 晶透雅白 (Unified Liquid Glass - 超高透光，光学倒角高光，深度清晰文字) */
+  /* 主题 B：iOS 27 极简清透雅白 (High-Legibility Pearl White Rail) */
   &.rail-theme--light {
-    --rail-bg: rgba(255, 255, 255, 0.78);
-    --rail-border: rgba(255, 255, 255, 0.95);
-    --rail-brand-bg: rgba(255, 255, 255, 0.55);
-    --rail-brand-border: rgba(226, 232, 240, 0.65);
-    --rail-text-cluster: #475569;       /* 顶层主域大字：权威结构 Slate-600 */
+    --rail-bg: rgba(255, 255, 255, 0.92);
+    --rail-border: rgba(226, 232, 240, 0.95);
+    --rail-brand-bg: rgba(248, 250, 252, 0.94);
+    --rail-brand-border: #e2e8f0;
+    --rail-text-cluster: #334155;       /* 顶层主域大字：稳重深灰 Slate-700 */
     --rail-text-cluster-hover: #0f172a;
-    --rail-text-cluster-active: #0f172a;/* 激活顶级保持稳重大字，杜绝杂乱发虚 */
-    --rail-text-app: #1e293b;           /* 二级功能文字：高对比度深色 Slate-800，绝对清晰锐利 */
+    --rail-text-cluster-active: #0f172a;
+    --rail-text-app: #1e293b;           /* 二级功能文字：高对比深色 Slate-800 */
     --rail-text-app-hover: #0f172a;
-    --rail-text-app-active: #1d4ed8;    /* 激活项纯正钴蓝 */
-    --rail-app-bg-hover: rgba(255, 255, 255, 0.88);       /* 晶白悬浮背景 */
-    --rail-app-bg-active: rgba(37, 99, 235, 0.10);      /* 清爽微蓝激活底色 */
-    --rail-icon-color: #2563eb;         /* 图标清晰易辨科技钴蓝 */
+    --rail-text-app-active: #1d4ed8;
+    --rail-app-bg-hover: rgba(241, 245, 249, 0.95);
+    --rail-app-bg-active: rgba(37, 99, 235, 0.12);
+    --rail-expanded-bg: rgba(241, 245, 249, 0.92);
+    --rail-expanded-text: #0f172a;
+    --rail-expanded-icon: #2563eb;
+    --rail-icon-color: #2563eb;
     --rail-icon-active: #2563eb;
     --rail-indicator: #2563eb;
-    --rail-indicator-glow: 0 0 10px rgba(37, 99, 235, 0.4);
-    --rail-arrow-color: #94a3b8;
-    --rail-tree-line: rgba(203, 213, 225, 0.85);         /* 细腻雅灰引导发丝线 */
-    --rail-footer-bg: rgba(255, 255, 255, 0.60);
-    --rail-footer-border: rgba(226, 232, 240, 0.7);
+    --rail-indicator-glow: 0 0 8px rgba(37, 99, 235, 0.35);
+    --rail-arrow-color: #64748b;
+    --rail-tree-line: rgba(203, 213, 225, 0.90);
+    --rail-footer-bg: rgba(248, 250, 252, 0.94);
+    --rail-footer-border: #e2e8f0;
     --rail-btn-text: #1e293b;
-    --rail-btn-border: rgba(203, 213, 225, 0.8);
+    --rail-btn-border: #cbd5e1;
 
-    backdrop-filter: blur(32px) saturate(210%) contrast(106%);
-    -webkit-backdrop-filter: blur(32px) saturate(210%) contrast(106%);
-    border: 1px solid rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(24px) saturate(160%);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
+    border: 1px solid rgba(226, 232, 240, 0.96);
     box-shadow:
-      inset 0 1.5px 2px 0 rgba(255, 255, 255, 1),
-      0 20px 40px -10px rgba(15, 23, 42, 0.08);
+      inset 0 1px 0 rgba(255, 255, 255, 1),
+      0 14px 34px -10px rgba(15, 23, 42, 0.08);
   }
 }
 
@@ -2094,21 +2098,21 @@ onMounted(() => {
 
     &.is-expanded,
     &.is-active {
-      background: rgba(241, 245, 249, 0.70);
-      color: #0f172a;
+      background: var(--rail-expanded-bg);
+      color: var(--rail-expanded-text);
       font-weight: 650;
 
       .console-shell__rail-icon {
-        color: #2563eb;
+        color: var(--rail-expanded-icon);
       }
 
       .console-shell__rail-title {
-        color: #0f172a;
+        color: var(--rail-expanded-text);
         font-weight: 650;
       }
 
       .console-shell__rail-arrow {
-        color: #2563eb;
+        color: var(--rail-expanded-icon);
       }
 
       &::before {
@@ -2474,14 +2478,14 @@ onMounted(() => {
   justify-content: space-between;
   gap: 10px;
   padding: 0 14px;
-  border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  background: rgba(255, 255, 255, 0.58);
+  border-radius: 18px;
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: var(--sb-glass-blur);
   -webkit-backdrop-filter: var(--sb-glass-blur);
   box-shadow:
-    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
-    0 10px 25px -5px rgba(15, 23, 42, 0.04);
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    0 6px 20px -6px rgba(15, 23, 42, 0.06);
 }
 
 .console-shell__rail-toggle-pill {
@@ -2574,10 +2578,11 @@ onMounted(() => {
 .console-shell__breadcrumb-bar {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  max-width: 100%;
+  flex: 1 1 auto;
+  gap: 7px;
+  min-width: 0;
   overflow: hidden;
-  font-size: 14px;
+  font-size: 13.5px;
   white-space: nowrap;
 
   .console-shell__breadcrumb-app {
@@ -2589,15 +2594,15 @@ onMounted(() => {
   .console-shell__breadcrumb-sep {
     flex-shrink: 0;
     color: #94a3b8;
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .console-shell__breadcrumb-page {
     min-width: 0;
     overflow: hidden;
-    color: #090d16;
+    color: #0f172a;
     font-weight: 700;
-    font-size: 14.5px;
+    font-size: 14px;
     text-overflow: ellipsis;
   }
 }
@@ -2627,13 +2632,29 @@ onMounted(() => {
 .console-shell__top-domains {
   display: flex;
   align-items: center;
+  flex: 1 1 auto;
   gap: 6px;
-  margin: 0 16px;
+  margin: 0 8px;
   overflow-x: auto;
   min-width: 0;
 
   &::-webkit-scrollbar {
     display: none;
+  }
+}
+
+.layout--mix .console-shell__breadcrumb-bar {
+  flex: 0 1 190px;
+  max-width: 190px;
+}
+
+@media (max-width: 1540px) {
+  .console-shell__sla-pill {
+    padding: 0 8px;
+
+    .sla-text {
+      display: none;
+    }
   }
 }
 
@@ -2865,7 +2886,7 @@ onMounted(() => {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 
 .console-shell__topbar-actions :deep(.el-select) {
@@ -2874,16 +2895,13 @@ onMounted(() => {
 }
 
 .console-shell__context-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
+  display: none;
 }
 
 .console-shell__quick-jump {
-  flex: 0 1 175px;
-  width: min(175px, 16vw);
-  min-width: 110px;
+  flex: 0 1 146px;
+  width: min(146px, 12vw);
+  min-width: 96px;
 }
 
 .console-shell__quick-jump :deep(.el-autocomplete) {
@@ -3111,23 +3129,21 @@ onMounted(() => {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 3px 12px 3px 6px;
+  gap: 8px;
+  padding: 3px 11px 3px 5px;
   white-space: nowrap;
-  border: 1px solid rgba(226, 232, 240, 0.85);
+  border: 1px solid #cbd5e1;
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.65);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.95), 0 2px 8px rgba(15, 23, 42, 0.03);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
   color: var(--sb-text-primary);
   text-align: left;
   transition: all 160ms cubic-bezier(0.16, 1, 0.3, 1);
 
   &:hover {
-    background: rgba(255, 255, 255, 0.95);
-    border-color: rgba(203, 213, 225, 0.95);
-    box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 1), 0 4px 12px rgba(15, 23, 42, 0.06);
+    background: #ffffff;
+    border-color: #94a3b8;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.07);
     transform: translateY(-0.5px);
   }
 }

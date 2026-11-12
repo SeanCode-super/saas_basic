@@ -40,12 +40,20 @@
   --sb-info-weak: rgba(71, 85, 105, 0.08);
   --sb-info-border: rgba(71, 85, 105, 0.22);
 
-  /* 文字对比标尺 (Slate Obsidian Contrast Scale) */
-  --sb-text-primary: #090d16;    /* 核心大标题与关键数值，深邃沉稳 */
-  --sb-text-secondary: #1e293b;  /* 主正文字符，清晰易读 */
-  --sb-text-tertiary: #475569;   /* 次要辅助信息与表头 */
-  --sb-text-muted: #64748b;      /* 占位符、修饰词与不可操作元素 */
+  /* 文字对比标尺 (Slate Obsidian Contrast Scale — High Readability >= 6:1) */
+  --sb-text-primary: #0f172a;    /* 核心大标题与关键数值，深邃锐利 */
+  --sb-text-secondary: #1e293b;  /* 主正文字符，舒适清晰 */
+  --sb-text-tertiary: #334155;   /* 次要辅助信息、标签与表头 */
+  --sb-text-muted: #475569;      /* 备注描述、元信息与占位辅助文字 (Slate-600 保障轻松可读) */
   --sb-text-disabled: #94a3b8;
+
+  /* 统一应用级语义变量 (供自定义视图复用) */
+  --app-text-primary: #0f172a;
+  --app-text-secondary: #334155;
+  --app-text-muted: #475569;
+  --app-surface-card: rgba(255, 255, 255, 0.92);
+  --app-surface-subtle: rgba(248, 250, 252, 0.94);
+  --app-border-soft: rgba(203, 213, 225, 0.78);
 
   /* 精密发丝微边框 (Hairline Structural Borders) */
   --sb-border-color: #cbd5e1;    /* 标准结构微边框 (Slate-300) */
@@ -53,17 +61,17 @@
   --sb-border-strong: #94a3b8;   /* 悬浮/聚焦外沿增强线 */
 
   /* ==========================================================================
-     iOS 27 / visionOS 晶透液态玻璃系统 (Liquid Aether Glass Tokens)
+     iOS 27 / visionOS 高清晰柔雾玻璃系统 (High-Legibility Frosted Glass Tokens)
      ========================================================================== */
-  --sb-glass-blur: blur(28px) saturate(200%) contrast(102%);
-  --sb-glass-blur-sm: blur(18px) saturate(180%) contrast(102%);
-  --sb-glass-blur-lg: blur(40px) saturate(220%) contrast(103%);
+  --sb-glass-blur: blur(22px) saturate(165%) contrast(101%);
+  --sb-glass-blur-sm: blur(14px) saturate(150%);
+  --sb-glass-blur-lg: blur(30px) saturate(180%);
 
-  /* 晶透表面材质（高透液态折射） */
-  --sb-glass-bg: rgba(255, 255, 255, 0.62);
-  --sb-glass-bg-hover: rgba(255, 255, 255, 0.78);
-  --sb-glass-bg-active: rgba(255, 255, 255, 0.90);
-  --sb-glass-bg-soft: rgba(255, 255, 255, 0.45);
+  /* 晶透表面材质（高对比清透柔白，彻底杜绝深色底图透色刺眼） */
+  --sb-glass-bg: rgba(255, 255, 255, 0.90);
+  --sb-glass-bg-hover: rgba(255, 255, 255, 0.96);
+  --sb-glass-bg-active: #ffffff;
+  --sb-glass-bg-soft: rgba(248, 250, 252, 0.88);
 
   /* 暗夜极光毛玻璃 */
   --sb-glass-dark-bg: rgba(15, 23, 42, 0.72);
@@ -90,25 +98,25 @@
   --sb-radius-glass-sm: 12px;
   --sb-radius-glass-pill: 9999px;
 
-  /* 底座画布与表面层级 (Titanium Slate Ground & Liquid Glass) */
+  /* 底座画布与表面层级 (Crisp Luminous Mist & Elevated Frosted Surfaces) */
   --sb-page-shell: transparent;
   --sb-page-shell-strong: #e2e8f0;
-  --sb-surface-color: rgba(255, 255, 255, 0.75);
-  --sb-surface-strong: rgba(255, 255, 255, 0.85);
-  --sb-surface-soft: rgba(248, 250, 252, 0.60);
+  --sb-surface-color: rgba(255, 255, 255, 0.92);
+  --sb-surface-strong: rgba(255, 255, 255, 0.96);
+  --sb-surface-soft: rgba(248, 250, 252, 0.90);
   --sb-surface-contrast: #f1f5f9;
 
   /* 导航导轨专用 (Console Rail - Glassmorphism Ready) */
-  --sb-shell-rail: rgba(15, 23, 42, 0.75);
-  --sb-shell-rail-soft: rgba(11, 17, 32, 0.8);
+  --sb-shell-rail: rgba(15, 23, 42, 0.84);
+  --sb-shell-rail-soft: rgba(11, 17, 32, 0.88);
   --sb-shell-rail-border: rgba(255, 255, 255, 0.12);
   --sb-shell-rail-text: #f8fafc;
   --sb-shell-rail-muted: #94a3b8;
-  --sb-shell-rail-hover: rgba(255, 255, 255, 0.08);
-  --sb-shell-rail-active: rgba(37, 99, 235, 0.28);
+  --sb-shell-rail-hover: rgba(255, 255, 255, 0.10);
+  --sb-shell-rail-active: rgba(37, 99, 235, 0.30);
   --sb-shell-rail-indicator: #38bdf8;
-  --sb-shell-main: transparent;
-  --sb-panel-muted: rgba(248, 250, 252, 0.7);
+  --sb-shell-main: linear-gradient(135deg, rgba(240, 245, 253, 0.72) 0%, rgba(248, 250, 252, 0.64) 55%, rgba(241, 245, 251, 0.74) 100%);
+  --sb-panel-muted: rgba(248, 250, 252, 0.90);
 
   /* 严谨工程微阴影 (触点微投影，拒绝大面积糊状阴影) */
   --sb-shadow-xs: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
@@ -138,10 +146,10 @@
   --el-color-danger: #dc2626;
   --el-color-info: #475569;
 
-  --el-text-color-primary: #090d16;
+  --el-text-color-primary: #0f172a;
   --el-text-color-regular: #1e293b;
   --el-text-color-secondary: #475569;
-  --el-text-color-placeholder: #94a3b8;
+  --el-text-color-placeholder: #64748b;
   --el-text-color-disabled: #94a3b8;
 
   --el-border-color: #cbd5e1;
@@ -152,29 +160,30 @@
   --el-border-color-darker: #64748b;
 
   --el-fill-color: #f1f5f9;
-  --el-fill-color-light: rgba(248, 250, 252, 0.50);
-  --el-fill-color-lighter: rgba(255, 255, 255, 0.70);
-  --el-fill-color-extra-light: rgba(250, 250, 250, 0.40);
-  --el-fill-color-dark: rgba(226, 232, 240, 0.60);
-  --el-fill-color-darker: rgba(203, 213, 225, 0.60);
-  --el-fill-color-blank: rgba(255, 255, 255, 0.55);
+  --el-fill-color-light: rgba(248, 250, 252, 0.90);
+  --el-fill-color-lighter: rgba(255, 255, 255, 0.94);
+  --el-fill-color-extra-light: rgba(248, 250, 252, 0.85);
+  --el-fill-color-dark: rgba(226, 232, 240, 0.85);
+  --el-fill-color-darker: rgba(203, 213, 225, 0.80);
+  --el-fill-color-blank: rgba(255, 255, 255, 0.94);
 
-  --el-bg-color: rgba(255, 255, 255, 0.62);
+  --el-bg-color: rgba(255, 255, 255, 0.94);
   --el-bg-color-page: transparent;
-  --el-bg-color-overlay: rgba(255, 255, 255, 0.82);
+  --el-bg-color-overlay: rgba(255, 255, 255, 0.97);
 
-  /* 表格系统深度调优 (iOS 27 Liquid Frosted Glass) */
-  --el-table-bg-color: transparent;
-  --el-table-tr-bg-color: transparent;
-  --el-table-header-bg-color: rgba(248, 250, 252, 0.55);
-  --el-table-header-text-color: #090d16;
+  /* 表格系统深度调优 (High-Clarity Frosted Data Grid) */
+  --el-table-bg-color: rgba(255, 255, 255, 0.94);
+  --el-table-tr-bg-color: rgba(255, 255, 255, 0.96);
+  --el-table-header-bg-color: rgba(248, 250, 252, 0.98);
+  --el-table-header-text-color: #0f172a;
   --el-table-text-color: #1e293b;
-  --el-table-border-color: rgba(226, 232, 240, 0.6);
-  --el-table-row-hover-bg-color: rgba(239, 246, 255, 0.65);
-  --el-table-current-row-bg-color: rgba(239, 246, 255, 0.75);
+  --el-table-border-color: #e2e8f0;
+  --el-table-row-hover-bg-color: rgba(239, 246, 255, 0.98);
+  --el-table-current-row-bg-color: rgba(219, 234, 254, 0.95);
 }
 
 html.dark {
+  --sb-shell-main: transparent;
   --sb-text-primary: #f8fafc;
   --sb-text-secondary: #e2e8f0;
   --sb-text-tertiary: #cbd5e1;

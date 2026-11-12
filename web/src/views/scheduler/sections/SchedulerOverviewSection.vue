@@ -263,7 +263,7 @@ function navigateTo(path: string) {
     }
 
     .kpi-label {
-      color: #64748b;
+      color: #475569;
       font-size: 12px;
     }
 
@@ -273,7 +273,7 @@ function navigateTo(path: string) {
     }
 
     .kpi-desc {
-      color: #94a3b8;
+      color: #475569;
       font-size: 11px;
     }
   }
@@ -317,7 +317,7 @@ function navigateTo(path: string) {
   gap: 16px;
 
   .panel-title { margin: 0 0 4px; font-size: 16px; font-weight: 700; color: #0f172a; }
-  .panel-subtitle { margin: 0; font-size: 12px; color: #64748b; }
+  .panel-subtitle { margin: 0; font-size: 12px; color: #475569; }
   .panel-actions { display: flex; gap: 8px; }
 }
 
@@ -361,7 +361,7 @@ function navigateTo(path: string) {
         gap: 2px;
 
         .node-name { font-size: 13px; font-weight: 600; color: #1e293b; }
-        .node-role { font-size: 11px; color: #64748b; }
+        .node-role { font-size: 11px; color: #475569; }
       }
     }
   }
@@ -387,7 +387,7 @@ function navigateTo(path: string) {
     }
 
     strong { font-size: 13px; color: #0f172a; display: block; margin-bottom: 4px; }
-    p { margin: 0; font-size: 11px; color: #64748b; line-height: 1.4; }
+    p { margin: 0; font-size: 11px; color: #475569; line-height: 1.4; }
   }
 }
 

@@ -325,7 +325,7 @@ function handleSaveRule() {
     }
 
     .telemetry-label {
-      color: #64748b;
+      color: #475569;
       font-size: 12px;
     }
 
@@ -373,7 +373,7 @@ function handleSaveRule() {
   .panel-subtitle {
     margin: 0;
     font-size: 12px;
-    color: #64748b;
+    color: #475569;
   }
 }
 

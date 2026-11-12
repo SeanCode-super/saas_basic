@@ -271,26 +271,26 @@ async function handleStockIn(order: ErpPurchaseOrderRow) {
           </div>
 
           <el-table :data="paginatedInventory" stripe border style="width: 100%;">
-            <el-table-column prop="productCode" label="物料编码" width="150" />
-            <el-table-column prop="productName" label="物料全称" min-width="180">
+            <el-table-column prop="productCode" label="物料编码" width="128" />
+            <el-table-column prop="productName" label="物料全称" min-width="170">
               <template #default="{ row }">
                 <strong>{{ row.productName }}</strong>
                 <div class="text-muted">{{ row.specification }}</div>
               </template>
             </el-table-column>
-            <el-table-column prop="warehouseName" label="所属仓库" width="180" />
-            <el-table-column prop="stockQuantity" label="当前总在库" width="110" align="center">
+            <el-table-column prop="warehouseName" label="所属仓库" width="148" show-overflow-tooltip />
+            <el-table-column prop="stockQuantity" label="当前总在库" width="100" align="center">
               <template #default="{ row }">
                 <span class="stock-badge">{{ row.stockQuantity }} {{ row.unit }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="lockedQuantity" label="锁定库存" width="100" align="center" />
-            <el-table-column prop="availableQuantity" label="可用库存" width="110" align="center">
+            <el-table-column prop="lockedQuantity" label="锁定库存" width="88" align="center" />
+            <el-table-column prop="availableQuantity" label="可用库存" width="92" align="center">
               <template #default="{ row }">
                 <strong class="text-success">{{ row.availableQuantity }}</strong>
               </template>
             </el-table-column>
-            <el-table-column label="库存健康度" width="130" align="center">
+            <el-table-column label="库存健康度" width="120" align="center">
               <template #default="{ row }">
                 <el-tag v-if="row.isLowStock" type="danger" size="small" :icon="WarningFilled">
                   低于预警线 ({{ row.minStock }})
@@ -298,7 +298,7 @@ async function handleStockIn(order: ErpPurchaseOrderRow) {
                 <el-tag v-else type="success" size="small" :icon="CircleCheck">充足</el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="totalValue" label="库存估值" width="130" align="right">
+            <el-table-column prop="totalValue" label="库存估值" width="115" align="right">
               <template #default="{ row }">
                 ¥ {{ (row.totalValue || 0).toLocaleString() }}
               </template>

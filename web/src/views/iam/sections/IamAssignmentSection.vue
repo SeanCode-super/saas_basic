@@ -978,7 +978,7 @@ onMounted(() => {
 
       .arrow-icon {
         font-size: 12px;
-        color: #94a3b8;
+        color: #475569;
       }
     }
   }
@@ -1155,7 +1155,7 @@ onMounted(() => {
 
     .role-grid-card {
       border: 1px solid rgba(255, 255, 255, 0.85);
-      background: rgba(255, 255, 255, 0.58);
+      background: rgba(255, 255, 255, 0.90);
       backdrop-filter: blur(24px) saturate(200%);
       -webkit-backdrop-filter: blur(24px) saturate(200%);
       border-radius: var(--sb-radius-glass-sm, 14px);
@@ -1221,7 +1221,7 @@ onMounted(() => {
         }
 
         .role-type-badge {
-          color: #64748b;
+          color: #475569;
           font-size: 11px;
         }
       }

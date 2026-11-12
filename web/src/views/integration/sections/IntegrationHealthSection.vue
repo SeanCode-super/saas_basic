@@ -164,7 +164,7 @@ function handleExportHealthDossier() {
   gap: 16px;
 
   .panel-title { margin: 0 0 4px; font-size: 16px; font-weight: 700; color: #0f172a; }
-  .panel-subtitle { margin: 0; font-size: 12px; color: #64748b; }
+  .panel-subtitle { margin: 0; font-size: 12px; color: #475569; }
 }
 
 .endpoint-code {
