@@ -39,6 +39,15 @@ public final class Nl2SqlSecurityValidator {
             "\\b(?:[a-zA-Z0-9_]+\\.)?tenant_id\\s*=\\s*(\\d+)\\b",
             Pattern.CASE_INSENSITIVE
     );
+    private static final Set<String> OWNER_SCOPED_TABLES = Set.of("crm_customer", "crm_clue", "crm_business");
+    private static final Pattern OWNER_TABLE_REWRITE = Pattern.compile(
+            "\\b(FROM|JOIN)\\s+`?(crm_customer|crm_clue|crm_business)`?(?=(\\s+(?:WHERE|GROUP|ORDER|LIMIT|HAVING|JOIN|LEFT|RIGHT|INNER|CROSS|ON)\\b|\\s*$))",
+            Pattern.CASE_INSENSITIVE
+    );
+    private static final Pattern OWNER_ALIASED_REWRITE = Pattern.compile(
+            "\\b(FROM|JOIN)\\s+`?(crm_customer|crm_clue|crm_business)`?\\s+(?!(?:WHERE|GROUP|ORDER|LIMIT|HAVING|JOIN|LEFT|RIGHT|INNER|CROSS|ON)\\b)([a-zA-Z][a-zA-Z0-9_]*)\\b",
+            Pattern.CASE_INSENSITIVE
+    );
 
     public record ValidatedSql(
             String sanitizedSql,
@@ -126,5 +135,34 @@ public final class Nl2SqlSecurityValidator {
         }
 
         return new ValidatedSql(normalizedSql, new ArrayList<>(referencedTables), limitValue);
+    }
+
+    /**
+     * Wraps owner_user_id-scoped CRM tables with a derived tenant + owner filter subquery so non-admin
+     * users cannot read peer owners' records across ANY aggregate, join, or projection.
+     */
+    public static String applyOwnerScopePredicate(String sanitizedSql, long requiredTenantId, Set<Long> ownerUserIds) {
+        if (sanitizedSql == null || sanitizedSql.isBlank() || ownerUserIds == null || ownerUserIds.isEmpty()) {
+            return sanitizedSql;
+        }
+        String rawIds = ownerUserIds.stream()
+                .filter(id -> id != null && id > 0)
+                .map(String::valueOf)
+                .sorted()
+                .collect(java.util.stream.Collectors.joining(","));
+        final String idsCsv = rawIds.isEmpty() ? "-1" : rawIds;
+        String out = OWNER_TABLE_REWRITE.matcher(sanitizedSql).replaceAll(m ->
+                m.group(1) + " (SELECT * FROM `" + m.group(2).toLowerCase(Locale.ROOT)
+                        + "` WHERE tenant_id = " + requiredTenantId + " AND deleted = 0 AND owner_user_id IN ("
+                        + idsCsv + ")) " + m.group(2).toLowerCase(Locale.ROOT));
+        out = OWNER_ALIASED_REWRITE.matcher(out).replaceAll(m ->
+                m.group(1) + " (SELECT * FROM `" + m.group(2).toLowerCase(Locale.ROOT)
+                        + "` WHERE tenant_id = " + requiredTenantId + " AND deleted = 0 AND owner_user_id IN ("
+                        + idsCsv + ")) " + m.group(3));
+        return out;
+    }
+
+    public static boolean containsOwnerScopedTable(List<String> tables) {
+        return tables != null && tables.stream().anyMatch(OWNER_SCOPED_TABLES::contains);
     }
 }

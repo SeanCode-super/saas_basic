@@ -43,4 +43,15 @@ class Nl2SqlSecurityValidatorTest {
                 Nl2SqlSecurityValidator.validateAndNormalize(
                         "SELECT * FROM crm_customer WHERE tenant_id = 1 /* comment */", ALLOWED, 1L));
     }
+
+    @Test
+    void injectsRowLevelOwnerScopeForNonAdminQueries() {
+        String raw = "SELECT name, level FROM crm_customer WHERE tenant_id = 1 AND deleted = 0 LIMIT 20";
+        Nl2SqlSecurityValidator.ValidatedSql res = Nl2SqlSecurityValidator.validateAndNormalize(raw, ALLOWED, 1L);
+        assertTrue(Nl2SqlSecurityValidator.containsOwnerScopedTable(res.referencedTables()));
+
+        String scoped = Nl2SqlSecurityValidator.applyOwnerScopePredicate(res.sanitizedSql(), 1L, Set.of(42L));
+        assertTrue(scoped.contains("owner_user_id IN (42)"));
+        assertTrue(scoped.contains("FROM (SELECT * FROM `crm_customer` WHERE tenant_id = 1 AND deleted = 0 AND owner_user_id IN (42)) crm_customer"));
+    }
 }

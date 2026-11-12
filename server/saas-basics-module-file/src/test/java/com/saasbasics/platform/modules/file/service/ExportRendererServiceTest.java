@@ -74,4 +74,21 @@ class ExportRendererServiceTest {
         assertTrue(htmlText.contains("合同总金额达 272000 元"));
         assertTrue(htmlText.contains("139****7788"));
     }
+
+    @Test
+    void rendersBinaryPdf14Document() throws Exception {
+        ExportRendererService.RenderOutput pdf = renderer.render(
+                "客户财务分析PDF报告", "PDF", sampleColumns(), sampleRows(),
+                List.of("前两大客户贡献总合同额 272000 元"), true, true,
+                "admin · EXP-PDF-01", "EXP-PDF-01", "admin", 1L);
+
+        assertEquals("pdf", pdf.fileExtension());
+        assertEquals("application/pdf", pdf.contentType());
+        assertTrue(pdf.bytes().length > 1000);
+        String head = new String(pdf.bytes(), 0, Math.min(16, pdf.bytes().length), StandardCharsets.ISO_8859_1);
+        String tail = new String(pdf.bytes(), Math.max(0, pdf.bytes().length - 16),
+                Math.min(16, pdf.bytes().length), StandardCharsets.ISO_8859_1);
+        assertTrue(head.startsWith("%PDF-1.4"));
+        assertTrue(tail.contains("%%EOF"));
+    }
 }

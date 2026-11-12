@@ -17,8 +17,10 @@ import com.saasbasics.platform.modules.file.dto.ExportDtos.ExportTemplateDTO;
 import com.saasbasics.platform.modules.file.dto.ExportDtos.ExportTemplateSaveRequest;
 import com.saasbasics.platform.modules.file.entity.ExportTaskEntity;
 import com.saasbasics.platform.modules.file.entity.ExportTemplateEntity;
+import com.saasbasics.platform.modules.file.entity.ReportScheduleEntity;
 import com.saasbasics.platform.modules.file.mapper.ExportTaskMapper;
 import com.saasbasics.platform.modules.file.mapper.ExportTemplateMapper;
+import com.saasbasics.platform.modules.file.mapper.ReportScheduleMapper;
 import com.saasbasics.platform.modules.file.service.ExportRendererService.RenderOutput;
 import com.saasbasics.platform.modules.file.storage.FileClient;
 import com.saasbasics.platform.modules.file.storage.FileClientFactory;
@@ -41,6 +43,8 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * Enterprise Export Queue, Sync Streaming, Security Trace Watermarking, and Download Center Service.
@@ -60,6 +64,7 @@ public class EnterpriseExportService {
     private final FileClientFactory fileClientFactory;
     private final ObjectProvider<ExportTaskMapper> taskMapperProvider;
     private final ObjectProvider<ExportTemplateMapper> templateMapperProvider;
+    private final ObjectProvider<ReportScheduleMapper> scheduleMapperProvider;
     private final ObjectProvider<AuditRecorder> auditRecorderProvider;
     private final ObjectProvider<PlatformWebSocketSessionManager> wsManagerProvider;
     private final JdbcTemplate jdbcTemplate;
@@ -71,6 +76,7 @@ public class EnterpriseExportService {
             FileClientFactory fileClientFactory,
             ObjectProvider<ExportTaskMapper> taskMapperProvider,
             ObjectProvider<ExportTemplateMapper> templateMapperProvider,
+            ObjectProvider<ReportScheduleMapper> scheduleMapperProvider,
             ObjectProvider<AuditRecorder> auditRecorderProvider,
             ObjectProvider<PlatformWebSocketSessionManager> wsManagerProvider,
             JdbcTemplate jdbcTemplate,
@@ -81,6 +87,7 @@ public class EnterpriseExportService {
         this.fileClientFactory = fileClientFactory;
         this.taskMapperProvider = taskMapperProvider;
         this.templateMapperProvider = templateMapperProvider;
+        this.scheduleMapperProvider = scheduleMapperProvider;
         this.auditRecorderProvider = auditRecorderProvider;
         this.wsManagerProvider = wsManagerProvider;
         this.jdbcTemplate = jdbcTemplate;
@@ -147,17 +154,46 @@ public class EnterpriseExportService {
     }
 
     public ExportTaskDTO submitAsyncExport(ExportCreateRequest request) {
+        AuthPrincipal principal = AuthContext.get();
+        Long tenantId = currentTenantId();
+        String tenantCode = principal != null && principal.tenantCode() != null ? principal.tenantCode() : "platform";
+        Long userId = currentUserId();
+        String operatorName = currentUsername(principal);
+        boolean isAdmin = isAdminUser(principal);
+        return submitAsyncInternal(tenantId, tenantCode, userId, operatorName, isAdmin, request, null);
+    }
+
+    public ExportTaskDTO submitScheduledDatasetExport(
+            Long tenantId,
+            String tenantCode,
+            Long userId,
+            String operatorName,
+            ExportCreateRequest request,
+            List<Long> notifyUserIds
+    ) {
+        return submitAsyncInternal(tenantId, tenantCode, userId, operatorName, true, request, notifyUserIds);
+    }
+
+    private ExportTaskDTO submitAsyncInternal(
+            Long tenantId,
+            String tenantCode,
+            Long userId,
+            String operatorName,
+            boolean isAdmin,
+            ExportCreateRequest request,
+            List<Long> notifyUserIds
+    ) {
         ExportTaskMapper mapper = taskMapperProvider.getIfAvailable();
         if (mapper == null) {
             throw new BizException("EXPORT_UNAVAILABLE", "导出持久化服务不可用");
         }
-        AuthPrincipal principal = AuthContext.get();
-        Long tenantId = currentTenantId();
-        Long userId = currentUserId();
-        String operatorName = currentUsername(principal);
         String format = normalizeFormat(request.exportFormat());
         boolean includeWatermark = request.includeWatermark() == null || request.includeWatermark();
         boolean desensitize = request.desensitizeEnabled() == null || request.desensitizeEnabled();
+
+        long estimatedRows = estimateRows(tenantId, request);
+        boolean highRiskApproval = Boolean.TRUE.equals(request.requireApproval())
+                || (!isAdmin && (!desensitize || estimatedRows > 10_000L));
 
         String traceCode = generateTraceCode();
         String taskNo = "EXP-" + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 4).toUpperCase(Locale.ROOT);
@@ -176,11 +212,17 @@ public class EnterpriseExportService {
         entity.setWatermarkText(includeWatermark ? watermarkText : "");
         entity.setTraceCode(traceCode);
         entity.setDesensitized(desensitize ? 1 : 0);
-        entity.setTotalRows(0L);
+        entity.setTotalRows(estimatedRows);
         entity.setProcessedRows(0L);
-        entity.setProgressPercent(5);
+        entity.setProgressPercent(highRiskApproval ? 0 : 5);
         entity.setFileSize(0L);
-        entity.setStatus("PENDING");
+        entity.setStatus(highRiskApproval ? "PENDING_APPROVAL" : "PENDING");
+        entity.setApprovalStatus(highRiskApproval ? "PENDING" : "NOT_REQUIRED");
+        if (highRiskApproval) {
+            entity.setApproveReason(Boolean.TRUE.equals(request.requireApproval())
+                    ? "发起人提交高敏感导出审批复核"
+                    : (!desensitize ? "关闭敏感字段脱敏导出明文" : "导出行数超过 10,000 行安全阈值"));
+        }
         entity.setExpireAt(LocalDateTime.now().plusDays(7));
         entity.setOperatorUserId(userId);
         entity.setOperatorName(operatorName);
@@ -191,21 +233,121 @@ public class EnterpriseExportService {
         entity.setDeleted(0);
         mapper.insert(entity);
 
-        Long taskId = entity.getId();
-        String tenantCode = principal != null && principal.tenantCode() != null ? principal.tenantCode() : "platform";
+        if (highRiskApproval) {
+            recordExportAudit(request, title, format, estimatedRows, traceCode, true);
+            return toTaskDto(entity);
+        }
 
-        exportWorkers.submit(() -> runAsyncExportJob(
+        Long taskId = entity.getId();
+        submitAfterCommit(() -> runAsyncExportJob(
                 taskId, tenantId, tenantCode, userId, operatorName, request, title,
-                format, desensitize, includeWatermark, watermarkText, traceCode
+                format, desensitize, includeWatermark, watermarkText, traceCode, notifyUserIds
         ));
 
         return toTaskDto(entity);
     }
 
+    @Transactional
+    public ExportTaskDTO approveExportTask(Long id, String reason) {
+        AuthPrincipal principal = AuthContext.get();
+        if (!isAdminUser(principal)) {
+            throw new BizException("EXPORT_APPROVAL_FORBIDDEN", "仅管理员可审批高危数据导出任务");
+        }
+        ExportTaskMapper mapper = taskMapperProvider.getIfAvailable();
+        if (mapper == null) {
+            throw new BizException("EXPORT_UNAVAILABLE", "导出服务不可用");
+        }
+        Long tenantId = currentTenantId();
+        ExportTaskEntity task = mapper.selectOne(new LambdaQueryWrapper<ExportTaskEntity>()
+                .eq(ExportTaskEntity::getId, id)
+                .eq(ExportTaskEntity::getTenantId, tenantId)
+                .eq(ExportTaskEntity::getDeleted, 0));
+        if (task == null) {
+            throw new BizException("EXPORT_TASK_NOT_FOUND", "导出任务不存在");
+        }
+        if (!"PENDING_APPROVAL".equals(task.getStatus())) {
+            throw new BizException("EXPORT_TASK_INVALID_STATE", "当前任务状态不支持审批: " + task.getStatus());
+        }
+
+        Long approverId = currentUserId();
+        String approverName = currentUsername(principal);
+        task.setApprovalStatus("APPROVED");
+        task.setApprovedBy(approverId);
+        task.setApprovedByName(approverName);
+        task.setApprovedAt(LocalDateTime.now());
+        task.setApproveReason(reason != null && !reason.isBlank() ? reason.trim() : "管理员审批通过，准予生成安全水印文件");
+        task.setStatus("PENDING");
+        task.setProgressPercent(15);
+        task.setUpdatedAt(LocalDateTime.now());
+        mapper.updateById(task);
+
+        ExportCreateRequest rebuilt = rebuildRequestFromTask(task);
+        String tenantCode = principal != null && principal.tenantCode() != null ? principal.tenantCode() : "platform";
+        boolean desensitize = task.getDesensitized() != null && task.getDesensitized() == 1;
+        boolean includeWatermark = task.getWatermarkText() != null && !task.getWatermarkText().isBlank();
+        Long ownerId = task.getOperatorUserId() != null ? task.getOperatorUserId() : approverId;
+        String ownerName = task.getOperatorName() != null ? task.getOperatorName() : approverName;
+
+        submitAfterCommit(() -> runAsyncExportJob(
+                task.getId(), tenantId, tenantCode, ownerId, ownerName, rebuilt,
+                task.getTaskName(), task.getExportFormat(), desensitize, includeWatermark,
+                task.getWatermarkText(), task.getTraceCode(), List.of(ownerId)
+        ));
+        return toTaskDto(task);
+    }
+
+    private void submitAfterCommit(Runnable job) {
+        if (TransactionSynchronizationManager.isActualTransactionActive()
+                && TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    exportWorkers.submit(job);
+                }
+            });
+        } else {
+            exportWorkers.submit(job);
+        }
+    }
+
+    @Transactional
+    public ExportTaskDTO rejectExportTask(Long id, String reason) {
+        AuthPrincipal principal = AuthContext.get();
+        if (!isAdminUser(principal)) {
+            throw new BizException("EXPORT_APPROVAL_FORBIDDEN", "仅管理员可驳回导出审批");
+        }
+        ExportTaskMapper mapper = taskMapperProvider.getIfAvailable();
+        if (mapper == null) {
+            throw new BizException("EXPORT_UNAVAILABLE", "导出服务不可用");
+        }
+        Long tenantId = currentTenantId();
+        ExportTaskEntity task = mapper.selectOne(new LambdaQueryWrapper<ExportTaskEntity>()
+                .eq(ExportTaskEntity::getId, id)
+                .eq(ExportTaskEntity::getTenantId, tenantId)
+                .eq(ExportTaskEntity::getDeleted, 0));
+        if (task == null) {
+            throw new BizException("EXPORT_TASK_NOT_FOUND", "导出任务不存在");
+        }
+        if (!"PENDING_APPROVAL".equals(task.getStatus())) {
+            throw new BizException("EXPORT_TASK_INVALID_STATE", "当前任务状态不支持驳回: " + task.getStatus());
+        }
+        String approverName = currentUsername(principal);
+        task.setApprovalStatus("REJECTED");
+        task.setApprovedBy(currentUserId());
+        task.setApprovedByName(approverName);
+        task.setApprovedAt(LocalDateTime.now());
+        task.setApproveReason(reason != null && !reason.isBlank() ? reason.trim() : "未通过数据安全合规审批");
+        task.setStatus("REJECTED");
+        task.setErrorMessage(task.getApproveReason());
+        task.setUpdatedAt(LocalDateTime.now());
+        mapper.updateById(task);
+        return toTaskDto(task);
+    }
+
     private void runAsyncExportJob(
             Long taskId, Long tenantId, String tenantCode, Long userId, String operatorName,
             ExportCreateRequest request, String title, String format, boolean desensitize,
-            boolean includeWatermark, String watermarkText, String traceCode
+            boolean includeWatermark, String watermarkText, String traceCode, List<Long> notifyUserIds
     ) {
         ExportTaskMapper mapper = taskMapperProvider.getIfAvailable();
         if (mapper == null) {
@@ -241,7 +383,10 @@ public class EnterpriseExportService {
             mapper.updateById(task);
 
             recordExportAudit(request, title, format, data.rowCount(), traceCode, true);
-            notifyUserExportCompleted(tenantId, userId, title, taskId, data.rowCount(), traceCode);
+            List<Long> recipients = notifyUserIds != null && !notifyUserIds.isEmpty() ? notifyUserIds : List.of(userId);
+            for (Long uid : recipients) {
+                notifyUserExportCompleted(tenantId, uid, title, taskId, data.rowCount(), traceCode);
+            }
         } catch (Exception ex) {
             log.error("[ExportWorker] Async export failed taskId={}", taskId, ex);
             try (var ignored = TenantAccessContextHolder.openTenant(tenantId, tenantCode, userId)) {
@@ -277,11 +422,23 @@ public class EnterpriseExportService {
     public ExportStatsDTO getStats() {
         List<ExportTaskDTO> tasks = listTasks();
         long completed = tasks.stream().filter(t -> "COMPLETED".equals(t.status())).count();
+        long pendingApprovals = tasks.stream().filter(t -> "PENDING_APPROVAL".equals(t.status())).count();
         long rowsSum = tasks.stream().mapToLong(ExportTaskDTO::totalRows).sum();
         long bytesSum = tasks.stream().mapToLong(ExportTaskDTO::fileSize).sum();
         long maskedCount = tasks.stream().filter(ExportTaskDTO::desensitized).count();
         long templatesCount = listTemplates(null).size();
-        return new ExportStatsDTO(tasks.size(), completed, rowsSum, bytesSum, maskedCount, templatesCount);
+        long schedulesCount = 0L;
+        ReportScheduleMapper schedMapper = scheduleMapperProvider.getIfAvailable();
+        if (schedMapper != null) {
+            try {
+                schedulesCount = schedMapper.selectCount(new LambdaQueryWrapper<ReportScheduleEntity>()
+                        .eq(ReportScheduleEntity::getTenantId, currentTenantId())
+                        .eq(ReportScheduleEntity::getDeleted, 0)
+                        .eq(ReportScheduleEntity::getStatus, "ENABLED"));
+            } catch (Exception ignored) {
+            }
+        }
+        return new ExportStatsDTO(tasks.size(), completed, pendingApprovals, rowsSum, bytesSum, maskedCount, templatesCount, schedulesCount);
     }
 
     public record DownloadedExportFile(byte[] bytes, String fileName, String contentType, String traceCode) {}
@@ -303,11 +460,13 @@ public class EnterpriseExportService {
         byte[] bytes = client.download(task.getObjectKey());
         String ext = switch (task.getExportFormat().toUpperCase(Locale.ROOT)) {
             case "CSV" -> "csv";
-            case "HTML_REPORT", "REPORT", "PDF" -> "html";
+            case "PDF" -> "pdf";
+            case "HTML_REPORT", "REPORT" -> "html";
             default -> "xlsx";
         };
         String contentType = switch (ext) {
             case "csv" -> "text/csv;charset=UTF-8";
+            case "pdf" -> "application/pdf";
             case "html" -> "text/html;charset=UTF-8";
             default -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
         };
@@ -495,6 +654,7 @@ public class EnterpriseExportService {
             entity.setObjectKey(objectKey);
             entity.setFileSha256(sha256);
             entity.setStatus(status);
+            entity.setApprovalStatus("NOT_REQUIRED");
             entity.setErrorMessage(errorMsg);
             entity.setExpireAt(LocalDateTime.now().plusDays(7));
             entity.setOperatorUserId(userId);
@@ -572,11 +732,66 @@ public class EnterpriseExportService {
                 e.getFileSize() != null ? e.getFileSize() : 0L,
                 e.getFileSha256(),
                 e.getStatus(),
+                e.getApprovalStatus() != null ? e.getApprovalStatus() : "NOT_REQUIRED",
+                e.getApprovedByName(),
+                e.getApprovedAt(),
+                e.getApproveReason(),
                 e.getErrorMessage(),
                 e.getExpireAt(),
                 e.getOperatorName(),
                 e.getCreatedAt()
         );
+    }
+
+    private long estimateRows(Long tenantId, ExportCreateRequest request) {
+        if ("AD_HOC".equalsIgnoreCase(request.sourceType())
+                || (request.adHocRows() != null && !request.adHocRows().isEmpty())) {
+            return request.adHocRows() != null ? request.adHocRows().size() : 0L;
+        }
+        try {
+            return datasetCatalogService.countRows(tenantId, request.sourceCode(), request.filters());
+        } catch (Exception ex) {
+            return 0L;
+        }
+    }
+
+    private ExportCreateRequest rebuildRequestFromTask(ExportTaskEntity task) {
+        List<String> fields = List.of();
+        Map<String, Object> filters = Map.of();
+        try {
+            if (task.getColumnsJson() != null && !task.getColumnsJson().isBlank()) {
+                fields = objectMapper.readValue(task.getColumnsJson(), new TypeReference<>() {});
+            }
+            if (task.getQueryParamsJson() != null && !task.getQueryParamsJson().isBlank()) {
+                filters = objectMapper.readValue(task.getQueryParamsJson(), new TypeReference<>() {});
+            }
+        } catch (Exception ignored) {
+        }
+        return new ExportCreateRequest(
+                task.getTaskName(),
+                task.getSourceType(),
+                task.getSourceCode(),
+                task.getExportFormat(),
+                fields,
+                filters,
+                null, null, null, null,
+                task.getWatermarkText() != null && !task.getWatermarkText().isBlank(),
+                task.getDesensitized() == null || task.getDesensitized() == 1,
+                true,
+                false
+        );
+    }
+
+    private static boolean isAdminUser(AuthPrincipal principal) {
+        if (principal == null) return false;
+        String userType = principal.userType();
+        if ("SUPER_ADMIN".equalsIgnoreCase(userType) || "TENANT_ADMIN".equalsIgnoreCase(userType)) {
+            return true;
+        }
+        if (principal.roleIds() != null && principal.roleIds().contains(1L)) {
+            return true;
+        }
+        return principal.permissions() != null && principal.permissions().contains("*");
     }
 
     private ExportTemplateDTO toTemplateDto(ExportTemplateEntity e) {
@@ -604,7 +819,7 @@ public class EnterpriseExportService {
         if (fmt == null || fmt.isBlank()) return "XLSX";
         String upper = fmt.trim().toUpperCase(Locale.ROOT);
         if (upper.equals("CSV") || upper.equals("HTML_REPORT") || upper.equals("REPORT") || upper.equals("PDF")) {
-            return upper.equals("REPORT") || upper.equals("PDF") ? "HTML_REPORT" : upper;
+            return upper.equals("REPORT") ? "HTML_REPORT" : upper;
         }
         return "XLSX";
     }

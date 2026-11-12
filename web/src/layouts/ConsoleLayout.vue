@@ -17,6 +17,7 @@ import {
   Cpu,
   DataBoard,
   Document,
+  Download,
   SwitchButton,
   User,
   Switch as SwitchIcon,
@@ -211,6 +212,10 @@ function openApiDocs() {
 
 function openServerMonitor() {
   router.push("/server-monitor");
+}
+
+function openDownloadCenter() {
+  router.push("/file/download-center");
 }
 
 function isAppExpanded(appId: number): boolean {
@@ -1268,6 +1273,13 @@ onMounted(() => {
           <el-tooltip content="Knife4j 在线接口文档" placement="bottom">
             <button class="console-shell__icon-btn" aria-label="接口文档" @click="openApiDocs">
               <el-icon class="console-shell__icon-svg"><Document /></el-icon>
+            </button>
+          </el-tooltip>
+
+          <!-- 数据导出与下载中心快捷按钮 -->
+          <el-tooltip content="数据导出与下载中心 (同步/异步导出文件及定时报表)" placement="bottom">
+            <button class="console-shell__icon-btn" aria-label="下载中心" @click="openDownloadCenter">
+              <el-icon class="console-shell__icon-svg"><Download /></el-icon>
             </button>
           </el-tooltip>
 

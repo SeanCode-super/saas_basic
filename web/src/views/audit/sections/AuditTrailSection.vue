@@ -16,6 +16,7 @@ import {
 } from "@element-plus/icons-vue";
 import { fetchLoginLogs, fetchOperationLogDiff, fetchOperationLogs } from "@/api/modules/audit";
 import type { LoginLog, OperationLog, OperationLogDiffResponse } from "@/api/modules/audit";
+import ExportDialog from "@/components/platform/ExportDialog.vue";
 
 defineProps<{
   auditPolicy: {
@@ -104,30 +105,12 @@ async function openDetail(row: Record<string, any>) {
   }
 }
 
+const auditExportVisible = ref(false);
+const auditExportMode = ref<"operations" | "logins">("operations");
+
 function exportCsv(type: "operations" | "logins") {
-  let content = "";
-  let filename = "";
-  if (type === "operations") {
-    content = "ID,发生时间,操作账号,业务模块,业务对象,动作代码,执行结果\n";
-    operationLogs.value.forEach((r) => {
-      content += `${r.id},"${r.occurredAt}","${r.operatorName}","${r.bizModule}","${r.bizType}:${r.bizId}","${r.operationType}","${r.success ? '成功' : '失败'}"\n`;
-    });
-    filename = `operation-audit-logs-${Date.now()}.csv`;
-  } else {
-    content = "ID,发生时间,登录账号,方式,客户端IP,状态,失败原因\n";
-    loginLogs.value.forEach((r) => {
-      content += `${r.id},"${r.occurredAt}","${r.username}","${r.loginType}","${r.loginIp}","${r.success ? '成功' : '失败'}","${r.failReason || '-'}"\n`;
-    });
-    filename = `login-audit-logs-${Date.now()}.csv`;
-  }
-  const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-  ElMessage.success("审计留痕数据已成功导出！");
+  auditExportMode.value = type;
+  auditExportVisible.value = true;
 }
 
 onMounted(() => {
@@ -168,7 +151,7 @@ onMounted(() => {
             <el-button :icon="Refresh" @click="opFilter.bizModule = ''; opFilter.operationType = ''; loadOperationLogs()">重置</el-button>
           </div>
           <div class="action-group">
-            <el-button :icon="Download" plain @click="exportCsv('operations')">导出 CSV 留痕</el-button>
+            <el-button :icon="Download" plain @click="exportCsv('operations')">安全导出 (Excel/PDF)</el-button>
             <el-button :icon="Refresh" :loading="loadingOperations" @click="loadOperationLogs">刷新</el-button>
           </div>
         </div>
@@ -242,7 +225,7 @@ onMounted(() => {
             <el-button :icon="Refresh" @click="loginFilter.username = ''; loginFilter.success = ''; loadLoginLogs()">重置</el-button>
           </div>
           <div class="action-group">
-            <el-button :icon="Download" plain @click="exportCsv('logins')">导出 CSV 留痕</el-button>
+            <el-button :icon="Download" plain @click="exportCsv('logins')">安全导出 (Excel/PDF)</el-button>
             <el-button :icon="Refresh" :loading="loadingLogins" @click="loadLoginLogs">刷新</el-button>
           </div>
         </div>
@@ -370,6 +353,13 @@ onMounted(() => {
         </div>
       </div>
     </el-drawer>
+
+    <ExportDialog
+      v-model:visible="auditExportVisible"
+      :source-code="auditExportMode === 'operations' ? 'audit_operation_log' : ''"
+      :default-title="auditExportMode === 'operations' ? '操作审计与风控轨迹日志' : '登录安全审计日志'"
+      :ad-hoc-rows="auditExportMode === 'logins' ? (loginLogs as unknown as Array<Record<string, unknown>>) : []"
+    />
   </div>
 </template>
 

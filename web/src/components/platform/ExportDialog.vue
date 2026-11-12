@@ -48,10 +48,11 @@ const datasets = ref<ExportDatasetInfo[]>([]);
 const templates = ref<ExportTemplateRow[]>([]);
 const selectedSourceCode = ref("");
 const taskName = ref("");
-const exportFormat = ref<"XLSX" | "CSV" | "HTML_REPORT">("XLSX");
+const exportFormat = ref<"XLSX" | "CSV" | "PDF" | "HTML_REPORT">("XLSX");
 const deliveryMode = ref<"sync" | "async">("sync");
 const includeWatermark = ref(true);
 const desensitizeEnabled = ref(true);
+const requireApproval = ref(false);
 const orderedFields = ref<ExportFieldSpec[]>([]);
 const checkedFieldCodes = ref<string[]>([]);
 const activeTemplateId = ref<number | null>(null);
@@ -109,7 +110,7 @@ function applyTemplate(tplId: number | null) {
   if (!tplId) return;
   const tpl = templates.value.find((t) => t.id === tplId);
   if (!tpl) return;
-  exportFormat.value = (tpl.defaultFormat as "XLSX" | "CSV" | "HTML_REPORT") || "XLSX";
+  exportFormat.value = (tpl.defaultFormat as "XLSX" | "CSV" | "PDF" | "HTML_REPORT") || "XLSX";
   includeWatermark.value = tpl.includeWatermark;
   desensitizeEnabled.value = tpl.desensitizeEnabled;
   const validSet = new Set(tpl.fields);
@@ -192,19 +193,23 @@ async function handleExecuteExport() {
       insights: props.insights,
       includeWatermark: includeWatermark.value,
       desensitizeEnabled: desensitizeEnabled.value,
-      async: deliveryMode.value === "async"
+      async: deliveryMode.value === "async" || requireApproval.value,
+      requireApproval: requireApproval.value
     };
 
-    if (deliveryMode.value === "sync") {
+    if (deliveryMode.value === "sync" && !requireApproval.value) {
       const res = await executeSyncExport(payload);
       ElMessage.success(`导出成功（追溯码 ${res.traceCode}）`);
       emit("exported", { mode: "sync", traceCode: res.traceCode });
       emit("update:visible", false);
     } else {
       const task = await submitAsyncExport(payload);
+      const isApproval = task.status === "PENDING_APPROVAL";
       ElMessage.success({
-        message: `异步导出任务已入队（${task.traceCode}），完成后将实时通知并存入下载中心`,
-        duration: 4000
+        message: isApproval
+          ? `高危/敏感导出任务已提交风控审批（${task.traceCode}），管理员在下载中心审批放行后自动生成`
+          : `异步导出任务已入队（${task.traceCode}），完成后将实时通知并存入下载中心`,
+        duration: 4500
       });
       emit("exported", { mode: "async", traceCode: task.traceCode });
       emit("update:visible", false);
@@ -287,7 +292,8 @@ watch(
           <el-radio-group v-model="exportFormat" size="default">
             <el-radio-button value="XLSX">Excel (.xlsx 流式防OOM)</el-radio-button>
             <el-radio-button value="CSV">CSV (UTF-8 BOM)</el-radio-button>
-            <el-radio-button value="HTML_REPORT">AI 智能分析报告 (A4打印)</el-radio-button>
+            <el-radio-button value="PDF">二进制 PDF 报告 (.pdf)</el-radio-button>
+            <el-radio-button value="HTML_REPORT">A4 智能分析报告 (.html)</el-radio-button>
           </el-radio-group>
         </div>
       </div>
@@ -296,6 +302,7 @@ watch(
         <div class="sec-toggles">
           <el-switch v-model="includeWatermark" active-text="注入溯源水印 (可见 + 隐写元数据)" />
           <el-switch v-model="desensitizeEnabled" active-text="敏感字段自动脱敏 (手机/邮箱/证件)" />
+          <el-checkbox v-model="requireApproval">提交管理员审批放行后生成</el-checkbox>
         </div>
         <div class="sec-mode">
           <span class="mode-label">执行方式：</span>

@@ -4,10 +4,12 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import {
   CircleCheck,
   DocumentAdd,
+  Download,
   Plus,
   RefreshRight,
   WarningFilled
 } from "@element-plus/icons-vue";
+import ExportDialog from "@/components/platform/ExportDialog.vue";
 import {
   createErpPurchaseOrder,
   deleteErpProduct,
@@ -27,6 +29,20 @@ import type {
 
 const activeTab = ref<"products" | "inventory" | "purchase" | "records">("inventory");
 const loading = ref(false);
+const erpExportVisible = ref(false);
+
+const erpExportSource = computed(() => {
+  if (activeTab.value === "products") return "erp_product";
+  if (activeTab.value === "purchase") return "erp_purchase_order";
+  return "erp_inventory";
+});
+
+const erpExportTitle = computed(() => {
+  if (activeTab.value === "products") return "ERP 商品物料档案导出";
+  if (activeTab.value === "purchase") return "ERP 采购订单履约台账导出";
+  if (activeTab.value === "records") return "ERP 出入库台账流水导出";
+  return "ERP 实时仓库库存明细导出";
+});
 
 // 1. Products
 const products = ref<ErpProductRow[]>([]);
@@ -61,6 +77,10 @@ const purchaseForm = reactive({
 
 // 4. Inventory Records
 const records = ref<ErpInventoryRecordRow[]>([]);
+
+const erpRecordAdHocRows = computed(() =>
+  activeTab.value === "records" ? (records.value as unknown as Array<Record<string, unknown>>) : []
+);
 
 // Filtered lists
 const filteredProducts = computed(() => {
@@ -230,6 +250,7 @@ async function handleStockIn(order: ErpPurchaseOrderRow) {
             <p class="panel-subtitle">支持商品物料档案、多仓实时库存、采购订单全生命周期履约与出入库台账审计。</p>
           </div>
           <div class="flex-actions">
+            <el-button :icon="Download" @click="erpExportVisible = true">安全导出</el-button>
             <el-button :icon="RefreshRight" :loading="loading" @click="loadAll">刷新数据</el-button>
           </div>
         </div>
@@ -472,6 +493,13 @@ async function handleStockIn(order: ErpPurchaseOrderRow) {
         <el-button type="primary" @click="handleSavePurchase">确认创建</el-button>
       </template>
     </el-dialog>
+
+    <ExportDialog
+      v-model:visible="erpExportVisible"
+      :source-code="activeTab === 'records' ? '' : erpExportSource"
+      :default-title="erpExportTitle"
+      :ad-hoc-rows="erpRecordAdHocRows"
+    />
   </div>
 </template>
 

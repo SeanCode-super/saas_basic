@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.saasbasics.platform.common.auth.AuthContext;
 import com.saasbasics.platform.common.auth.AuthPrincipal;
+import com.saasbasics.platform.common.auth.DataPermissionProvider;
+import com.saasbasics.platform.common.auth.DataPermissionSqlSpec;
 import com.saasbasics.platform.common.mask.DataMaskUtils;
 import com.saasbasics.platform.modules.ai.api.AiGatewayFacade;
 import com.saasbasics.platform.modules.ai.application.dto.AiCommandDtos.Nl2SqlQueryRequest;
@@ -46,6 +48,7 @@ public class Nl2SqlService {
     private final AiChatGatewayService chatGatewayService;
     private final ObjectProvider<AiCommandHistoryMapper> historyMapperProvider;
     private final ObjectProvider<AuditRecorder> auditRecorderProvider;
+    private final ObjectProvider<DataPermissionProvider> dataPermissionProvider;
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
 
@@ -54,6 +57,7 @@ public class Nl2SqlService {
             AiChatGatewayService chatGatewayService,
             ObjectProvider<AiCommandHistoryMapper> historyMapperProvider,
             ObjectProvider<AuditRecorder> auditRecorderProvider,
+            ObjectProvider<DataPermissionProvider> dataPermissionProvider,
             JdbcTemplate jdbcTemplate,
             ObjectMapper objectMapper
     ) {
@@ -61,6 +65,7 @@ public class Nl2SqlService {
         this.chatGatewayService = chatGatewayService;
         this.historyMapperProvider = historyMapperProvider;
         this.auditRecorderProvider = auditRecorderProvider;
+        this.dataPermissionProvider = dataPermissionProvider;
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
     }
@@ -89,9 +94,16 @@ public class Nl2SqlService {
         }
 
         ValidatedSql validated = Nl2SqlSecurityValidator.validateAndNormalize(plan.sql(), allowedTables, tenantId);
-        verifyExplainGuard(validated.sanitizedSql());
+        String executableSql = validated.sanitizedSql();
+        boolean ownerScopedApplied = false;
+        if (Nl2SqlSecurityValidator.containsOwnerScopedTable(validated.referencedTables()) && !isAdminUser(principal)) {
+            Set<Long> allowedOwnerIds = resolveAllowedOwnerIds(principal, validated.referencedTables(), userId);
+            executableSql = Nl2SqlSecurityValidator.applyOwnerScopePredicate(executableSql, tenantId, allowedOwnerIds);
+            ownerScopedApplied = true;
+        }
+        verifyExplainGuard(executableSql);
 
-        List<Map<String, Object>> rawRows = jdbcTemplate.queryForList(validated.sanitizedSql());
+        List<Map<String, Object>> rawRows = jdbcTemplate.queryForList(executableSql);
         Set<String> maskedFields = new LinkedHashSet<>();
         List<Map<String, Object>> maskedRows = maskSensitiveRows(rawRows, maskedFields);
 
@@ -102,21 +114,24 @@ public class Nl2SqlService {
         String xAxis = resolveXAxis(plan.xAxisField(), columns);
         String seriesField = resolveSeriesField(plan.seriesField(), columns, xAxis, maskedRows);
 
-        List<String> insights = buildInsights(question, maskedRows, plan.insights(), seriesField, xAxis, maskedFields);
+        List<String> insights = new ArrayList<>(buildInsights(question, maskedRows, plan.insights(), seriesField, xAxis, maskedFields));
+        if (ownerScopedApplied) {
+            insights.add("🔒 已自动叠加行级数据权限（owner_user_id）隔离策略，仅返回您授权范围内的数据。");
+        }
         List<String> followUps = plan.followUps().isEmpty()
                 ? defaultFollowUps(validated.referencedTables())
                 : plan.followUps();
 
         long latencyMs = Math.max(1L, System.currentTimeMillis() - startedAt);
 
-        recordHistory(tenantId, userId, username, question, validated.sanitizedSql(),
+        recordHistory(tenantId, userId, username, question, executableSql,
                 chartType, maskedRows.size(), latencyMs, "COMPLETED");
-        recordAudit(question, validated.sanitizedSql(), maskedRows.size(), true);
+        recordAudit(question, executableSql, maskedRows.size(), true);
 
         return new Nl2SqlQueryResponse(
                 question,
                 validated.referencedTables(),
-                validated.sanitizedSql(),
+                executableSql,
                 columns,
                 columnLabels,
                 maskedRows,
@@ -608,6 +623,57 @@ public class Nl2SqlService {
             }
         });
         return list;
+    }
+
+    private static boolean isAdminUser(AuthPrincipal principal) {
+        if (principal == null) {
+            return true;
+        }
+        String userType = principal.userType();
+        if ("SUPER_ADMIN".equalsIgnoreCase(userType) || "TENANT_ADMIN".equalsIgnoreCase(userType)) {
+            return true;
+        }
+        if (principal.roleIds() != null && principal.roleIds().contains(1L)) {
+            return true;
+        }
+        return principal.permissions() != null && principal.permissions().contains("*");
+    }
+
+    private Set<Long> resolveAllowedOwnerIds(AuthPrincipal principal, List<String> tables, Long userId) {
+        Set<Long> ownerIds = new LinkedHashSet<>();
+        DataPermissionProvider dp = dataPermissionProvider.getIfAvailable();
+        if (dp != null) {
+            String primaryTable = tables.stream()
+                    .filter(t -> List.of("crm_customer", "crm_clue", "crm_business").contains(t))
+                    .findFirst()
+                    .orElse("crm_customer");
+            String resourceCode = switch (primaryTable) {
+                case "crm_clue" -> "crm:clue:query";
+                case "crm_business" -> "crm:business:query";
+                default -> "crm:customer:query";
+            };
+            try {
+                DataPermissionSqlSpec spec = dp.resolveDataPermission(resourceCode);
+                if (spec != null) {
+                    if (spec.isAllowAll()) {
+                        return Set.of();
+                    }
+                    if (spec.isDenyAll()) {
+                        throw new SecurityException("当前账号数据权限受限，无法访问该明细数据");
+                    }
+                    if (spec.getUserIds() != null) {
+                        ownerIds.addAll(spec.getUserIds());
+                    }
+                }
+            } catch (SecurityException se) {
+                throw se;
+            } catch (Exception ignored) {
+            }
+        }
+        if (ownerIds.isEmpty() && userId != null) {
+            ownerIds.add(userId);
+        }
+        return ownerIds;
     }
 
     private record GeneratedPlan(

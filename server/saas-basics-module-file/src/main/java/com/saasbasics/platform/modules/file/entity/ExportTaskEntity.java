@@ -59,6 +59,21 @@ public class ExportTaskEntity extends BaseTenantEntity {
     @TableField("status")
     private String status;
 
+    @TableField("approval_status")
+    private String approvalStatus;
+
+    @TableField("approved_by")
+    private Long approvedBy;
+
+    @TableField("approved_by_name")
+    private String approvedByName;
+
+    @TableField("approved_at")
+    private LocalDateTime approvedAt;
+
+    @TableField("approve_reason")
+    private String approveReason;
+
     @TableField("error_message")
     private String errorMessage;
 
@@ -105,6 +120,16 @@ public class ExportTaskEntity extends BaseTenantEntity {
     public void setFileSha256(String fileSha256) { this.fileSha256 = fileSha256; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+    public String getApprovalStatus() { return approvalStatus; }
+    public void setApprovalStatus(String approvalStatus) { this.approvalStatus = approvalStatus; }
+    public Long getApprovedBy() { return approvedBy; }
+    public void setApprovedBy(Long approvedBy) { this.approvedBy = approvedBy; }
+    public String getApprovedByName() { return approvedByName; }
+    public void setApprovedByName(String approvedByName) { this.approvedByName = approvedByName; }
+    public LocalDateTime getApprovedAt() { return approvedAt; }
+    public void setApprovedAt(LocalDateTime approvedAt) { this.approvedAt = approvedAt; }
+    public String getApproveReason() { return approveReason; }
+    public void setApproveReason(String approveReason) { this.approveReason = approveReason; }
     public String getErrorMessage() { return errorMessage; }
     public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
     public LocalDateTime getExpireAt() { return expireAt; }

@@ -1,15 +1,19 @@
 package com.saasbasics.platform.modules.file.controller;
 
 import com.saasbasics.platform.common.api.ApiResponse;
+import com.saasbasics.platform.modules.file.dto.ExportDtos.ExportApprovalRequest;
 import com.saasbasics.platform.modules.file.dto.ExportDtos.ExportCreateRequest;
 import com.saasbasics.platform.modules.file.dto.ExportDtos.ExportDatasetInfoDTO;
 import com.saasbasics.platform.modules.file.dto.ExportDtos.ExportStatsDTO;
 import com.saasbasics.platform.modules.file.dto.ExportDtos.ExportTaskDTO;
 import com.saasbasics.platform.modules.file.dto.ExportDtos.ExportTemplateDTO;
 import com.saasbasics.platform.modules.file.dto.ExportDtos.ExportTemplateSaveRequest;
+import com.saasbasics.platform.modules.file.dto.ExportDtos.ReportScheduleDTO;
+import com.saasbasics.platform.modules.file.dto.ExportDtos.ReportScheduleSaveRequest;
 import com.saasbasics.platform.modules.file.service.EnterpriseExportService;
 import com.saasbasics.platform.modules.file.service.EnterpriseExportService.DownloadedExportFile;
 import com.saasbasics.platform.modules.file.service.EnterpriseExportService.SyncExportPayload;
+import com.saasbasics.platform.modules.file.service.ReportScheduleService;
 import com.saasbasics.platform.ratelimit.RateLimit;
 import com.saasbasics.platform.ratelimit.RateLimitType;
 import java.net.URLEncoder;
@@ -32,9 +36,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class ExportController {
 
     private final EnterpriseExportService exportService;
+    private final ReportScheduleService reportScheduleService;
 
-    public ExportController(EnterpriseExportService exportService) {
+    public ExportController(EnterpriseExportService exportService, ReportScheduleService reportScheduleService) {
         this.exportService = exportService;
+        this.reportScheduleService = reportScheduleService;
     }
 
     @GetMapping("/datasets")
@@ -109,5 +115,40 @@ public class ExportController {
     public ApiResponse<Void> deleteTemplate(@PathVariable("id") Long id) {
         exportService.deleteTemplate(id);
         return ApiResponse.success(null);
+    }
+
+    @PostMapping("/tasks/{id}/approve")
+    public ApiResponse<ExportTaskDTO> approveTask(
+            @PathVariable("id") Long id,
+            @RequestBody(required = false) ExportApprovalRequest request) {
+        return ApiResponse.success(exportService.approveExportTask(id, request != null ? request.reason() : null));
+    }
+
+    @PostMapping("/tasks/{id}/reject")
+    public ApiResponse<ExportTaskDTO> rejectTask(
+            @PathVariable("id") Long id,
+            @RequestBody(required = false) ExportApprovalRequest request) {
+        return ApiResponse.success(exportService.rejectExportTask(id, request != null ? request.reason() : null));
+    }
+
+    @GetMapping("/schedules")
+    public ApiResponse<List<ReportScheduleDTO>> listSchedules() {
+        return ApiResponse.success(reportScheduleService.listSchedules());
+    }
+
+    @PostMapping("/schedules")
+    public ApiResponse<ReportScheduleDTO> saveSchedule(@RequestBody ReportScheduleSaveRequest request) {
+        return ApiResponse.success(reportScheduleService.saveSchedule(request));
+    }
+
+    @DeleteMapping("/schedules/{id}")
+    public ApiResponse<Void> deleteSchedule(@PathVariable("id") Long id) {
+        reportScheduleService.deleteSchedule(id);
+        return ApiResponse.success(null);
+    }
+
+    @PostMapping("/schedules/{id}/trigger")
+    public ApiResponse<ExportTaskDTO> triggerSchedule(@PathVariable("id") Long id) {
+        return ApiResponse.success(reportScheduleService.triggerNow(id));
     }
 }

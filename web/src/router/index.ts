@@ -52,6 +52,33 @@ export const router = createRouter({
           }
         },
         {
+          path: "ai/knowledge",
+          name: "ai-knowledge-base",
+          component: () => import("@/views/ai/KnowledgeBaseView.vue"),
+          meta: {
+            title: "AI 企业知识库 (RAG)",
+            hidden: true
+          }
+        },
+        {
+          path: "ai/agents",
+          name: "ai-agent-studio",
+          component: () => import("@/views/ai/AgentStudioView.vue"),
+          meta: {
+            title: "智能体工坊 (Agent Studio)",
+            hidden: true
+          }
+        },
+        {
+          path: "ai/finetune",
+          name: "ai-finetune-studio",
+          component: () => import("@/views/ai/FinetuneStudioView.vue"),
+          meta: {
+            title: "模型微调与评测",
+            hidden: true
+          }
+        },
+        {
           path: "file/download-center",
           name: "file-download-center",
           component: () => import("@/views/export/DownloadCenterView.vue"),

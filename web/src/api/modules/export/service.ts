@@ -6,7 +6,9 @@ import type {
   ExportStatsSummary,
   ExportTaskRow,
   ExportTemplateRow,
-  ExportTemplateSavePayload
+  ExportTemplateSavePayload,
+  ReportScheduleRow,
+  ReportScheduleSavePayload
 } from "./types";
 
 function parseDownloadFilename(contentDisposition?: string, fallback = "export.xlsx"): string {
@@ -44,7 +46,14 @@ export async function executeSyncExport(payload: ExportCreatePayload): Promise<{
   traceCode: string;
   sha256: string;
 }> {
-  const ext = payload.exportFormat === "CSV" ? "csv" : payload.exportFormat === "HTML_REPORT" ? "html" : "xlsx";
+  const ext =
+    payload.exportFormat === "CSV"
+      ? "csv"
+      : payload.exportFormat === "PDF"
+      ? "pdf"
+      : payload.exportFormat === "HTML_REPORT"
+      ? "html"
+      : "xlsx";
   const res = await http.post<Blob>("/exports/sync", payload, {
     responseType: "blob",
     timeout: 60000
@@ -105,4 +114,33 @@ export async function saveExportTemplate(payload: ExportTemplateSavePayload): Pr
 
 export async function deleteExportTemplate(id: number): Promise<void> {
   await http.delete(`/exports/templates/${id}`);
+}
+
+export async function approveExportTask(id: number | string, reason?: string): Promise<ExportTaskRow> {
+  const res = await http.post<ApiResponse<ExportTaskRow>>(`/exports/tasks/${id}/approve`, { reason });
+  return res.data.data;
+}
+
+export async function rejectExportTask(id: number | string, reason?: string): Promise<ExportTaskRow> {
+  const res = await http.post<ApiResponse<ExportTaskRow>>(`/exports/tasks/${id}/reject`, { reason });
+  return res.data.data;
+}
+
+export async function fetchReportSchedules(): Promise<ReportScheduleRow[]> {
+  const res = await http.get<ApiResponse<ReportScheduleRow[]>>("/exports/schedules");
+  return res.data.data;
+}
+
+export async function saveReportSchedule(payload: ReportScheduleSavePayload): Promise<ReportScheduleRow> {
+  const res = await http.post<ApiResponse<ReportScheduleRow>>("/exports/schedules", payload);
+  return res.data.data;
+}
+
+export async function deleteReportSchedule(id: number): Promise<void> {
+  await http.delete(`/exports/schedules/${id}`);
+}
+
+export async function triggerReportSchedule(id: number): Promise<ExportTaskRow> {
+  const res = await http.post<ApiResponse<ExportTaskRow>>(`/exports/schedules/${id}/trigger`);
+  return res.data.data;
 }

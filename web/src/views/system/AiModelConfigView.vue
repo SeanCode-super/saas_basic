@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
   Cpu,
@@ -64,6 +65,7 @@ import {
   type AiToolCallRow
 } from "@/api/modules/ai";
 
+const router = useRouter();
 const loading = ref(false);
 const activeTab = ref<"providers" | "models" | "mcp" | "runs" | "prompts">("providers");
 
@@ -646,6 +648,8 @@ onMounted(() => {
       </div>
       <div class="hero-right">
         <el-button :icon="Refresh" circle :loading="loading" @click="loadData" title="刷新状态" />
+        <el-button plain @click="router.push('/ai/finetune')">模型微调工坊</el-button>
+        <el-button plain @click="router.push('/ai/agents')">智能体工坊</el-button>
         <el-button type="warning" plain :icon="Lock" :loading="rotatingVault" @click="handleRotateAllVaultKeys">
           Vault 密钥轮换
         </el-button>

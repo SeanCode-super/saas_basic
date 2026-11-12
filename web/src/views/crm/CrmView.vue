@@ -9,6 +9,7 @@ import {
   Document,
   Download,
   Lock,
+  MagicStick,
   Money,
   Phone,
   Plus,
@@ -51,6 +52,7 @@ import type {
   CrmStatistics
 } from "@/api/modules/crm";
 import ExportDialog from "@/components/platform/ExportDialog.vue";
+import { fetchCrmCopilotSuggestion, type KnowledgeCitation } from "@/api/modules/ai";
 
 const route = useRoute();
 const activeTab = ref<"customers" | "clues" | "businesses" | "contracts" | "receivables">("customers");
@@ -491,10 +493,42 @@ async function handleApproveReceivable(row: CrmReceivableRow) {
 }
 
 // 跟进记录抽屉
+const crmCopilotLoading = ref(false);
+const crmCopilotAdvice = ref<{
+  targetName: string;
+  riskLevel: string;
+  riskSummary: string;
+  suggestedPitch: string;
+  policyReferences: KnowledgeCitation[];
+  recentContractCount: number;
+} | null>(null);
+
+async function loadCrmCopilotAdvice() {
+  if (!currentFollowUpTarget.value.bizId) return;
+  crmCopilotLoading.value = true;
+  try {
+    crmCopilotAdvice.value = await fetchCrmCopilotSuggestion(
+      currentFollowUpTarget.value.bizType,
+      currentFollowUpTarget.value.bizId
+    );
+  } catch {
+    ElMessage.error("生成 AI 话术建议失败");
+  } finally {
+    crmCopilotLoading.value = false;
+  }
+}
+
+function applyCopilotPitchToInput() {
+  if (crmCopilotAdvice.value?.suggestedPitch) {
+    followUpForm.content = crmCopilotAdvice.value.suggestedPitch;
+  }
+}
+
 async function openFollowUpDrawer(bizType: string, bizId: number, title: string) {
   currentFollowUpTarget.value = { bizType, bizId, title };
   followUpForm.content = "";
   followUpForm.nextContactTime = "";
+  crmCopilotAdvice.value = null;
   followUpDrawerVisible.value = true;
   await loadFollowUpRecords();
 }
@@ -1067,6 +1101,33 @@ onMounted(() => {
               style="width: 200px"
             />
             <el-button type="primary" size="small" @click="handleAddFollowUp">提交记录</el-button>
+          </div>
+        </el-card>
+
+        <!-- AI 内嵌跟进参谋（话术建议 & 风险摘要） -->
+        <el-card shadow="never" style="margin: 12px 0; border-radius: 10px; background: #f8fafc;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+            <span style="font-size: 13px; font-weight: 600; color: #1e3a8a;">✨ AI 跟进话术与合规风险参谋</span>
+            <el-button size="small" type="primary" plain :icon="MagicStick" :loading="crmCopilotLoading" @click="loadCrmCopilotAdvice">
+              生成 AI 建议
+            </el-button>
+          </div>
+          <template v-if="crmCopilotAdvice">
+            <div style="margin-bottom: 6px; font-size: 12px; color: #334155;">
+              <el-tag size="small" :type="crmCopilotAdvice.riskLevel === 'LOW' ? 'success' : 'warning'" style="margin-right: 6px;">
+                风险等级 {{ crmCopilotAdvice.riskLevel }}
+              </el-tag>
+              {{ crmCopilotAdvice.riskSummary }}
+            </div>
+            <div style="padding: 8px 10px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 12px; line-height: 1.5; white-space: pre-wrap;">
+              {{ crmCopilotAdvice.suggestedPitch }}
+            </div>
+            <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
+              <el-button link type="primary" size="small" @click="applyCopilotPitchToInput">一键填入跟进框</el-button>
+            </div>
+          </template>
+          <div v-else style="font-size: 12px; color: #64748b;">
+            点击生成基于客户历史合同与企业知识库红线的推荐话术与履约风险提示。
           </div>
         </el-card>
 

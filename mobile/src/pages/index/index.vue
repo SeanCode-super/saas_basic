@@ -251,6 +251,7 @@ onPullDownRefresh(() => {
 const activeAppCategory = ref("all");
 const appCategories = [
   { key: "all", label: "全部中心" },
+  { key: "ai", label: "AI与导出" },
   { key: "flow", label: "流程审批" },
   { key: "crm", label: "客户外勤" },
   { key: "erp", label: "智能仓储" },
@@ -258,6 +259,8 @@ const appCategories = [
 ];
 
 const allHubApps = [
+  { id: "ai-copilot", category: "ai", label: "AI查数助手", icon: "flash", iconColor: "#2563eb", iconClass: "icon-blue", url: "/pages/ai/index" },
+  { id: "export-center", category: "ai", label: "下载中心", icon: "shield", iconColor: "#059669", iconClass: "icon-emerald", url: "/pages/ai/index?tab=exports" },
   { id: "flow", category: "flow", label: "待办审批", icon: "workflow", iconColor: "#0284c7", iconClass: "icon-blue", url: "/pages/workflow/list" },
   { id: "crm-pool", category: "crm", label: "客户公海", icon: "building", iconColor: "#d97706", iconClass: "icon-amber", url: "/pages/crm/customers" },
   { id: "crm-visit", category: "crm", label: "外勤拜访", icon: "edit", iconColor: "#7c3aed", iconClass: "icon-purple", url: "/pages/crm/follow-up" },

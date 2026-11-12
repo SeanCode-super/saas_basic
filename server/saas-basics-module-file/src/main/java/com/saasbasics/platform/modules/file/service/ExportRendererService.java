@@ -2,6 +2,15 @@ package com.saasbasics.platform.modules.file.service;
 
 import com.saasbasics.platform.common.mask.DataMaskUtils;
 import com.saasbasics.platform.modules.file.dto.ExportDtos.ExportFieldSpec;
+import java.awt.AlphaComposite;
+import java.awt.Color;
+import java.awt.FontMetrics;
+import java.awt.GradientPaint;
+import java.awt.Graphics2D;
+import java.awt.GraphicsEnvironment;
+import java.awt.RenderingHints;
+import java.awt.geom.AffineTransform;
+import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -10,12 +19,15 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import javax.imageio.ImageIO;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.poi.ss.usermodel.BorderStyle;
@@ -75,7 +87,12 @@ public class ExportRendererService {
                 ext = "csv";
                 contentType = "text/csv;charset=UTF-8";
             }
-            case "HTML_REPORT", "REPORT", "PDF" -> {
+            case "PDF" -> {
+                bytes = renderPdf(title, columns, rows, insights, includeWatermark, watermarkText, traceCode, operatorName);
+                ext = "pdf";
+                contentType = "application/pdf";
+            }
+            case "HTML_REPORT", "REPORT" -> {
                 bytes = renderHtmlReport(title, columns, rows, insights, includeWatermark, watermarkText, traceCode, operatorName);
                 ext = "html";
                 contentType = "text/html;charset=UTF-8";
@@ -467,5 +484,319 @@ public class ExportRendererService {
 
     private static String escXml(String s) {
         return escHtml(s);
+    }
+
+    /**
+     * Pure-JDK binary PDF 1.4 multi-page A4 renderer with crisp typography, KPI bar visualization,
+     * zebra-striped data table, and repeating diagonal security watermark.
+     */
+    private byte[] renderPdf(
+            String title,
+            List<ExportFieldSpec> columns,
+            List<Map<String, Object>> rows,
+            List<String> insights,
+            boolean includeWatermark,
+            String watermarkText,
+            String traceCode,
+            String operatorName
+    ) throws IOException {
+        System.setProperty("java.awt.headless", "true");
+        int w = 1190;
+        int h = 1684;
+        String fontFamily = resolveCjkFontFamily();
+        List<ExportFieldSpec> visibleCols = columns.size() > 7 ? columns.subList(0, 7) : columns;
+        int maxDataRows = Math.min(rows.size(), 200);
+
+        List<BufferedImage> pages = new ArrayList<>();
+        int rowCursor = 0;
+        int pageNum = 0;
+
+        do {
+            pageNum++;
+            BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+            Graphics2D g = img.createGraphics();
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+            // Clean white A4 canvas
+            g.setColor(Color.WHITE);
+            g.fillRect(0, 0, w, h);
+
+            int y = 44;
+            int margin = 52;
+            int contentW = w - margin * 2;
+
+            // Header banner
+            if (pageNum == 1) {
+                g.setPaint(new GradientPaint(margin, y, new Color(15, 23, 42), margin + contentW, y + 118, new Color(29, 78, 216)));
+                g.fillRoundRect(margin, y, contentW, 118, 16, 16);
+                g.setColor(Color.WHITE);
+                g.setFont(new java.awt.Font(fontFamily, java.awt.Font.BOLD, 28));
+                g.drawString(truncateText(title != null ? title : "企业数据智能分析报告", 36), margin + 28, y + 48);
+                g.setColor(new Color(219, 234, 254));
+                g.setFont(new java.awt.Font(fontFamily, java.awt.Font.PLAIN, 15));
+                String metaLine = "导出人: " + (operatorName != null ? operatorName : "system")
+                        + "  |  时间: " + LocalDateTime.now().format(TS_FMT)
+                        + "  |  总行数: " + rows.size()
+                        + "  |  追溯码: " + traceCode;
+                g.drawString(truncateText(metaLine, 84), margin + 28, y + 84);
+                y += 140;
+
+                // AI Insights box
+                if (insights != null && !insights.isEmpty()) {
+                    int insCount = Math.min(insights.size(), 3);
+                    int boxH = 42 + insCount * 28;
+                    g.setColor(new Color(239, 246, 255));
+                    g.fillRoundRect(margin, y, contentW, boxH, 12, 12);
+                    g.setColor(new Color(191, 219, 254));
+                    g.drawRoundRect(margin, y, contentW, boxH, 12, 12);
+                    g.setColor(new Color(30, 58, 138));
+                    g.setFont(new java.awt.Font(fontFamily, java.awt.Font.BOLD, 16));
+                    g.drawString("AI 数据洞察摘要", margin + 18, y + 26);
+                    g.setColor(new Color(51, 65, 85));
+                    g.setFont(new java.awt.Font(fontFamily, java.awt.Font.PLAIN, 14));
+                    for (int i = 0; i < insCount; i++) {
+                        g.drawString("• " + truncateText(insights.get(i), 76), margin + 20, y + 52 + i * 26);
+                    }
+                    y += boxH + 18;
+                }
+
+                // KPI bar visualization (if numeric column found)
+                y = drawPdfBarChart(g, fontFamily, margin, y, contentW, visibleCols, rows);
+            } else {
+                g.setColor(new Color(15, 23, 42));
+                g.setFont(new java.awt.Font(fontFamily, java.awt.Font.BOLD, 18));
+                g.drawString(truncateText((title != null ? title : "数据报告") + "（续表）", 48), margin, y + 24);
+                g.setColor(new Color(148, 163, 184));
+                g.drawLine(margin, y + 36, margin + contentW, y + 36);
+                y += 56;
+            }
+
+            // Data table header
+            if (!visibleCols.isEmpty()) {
+                int colCount = visibleCols.size();
+                int colW = contentW / colCount;
+                g.setColor(new Color(241, 245, 249));
+                g.fillRect(margin, y, contentW, 38);
+                g.setColor(new Color(30, 41, 59));
+                g.setFont(new java.awt.Font(fontFamily, java.awt.Font.BOLD, 14));
+                for (int c = 0; c < colCount; c++) {
+                    String lbl = truncateText(visibleCols.get(c).fieldLabel(), Math.max(8, 56 / colCount));
+                    g.drawString(lbl, margin + c * colW + 10, y + 24);
+                }
+                y += 38;
+
+                g.setFont(new java.awt.Font(fontFamily, java.awt.Font.PLAIN, 13));
+                int maxY = h - 96;
+                while (rowCursor < maxDataRows && y + 34 <= maxY) {
+                    if (rowCursor % 2 == 1) {
+                        g.setColor(new Color(248, 250, 252));
+                        g.fillRect(margin, y, contentW, 34);
+                    }
+                    g.setColor(new Color(226, 232, 240));
+                    g.drawLine(margin, y + 34, margin + contentW, y + 34);
+
+                    Map<String, Object> row = rows.get(rowCursor);
+                    g.setColor(new Color(51, 65, 85));
+                    for (int c = 0; c < colCount; c++) {
+                        Object raw = row.get(visibleCols.get(c).fieldCode());
+                        String txt = raw == null ? "" : String.valueOf(raw);
+                        g.drawString(truncateText(txt, Math.max(10, 64 / colCount)), margin + c * colW + 10, y + 22);
+                    }
+                    y += 34;
+                    rowCursor++;
+                }
+            }
+
+            if (rowCursor >= maxDataRows && rows.size() > maxDataRows && y + 30 < h - 72) {
+                g.setColor(new Color(100, 116, 139));
+                g.setFont(new java.awt.Font(fontFamily, java.awt.Font.ITALIC, 13));
+                g.drawString("提示：PDF 报告仅渲染前 " + maxDataRows + " 条数据，全量 " + rows.size() + " 条明细请导出 XLSX/CSV 格式。", margin, y + 22);
+            }
+
+            // Diagonal repeating watermark
+            if (includeWatermark && watermarkText != null && !watermarkText.isBlank()) {
+                AffineTransform saved = g.getTransform();
+                g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.14f));
+                g.setColor(new Color(71, 85, 105));
+                g.setFont(new java.awt.Font(fontFamily, java.awt.Font.BOLD, 16));
+                for (int wy = 180; wy < h; wy += 340) {
+                    for (int wx = 80; wx < w; wx += 420) {
+                        g.rotate(-Math.toRadians(28), wx, wy);
+                        g.drawString(watermarkText, wx - 110, wy);
+                        g.setTransform(saved);
+                    }
+                }
+                g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
+            }
+
+            // Footer strip
+            g.setColor(new Color(226, 232, 240));
+            g.drawLine(margin, h - 62, margin + contentW, h - 62);
+            g.setColor(new Color(100, 116, 139));
+            g.setFont(new java.awt.Font(fontFamily, java.awt.Font.PLAIN, 12));
+            g.drawString("天枢企业级安全导出审计  ·  追溯码: " + traceCode, margin, h - 36);
+            String pgText = "第 " + pageNum + " 页";
+            FontMetrics fm = g.getFontMetrics();
+            g.drawString(pgText, margin + contentW - fm.stringWidth(pgText), h - 36);
+
+            g.dispose();
+            pages.add(img);
+        } while (rowCursor < maxDataRows && pages.size() < 15);
+
+        return encodeImagesAsPdf14(pages);
+    }
+
+    private int drawPdfBarChart(
+            Graphics2D g,
+            String fontFamily,
+            int margin,
+            int y,
+            int contentW,
+            List<ExportFieldSpec> columns,
+            List<Map<String, Object>> rows
+    ) {
+        if (rows == null || rows.isEmpty() || columns.isEmpty()) {
+            return y;
+        }
+        String labelCol = null;
+        String numCol = null;
+        String numLabel = "";
+        Map<String, Object> sample = rows.get(0);
+        for (ExportFieldSpec c : columns) {
+            Object v = sample.get(c.fieldCode());
+            if (numCol == null && v instanceof Number) {
+                numCol = c.fieldCode();
+                numLabel = c.fieldLabel();
+            } else if (labelCol == null) {
+                labelCol = c.fieldCode();
+            }
+        }
+        if (numCol == null || labelCol == null) {
+            return y;
+        }
+        int barCount = Math.min(rows.size(), 6);
+        double maxVal = 1.0;
+        for (int i = 0; i < barCount; i++) {
+            Object v = rows.get(i).get(numCol);
+            if (v instanceof Number n) {
+                maxVal = Math.max(maxVal, n.doubleValue());
+            }
+        }
+        int boxH = 44 + barCount * 30;
+        g.setColor(new Color(248, 250, 252));
+        g.fillRoundRect(margin, y, contentW, boxH, 12, 12);
+        g.setColor(new Color(226, 232, 240));
+        g.drawRoundRect(margin, y, contentW, boxH, 12, 12);
+        g.setColor(new Color(30, 58, 138));
+        g.setFont(new java.awt.Font(fontFamily, java.awt.Font.BOLD, 15));
+        g.drawString("指标排行可视化（" + numLabel + " · Top " + barCount + "）", margin + 18, y + 26);
+
+        int barMaxW = contentW - 340;
+        g.setFont(new java.awt.Font(fontFamily, java.awt.Font.PLAIN, 13));
+        for (int i = 0; i < barCount; i++) {
+            int rowY = y + 48 + i * 28;
+            String dim = truncateText(String.valueOf(rows.get(i).getOrDefault(labelCol, "-")), 18);
+            double val = rows.get(i).get(numCol) instanceof Number n ? n.doubleValue() : 0.0;
+            int fillW = (int) Math.max(8, Math.round((val / maxVal) * barMaxW));
+            g.setColor(new Color(51, 65, 85));
+            g.drawString(dim, margin + 18, rowY + 12);
+            g.setColor(new Color(226, 232, 240));
+            g.fillRoundRect(margin + 190, rowY, barMaxW, 14, 6, 6);
+            g.setColor(new Color(37, 99, 235));
+            g.fillRoundRect(margin + 190, rowY, fillW, 14, 6, 6);
+            g.setColor(new Color(15, 23, 42));
+            g.drawString(BigDecimal.valueOf(val).stripTrailingZeros().toPlainString(), margin + 200 + barMaxW, rowY + 12);
+        }
+        return y + boxH + 18;
+    }
+
+    private static byte[] encodeImagesAsPdf14(List<BufferedImage> pages) throws IOException {
+        List<byte[]> jpegs = new ArrayList<>(pages.size());
+        for (BufferedImage page : pages) {
+            ByteArrayOutputStream jpegOut = new ByteArrayOutputStream();
+            ImageIO.write(page, "jpg", jpegOut);
+            jpegs.add(jpegOut.toByteArray());
+        }
+
+        ByteArrayOutputStream pdf = new ByteArrayOutputStream();
+        List<Long> offsets = new ArrayList<>();
+        pdf.write("%PDF-1.4\n%\u00E2\u00E3\u00CF\u00D3\n".getBytes(StandardCharsets.ISO_8859_1));
+
+        // 1: Catalog, 2: Pages
+        // Per page i (0..n-1): obj 3 + i*3 = Page, 4 + i*3 = Contents, 5 + i*3 = Image XObject
+        int n = jpegs.size();
+        offsets.add((long) pdf.size());
+        pdf.write("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n".getBytes(StandardCharsets.ISO_8859_1));
+
+        StringBuilder kids = new StringBuilder();
+        for (int i = 0; i < n; i++) {
+            if (i > 0) kids.append(" ");
+            kids.append(3 + i * 3).append(" 0 R");
+        }
+        offsets.add((long) pdf.size());
+        pdf.write(("2 0 obj\n<< /Type /Pages /Kids [" + kids + "] /Count " + n + " >>\nendobj\n")
+                .getBytes(StandardCharsets.ISO_8859_1));
+
+        for (int i = 0; i < n; i++) {
+            int pageObj = 3 + i * 3;
+            int contentObj = 4 + i * 3;
+            int imgObj = 5 + i * 3;
+            BufferedImage img = pages.get(i);
+            byte[] jpeg = jpegs.get(i);
+            byte[] contentStream = ("q 595 0 0 842 0 0 cm /Im" + i + " Do Q").getBytes(StandardCharsets.ISO_8859_1);
+
+            offsets.add((long) pdf.size());
+            pdf.write((pageObj + " 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] "
+                    + "/Resources << /XObject << /Im" + i + " " + imgObj + " 0 R >> >> "
+                    + "/Contents " + contentObj + " 0 R >>\nendobj\n").getBytes(StandardCharsets.ISO_8859_1));
+
+            offsets.add((long) pdf.size());
+            pdf.write((contentObj + " 0 obj\n<< /Length " + contentStream.length + " >>\nstream\n")
+                    .getBytes(StandardCharsets.ISO_8859_1));
+            pdf.write(contentStream);
+            pdf.write("\nendstream\nendobj\n".getBytes(StandardCharsets.ISO_8859_1));
+
+            offsets.add((long) pdf.size());
+            pdf.write((imgObj + " 0 obj\n<< /Type /XObject /Subtype /Image /Width " + img.getWidth()
+                    + " /Height " + img.getHeight() + " /ColorSpace /DeviceRGB /BitsPerComponent 8 "
+                    + "/Filter /DCTDecode /Length " + jpeg.length + " >>\nstream\n")
+                    .getBytes(StandardCharsets.ISO_8859_1));
+            pdf.write(jpeg);
+            pdf.write("\nendstream\nendobj\n".getBytes(StandardCharsets.ISO_8859_1));
+        }
+
+        long xrefOffset = pdf.size();
+        int totalObjs = offsets.size() + 1;
+        StringBuilder xref = new StringBuilder();
+        xref.append("xref\n0 ").append(totalObjs).append("\n");
+        xref.append("0000000000 65535 f \n");
+        for (Long off : offsets) {
+            xref.append(String.format(Locale.ROOT, "%010d 00000 n \n", off));
+        }
+        xref.append("trailer\n<< /Size ").append(totalObjs).append(" /Root 1 0 R >>\n");
+        xref.append("startxref\n").append(xrefOffset).append("\n%%EOF\n");
+        pdf.write(xref.toString().getBytes(StandardCharsets.ISO_8859_1));
+        return pdf.toByteArray();
+    }
+
+    private static String resolveCjkFontFamily() {
+        try {
+            List<String> available = Arrays.asList(
+                    GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames(Locale.SIMPLIFIED_CHINESE)
+            );
+            for (String candidate : List.of("PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "WenQuanYi Micro Hei", "Microsoft YaHei", "SimHei")) {
+                if (available.contains(candidate)) {
+                    return candidate;
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return "SansSerif";
+    }
+
+    private static String truncateText(String s, int maxLen) {
+        if (s == null) return "";
+        return s.length() > maxLen ? s.substring(0, maxLen) + "…" : s;
     }
 }

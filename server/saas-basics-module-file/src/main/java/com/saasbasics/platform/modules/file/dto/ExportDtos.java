@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Enterprise Data Export & Download Center DTOs.
+ * Enterprise Data Export, Approval, Scheduled Report & Download Center DTOs.
  */
 public final class ExportDtos {
 
@@ -39,7 +39,8 @@ public final class ExportDtos {
             List<String> insights,
             Boolean includeWatermark,
             Boolean desensitizeEnabled,
-            Boolean async
+            Boolean async,
+            Boolean requireApproval
     ) {}
 
     public record ExportTaskDTO(
@@ -58,19 +59,29 @@ public final class ExportDtos {
             long fileSize,
             String fileSha256,
             String status,
+            String approvalStatus,
+            String approvedByName,
+            LocalDateTime approvedAt,
+            String approveReason,
             String errorMessage,
             LocalDateTime expireAt,
             String operatorName,
             LocalDateTime createdAt
     ) {}
 
+    public record ExportApprovalRequest(
+            String reason
+    ) {}
+
     public record ExportStatsDTO(
             long totalExports,
             long completedExports,
+            long pendingApprovals,
             long totalRowsExported,
             long totalFileBytes,
             long desensitizedExports,
-            long activeTemplates
+            long activeTemplates,
+            long activeSchedules
     ) {}
 
     public record ExportTemplateDTO(
@@ -94,6 +105,44 @@ public final class ExportDtos {
             String defaultFormat,
             Boolean includeWatermark,
             Boolean desensitizeEnabled,
+            String remark
+    ) {}
+
+    public record ReportScheduleDTO(
+            Long id,
+            String scheduleCode,
+            String scheduleName,
+            String sourceCode,
+            String exportFormat,
+            List<String> fields,
+            String frequency,
+            String cronExpr,
+            int runHour,
+            int runMinute,
+            boolean includeWatermark,
+            boolean desensitizeEnabled,
+            String recipientUserIds,
+            LocalDateTime lastRunAt,
+            LocalDateTime nextRunAt,
+            Long lastTaskId,
+            String status,
+            String remark
+    ) {}
+
+    public record ReportScheduleSaveRequest(
+            Long id,
+            String scheduleCode,
+            String scheduleName,
+            String sourceCode,
+            String exportFormat,
+            List<String> fields,
+            String frequency,
+            Integer runHour,
+            Integer runMinute,
+            Boolean includeWatermark,
+            Boolean desensitizeEnabled,
+            String recipientUserIds,
+            String status,
             String remark
     ) {}
 }

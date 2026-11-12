@@ -3,6 +3,7 @@ import {
   Briefcase,
   Clock,
   Connection,
+  Cpu,
   CreditCard,
   DataAnalysis,
   DocumentChecked,
@@ -19,6 +20,7 @@ import {
 
 const APP_ICONS: Record<string, Component> = {
   dashboard: DataAnalysis,
+  ai_center: Cpu,
   tenant: OfficeBuilding,
   iam: User,
   workflow: Tickets,

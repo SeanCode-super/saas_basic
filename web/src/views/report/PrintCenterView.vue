@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import {
   computed,
+  onMounted,
   ref
 } from "vue";
+import { ElMessage } from "element-plus";
 import {
   Printer
 } from "@element-plus/icons-vue";
+import { listCrmContracts, type CrmContractRow } from "@/api/modules/crm";
+import { fetchErpPurchaseOrders, type ErpPurchaseOrderRow } from "@/api/modules/erp";
 
 type TemplateType = "PURCHASE_IN" | "REIMBURSE" | "SHIPPING_LABEL" | "VAT_INVOICE";
 
@@ -13,6 +17,10 @@ const selectedTemplate = ref<TemplateType>("PURCHASE_IN");
 const showWatermark = ref(true);
 const showOfficialStamp = ref(true);
 const paperSize = ref<"A4" | "A5">("A4");
+const liveOrders = ref<ErpPurchaseOrderRow[]>([]);
+const liveContracts = ref<CrmContractRow[]>([]);
+const selectedOrderId = ref<number | undefined>(undefined);
+const selectedContractId = ref<number | undefined>(undefined);
 
 // 模拟表单数据
 const vatInvoiceData = ref({
@@ -118,6 +126,123 @@ const totalPurchaseAmount = computed(() => {
 function handlePrint() {
   window.print();
 }
+
+const verificationCodeSeed = computed(() => {
+  if (selectedTemplate.value === "VAT_INVOICE") {
+    return `${vatInvoiceData.value.invoiceNo}|${totalVatSumAmount.value.toFixed(2)}|${vatInvoiceData.value.buyer.name}`;
+  }
+  if (selectedTemplate.value === "PURCHASE_IN") {
+    return `${purchaseData.value.orderNo}|${totalPurchaseAmount.value.toFixed(2)}|${purchaseData.value.supplierName}`;
+  }
+  if (selectedTemplate.value === "REIMBURSE") {
+    return `${reimburseData.value.docNo}|${reimburseData.value.totalAmount}`;
+  }
+  return `${shippingData.value.trackingNo}|${shippingData.value.receiver}`;
+});
+
+const qrCells = computed(() => {
+  const seed = verificationCodeSeed.value;
+  let hash = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    hash ^= seed.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  const size = 11;
+  const rects: Array<{ x: number; y: number }> = [];
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      const isCorner = (r < 3 && c < 3) || (r < 3 && c >= size - 3) || (r >= size - 3 && c < 3);
+      if (isCorner) {
+        const edge = r === 0 || c === 0 || r === size - 1 || c === size - 1 || (r === 1 && c === 1);
+        if (edge || (r >= size - 2 && c === 1) || (r === 1 && c >= size - 2)) {
+          rects.push({ x: c * 5, y: r * 5 });
+        }
+        continue;
+      }
+      const bit = ((hash >>> ((r * size + c) % 31)) ^ (r * 7 + c * 13)) & 1;
+      if (bit === 1) {
+        rects.push({ x: c * 5, y: r * 5 });
+      }
+    }
+  }
+  return rects;
+});
+
+function applyLivePurchaseOrder(orderId: number | undefined) {
+  const ord = liveOrders.value.find((o) => o.id === orderId);
+  if (!ord) return;
+  const amt = Number(ord.totalAmount || 0);
+  purchaseData.value = {
+    orderNo: ord.orderNo,
+    supplierName: ord.supplierName || "认证供应商",
+    warehouseName: "企业华东中心仓",
+    inDate: (ord.createdAt || "").slice(0, 10) || "2026-11-12",
+    inspector: "系统质检员",
+    manager: "仓储主管",
+    items: [
+      {
+        code: `PO-SKU-${ord.id}`,
+        name: ord.remark || `采购订单标的物料（${ord.orderNo}）`,
+        spec: "按真实采购订单关联绑定",
+        unit: "批",
+        qty: 1,
+        price: amt,
+        amount: amt
+      }
+    ]
+  };
+  selectedTemplate.value = "PURCHASE_IN";
+  ElMessage.success(`已绑定真实 ERP 采购单「${ord.orderNo}」数据`);
+}
+
+function applyLiveContract(contractId: number | undefined) {
+  const ct = liveContracts.value.find((c) => c.id === contractId);
+  if (!ct) return;
+  const total = Number(ct.totalPrice || 0);
+  const net = Math.round((total / 1.06) * 100) / 100;
+  const tax = Math.round((total - net) * 100) / 100;
+  vatInvoiceData.value = {
+    ...vatInvoiceData.value,
+    invoiceNo: String(ct.id).padStart(8, "0"),
+    invoiceDate: (ct.startTime || "2026-11-12").slice(0, 10),
+    buyer: {
+      ...vatInvoiceData.value.buyer,
+      name: ct.customerName || "签约客户"
+    },
+    items: [
+      {
+        name: `*企业数字化服务* ${ct.name}`,
+        spec: ct.contractNo,
+        unit: "项",
+        qty: 1,
+        price: net,
+        amount: net,
+        taxRate: "6%",
+        taxAmount: tax
+      }
+    ],
+    remark: `对应真实 CRM 商务合同: ${ct.contractNo} (${ct.name})。签约人: ${ct.signerUserName || "管理员"}`
+  };
+  selectedTemplate.value = "VAT_INVOICE";
+  ElMessage.success(`已绑定真实 CRM 合同「${ct.contractNo}」开票数据`);
+}
+
+onMounted(async () => {
+  try {
+    const [poList, ctRes] = await Promise.allSettled([
+      fetchErpPurchaseOrders(),
+      listCrmContracts()
+    ]);
+    if (poList.status === "fulfilled") {
+      liveOrders.value = poList.value || [];
+    }
+    if (ctRes.status === "fulfilled") {
+      liveContracts.value = ctRes.value.data || [];
+    }
+  } catch {
+    // offline fallback stays intact
+  }
+});
 </script>
 
 <template>
@@ -160,6 +285,38 @@ function handlePrint() {
             </el-radio-group>
           </div>
         </div>
+
+        <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-top: 12px; padding-top: 12px; border-top: 1px dashed #e2e8f0;">
+          <span class="ctrl-label">🔗 绑定真实业务单据：</span>
+          <el-select
+            v-model="selectedOrderId"
+            clearable
+            placeholder="从真实 ERP 采购单载入"
+            style="width: 250px;"
+            @change="applyLivePurchaseOrder"
+          >
+            <el-option
+              v-for="po in liveOrders"
+              :key="po.id"
+              :label="`${po.orderNo} · ${po.supplierName} (¥${po.totalAmount})`"
+              :value="po.id"
+            />
+          </el-select>
+          <el-select
+            v-model="selectedContractId"
+            clearable
+            placeholder="从真实 CRM 商务合同载入"
+            style="width: 260px;"
+            @change="applyLiveContract"
+          >
+            <el-option
+              v-for="ct in liveContracts"
+              :key="ct.id"
+              :label="`${ct.contractNo} · ${ct.name} (¥${ct.totalPrice})`"
+              :value="ct.id"
+            />
+          </el-select>
+        </div>
       </el-card>
     </div>
 
@@ -174,7 +331,9 @@ function handlePrint() {
           <div class="company-name">ANTIGRAVITY ENTERPRISE CLOUD FOUNDATION</div>
           <h2 class="sheet-title">物料采购入库综合验收凭证</h2>
           <div class="barcode-box">
-            <div class="sim-barcode">|| | ||| | |||| || ||| || |||| | |||</div>
+            <svg width="55" height="55" viewBox="0 0 55 55" style="margin-bottom: 4px; border: 1px solid #cbd5e1; background: #fff; padding: 2px;">
+              <rect v-for="(cell, idx) in qrCells" :key="idx" :x="cell.x" :y="cell.y" width="4.5" height="4.5" fill="#0f172a" />
+            </svg>
             <span class="barcode-no">{{ purchaseData.orderNo }}</span>
           </div>
         </div>
@@ -601,7 +760,7 @@ function handlePrint() {
   text-align: center;
   margin-bottom: 20px;
   border-bottom: 2px solid #000;
-  padding-bottom: 12px;
+  padding: 6px 140px 14px;
 }
 
 .company-name {
@@ -621,7 +780,10 @@ function handlePrint() {
 .barcode-box {
   position: absolute;
   right: 0;
-  bottom: 8px;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
   text-align: right;
   font-family: monospace;
 }

@@ -25,7 +25,19 @@ import type {
   Nl2SqlQueryRequest,
   Nl2SqlQueryResponse,
   Nl2SqlSchemaTable,
-  AiCommandHistoryRow
+  AiCommandHistoryRow,
+  KnowledgeBaseRow,
+  KnowledgeDocRow,
+  KnowledgeChunkRow,
+  KnowledgeCitation,
+  KnowledgeAskResponse,
+  DocumentReviewResponse,
+  AiAgentRow,
+  AiToolOption,
+  AgentChatResponse,
+  FinetuneDatasetRow,
+  FinetuneSampleRow,
+  FinetuneJobRow
 } from "./types";
 
 export * from "./types";
@@ -237,4 +249,197 @@ export async function executeNl2SqlQuery(payload: Nl2SqlQueryRequest): Promise<N
 export async function fetchNl2SqlSchemas(): Promise<Nl2SqlSchemaTable[]> {
   const response = await http.get<ApiResponse<Nl2SqlSchemaTable[]>>("/ai/nl2sql/schemas");
   return response.data.data;
+}
+
+// --- Knowledge Base & Hybrid RAG ---
+export async function fetchKnowledgeBases(): Promise<KnowledgeBaseRow[]> {
+  const res = await http.get<ApiResponse<KnowledgeBaseRow[]>>("/ai/knowledge/bases");
+  return res.data.data;
+}
+
+export async function saveKnowledgeBase(payload: Partial<KnowledgeBaseRow>): Promise<KnowledgeBaseRow> {
+  const res = await http.post<ApiResponse<KnowledgeBaseRow>>("/ai/knowledge/bases", payload);
+  return res.data.data;
+}
+
+export async function fetchKnowledgeDocs(kbId?: number): Promise<KnowledgeDocRow[]> {
+  const res = await http.get<ApiResponse<KnowledgeDocRow[]>>("/ai/knowledge/docs", {
+    params: kbId ? { kbId } : undefined
+  });
+  return res.data.data;
+}
+
+export async function fetchKnowledgeChunks(docId: number): Promise<KnowledgeChunkRow[]> {
+  const res = await http.get<ApiResponse<KnowledgeChunkRow[]>>(`/ai/knowledge/docs/${docId}/chunks`);
+  return res.data.data;
+}
+
+export async function uploadKnowledgeDoc(kbId: number, file: File): Promise<KnowledgeDocRow> {
+  const formData = new FormData();
+  formData.append("kbId", String(kbId));
+  formData.append("file", file);
+  const res = await http.post<ApiResponse<KnowledgeDocRow>>("/ai/knowledge/docs/upload", formData, {
+    headers: { "Content-Type": "multipart/form-data" }
+  });
+  return res.data.data;
+}
+
+export async function ingestKnowledgeText(payload: {
+  kbId: number;
+  docName: string;
+  content: string;
+  fileType?: string;
+}): Promise<KnowledgeDocRow> {
+  const res = await http.post<ApiResponse<KnowledgeDocRow>>("/ai/knowledge/docs/text", payload);
+  return res.data.data;
+}
+
+export async function deleteKnowledgeDoc(docId: number): Promise<void> {
+  await http.delete(`/ai/knowledge/docs/${docId}`);
+}
+
+export async function searchKnowledge(payload: {
+  kbId?: number;
+  question: string;
+  topK?: number;
+}): Promise<KnowledgeCitation[]> {
+  const res = await http.post<ApiResponse<KnowledgeCitation[]>>("/ai/knowledge/search", payload);
+  return res.data.data;
+}
+
+export async function askKnowledge(payload: {
+  kbId?: number;
+  question: string;
+  topK?: number;
+  modelId?: string;
+}): Promise<KnowledgeAskResponse> {
+  const res = await http.post<ApiResponse<KnowledgeAskResponse>>("/ai/knowledge/ask", payload);
+  return res.data.data;
+}
+
+export async function reviewDocumentCompliance(payload: {
+  kbId?: number;
+  documentTitle: string;
+  documentText: string;
+  modelId?: string;
+}): Promise<DocumentReviewResponse> {
+  const res = await http.post<ApiResponse<DocumentReviewResponse>>("/ai/knowledge/review-document", payload);
+  return res.data.data;
+}
+
+// --- Visual Agent Studio & CRM Copilot ---
+export async function fetchAgents(): Promise<AiAgentRow[]> {
+  const res = await http.get<ApiResponse<AiAgentRow[]>>("/ai/agents");
+  return res.data.data;
+}
+
+export async function fetchAgentTools(): Promise<AiToolOption[]> {
+  const res = await http.get<ApiResponse<AiToolOption[]>>("/ai/agents/tools");
+  return res.data.data;
+}
+
+export async function saveAgent(payload: Partial<AiAgentRow>): Promise<AiAgentRow> {
+  const res = await http.post<ApiResponse<AiAgentRow>>("/ai/agents", payload);
+  return res.data.data;
+}
+
+export async function deleteAgent(id: number): Promise<void> {
+  await http.delete(`/ai/agents/${id}`);
+}
+
+export async function chatWithAgent(payload: {
+  agentId: number;
+  sessionId?: number;
+  message: string;
+}): Promise<AgentChatResponse> {
+  const res = await http.post<ApiResponse<AgentChatResponse>>("/ai/agents/chat", payload);
+  return res.data.data;
+}
+
+export async function fetchCrmCopilotSuggestion(bizType: string, bizId: number): Promise<{
+  targetName: string;
+  riskLevel: string;
+  riskSummary: string;
+  suggestedPitch: string;
+  policyReferences: KnowledgeCitation[];
+  recentContractCount: number;
+}> {
+  const res = await http.get<ApiResponse<any>>("/ai/copilot/crm-suggestion", {
+    params: { bizType, bizId }
+  });
+  return res.data.data;
+}
+
+// --- Fine-tuning Workbench ---
+export async function fetchFinetuneDatasets(): Promise<FinetuneDatasetRow[]> {
+  const res = await http.get<ApiResponse<FinetuneDatasetRow[]>>("/ai/finetune/datasets");
+  return res.data.data;
+}
+
+export async function saveFinetuneDataset(payload: Partial<FinetuneDatasetRow>): Promise<FinetuneDatasetRow> {
+  const res = await http.post<ApiResponse<FinetuneDatasetRow>>("/ai/finetune/datasets", payload);
+  return res.data.data;
+}
+
+export async function fetchFinetuneSamples(datasetId?: number): Promise<FinetuneSampleRow[]> {
+  const res = await http.get<ApiResponse<FinetuneSampleRow[]>>("/ai/finetune/samples", {
+    params: datasetId ? { datasetId } : undefined
+  });
+  return res.data.data;
+}
+
+export async function addFinetuneSample(payload: {
+  datasetId: number;
+  instruction: string;
+  inputText?: string;
+  outputText: string;
+  desensitize?: boolean;
+}): Promise<FinetuneSampleRow> {
+  const res = await http.post<ApiResponse<FinetuneSampleRow>>("/ai/finetune/samples", payload);
+  return res.data.data;
+}
+
+export async function harvestNl2SqlSamples(datasetId: number, limit = 15): Promise<{ imported: number }> {
+  const res = await http.post<ApiResponse<{ imported: number }>>(`/ai/finetune/datasets/${datasetId}/harvest-nl2sql`, null, {
+    params: { limit }
+  });
+  return res.data.data;
+}
+
+export async function reviewFinetuneSample(sampleId: number, reviewStatus: "APPROVED" | "REJECTED"): Promise<FinetuneSampleRow> {
+  const res = await http.post<ApiResponse<FinetuneSampleRow>>(`/ai/finetune/samples/${sampleId}/review`, { reviewStatus });
+  return res.data.data;
+}
+
+export async function exportFinetuneJsonl(datasetId: number, formatType = "ALPACA"): Promise<void> {
+  const res = await http.get<Blob>(`/ai/finetune/datasets/${datasetId}/export-jsonl`, {
+    params: { formatType },
+    responseType: "blob"
+  });
+  const url = URL.createObjectURL(res.data);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `finetune_dataset_${datasetId}_${formatType.toLowerCase()}.jsonl`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export async function fetchFinetuneJobs(): Promise<FinetuneJobRow[]> {
+  const res = await http.get<ApiResponse<FinetuneJobRow[]>>("/ai/finetune/jobs");
+  return res.data.data;
+}
+
+export async function startFinetuneJob(payload: {
+  jobName: string;
+  datasetId: number;
+  baseModel: string;
+  tuningMethod: string;
+  epochs: number;
+  learningRate: string;
+  loraRank: number;
+}): Promise<FinetuneJobRow> {
+  const res = await http.post<ApiResponse<FinetuneJobRow>>("/ai/finetune/jobs", payload);
+  return res.data.data;
 }

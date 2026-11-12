@@ -34,6 +34,20 @@ export const APP_TAXONOMY: Record<string, AppMeta> = {
       }
     }
   },
+  ai_center: {
+    title: "AI 智能中心",
+    cluster: "runtime",
+    badge: "AI",
+    summary: "企业级大模型网关、NL2SQL、知识库 RAG、智能体工坊与微调中心。",
+    description: "统一纳管 AI 数据分析副驾驶、混合检索知识库、智能体编排及领域微调评测。",
+    sections: {
+      copilot: { label: "AI 数据副驾驶", description: "自然语言安全查数、ECharts 图表自动推荐与一键导出。" },
+      knowledge: { label: "AI 企业知识库", description: "多格式文档切分、BM25+向量混合召回及合同合规红线审查。" },
+      agents: { label: "智能体工坊", description: "编排人设 Prompt、挂载知识库与工具权限、多渠道发布与实时沙盒。" },
+      models: { label: "AI 模型网关", description: "统一配置 DeepSeek / OpenAI / 通义 / Ollama 模型路由与配额治理。" },
+      finetune: { label: "模型微调与评测", description: "自动脱敏样本清洗、JSONL 导出与 LoRA 微调前后准确率对比。" }
+    }
+  },
   tenant: {
     title: "租户中心",
     cluster: "foundation",

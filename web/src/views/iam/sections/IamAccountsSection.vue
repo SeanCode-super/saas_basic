@@ -39,6 +39,7 @@ import type {
 import IamRoleDrawer from "../components/IamRoleDrawer.vue";
 import IamPermissionMatrix from "../components/IamPermissionMatrix.vue";
 import IamPermissionInspector from "../components/IamPermissionInspector.vue";
+import ExportDialog from "@/components/platform/ExportDialog.vue";
 
 const props = withDefaults(
   defineProps<{
@@ -477,15 +478,10 @@ async function handleRoleSaved() {
   }
 }
 
+const iamExportVisible = ref(false);
+
 function handleExportUsers() {
-  const token = localStorage.getItem("sb-access-token") || "";
-  const link = document.createElement("a");
-  link.href = `/api/iam/users/export?token=${token}`;
-  link.download = `用户档案台账_${Date.now()}.xlsx`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  ElMessage.success("正在流式导出用户台账 Excel，请留意浏览器下载！");
+  iamExportVisible.value = true;
 }
 </script>
 
@@ -973,6 +969,12 @@ function handleExportUsers() {
       :departments="departments"
       :menus="menus"
       :current-tenant-id="currentTenantId"
+    />
+
+    <ExportDialog
+      v-model:visible="iamExportVisible"
+      source-code="iam_user"
+      default-title="IAM 企业用户台账（自动脱敏导出）"
     />
   </div>
 </template>

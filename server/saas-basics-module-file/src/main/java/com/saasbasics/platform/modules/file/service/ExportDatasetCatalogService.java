@@ -28,6 +28,9 @@ public class ExportDatasetCatalogService {
     private static final Set<String> SENSITIVE_HINTS = Set.of(
             "mobile", "phone", "telephone", "contact_phone", "email", "id_card", "bank_card"
     );
+    private static final Set<String> NO_DELETED_TABLES = Set.of(
+            "audit_operation_log", "erp_inventory", "erp_inventory_record"
+    );
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -109,7 +112,11 @@ public class ExportDatasetCatalogService {
                 .map(ExportFieldSpec::fieldCode)
                 .collect(java.util.stream.Collectors.toSet());
 
-        StringBuilder where = new StringBuilder(" WHERE tenant_id = ? AND deleted = 0 ");
+        StringBuilder where = new StringBuilder(
+                NO_DELETED_TABLES.contains(physicalTable)
+                        ? " WHERE tenant_id = ? "
+                        : " WHERE tenant_id = ? AND deleted = 0 "
+        );
         List<Object> args = new ArrayList<>();
         args.add(tenantId);
 
@@ -319,6 +326,30 @@ public class ExportDatasetCatalogService {
                 field("mobile", "手机号码", "VARCHAR"),
                 field("email", "电子邮箱", "VARCHAR"),
                 field("last_login_at", "最近登录时间", "DATETIME")
+        )));
+
+        map.put("audit_operation_log", new ExportDatasetInfoDTO("audit_operation_log", "操作审计与风控轨迹日志", "AUDIT", List.of(
+                field("id", "日志ID", "BIGINT"),
+                field("trace_id", "追踪TraceId", "VARCHAR"),
+                field("operator_name", "操作人", "VARCHAR"),
+                field("biz_module", "业务模块", "VARCHAR"),
+                field("biz_type", "业务类型", "VARCHAR"),
+                field("biz_id", "业务对象ID", "VARCHAR"),
+                field("operation_type", "操作动作", "VARCHAR"),
+                field("request_uri", "请求路径", "VARCHAR"),
+                field("http_method", "HTTP方法", "VARCHAR"),
+                field("success", "是否成功", "TINYINT"),
+                field("duration_ms", "耗时(ms)", "INT"),
+                field("occurred_at", "操作时间", "DATETIME")
+        )));
+
+        map.put("erp_inventory", new ExportDatasetInfoDTO("erp_inventory", "ERP 实时仓库库存明细", "ERP", List.of(
+                field("id", "库存ID", "BIGINT"),
+                field("product_id", "商品ID", "BIGINT"),
+                field("warehouse_id", "仓库ID", "BIGINT"),
+                field("stock_quantity", "当前库存量", "INT"),
+                field("locked_quantity", "锁定库存量", "INT"),
+                field("updated_at", "更新时间", "DATETIME")
         )));
 
         return map;

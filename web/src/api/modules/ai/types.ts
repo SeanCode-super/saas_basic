@@ -365,3 +365,170 @@ export interface AiCommandHistoryRow {
   status: string;
   createdAt?: string;
 }
+
+// --- Knowledge Base & Hybrid RAG ---
+export interface KnowledgeBaseRow {
+  id: number;
+  kbCode: string;
+  kbName: string;
+  category: string;
+  embeddingModel: string;
+  chunkSize: number;
+  chunkOverlap: number;
+  docCount: number;
+  chunkCount: number;
+  status: string;
+  remark?: string;
+  updatedAt?: string;
+}
+
+export interface KnowledgeDocRow {
+  id: number;
+  kbId: number;
+  docName: string;
+  fileType: string;
+  fileSize: number;
+  parseStatus: string;
+  chunkCount: number;
+  charCount: number;
+  summary?: string;
+  createdAt?: string;
+}
+
+export interface KnowledgeChunkRow {
+  id: number;
+  docId: number;
+  chunkIndex: number;
+  pageNo: number;
+  sectionTitle?: string;
+  content: string;
+  keywords?: string;
+}
+
+export interface KnowledgeCitation {
+  citationNo: number;
+  chunkId: number;
+  docId: number;
+  docName: string;
+  pageNo: number;
+  sectionTitle?: string;
+  excerpt: string;
+  score: number;
+}
+
+export interface KnowledgeAskResponse {
+  question: string;
+  answer: string;
+  engine: string;
+  latencyMs: number;
+  citations: KnowledgeCitation[];
+}
+
+export interface DocumentRiskItem {
+  riskLevel: "HIGH" | "MEDIUM" | "LOW" | string;
+  category: string;
+  clauseExcerpt: string;
+  issueSummary: string;
+  policyCitation: string;
+  suggestedRevision: string;
+}
+
+export interface DocumentReviewResponse {
+  documentTitle: string;
+  complianceScore: number;
+  highRiskCount: number;
+  mediumRiskCount: number;
+  summary: string;
+  risks: DocumentRiskItem[];
+  references: KnowledgeCitation[];
+}
+
+// --- Visual Agent Studio ---
+export interface AiAgentRow {
+  id: number;
+  agentCode: string;
+  agentName: string;
+  avatar: string;
+  roleTitle: string;
+  systemPrompt: string;
+  modelId: string;
+  kbIds: number[];
+  toolCodes: string[];
+  channelTypes: string;
+  temperature: number;
+  welcomeMessage?: string;
+  status: string;
+  runCount: number;
+  remark?: string;
+}
+
+export interface AiToolOption {
+  toolCode: string;
+  toolName: string;
+  category: string;
+  riskLevel: string;
+  description: string;
+}
+
+export interface AgentChatResponse {
+  agentId: number;
+  sessionId: number;
+  agentName: string;
+  reply: string;
+  engine: string;
+  toolTraces: string[];
+  citations: KnowledgeCitation[];
+  latencyMs: number;
+}
+
+// --- Fine-tuning Workbench ---
+export interface FinetuneDatasetRow {
+  id: number;
+  datasetCode: string;
+  datasetName: string;
+  taskType: string;
+  sampleCount: number;
+  approvedCount: number;
+  formatType: string;
+  status: string;
+  remark?: string;
+}
+
+export interface FinetuneSampleRow {
+  id: number;
+  datasetId: number;
+  instruction: string;
+  inputText?: string;
+  outputText: string;
+  sourceType: string;
+  qualityScore: number;
+  reviewStatus: "PENDING" | "APPROVED" | "REJECTED" | string;
+  desensitized: boolean;
+  createdAt?: string;
+}
+
+export interface FinetuneJobRow {
+  id: number;
+  jobCode: string;
+  jobName: string;
+  datasetId: number;
+  baseModel: string;
+  tuningMethod: string;
+  epochs: number;
+  learningRate: string;
+  loraRank: number;
+  status: string;
+  progressPercent: number;
+  trainLoss: number;
+  evalAccuracy: number;
+  baselineAccuracy: number;
+  outputModelId?: string;
+  metrics: {
+    lossCurve?: number[];
+    baselineSqlValidRate?: number;
+    tunedSqlValidRate?: number;
+    approvedSampleCount?: number;
+    avgLatencyDeltaMs?: number;
+  };
+  createdAt?: string;
+}

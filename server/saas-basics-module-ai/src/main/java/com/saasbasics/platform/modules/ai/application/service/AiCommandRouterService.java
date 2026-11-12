@@ -44,11 +44,47 @@ public class AiCommandRouterService {
         String low = input.toLowerCase(Locale.ROOT);
         boolean executeNow = Boolean.TRUE.equals(request.executeNow());
 
-        // 1. Export / Report Intent
-        if (containsAny(low, "导出", "下载", "excel", "csv", "生成报告", "月报", "周报", "分析报告", "套打", "export")) {
+        // 0. Compound Multi-Step Intent (e.g., "查...并导出...", "新建...并配置审批流")
+        boolean hasExportPart = containsAny(low, "导出", "下载", "pdf", "excel", "csv", "报告", "export");
+        boolean hasQueryPart = containsAny(low, "查", "统计", "分析", "对比", "排名", "top", "汇总");
+        if (hasExportPart && hasQueryPart && containsAny(low, "并", "然后", "同时", "再")) {
             String sourceCode = inferExportSource(low);
-            String format = containsAny(low, "报告", "pdf", "月报", "周报", "ppt") ? "HTML_REPORT"
-                    : (low.contains("csv") ? "CSV" : "XLSX");
+            String format = containsAny(low, "pdf") ? "PDF"
+                    : (containsAny(low, "报告", "月报", "周报") ? "HTML_REPORT"
+                    : (low.contains("csv") ? "CSV" : "XLSX"));
+            Nl2SqlQueryResponse preview = executeNow
+                    ? nl2SqlService.executeNaturalQuery(new Nl2SqlQueryRequest(input, request.modelId(), 30))
+                    : null;
+            List<Map<String, Object>> steps = List.of(
+                    Map.of("step", 1, "action", "QUERY_DATA", "title", "多租户安全 NL2SQL 实时查数",
+                            "status", preview != null ? "DONE" : "READY", "route", "/ai/data-copilot"),
+                    Map.of("step", 2, "action", "EXPORT_DATA", "title", "自动脱敏 + 生成 " + format + " 带水印报告",
+                            "status", "READY", "route", "/file/download-center")
+            );
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("sourceCode", sourceCode);
+            payload.put("format", format);
+            payload.put("question", input);
+            payload.put("steps", steps);
+            recordNonQueryHistory(input, "COMPOUND_PLAN", 0.96, "复合规划: 查数(" + sourceCode + ") + 导出(" + format + ")");
+            return new AiCommandResponse(
+                    "COMPOUND_PLAN",
+                    "多步智能协同规划（查数 + 导出）",
+                    0.96,
+                    "已自动拆解为两步执行链：先完成多租户安全查数，再一键导出加注防伪水印的 " + format + " 文件。",
+                    false,
+                    "/ai/data-copilot",
+                    payload,
+                    preview
+            );
+        }
+
+        // 1. Export / Report Intent
+        if (containsAny(low, "导出", "下载", "excel", "csv", "生成报告", "月报", "周报", "分析报告", "套打", "pdf", "export")) {
+            String sourceCode = inferExportSource(low);
+            String format = containsAny(low, "pdf") ? "PDF"
+                    : (containsAny(low, "报告", "月报", "周报", "ppt") ? "HTML_REPORT"
+                    : (low.contains("csv") ? "CSV" : "XLSX"));
             Map<String, Object> payload = new LinkedHashMap<>();
             payload.put("sourceCode", sourceCode);
             payload.put("format", format);
@@ -62,7 +98,7 @@ public class AiCommandRouterService {
                     "EXPORT_DATA",
                     "智能数据导出与报告",
                     0.94,
-                    "已识别您希望导出业务数据或生成分析报告，系统已为您自动匹配数据源【" + sourceCode + "】及安全水印策略。",
+                    "已识别您希望导出业务数据或生成分析报告，系统已为您自动匹配数据源【" + sourceCode + "】（格式：" + format + "）及安全水印策略。",
                     false,
                     "/file/download-center",
                     payload,
@@ -70,7 +106,78 @@ public class AiCommandRouterService {
             );
         }
 
-        // 2. Natural Language Feature / App Builder Intent
+        // 1.5 Knowledge Base / Compliance Review Intent
+        if (containsAny(low, "知识库", "rag", "文档问答", "合同审查", "合同审核", "合规红线", "制度规范", "标书")) {
+            recordNonQueryHistory(input, "KNOWLEDGE_RAG", 0.93, "跳转 AI 企业知识库与合同合审");
+            return new AiCommandResponse(
+                    "KNOWLEDGE_RAG",
+                    "企业知识库与智能合同合审",
+                    0.93,
+                    "已识别文档检索或合规审查意图，前往「AI 企业知识库」即可执行混合向量召回问答（附带原文引用页码）及合同条款逐条风险扫描。",
+                    false,
+                    "/ai/knowledge",
+                    Map.of("question", input),
+                    null
+            );
+        }
+
+        // 1.6 Agent Studio / Fine-tune Intent
+        if (containsAny(low, "智能体", "agent", "数字员工")) {
+            recordNonQueryHistory(input, "AGENT_STUDIO", 0.92, "跳转智能体编排工坊");
+            return new AiCommandResponse(
+                    "AGENT_STUDIO",
+                    "智能体工坊 (Agent Studio)",
+                    0.92,
+                    "可在「智能体工坊」编排专属角色 Prompt、挂载企业知识库与 MCP 工具权限，并一键发布到各业务渠道。",
+                    false,
+                    "/ai/agents",
+                    Map.of("question", input),
+                    null
+            );
+        }
+        if (containsAny(low, "微调", "lora", "训练数据集", "sft", "模型评测")) {
+            recordNonQueryHistory(input, "FINETUNE_STUDIO", 0.92, "跳转模型微调与评测工坊");
+            return new AiCommandResponse(
+                    "FINETUNE_STUDIO",
+                    "企业专属模型微调与评测",
+                    0.92,
+                    "前往「模型微调与评测」标注清洗脱敏样本、导出 JSONL 并对比 LoRA 微调前后的准确率提升。",
+                    false,
+                    "/ai/finetune",
+                    Map.of("question", input),
+                    null
+            );
+        }
+
+        // 2. Build Workflow Intent (with structured BPMN flow preview - check before generic BUILD/CREATE)
+        if (containsAny(low, "审批流", "工作流", "请假流程", "bpmn", "approval flow") && !containsAny(low, "建表", "新增模块")) {
+            List<Map<String, Object>> nodes = List.of(
+                    Map.of("id", "start", "type", "START", "name", "员工发起申请", "assigneeRole", "ALL"),
+                    Map.of("id", "dept_mgr", "type", "APPROVAL", "name", "直属部门负责人审批", "assigneeRole", "DEPT_MANAGER"),
+                    Map.of("id", "cond_gate", "type", "GATEWAY", "name", "金额/天数条件分流", "condition", "amount > 50000 OR days > 3"),
+                    Map.of("id", "exec_mgr", "type", "APPROVAL", "name", "分管副总裁/财务会签", "assigneeRole", "VP_FINANCE"),
+                    Map.of("id", "notify_end", "type", "END", "name", "自动归档并发送站内通知", "assigneeRole", "SYSTEM")
+            );
+            Map<String, Object> blueprint = new LinkedHashMap<>();
+            blueprint.put("processName", input.length() > 30 ? input.substring(0, 30) : input);
+            blueprint.put("nodes", nodes);
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("prompt", input);
+            payload.put("workflowBlueprint", blueprint);
+            recordNonQueryHistory(input, "BUILD_WORKFLOW", 0.91, "生成 BPMN 流程蓝图并跳转工作流中心");
+            return new AiCommandResponse(
+                    "BUILD_WORKFLOW",
+                    "AI 智能审批流程编排",
+                    0.91,
+                    "已根据您的描述推导多级审批链与条件分支蓝图，可点击跳转至「工作流与审批中心」一键创建部署。",
+                    false,
+                    "/workflow",
+                    payload,
+                    null
+            );
+        }
+
+        // 3. Natural Language Feature / App Builder Intent
         if (containsAny(low, "新建表", "建表", "建一个", "做一个", "搭建", "生成应用", "新增模块", "工单系统", "巡检", "台账", "create table")) {
             Map<String, Object> payload = new LinkedHashMap<>();
             payload.put("prompt", input);
@@ -84,21 +191,6 @@ public class AiCommandRouterService {
                     false,
                     "/codegen/ai-builder",
                     payload,
-                    null
-            );
-        }
-
-        // 3. Build Workflow Intent
-        if (containsAny(low, "审批流", "工作流", "请假流程", "bpmn", "approval flow")) {
-            recordNonQueryHistory(input, "BUILD_WORKFLOW", 0.90, "跳转工作流编排中心");
-            return new AiCommandResponse(
-                    "BUILD_WORKFLOW",
-                    "工作流编排",
-                    0.90,
-                    "已识别审批流程需求，前往「工作流与审批中心」配置审批节点与条件分支。",
-                    false,
-                    "/workflow",
-                    Map.of("prompt", input),
                     null
             );
         }
@@ -192,6 +284,7 @@ public class AiCommandRouterService {
         if (low.contains("销售订单")) return "erp_sale_order";
         if (low.contains("采购订单")) return "erp_purchase_order";
         if (low.contains("用户") || low.contains("账号")) return "iam_user";
+        if (low.contains("审计") || low.contains("操作日志")) return "audit_operation_log";
         return "crm_customer";
     }
 

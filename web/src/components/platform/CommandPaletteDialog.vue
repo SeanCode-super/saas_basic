@@ -5,10 +5,12 @@ import { ElMessage } from "element-plus";
 import {
   Bell,
   Briefcase,
+  Collection,
   Cpu,
   CreditCard,
   DataAnalysis,
   DataBoard,
+  DataLine,
   Document,
   Download,
   Grid,
@@ -20,6 +22,7 @@ import {
   Printer,
   Promotion,
   Search,
+  Service,
   Setting,
   TrendCharts,
   User
@@ -69,6 +72,30 @@ const allCommands: CommandItem[] = [
     subtitle: "用自然语言查询业务库，自动生成 ECharts 图表、脱敏数据与分析报告",
     icon: DataAnalysis,
     action: () => void router.push("/ai/data-copilot")
+  },
+  {
+    id: "action-ai-knowledge",
+    category: "FAST_ACTION",
+    title: "AI 企业知识库与合同合审 (RAG)",
+    subtitle: "DOCX/XLSX/MD 切分入库、混合检索带页码引用问答及合同合规扫描",
+    icon: Collection,
+    action: () => void router.push("/ai/knowledge")
+  },
+  {
+    id: "action-ai-agents",
+    category: "FAST_ACTION",
+    title: "智能体工坊 (Agent Studio)",
+    subtitle: "编排专属数字员工人设、挂载知识库与 MCP 工具权限及实时沙盒联调",
+    icon: Service,
+    action: () => void router.push("/ai/agents")
+  },
+  {
+    id: "action-ai-finetune",
+    category: "FAST_ACTION",
+    title: "模型微调与评测 (LoRA Studio)",
+    subtitle: "自动采集脱敏样本、导出 Alpaca/ShareGPT JSONL 与 A/B 准确率评估",
+    icon: DataLine,
+    action: () => void router.push("/ai/finetune")
   },
   {
     id: "action-download-center",
@@ -260,7 +287,33 @@ async function runAiInterpretation(customInput?: string) {
   }
 }
 
-async function handleExportFromAiResult(format: "XLSX" | "HTML_REPORT") {
+interface WorkflowBlueprintNode {
+  id: string;
+  type: string;
+  name: string;
+  assigneeRole?: string;
+  condition?: string;
+}
+
+interface CompoundStepItem {
+  step: number;
+  action: string;
+  title: string;
+  status: string;
+  route: string;
+}
+
+const workflowBlueprintNodes = computed<WorkflowBlueprintNode[]>(() => {
+  const bp = aiResult.value?.actionPayload?.workflowBlueprint as { nodes?: WorkflowBlueprintNode[] } | undefined;
+  return Array.isArray(bp?.nodes) ? bp.nodes : [];
+});
+
+const compoundSteps = computed<CompoundStepItem[]>(() => {
+  const steps = aiResult.value?.actionPayload?.steps;
+  return Array.isArray(steps) ? (steps as CompoundStepItem[]) : [];
+});
+
+async function handleExportFromAiResult(format: "XLSX" | "PDF" | "HTML_REPORT") {
   const res = aiResult.value;
   if (!res) return;
   aiExporting.value = true;
@@ -417,7 +470,7 @@ function executeCommand(cmd: CommandItem) {
             </div>
             <div class="ai-header-actions">
               <el-button
-                v-if="aiResult.nl2sqlResult || aiResult.intentCode === 'EXPORT_DATA'"
+                v-if="aiResult.nl2sqlResult || aiResult.intentCode === 'EXPORT_DATA' || aiResult.intentCode === 'COMPOUND_PLAN'"
                 size="small"
                 :icon="Download"
                 :loading="aiExporting"
@@ -426,13 +479,22 @@ function executeCommand(cmd: CommandItem) {
                 导出 Excel
               </el-button>
               <el-button
-                v-if="aiResult.nl2sqlResult || aiResult.intentCode === 'EXPORT_DATA'"
+                v-if="aiResult.nl2sqlResult || aiResult.intentCode === 'EXPORT_DATA' || aiResult.intentCode === 'COMPOUND_PLAN'"
+                size="small"
+                :icon="Document"
+                :loading="aiExporting"
+                @click="handleExportFromAiResult('PDF')"
+              >
+                生成 PDF
+              </el-button>
+              <el-button
+                v-if="aiResult.nl2sqlResult || aiResult.intentCode === 'EXPORT_DATA' || aiResult.intentCode === 'COMPOUND_PLAN'"
                 size="small"
                 :icon="Document"
                 :loading="aiExporting"
                 @click="handleExportFromAiResult('HTML_REPORT')"
               >
-                生成报告
+                分析报告
               </el-button>
               <el-button type="primary" size="small" :icon="Promotion" @click="handleAiFollowAction">
                 {{ aiResult.intentCode === "CREATE_ENTITY" ? "前往 AI 应用工坊建模" : "在工作台展开" }}
@@ -441,6 +503,30 @@ function executeCommand(cmd: CommandItem) {
           </div>
 
           <p class="ai-explanation">{{ aiResult.explanation }}</p>
+
+          <div v-if="compoundSteps.length" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;">
+            <el-tag
+              v-for="s in compoundSteps"
+              :key="s.step"
+              :type="s.status === 'DONE' ? 'success' : 'primary'"
+              effect="light"
+              size="small"
+            >
+              Step {{ s.step }}: {{ s.title }}
+            </el-tag>
+          </div>
+
+          <div v-if="workflowBlueprintNodes.length" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 10px;">
+            <template v-for="(node, idx) in workflowBlueprintNodes" :key="node.id">
+              <el-tag
+                size="small"
+                :type="node.type === 'GATEWAY' ? 'warning' : node.type === 'APPROVAL' ? 'primary' : 'success'"
+              >
+                {{ node.name }}
+              </el-tag>
+              <span v-if="idx < workflowBlueprintNodes.length - 1" style="color: #94a3b8; font-size: 12px;">→</span>
+            </template>
+          </div>
 
           <div v-if="aiResult.nl2sqlResult" class="nl2sql-mini-preview">
             <div v-if="aiResult.nl2sqlResult.insights.length" class="mini-insights">
