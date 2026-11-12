@@ -37,6 +37,9 @@ function handleCardClick(item: NotifyMessage) {
   } else if (item.bizType === "SECURITY_ALERT") {
     popoverVisible.value = false;
     router.push("/audit");
+  } else if (item.bizType === "EXPORT_TASK") {
+    popoverVisible.value = false;
+    router.push("/file/download-center");
   }
 }
 

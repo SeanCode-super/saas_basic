@@ -129,7 +129,8 @@ export const APP_TAXONOMY: Record<string, AppMeta> = {
       storage: { label: "存储策略", description: "统一对象存储适配、版本、桶策略和冷热分层。" },
       upload: { label: "上传治理", description: "管理分片、直传、压缩和恶意文件扫描策略。" },
       lifecycle: { label: "生命周期", description: "管理保留、归档、去重、清理和恢复规则。" },
-      audit: { label: "访问审计", description: "统一上传、下载、分享和预览的审计留痕。" }
+      audit: { label: "访问审计", description: "统一上传、下载、分享和预览的审计留痕。" },
+      "download-center": { label: "导出与下载中心", description: "SXSSF 流式防 OOM 导出队列、水印追溯与字段脱敏管理。" }
     }
   },
   scheduler: {

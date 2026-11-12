@@ -1,23 +1,31 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
+import { ElMessage } from "element-plus";
 import {
   Bell,
   Briefcase,
   Cpu,
   CreditCard,
+  DataAnalysis,
   DataBoard,
   Document,
+  Download,
   Grid,
   Key,
+  Lock,
+  MagicStick,
   Monitor,
   Operation,
   Printer,
+  Promotion,
   Search,
   Setting,
   TrendCharts,
   User
 } from "@element-plus/icons-vue";
+import { interpretAiCommand, type AiCommandResponse } from "@/api/modules/ai";
+import { executeSyncExport } from "@/api/modules/export";
 
 const props = defineProps<{
   visible: boolean;
@@ -29,42 +37,76 @@ const emit = defineEmits<{
 }>();
 
 const router = useRouter();
+const route = useRoute();
 const searchKeyword = ref("");
 const selectedIndex = ref(0);
-const inputRef = ref();
+const inputRef = ref<HTMLInputElement | null>(null);
+const aiLoading = ref(false);
+const aiExporting = ref(false);
+const aiResult = ref<AiCommandResponse | null>(null);
 
 interface CommandItem {
   id: string;
   category: "FAST_ACTION" | "APPS" | "PLATFORM";
   title: string;
   subtitle: string;
-  icon: any;
+  icon: unknown;
   action: () => void;
 }
 
+const aiQuickExamples = [
+  "统计各行业 CRM 客户分布",
+  "分析销售商机漏斗各阶段预计金额",
+  "统计财务回款状态金额占比",
+  "帮我建一个设备巡检管理表，包含设备名称、检查人、隐患等级、巡检时间"
+];
+
 const allCommands: CommandItem[] = [
-  // 快速指令
+  {
+    id: "action-ai-copilot",
+    category: "FAST_ACTION",
+    title: "AI 数据副驾驶 (NL2SQL 驾驶舱)",
+    subtitle: "用自然语言查询业务库，自动生成 ECharts 图表、脱敏数据与分析报告",
+    icon: DataAnalysis,
+    action: () => void router.push("/ai/data-copilot")
+  },
+  {
+    id: "action-download-center",
+    category: "FAST_ACTION",
+    title: "数据导出与下载中心 (Export Center)",
+    subtitle: "SXSSF 流式导出 Excel / CSV / 水印报告、模板管理与大文件异步下载",
+    icon: Download,
+    action: () => void router.push("/file/download-center")
+  },
+  {
+    id: "action-ai-app-builder",
+    category: "FAST_ACTION",
+    title: "AI 智能应用工坊 (自然语言建表建页)",
+    subtitle: "输入业务场景描述，自动生成实体表结构、后端接口与动态 Vue 页面",
+    icon: MagicStick,
+    action: () => void router.push("/codegen/ai-builder")
+  },
   {
     id: "action-profile",
     category: "FAST_ACTION",
-    title: "个人中心 (Profile)",
-    subtitle: "查看个人账号信息、修改密码与登录审计",
+    title: "个人中心 (Profile / MFA)",
+    subtitle: "查看个人账号信息、绑定 TOTP 多因子认证与恢复码",
     icon: User,
-    action: () => router.push("/profile")
+    action: () => void router.push("/profile")
   },
   {
     id: "action-monitor",
     category: "FAST_ACTION",
     title: "服务与应用监控 (Server APM)",
-    subtitle: "实时 CPU、JVM 堆内存、连接池水位与死锁巡检",
+    subtitle: "实时 CPU、JVM 堆、接口 P95/P99 分位延迟、告警规则引擎",
     icon: Monitor,
-    action: () => router.push("/server-monitor")
+    action: () => void router.push("/server-monitor")
   },
   {
     id: "action-screen",
     category: "FAST_ACTION",
     title: "数字大屏驾驶舱 (Data Screen)",
-    subtitle: "全屏自适应 3D 科技感运营数据大屏",
+    subtitle: "全屏自适应科技感运营数据大屏",
     icon: DataBoard,
     action: () => {
       const routeUrl = router.resolve({ path: "/screen" });
@@ -79,14 +121,13 @@ const allCommands: CommandItem[] = [
     icon: Document,
     action: () => window.open("http://localhost:8080/doc.html", "_blank")
   },
-  // 业务应用
   {
     id: "app-crm",
     category: "APPS",
     title: "客户关系 CRM",
-    subtitle: "公海池抢单、销售线索、商机阶段漏斗、合同回款",
+    subtitle: "公海池抢单、销售线索、商机阶段漏斗、合同回款与安全导出",
     icon: TrendCharts,
-    action: () => router.push("/crm")
+    action: () => void router.push("/crm/customer")
   },
   {
     id: "app-erp",
@@ -94,15 +135,15 @@ const allCommands: CommandItem[] = [
     title: "进销存 ERP",
     subtitle: "商品档案 SKU、实时多仓库存、采购履约入库台账",
     icon: Briefcase,
-    action: () => router.push("/erp")
+    action: () => void router.push("/erp")
   },
   {
     id: "app-workflow",
     category: "APPS",
     title: "工作流中心 (BPM)",
-    subtitle: "流程定义、节点拖拽设计器、待办与审批历史",
+    subtitle: "流程定义、节点设计器、待办与审批历史",
     icon: Operation,
-    action: () => router.push("/workflow")
+    action: () => void router.push("/workflow")
   },
   {
     id: "app-print",
@@ -110,40 +151,31 @@ const allCommands: CommandItem[] = [
     title: "单据套打与报表中心 (Print)",
     subtitle: "增值税发票、采购单、物流面单套打，防伪印章与一键打印",
     icon: Printer,
-    action: () => router.push("/print")
+    action: () => void router.push("/print")
   },
   {
     id: "app-pay",
     category: "APPS",
     title: "统一聚合支付中台 (Pay Center)",
-    subtitle: "微信支付 Native 扫码、支付宝当面付与聚合收银台全景沙箱体验",
+    subtitle: "微信支付、支付宝签名验真回调、Outbox 自动结算账单",
     icon: CreditCard,
-    action: () => router.push("/integration/pay")
+    action: () => void router.push("/integration/pay")
   },
   {
     id: "app-message",
     category: "APPS",
     title: "多渠道消息与通知网关 (Notify)",
-    subtitle: "企业微信、钉钉、飞书机器人群推送，短信与邮件统一调度及审计",
+    subtitle: "企业微信、钉钉、飞书推送，短信与邮件调度审计",
     icon: Bell,
-    action: () => router.push("/integration/message")
+    action: () => void router.push("/integration/message")
   },
-  {
-    id: "app-tenant-apps",
-    category: "PLATFORM",
-    title: "租户应用授权体系 (App Entitlements)",
-    subtitle: "顶级管理员控制租户应用权限，未授权应用在系统内完全隐形",
-    icon: Grid,
-    action: () => router.push("/tenant/apps")
-  },
-  // 平台底座
   {
     id: "plat-tenant",
     category: "PLATFORM",
-    title: "多租户管控中枢",
-    subtitle: "租户开通入驻、套餐配额管理、数据隔离模式",
+    title: "多租户管控与灾备中心",
+    subtitle: "租户开通、应用授权、真 ZIP 快照备份与校验恢复",
     icon: Setting,
-    action: () => router.push("/tenant")
+    action: () => void router.push("/tenant")
   },
   {
     id: "plat-iam",
@@ -151,23 +183,31 @@ const allCommands: CommandItem[] = [
     title: "身份与权限中心 (IAM)",
     subtitle: "用户账号、角色权限矩阵、数据权限范围、部门组织",
     icon: Key,
-    action: () => router.push("/iam")
+    action: () => void router.push("/iam")
+  },
+  {
+    id: "plat-audit",
+    category: "PLATFORM",
+    title: "审计中心与字段级 Diff",
+    subtitle: "全链路操作审计日志、Before/After 字段对照对比",
+    icon: Lock,
+    action: () => void router.push("/audit/trail")
   },
   {
     id: "plat-codegen",
     category: "PLATFORM",
-    title: "代码生成引擎 (Codegen)",
-    subtitle: "单表/主子表/树表 CRUD 生成，一键物理写盘",
+    title: "代码生成与 AI 应用引擎 (Codegen)",
+    subtitle: "元数据 CRUD 生成与自然语言 AI 建模",
     icon: Cpu,
-    action: () => router.push("/codegen")
+    action: () => void router.push("/codegen")
   },
   {
     id: "plat-system",
     category: "PLATFORM",
-    title: "系统中心与数据字典",
-    subtitle: "全局参数配置、数据字典、回收站与系统序列号",
-    icon: Setting,
-    action: () => router.push("/system")
+    title: "系统中心与传输安全策略",
+    subtitle: "可控传输加密 (X25519+AES-GCM)、安全基线、字典与序列规则",
+    icon: Grid,
+    action: () => void router.push("/system")
   }
 ];
 
@@ -182,20 +222,112 @@ const filteredCommands = computed(() => {
   );
 });
 
+watch(searchKeyword, () => {
+  if (aiResult.value) {
+    aiResult.value = null;
+  }
+});
+
 watch(
   () => props.visible,
   (val) => {
     if (val) {
       searchKeyword.value = "";
       selectedIndex.value = 0;
-      nextTick(() => {
+      aiResult.value = null;
+      void nextTick(() => {
         inputRef.value?.focus();
       });
     }
   }
 );
 
+async function runAiInterpretation(customInput?: string) {
+  const text = (customInput ?? searchKeyword.value).trim();
+  if (!text) return;
+  searchKeyword.value = text;
+  aiLoading.value = true;
+  try {
+    aiResult.value = await interpretAiCommand({
+      input: text,
+      currentPath: route.fullPath,
+      executeNow: true
+    });
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : "AI 指令解析失败");
+  } finally {
+    aiLoading.value = false;
+  }
+}
+
+async function handleExportFromAiResult(format: "XLSX" | "HTML_REPORT") {
+  const res = aiResult.value;
+  if (!res) return;
+  aiExporting.value = true;
+  try {
+    if (res.nl2sqlResult && res.nl2sqlResult.rows.length > 0) {
+      const nl = res.nl2sqlResult;
+      const out = await executeSyncExport({
+        taskName: nl.chartTitle || nl.question,
+        sourceType: "NL2SQL",
+        sourceCode: nl.tableNames[0] || "nl2sql",
+        exportFormat: format,
+        adHocColumns: nl.columns,
+        adHocColumnLabels: nl.columnLabels,
+        adHocRows: nl.rows,
+        insights: nl.insights,
+        includeWatermark: true,
+        desensitizeEnabled: true,
+        async: false
+      });
+      ElMessage.success(`已导出 ${format}（追溯码 ${out.traceCode}）`);
+    } else {
+      const sourceCode = String(res.actionPayload?.sourceCode || "crm_customer");
+      const out = await executeSyncExport({
+        taskName: String(res.actionPayload?.question || sourceCode),
+        sourceType: "DATASET",
+        sourceCode,
+        exportFormat: format,
+        includeWatermark: true,
+        desensitizeEnabled: true,
+        async: false
+      });
+      ElMessage.success(`已导出 ${format}（追溯码 ${out.traceCode}）`);
+    }
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : "导出失败");
+  } finally {
+    aiExporting.value = false;
+  }
+}
+
+function handleAiFollowAction() {
+  const res = aiResult.value;
+  if (!res) return;
+  emit("update:visible", false);
+  if (res.intentCode === "CREATE_ENTITY") {
+    void router.push({
+      path: "/codegen/ai-builder",
+      query: { prompt: String(res.actionPayload?.prompt || searchKeyword.value), autoDesign: "1" }
+    });
+    return;
+  }
+  if (res.intentCode === "QUERY_DATA" || res.intentCode === "CHAT") {
+    void router.push({
+      path: "/ai/data-copilot",
+      query: { q: searchKeyword.value.trim() }
+    });
+    return;
+  }
+  void router.push(res.suggestedRoute || "/file/download-center");
+}
+
 function handleKeyDown(e: KeyboardEvent) {
+  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+    e.preventDefault();
+    void runAiInterpretation();
+    return;
+  }
   if (e.key === "ArrowDown") {
     e.preventDefault();
     if (filteredCommands.value.length > 0) {
@@ -209,8 +341,12 @@ function handleKeyDown(e: KeyboardEvent) {
     }
   } else if (e.key === "Enter") {
     e.preventDefault();
-    if (filteredCommands.value[selectedIndex.value]) {
+    if (aiResult.value) {
+      handleAiFollowAction();
+    } else if (filteredCommands.value.length > 0 && filteredCommands.value[selectedIndex.value]) {
       executeCommand(filteredCommands.value[selectedIndex.value]);
+    } else if (searchKeyword.value.trim()) {
+      void runAiInterpretation();
     }
   } else if (e.key === "Escape") {
     emit("update:visible", false);
@@ -227,7 +363,7 @@ function executeCommand(cmd: CommandItem) {
   <el-dialog
     :model-value="visible"
     :show-close="false"
-    width="640px"
+    width="720px"
     class="command-palette-dialog"
     destroy-on-close
     align-center
@@ -242,12 +378,98 @@ function executeCommand(cmd: CommandItem) {
           v-model="searchKeyword"
           type="text"
           class="search-input"
-          placeholder="键入关键字盲打搜索功能、页面或快捷指令..."
+          placeholder="搜索页面/功能，或直接用自然语言提问、建表、导出报表..."
         />
-        <kbd class="esc-kbd">ESC 退出</kbd>
+        <el-button
+          v-if="searchKeyword.trim()"
+          type="primary"
+          size="small"
+          :icon="MagicStick"
+          :loading="aiLoading"
+          @click="runAiInterpretation()"
+        >
+          AI 执行
+        </el-button>
+        <kbd class="esc-kbd">ESC</kbd>
       </div>
 
-      <div class="palette-list" v-if="filteredCommands.length > 0">
+      <div v-if="!searchKeyword.trim() && !aiResult" class="ai-example-strip">
+        <span class="strip-label">✨ 试试自然语言指令：</span>
+        <el-tag
+          v-for="ex in aiQuickExamples"
+          :key="ex"
+          size="small"
+          effect="plain"
+          class="ex-tag"
+          @click="runAiInterpretation(ex)"
+        >
+          {{ ex }}
+        </el-tag>
+      </div>
+
+      <!-- Inline AI Intent & NL2SQL Execution Preview -->
+      <div v-if="aiLoading || aiResult" v-loading="aiLoading" class="ai-result-panel">
+        <template v-if="aiResult">
+          <div class="ai-result-header">
+            <div class="ai-intent-meta">
+              <el-tag type="primary" effect="dark" size="small">{{ aiResult.intentLabel }}</el-tag>
+              <span class="confidence-pill">置信度 {{ Math.round(aiResult.confidence * 100) }}%</span>
+            </div>
+            <div class="ai-header-actions">
+              <el-button
+                v-if="aiResult.nl2sqlResult || aiResult.intentCode === 'EXPORT_DATA'"
+                size="small"
+                :icon="Download"
+                :loading="aiExporting"
+                @click="handleExportFromAiResult('XLSX')"
+              >
+                导出 Excel
+              </el-button>
+              <el-button
+                v-if="aiResult.nl2sqlResult || aiResult.intentCode === 'EXPORT_DATA'"
+                size="small"
+                :icon="Document"
+                :loading="aiExporting"
+                @click="handleExportFromAiResult('HTML_REPORT')"
+              >
+                生成报告
+              </el-button>
+              <el-button type="primary" size="small" :icon="Promotion" @click="handleAiFollowAction">
+                {{ aiResult.intentCode === "CREATE_ENTITY" ? "前往 AI 应用工坊建模" : "在工作台展开" }}
+              </el-button>
+            </div>
+          </div>
+
+          <p class="ai-explanation">{{ aiResult.explanation }}</p>
+
+          <div v-if="aiResult.nl2sqlResult" class="nl2sql-mini-preview">
+            <div v-if="aiResult.nl2sqlResult.insights.length" class="mini-insights">
+              💡 {{ aiResult.nl2sqlResult.insights[0] }}
+            </div>
+            <el-table
+              v-if="aiResult.nl2sqlResult.rows.length"
+              :data="aiResult.nl2sqlResult.rows.slice(0, 6)"
+              size="small"
+              border
+              max-height="210"
+            >
+              <el-table-column
+                v-for="col in aiResult.nl2sqlResult.columns.slice(0, 6)"
+                :key="col"
+                :prop="col"
+                :label="aiResult.nl2sqlResult.columnLabels[col] || col"
+                show-overflow-tooltip
+              />
+            </el-table>
+            <div class="mini-sql-line">
+              <code>{{ aiResult.nl2sqlResult.sql }}</code>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- Standard Command Search List -->
+      <div v-else-if="filteredCommands.length > 0" class="palette-list">
         <div
           v-for="(cmd, idx) in filteredCommands"
           :key="cmd.id"
@@ -263,7 +485,7 @@ function executeCommand(cmd: CommandItem) {
             <div class="item-title">
               {{ cmd.title }}
               <span class="category-tag">
-                {{ cmd.category === 'FAST_ACTION' ? '指令' : (cmd.category === 'APPS' ? '应用' : '底座') }}
+                {{ cmd.category === "FAST_ACTION" ? "指令" : cmd.category === "APPS" ? "应用" : "底座" }}
               </span>
             </div>
             <div class="item-subtitle">{{ cmd.subtitle }}</div>
@@ -275,14 +497,15 @@ function executeCommand(cmd: CommandItem) {
       </div>
 
       <div v-else class="palette-empty">
-        <el-icon class="empty-icon"><Search /></el-icon>
-        <p>未找到与 "{{ searchKeyword }}" 相关的指令或功能</p>
+        <el-icon class="empty-icon"><MagicStick /></el-icon>
+        <p>没有匹配的固定菜单 — 直接按 <strong>Enter</strong> 让 AI 智能执行「{{ searchKeyword }}」</p>
       </div>
 
       <div class="palette-footer">
-        <span class="footer-tip"><kbd>↑</kbd> <kbd>↓</kbd> 切换选项</span>
-        <span class="footer-tip"><kbd>Enter</kbd> 快速跳转</span>
-        <span class="footer-tip"><kbd>Esc</kbd> 关闭面板</span>
+        <span class="footer-tip"><kbd>↑</kbd> <kbd>↓</kbd> 导航</span>
+        <span class="footer-tip"><kbd>Enter</kbd> 执行/跳转</span>
+        <span class="footer-tip"><kbd>⌘/Ctrl</kbd>+<kbd>Enter</kbd> 强制 AI 解析</span>
+        <span class="footer-tip"><kbd>Esc</kbd> 关闭</span>
       </div>
     </div>
   </el-dialog>
@@ -314,9 +537,9 @@ function executeCommand(cmd: CommandItem) {
 .palette-search-bar {
   display: flex;
   align-items: center;
-  padding: 16px 20px;
+  padding: 14px 18px;
   border-bottom: 1px solid #f1f5f9;
-  gap: 12px;
+  gap: 10px;
 }
 
 .search-icon {
@@ -328,7 +551,7 @@ function executeCommand(cmd: CommandItem) {
   flex: 1;
   border: none;
   outline: none;
-  font-size: 16px;
+  font-size: 15px;
   color: #0f172a;
   background: transparent;
 }
@@ -347,8 +570,88 @@ function executeCommand(cmd: CommandItem) {
   font-family: monospace;
 }
 
+.ai-example-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  background: #f8fafc;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.strip-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #2563eb;
+}
+
+.ex-tag {
+  cursor: pointer;
+}
+
+.ai-result-panel {
+  padding: 16px 20px;
+  min-height: 120px;
+}
+
+.ai-result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.ai-intent-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.confidence-pill {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.ai-header-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.ai-explanation {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #334155;
+}
+
+.nl2sql-mini-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mini-insights {
+  font-size: 12px;
+  padding: 8px 12px;
+  background: #eff6ff;
+  border-left: 3px solid #2563eb;
+  border-radius: 4px;
+  color: #1e3a8a;
+}
+
+.mini-sql-line {
+  font-size: 11px;
+  color: #64748b;
+  background: #f8fafc;
+  padding: 6px 8px;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
 .palette-list {
-  max-height: 420px;
+  max-height: 380px;
   overflow-y: auto;
   padding: 10px;
   display: flex;
@@ -435,14 +738,15 @@ function executeCommand(cmd: CommandItem) {
 }
 
 .palette-empty {
-  padding: 40px 20px;
+  padding: 36px 20px;
   text-align: center;
-  color: #94a3b8;
+  color: #64748b;
 }
 
 .empty-icon {
-  font-size: 32px;
+  font-size: 30px;
   margin-bottom: 8px;
+  color: #2563eb;
 }
 
 .palette-footer {

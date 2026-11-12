@@ -3,7 +3,7 @@ import {
   onMounted,
   ref
 } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
   MagicStick,
@@ -28,6 +28,7 @@ import type {
   DynamicModelItem
 } from "@/api/modules/codegen/ai-builder";
 
+const route = useRoute();
 const router = useRouter();
 
 const activeTab = ref<"builder" | "published">("builder");
@@ -201,7 +202,15 @@ async function handleDeleteModel(app: DynamicModelItem) {
 }
 
 onMounted(() => {
-  loadPublishedApps();
+  void loadPublishedApps();
+  const qPrompt = typeof route.query.prompt === "string" ? route.query.prompt.trim() : "";
+  if (qPrompt) {
+    activeTab.value = "builder";
+    promptText.value = qPrompt;
+    if (route.query.autoDesign === "1") {
+      void handleGenerateBlueprint();
+    }
+  }
 });
 </script>
 

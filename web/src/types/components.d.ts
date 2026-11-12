@@ -76,6 +76,7 @@ declare module 'vue' {
     ElTreeSelect: typeof import('element-plus/es')['ElTreeSelect']
     ElUpload: typeof import('element-plus/es')['ElUpload']
     ElWatermark: typeof import('element-plus/es')['ElWatermark']
+    ExportDialog: typeof import('./../components/platform/ExportDialog.vue')['default']
     ModuleSectionNav: typeof import('./../components/platform/ModuleSectionNav.vue')['default']
     ModuleWorkbench: typeof import('./../components/platform/ModuleWorkbench.vue')['default']
     NavigationAtlas: typeof import('./../components/platform/NavigationAtlas.vue')['default']

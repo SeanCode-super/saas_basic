@@ -294,3 +294,74 @@ export interface AiRunCreatePayload {
   toolCode?: string;
   toolArguments?: Record<string, unknown>;
 }
+
+export interface Nl2SqlSchemaColumn {
+  columnCode: string;
+  columnLabel: string;
+  dataType: string;
+  sensitive: boolean;
+}
+
+export interface Nl2SqlSchemaTable {
+  tableName: string;
+  tableLabel: string;
+  domain: string;
+  hasDeletedColumn: boolean;
+  columns: Nl2SqlSchemaColumn[];
+}
+
+export interface Nl2SqlQueryRequest {
+  question: string;
+  modelId?: string;
+  maxRows?: number;
+}
+
+export interface Nl2SqlQueryResponse {
+  question: string;
+  tableNames: string[];
+  sql: string;
+  columns: string[];
+  columnLabels: Record<string, string>;
+  rows: Array<Record<string, unknown>>;
+  rowCount: number;
+  recommendedChartType: "BAR" | "LINE" | "PIE" | "STAT" | "TABLE" | string;
+  chartTitle: string;
+  chartXAxis: string;
+  chartSeriesField: string;
+  insights: string[];
+  followUpSuggestions: string[];
+  maskedFields: string[];
+  executionEngine: string;
+  latencyMs: number;
+}
+
+export interface AiCommandRequest {
+  input: string;
+  currentPath?: string;
+  modelId?: string;
+  executeNow?: boolean;
+}
+
+export interface AiCommandResponse {
+  intentCode: string;
+  intentLabel: string;
+  confidence: number;
+  explanation: string;
+  requiresConfirmation: boolean;
+  suggestedRoute: string;
+  actionPayload: Record<string, unknown>;
+  nl2sqlResult?: Nl2SqlQueryResponse | null;
+}
+
+export interface AiCommandHistoryRow {
+  id: number | string;
+  rawCommand: string;
+  intentCode: string;
+  confidence: number;
+  generatedSql?: string;
+  resultSummary?: string;
+  rowCount: number;
+  latencyMs: number;
+  status: string;
+  createdAt?: string;
+}

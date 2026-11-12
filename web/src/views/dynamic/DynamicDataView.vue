@@ -26,6 +26,7 @@ import {
 } from "@element-plus/icons-vue";
 import ControlSurface from "@/components/platform/ControlSurface.vue";
 import BaseCard from "@/components/base/BaseCard.vue";
+import ExportDialog from "@/components/platform/ExportDialog.vue";
 import {
   fetchDynamicMeta,
   fetchDynamicPage,
@@ -85,6 +86,7 @@ const detailRecord = ref<Record<string, any> | null>(null);
 const importDialogVisible = ref(false);
 const importCsvText = ref("");
 const importing = ref(false);
+const exportDialogVisible = ref(false);
 
 // Option parsing helper
 function parseOptions(optionsJson?: string): Array<{ label: string; value: string | number; color?: string }> {
@@ -474,32 +476,6 @@ async function handleQuickStatusChange(row: Record<string, any>, newStatus: stri
   }
 }
 
-// Export CSV
-function exportCsv() {
-  if (records.value.length === 0) {
-    ElMessage.warning("暂无数据可导出");
-    return;
-  }
-  const headers = ["序号", ...fields.value.map((f) => f.fieldName), "创建时间"];
-  const rows = records.value.map((row, idx) => [
-    idx + 1,
-    ...fields.value.map((f) => {
-      const val = row[f.fieldCode];
-      const display = f.componentType === "select" ? getOptionLabel(f, val) : val;
-      return display !== undefined && display !== null ? `"${String(display).replace(/"/g, '""')}"` : '""';
-    }),
-    row.created_at ?? ""
-  ]);
-  const csvContent = "\uFEFF" + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = `${meta.value?.modelName || "业务台账"}-导出.csv`;
-  link.click();
-  URL.revokeObjectURL(link.href);
-  ElMessage.success("台账数据导出成功");
-}
-
 // Download Import Template
 function downloadImportTemplate() {
   const headers = fields.value.map((f) => f.fieldName);
@@ -634,7 +610,7 @@ onMounted(() => {
           载入演示数据
         </el-button>
         <el-button :icon="Upload" @click="importDialogVisible = true">批量导入</el-button>
-        <el-button :icon="Download" @click="exportCsv">导出台账</el-button>
+        <el-button :icon="Download" @click="exportDialogVisible = true">安全导出 / AI 报告</el-button>
         <el-button :icon="RefreshRight" :loading="loading" @click="loadData">刷新</el-button>
         <el-button
           v-if="selectedRows.length > 0"
@@ -1263,6 +1239,12 @@ onMounted(() => {
         </span>
       </template>
     </el-dialog>
+
+    <ExportDialog
+      v-model:visible="exportDialogVisible"
+      :source-code="modelCode ? `dynamic:${modelCode}` : ''"
+      :default-title="meta?.modelName ? `${meta.modelName}_业务台账` : ''"
+    />
   </div>
 </template>
 

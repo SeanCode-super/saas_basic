@@ -68,6 +68,16 @@ function goToAiConfig() {
   router.push("/system/ai-models");
 }
 
+function goToDataCopilot() {
+  visible.value = false;
+  router.push("/ai/data-copilot");
+}
+
+function goToDownloadCenter() {
+  visible.value = false;
+  router.push("/file/download-center");
+}
+
 onMounted(() => {
   loadDynamicModels();
 });
@@ -267,6 +277,12 @@ defineExpose({
         <span v-if="currentModelMeta?.contextWindow" class="status-spec">
           规格: {{ currentModelMeta.contextWindow }}
         </span>
+        <el-button link type="primary" size="small" style="margin-left: auto" @click="goToDataCopilot">
+          NL2SQL 驾驶舱
+        </el-button>
+        <el-button link type="primary" size="small" @click="goToDownloadCenter">
+          下载中心
+        </el-button>
       </div>
 
       <!-- Quick prompts -->

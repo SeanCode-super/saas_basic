@@ -40,7 +40,27 @@ export const router = createRouter({
       component: ConsoleLayout,
       meta: {
         hidden: true
-      }
+      },
+      children: [
+        {
+          path: "ai/data-copilot",
+          name: "ai-data-copilot",
+          component: () => import("@/views/ai/AiDataCopilotView.vue"),
+          meta: {
+            title: "AI 数据副驾驶 (NL2SQL)",
+            hidden: true
+          }
+        },
+        {
+          path: "file/download-center",
+          name: "file-download-center",
+          component: () => import("@/views/export/DownloadCenterView.vue"),
+          meta: {
+            title: "数据导出与下载中心",
+            hidden: true
+          }
+        }
+      ]
     },
     {
       path: "/:pathMatch(.*)*",

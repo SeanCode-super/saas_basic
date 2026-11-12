@@ -23,16 +23,34 @@ public class LocalFileClient implements FileClient {
     private final String publicBaseUrl;
 
     public LocalFileClient(String baseDir, String publicBaseUrl) {
-        this.baseDir = (baseDir != null && !baseDir.isBlank()) ? baseDir : "./data/storage";
+        this.baseDir = resolveWritableBaseDir(baseDir);
         this.publicBaseUrl = (publicBaseUrl != null && !publicBaseUrl.isBlank())
                 ? publicBaseUrl.replaceAll("/+$", "")
                 : "/api/file/raw-download";
+    }
 
-        // Ensure directory exists
-        File dir = new File(this.baseDir);
-        if (!dir.exists()) {
-            dir.mkdirs();
+    private static String resolveWritableBaseDir(String requestedDir) {
+        String candidate = (requestedDir != null && !requestedDir.isBlank()) ? requestedDir.trim() : "./data/storage";
+        Path resolved = Paths.get(candidate).toAbsolutePath().normalize();
+        // Avoid resolving relative paths against root '/' on launchd/daemon sessions
+        if (candidate.startsWith(".") && resolved.startsWith("/data") && !Files.isWritable(Paths.get("/"))) {
+            resolved = Paths.get(System.getProperty("java.io.tmpdir", "/tmp"), "saas-basics-storage");
         }
+        try {
+            Files.createDirectories(resolved);
+            if (Files.isWritable(resolved)) {
+                return resolved.toString();
+            }
+        } catch (IOException ignored) {
+        }
+        Path fallback = Paths.get(System.getProperty("java.io.tmpdir", "/tmp"), "saas-basics-storage")
+                .toAbsolutePath().normalize();
+        try {
+            Files.createDirectories(fallback);
+        } catch (IOException ex) {
+            log.warn("Unable to pre-create fallback storage directory {}: {}", fallback, ex.getMessage());
+        }
+        return fallback.toString();
     }
 
     @Override

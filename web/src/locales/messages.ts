@@ -31,7 +31,10 @@ export const messages: Record<AppLocale, Record<string, string>> = {
     "monitor.alertsTitle": "阈值告警规则引擎与触发事件",
     "audit.diffTitle": "字段级变更对照 (Before / After Diff)",
     "tenant.snapshotTitle": "租户灾备 ZIP 快照与校验还原",
-    "pay.webhookTitle": "支付通道签名回调与 Outbox 核销"
+    "pay.webhookTitle": "支付通道签名回调与 Outbox 核销",
+    "ai.copilotTitle": "AI 数据副驾驶 (NL2SQL 驾驶舱)",
+    "ai.commandPaletteTitle": "⌘K 全局 AI 智能命令面板",
+    "export.centerTitle": "企业数据导出与下载中心"
   },
   "en-US": {
     "shell.brandTitle": "Tianshu Cloud Platform",
@@ -63,7 +66,10 @@ export const messages: Record<AppLocale, Record<string, string>> = {
     "monitor.alertsTitle": "Threshold Alert Rules & Triggered Events",
     "audit.diffTitle": "Field-Level Before / After Audit Diff",
     "tenant.snapshotTitle": "Tenant ZIP Backup & Checksum Restore",
-    "pay.webhookTitle": "Signed Payment Webhook & Outbox Billing"
+    "pay.webhookTitle": "Signed Payment Webhook & Outbox Billing",
+    "ai.copilotTitle": "AI Data Copilot (NL2SQL Cockpit)",
+    "ai.commandPaletteTitle": "⌘K Global AI Command Palette",
+    "export.centerTitle": "Enterprise Data Export & Download Center"
   }
 };
 

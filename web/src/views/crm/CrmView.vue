@@ -7,6 +7,7 @@ import {
   Check,
   Close,
   Document,
+  Download,
   Lock,
   Money,
   Phone,
@@ -49,10 +50,22 @@ import type {
   CrmReceivableRow,
   CrmStatistics
 } from "@/api/modules/crm";
+import ExportDialog from "@/components/platform/ExportDialog.vue";
 
 const route = useRoute();
 const activeTab = ref<"customers" | "clues" | "businesses" | "contracts" | "receivables">("customers");
 const loading = ref(false);
+const exportDialogVisible = ref(false);
+const crmExportSourceCode = computed(() => {
+  const map: Record<string, string> = {
+    customers: "crm_customer",
+    clues: "crm_clue",
+    businesses: "crm_business",
+    contracts: "crm_contract",
+    receivables: "crm_receivable"
+  };
+  return map[activeTab.value] || "crm_customer";
+});
 
 function syncTabFromRoute() {
   const p = route.path.toLowerCase();
@@ -560,6 +573,11 @@ onMounted(() => {
           <span class="label">已回款额</span>
           <span class="value">¥{{ (stats.receivableReceivedAmount || 0).toLocaleString() }}</span>
         </div>
+      </div>
+      <div class="telemetry-right">
+        <el-button type="primary" plain size="small" :icon="Download" @click="exportDialogVisible = true">
+          安全导出 / AI 报告
+        </el-button>
       </div>
     </div>
 
@@ -1078,6 +1096,11 @@ onMounted(() => {
         </div>
       </div>
     </el-drawer>
+
+    <ExportDialog
+      v-model:visible="exportDialogVisible"
+      :source-code="crmExportSourceCode"
+    />
   </div>
 </template>
 

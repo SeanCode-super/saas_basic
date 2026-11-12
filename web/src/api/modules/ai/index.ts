@@ -19,7 +19,13 @@ import type {
   AiTenantQuotaRow,
   AiRunRow,
   AiToolCallRow,
-  AiRunCreatePayload
+  AiRunCreatePayload,
+  AiCommandRequest,
+  AiCommandResponse,
+  Nl2SqlQueryRequest,
+  Nl2SqlQueryResponse,
+  Nl2SqlSchemaTable,
+  AiCommandHistoryRow
 } from "./types";
 
 export * from "./types";
@@ -204,5 +210,31 @@ export async function fetchPublicAiModels(): Promise<Array<{
     isDefault?: boolean;
     hasApiKey?: boolean;
   }>>>("/ai/models");
+  return response.data.data;
+}
+
+/** ⌘K 全局 AI 多意图路由解析与即席执行 */
+export async function interpretAiCommand(payload: AiCommandRequest): Promise<AiCommandResponse> {
+  const response = await http.post<ApiResponse<AiCommandResponse>>("/ai/command/interpret", payload);
+  return response.data.data;
+}
+
+/** 获取 AI 命令与 NL2SQL 历史 */
+export async function fetchAiCommandHistory(limit = 20): Promise<AiCommandHistoryRow[]> {
+  const response = await http.get<ApiResponse<AiCommandHistoryRow[]>>("/ai/command/history", {
+    params: { limit }
+  });
+  return response.data.data;
+}
+
+/** NL2SQL 自然语言安全查数 */
+export async function executeNl2SqlQuery(payload: Nl2SqlQueryRequest): Promise<Nl2SqlQueryResponse> {
+  const response = await http.post<ApiResponse<Nl2SqlQueryResponse>>("/ai/nl2sql/query", payload);
+  return response.data.data;
+}
+
+/** 获取当前租户允许查询的 NL2SQL Schema 目录 */
+export async function fetchNl2SqlSchemas(): Promise<Nl2SqlSchemaTable[]> {
+  const response = await http.get<ApiResponse<Nl2SqlSchemaTable[]>>("/ai/nl2sql/schemas");
   return response.data.data;
 }
