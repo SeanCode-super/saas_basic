@@ -10,7 +10,7 @@ ExecStart=/usr/bin/java -Dfile.encoding=UTF-8 -Dserver.port=8080 -jar /opt/saas_
 Restart=always
 RestartSec=3s
 LimitNOFILE=65536
-Environment="DB_PASSWORD=19990518suo"
+# Environment="DB_PASSWORD=YOUR_DB_PASSWORD"
 
 [Install]
 WantedBy=multi-user.target

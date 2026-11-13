@@ -1,6 +1,7 @@
 package com.saasbasics.platform.modules.ai.web;
 
 import com.saasbasics.platform.common.api.ApiResponse;
+import com.saasbasics.platform.common.auth.RequirePermission;
 import com.saasbasics.platform.modules.ai.application.dto.AiPlatformDtos.DocumentReviewRequest;
 import com.saasbasics.platform.modules.ai.application.dto.AiPlatformDtos.DocumentReviewResponse;
 import com.saasbasics.platform.modules.ai.application.dto.AiPlatformDtos.KnowledgeAskResponse;
@@ -27,6 +28,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/ai/knowledge")
+@RequirePermission("system:config:query")
 public class KnowledgeBaseController {
 
     private final KnowledgeRagService knowledgeRagService;
@@ -41,6 +43,7 @@ public class KnowledgeBaseController {
     }
 
     @PostMapping("/bases")
+    @RequirePermission("system:config:write")
     public ApiResponse<KnowledgeBaseDTO> saveBase(@RequestBody KnowledgeBaseSaveRequest request) {
         return ApiResponse.success(knowledgeRagService.saveKnowledgeBase(request));
     }
@@ -56,6 +59,7 @@ public class KnowledgeBaseController {
     }
 
     @PostMapping(value = "/docs/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @RequirePermission("system:config:write")
     public ApiResponse<KnowledgeDocDTO> uploadDoc(
             @RequestParam("kbId") Long kbId,
             @RequestParam("file") MultipartFile file) throws IOException {
@@ -63,11 +67,13 @@ public class KnowledgeBaseController {
     }
 
     @PostMapping("/docs/text")
+    @RequirePermission("system:config:write")
     public ApiResponse<KnowledgeDocDTO> ingestText(@RequestBody KnowledgeTextIngestRequest request) {
         return ApiResponse.success(knowledgeRagService.ingestText(request));
     }
 
     @DeleteMapping("/docs/{docId}")
+    @RequirePermission("system:config:write")
     public ApiResponse<Void> deleteDoc(@PathVariable("docId") Long docId) {
         knowledgeRagService.deleteDoc(docId);
         return ApiResponse.success(null);

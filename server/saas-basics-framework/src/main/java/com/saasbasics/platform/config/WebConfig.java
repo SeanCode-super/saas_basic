@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -21,17 +22,20 @@ public class WebConfig implements WebMvcConfigurer {
     private final TenantFeatureGuardInterceptor tenantFeatureGuardInterceptor;
     private final PermissionGuardInterceptor permissionGuardInterceptor;
     private final GlobalApiRateLimitInterceptor globalApiRateLimitInterceptor;
+    private final Environment environment;
 
     public WebConfig(SecurityProperties securityProperties,
                      DataPermissionInterceptor dataPermissionInterceptor,
                      TenantFeatureGuardInterceptor tenantFeatureGuardInterceptor,
                      PermissionGuardInterceptor permissionGuardInterceptor,
-                     GlobalApiRateLimitInterceptor globalApiRateLimitInterceptor) {
+                     GlobalApiRateLimitInterceptor globalApiRateLimitInterceptor,
+                     Environment environment) {
         this.securityProperties = securityProperties;
         this.dataPermissionInterceptor = dataPermissionInterceptor;
         this.tenantFeatureGuardInterceptor = tenantFeatureGuardInterceptor;
         this.permissionGuardInterceptor = permissionGuardInterceptor;
         this.globalApiRateLimitInterceptor = globalApiRateLimitInterceptor;
+        this.environment = environment;
     }
 
     @Override
@@ -40,16 +44,19 @@ public class WebConfig implements WebMvcConfigurer {
         if (securityProperties.getCorsAllowedOrigins() != null) {
             origins.addAll(securityProperties.getCorsAllowedOrigins());
         }
-        // Always support local dev & mobile preview patterns
-        origins.add("http://localhost:*");
-        origins.add("http://*.localhost:*");
-        origins.add("http://127.0.0.1:*");
-        origins.add("http://[::1]:*");
-        origins.add("https://localhost:*");
-        origins.add("https://*.localhost:*");
-        origins.add("https://127.0.0.1:*");
-        origins.add("http://192.168.*.*:*");
-        origins.add("http://10.*.*.*:*");
+        boolean isProd = environment != null && environment.matchesProfiles("prod");
+        if (!isProd) {
+            // Support local dev & mobile preview patterns only in non-production environments
+            origins.add("http://localhost:*");
+            origins.add("http://*.localhost:*");
+            origins.add("http://127.0.0.1:*");
+            origins.add("http://[::1]:*");
+            origins.add("https://localhost:*");
+            origins.add("https://*.localhost:*");
+            origins.add("https://127.0.0.1:*");
+            origins.add("http://192.168.*.*:*");
+            origins.add("http://10.*.*.*:*");
+        }
 
         registry.addMapping("/**")
                 .allowedOriginPatterns(origins.toArray(String[]::new))

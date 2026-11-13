@@ -7,5 +7,5 @@
   <logmode>rotate</logmode>
   <logpath>%BASE%\logs</logpath>
   <onfailure action="restart" delay="3 sec"/>
-  <env name="DB_PASSWORD" value="19990518suo"/>
+  <!-- <env name="DB_PASSWORD" value="YOUR_STRONG_PASSWORD"/> -->
 </service>

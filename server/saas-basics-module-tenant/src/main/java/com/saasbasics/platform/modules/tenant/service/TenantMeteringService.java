@@ -193,7 +193,15 @@ public class TenantMeteringService {
 
     @Transactional(rollbackFor = Exception.class)
     public TenantSnapshotResponse generateTenantSnapshot(Long tenantId) {
-        Long effectiveTenantId = tenantId != null ? tenantId : getTenantId();
+        Long currentTenantId = getTenantId();
+        Long effectiveTenantId = tenantId != null ? tenantId : currentTenantId;
+        AuthPrincipal principal = AuthContext.get();
+        if (principal != null) {
+            boolean isPlatformSuperAdmin = principal.isSuperAdmin() && "PLATFORM".equalsIgnoreCase(principal.userType());
+            if (tenantId != null && !tenantId.equals(principal.tenantId()) && !isPlatformSuperAdmin) {
+                throw new BizException("TENANT_ACCESS_DENIED", "无权跨租户导出灾备快照");
+            }
+        }
         TenantEntity tenant = tenantMapper.selectById(effectiveTenantId);
         if (tenant == null) {
             throw new BizException("TENANT_NOT_FOUND", "目标租户不存在: " + effectiveTenantId);
@@ -283,6 +291,8 @@ public class TenantMeteringService {
         if (snapshotId == null || !snapshotId.matches("^[A-Za-z0-9_-]{4,80}$")) {
             throw new BizException("INVALID_SNAPSHOT_ID", "非法的快照编号格式");
         }
+        Long currentTenantId = getTenantId();
+        AuthPrincipal principal = AuthContext.get();
         TenantSnapshotRecordMapper recMapper = snapshotRecordMapperProvider != null
                 ? snapshotRecordMapperProvider.getIfAvailable()
                 : null;
@@ -291,7 +301,16 @@ public class TenantMeteringService {
             TenantSnapshotRecordEntity record = recMapper.selectOne(new LambdaQueryWrapper<TenantSnapshotRecordEntity>()
                     .eq(TenantSnapshotRecordEntity::getSnapshotId, snapshotId)
                     .last("LIMIT 1"));
-            if (record != null && record.getStoragePath() != null) {
+            if (record == null) {
+                throw new BizException("SNAPSHOT_NOT_FOUND", "灾备快照记录不存在: " + snapshotId);
+            }
+            if (principal != null) {
+                boolean isPlatformSuperAdmin = principal.isSuperAdmin() && "PLATFORM".equalsIgnoreCase(principal.userType());
+                if (!isPlatformSuperAdmin && !record.getTenantId().equals(principal.tenantId())) {
+                    throw new BizException("TENANT_ACCESS_DENIED", "无权下载其他租户的灾备快照");
+                }
+            }
+            if (record.getStoragePath() != null) {
                 Path dbPath = Path.of(record.getStoragePath()).normalize();
                 if (dbPath.startsWith(snapshotRootDir.normalize()) && Files.exists(dbPath)) {
                     targetPath = dbPath;
@@ -310,7 +329,15 @@ public class TenantMeteringService {
 
     @Transactional(rollbackFor = Exception.class)
     public TenantSnapshotRestoreResponse restoreTenantSnapshot(MultipartFile file, Long targetTenantId) {
-        Long tenantId = targetTenantId != null ? targetTenantId : getTenantId();
+        Long currentTenantId = getTenantId();
+        Long tenantId = targetTenantId != null ? targetTenantId : currentTenantId;
+        AuthPrincipal principal = AuthContext.get();
+        if (principal != null) {
+            boolean isPlatformSuperAdmin = principal.isSuperAdmin() && "PLATFORM".equalsIgnoreCase(principal.userType());
+            if (targetTenantId != null && !targetTenantId.equals(principal.tenantId()) && !isPlatformSuperAdmin) {
+                throw new BizException("TENANT_ACCESS_DENIED", "无权跨租户恢复灾备快照");
+            }
+        }
         TenantEntity tenant = tenantMapper.selectById(tenantId);
         if (tenant == null) {
             throw new BizException("TENANT_NOT_FOUND", "目标租户不存在");

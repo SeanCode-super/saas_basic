@@ -1,28 +1,41 @@
 package com.saasbasics.platform.modules.tenant.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.saasbasics.platform.common.auth.AuthContext;
+import com.saasbasics.platform.common.auth.AuthPrincipal;
+import com.saasbasics.platform.common.exception.BizException;
 import com.saasbasics.platform.modules.tenant.dto.TenantSnapshotResponse;
 import com.saasbasics.platform.modules.tenant.dto.TenantSnapshotRestoreResponse;
 import com.saasbasics.platform.modules.tenant.entity.PlatTenantBillEntity;
 import com.saasbasics.platform.modules.tenant.entity.TenantEntity;
+import com.saasbasics.platform.modules.tenant.entity.TenantSnapshotRecordEntity;
 import com.saasbasics.platform.modules.tenant.mapper.PlatTenantBillMapper;
 import com.saasbasics.platform.modules.tenant.mapper.PlatTenantMeteringMapper;
 import com.saasbasics.platform.modules.tenant.mapper.TenantMapper;
 import com.saasbasics.platform.modules.tenant.mapper.TenantQuotaMapper;
 import com.saasbasics.platform.modules.tenant.mapper.TenantSnapshotRecordMapper;
 import com.saasbasics.platform.outbox.OutboxEventPayload;
+import java.time.LocalDateTime;
+import java.util.List;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
 
 class TenantMeteringAndDrTest {
+
+    @AfterEach
+    void clearAuth() {
+        AuthContext.clear();
+    }
 
     @Test
     void exportsGenuineZipSnapshotLoadsArchiveAndVerifiesSha256OnRestore() {
@@ -62,6 +75,57 @@ class TenantMeteringAndDrTest {
         assertThat(restored.status()).isEqualTo("SUCCESS");
         assertThat(restored.restoredCounts()).containsKey("plat_tenant");
         assertThat(restored.snapshotId()).isEqualTo(exported.snapshotId());
+    }
+
+    @Test
+    void rejectsCrossTenantSnapshotExportRestoreAndDownloadForNonSuperAdmin() {
+        PlatTenantMeteringMapper meteringMapper = mock(PlatTenantMeteringMapper.class);
+        PlatTenantBillMapper billMapper = mock(PlatTenantBillMapper.class);
+        TenantMapper tenantMapper = mock(TenantMapper.class);
+        TenantSnapshotRecordMapper recordMapper = mock(TenantSnapshotRecordMapper.class);
+
+        StaticListableBeanFactory bf = new StaticListableBeanFactory();
+        bf.addBean("recordMapper", recordMapper);
+
+        TenantMeteringService service = new TenantMeteringService(
+                meteringMapper,
+                billMapper,
+                tenantMapper,
+                bf.getBeanProvider(TenantQuotaMapper.class),
+                bf.getBeanProvider(TenantSnapshotRecordMapper.class),
+                bf.getBeanProvider(JdbcTemplate.class),
+                new ObjectMapper()
+        );
+
+        // Mock normal tenant 1 user (not superadmin)
+        AuthPrincipal regularTenantUser = new AuthPrincipal(
+                100L, 1L, "tenant_alpha", 200L, "alpha_user", "Alpha",
+                "TENANT", "ACTIVE", LocalDateTime.now().plusHours(2),
+                List.of("tenant:snapshot:export", "tenant:snapshot:restore"),
+                List.of(), List.of(2L), List.of()
+        );
+        AuthContext.set(regularTenantUser);
+
+        // 1. Cross-tenant export should fail
+        assertThatThrownBy(() -> service.generateTenantSnapshot(2L))
+                .isInstanceOf(BizException.class)
+                .hasMessageContaining("无权跨租户导出灾备快照");
+
+        // 2. Cross-tenant restore should fail
+        MockMultipartFile dummyZip = new MockMultipartFile("file", "test.zip", "application/zip", new byte[]{1, 2, 3});
+        assertThatThrownBy(() -> service.restoreTenantSnapshot(dummyZip, 2L))
+                .isInstanceOf(BizException.class)
+                .hasMessageContaining("无权跨租户恢复灾备快照");
+
+        // 3. Cross-tenant download should fail
+        TenantSnapshotRecordEntity tenantTwoRecord = new TenantSnapshotRecordEntity();
+        tenantTwoRecord.setSnapshotId("SNAP_TENANT_2");
+        tenantTwoRecord.setTenantId(2L);
+        when(recordMapper.selectOne(any())).thenReturn(tenantTwoRecord);
+
+        assertThatThrownBy(() -> service.loadSnapshotArchive("SNAP_TENANT_2"))
+                .isInstanceOf(BizException.class)
+                .hasMessageContaining("无权下载其他租户的灾备快照");
     }
 
     @Test

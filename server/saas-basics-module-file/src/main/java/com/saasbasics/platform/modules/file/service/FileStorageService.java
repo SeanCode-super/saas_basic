@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.saasbasics.platform.common.auth.AuthContext;
 import com.saasbasics.platform.common.auth.AuthPrincipal;
 import com.saasbasics.platform.common.exception.BizException;
+import com.saasbasics.platform.common.security.SsrfProtectionValidator;
 import com.saasbasics.platform.modules.file.dto.FileStorageResponse;
 import com.saasbasics.platform.modules.file.dto.FileStorageSaveRequest;
 import com.saasbasics.platform.modules.file.dto.FileStorageTestResponse;
@@ -23,6 +24,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,11 +33,19 @@ public class FileStorageService {
 
     private final ObjectProvider<FileStorageMapper> fileStorageMapperProvider;
     private final ObjectProvider<FileClientFactory> fileClientFactoryProvider;
+    private final ObjectProvider<Environment> environmentProvider;
 
     public FileStorageService(ObjectProvider<FileStorageMapper> fileStorageMapperProvider,
                               ObjectProvider<FileClientFactory> fileClientFactoryProvider) {
+        this(fileStorageMapperProvider, fileClientFactoryProvider, null);
+    }
+
+    public FileStorageService(ObjectProvider<FileStorageMapper> fileStorageMapperProvider,
+                              ObjectProvider<FileClientFactory> fileClientFactoryProvider,
+                              ObjectProvider<Environment> environmentProvider) {
         this.fileStorageMapperProvider = fileStorageMapperProvider;
         this.fileClientFactoryProvider = fileClientFactoryProvider;
+        this.environmentProvider = environmentProvider;
     }
 
     public List<FileStorageResponse> listStorages() {
@@ -152,7 +162,9 @@ public class FileStorageService {
 
         long t0 = System.currentTimeMillis();
         try {
-            URI uri = URI.create(entity.getEndpoint().trim());
+            Environment env = environmentProvider != null ? environmentProvider.getIfAvailable() : null;
+            boolean allowPrivate = env == null || !env.matchesProfiles("prod");
+            URI uri = SsrfProtectionValidator.validateOutboundUri(entity.getEndpoint().trim(), allowPrivate);
             HttpURLConnection conn = (HttpURLConnection) uri.toURL().openConnection();
             conn.setRequestMethod("HEAD");
             conn.setConnectTimeout(2500);
@@ -164,6 +176,11 @@ public class FileStorageService {
             steps.add(new FileStorageTestResponse.CheckStep("存储桶与目录策略核验", "SUCCESS", "1ms",
                     "Bucket [" + entity.getBucketDefault() + "] · 默认目录 [" +
                     FilePathPolicyHelper.sanitizeFolder(entity.getDefaultFolder(), FilePathPolicyHelper.DEFAULT_FOLDER) + "]"));
+        } catch (BizException ex) {
+            reachable = false;
+            long elapsed = Math.max(1L, System.currentTimeMillis() - t0);
+            steps.add(new FileStorageTestResponse.CheckStep("Endpoint 安全校验 (SSRF 防护)", "FAILED", elapsed + "ms",
+                    "安全拦截: " + ex.getMessage()));
         } catch (IOException | IllegalArgumentException ex) {
             reachable = false;
             long elapsed = Math.max(1L, System.currentTimeMillis() - t0);

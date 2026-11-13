@@ -1,6 +1,7 @@
 package com.saasbasics.platform.modules.ai.web;
 
 import com.saasbasics.platform.common.api.ApiResponse;
+import com.saasbasics.platform.common.auth.RequirePermission;
 import com.saasbasics.platform.modules.ai.application.dto.AiPlatformDtos.AgentChatRequest;
 import com.saasbasics.platform.modules.ai.application.dto.AiPlatformDtos.AgentChatResponse;
 import com.saasbasics.platform.modules.ai.application.dto.AiPlatformDtos.AiAgentDTO;
@@ -31,6 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/ai")
+@RequirePermission("system:config:query")
 public class AgentAndFinetuneController {
 
     private final AgentStudioService agentStudioService;
@@ -56,11 +58,13 @@ public class AgentAndFinetuneController {
     }
 
     @PostMapping("/agents")
+    @RequirePermission("system:config:write")
     public ApiResponse<AiAgentDTO> saveAgent(@RequestBody AiAgentSaveRequest request) {
         return ApiResponse.success(agentStudioService.saveAgent(request));
     }
 
     @DeleteMapping("/agents/{id}")
+    @RequirePermission("system:config:write")
     public ApiResponse<Void> deleteAgent(@PathVariable("id") Long id) {
         agentStudioService.deleteAgent(id);
         return ApiResponse.success(null);
@@ -85,6 +89,7 @@ public class AgentAndFinetuneController {
     }
 
     @PostMapping("/finetune/datasets")
+    @RequirePermission("system:config:write")
     public ApiResponse<FinetuneDatasetDTO> saveDataset(@RequestBody FinetuneDatasetSaveRequest request) {
         return ApiResponse.success(finetuneStudioService.saveDataset(request));
     }
@@ -96,11 +101,13 @@ public class AgentAndFinetuneController {
     }
 
     @PostMapping("/finetune/samples")
+    @RequirePermission("system:config:write")
     public ApiResponse<FinetuneSampleDTO> addSample(@RequestBody FinetuneSampleAddRequest request) {
         return ApiResponse.success(finetuneStudioService.addSample(request));
     }
 
     @PostMapping("/finetune/datasets/{datasetId}/harvest-nl2sql")
+    @RequirePermission("system:config:write")
     public ApiResponse<Map<String, Object>> harvestNl2Sql(
             @PathVariable("datasetId") Long datasetId,
             @RequestParam(name = "limit", defaultValue = "15") int limit) {
@@ -108,6 +115,7 @@ public class AgentAndFinetuneController {
     }
 
     @PostMapping("/finetune/samples/{id}/review")
+    @RequirePermission("system:config:write")
     public ApiResponse<FinetuneSampleDTO> reviewSample(
             @PathVariable("id") Long id,
             @RequestBody FinetuneSampleReviewRequest request) {
@@ -132,6 +140,7 @@ public class AgentAndFinetuneController {
     }
 
     @PostMapping("/finetune/jobs")
+    @RequirePermission("system:config:write")
     public ApiResponse<FinetuneJobDTO> startJob(@RequestBody FinetuneJobCreateRequest request) {
         return ApiResponse.success(finetuneStudioService.startTrainingJob(request));
     }

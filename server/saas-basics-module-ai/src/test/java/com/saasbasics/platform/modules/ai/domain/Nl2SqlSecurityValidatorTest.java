@@ -42,6 +42,19 @@ class Nl2SqlSecurityValidatorTest {
         assertThrows(SecurityException.class, () ->
                 Nl2SqlSecurityValidator.validateAndNormalize(
                         "SELECT * FROM crm_customer WHERE tenant_id = 1 /* comment */", ALLOWED, 1L));
+
+        // Reject OR disjunction bypass
+        assertThrows(SecurityException.class, () ->
+                Nl2SqlSecurityValidator.validateAndNormalize(
+                        "SELECT * FROM crm_customer WHERE tenant_id = 1 OR 1=1", ALLOWED, 1L));
+
+        assertThrows(SecurityException.class, () ->
+                Nl2SqlSecurityValidator.validateAndNormalize(
+                        "SELECT * FROM crm_customer WHERE 1=1 OR tenant_id = 1", ALLOWED, 1L));
+
+        assertThrows(SecurityException.class, () ->
+                Nl2SqlSecurityValidator.validateAndNormalize(
+                        "SELECT * FROM crm_customer WHERE (tenant_id = 1) OR (deleted = 1)", ALLOWED, 1L));
     }
 
     @Test

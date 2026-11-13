@@ -47,6 +47,7 @@ import com.saasbasics.platform.modules.organization.api.OrganizationDirectory;
 import com.saasbasics.platform.modules.tenant.entity.TenantEntity;
 import com.saasbasics.platform.modules.tenant.mapper.TenantMapper;
 import com.saasbasics.platform.security.vault.CredentialVaultService;
+import com.saasbasics.platform.common.security.SsrfProtectionValidator;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -735,8 +736,12 @@ public class AuthService {
                     + "&client_secret=" + URLEncoder.encode(secret != null ? secret : "", StandardCharsets.UTF_8)
                     + "&redirect_uri=" + URLEncoder.encode(cfg.getRedirectUri() != null ? cfg.getRedirectUri() : "", StandardCharsets.UTF_8);
 
+            boolean allowPrivate = environment == null || !environment.matchesProfiles("prod");
+            URI validatedTokenUri = SsrfProtectionValidator.validateOutboundUri(tokenEndpoint, allowPrivate);
+            URI validatedUserInfoUri = SsrfProtectionValidator.validateOutboundUri(userInfoEndpoint, allowPrivate);
+
             HttpRequest tokenReq = HttpRequest.newBuilder()
-                    .uri(URI.create(tokenEndpoint))
+                    .uri(validatedTokenUri)
                     .timeout(Duration.ofSeconds(5))
                     .header("Content-Type", "application/x-www-form-urlencoded")
                     .POST(HttpRequest.BodyPublishers.ofString(formBody))
@@ -750,7 +755,7 @@ public class AuthService {
                 throw new BizException("SSO_TOKEN_INVALID", "第三方 SSO 未返回有效 access_token");
             }
             HttpRequest userReq = HttpRequest.newBuilder()
-                    .uri(URI.create(userInfoEndpoint))
+                    .uri(validatedUserInfoUri)
                     .timeout(Duration.ofSeconds(5))
                     .header("Authorization", "Bearer " + accessToken)
                     .GET()

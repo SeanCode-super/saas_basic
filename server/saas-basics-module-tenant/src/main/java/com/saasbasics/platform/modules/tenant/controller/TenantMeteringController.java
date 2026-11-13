@@ -61,6 +61,7 @@ public class TenantMeteringController {
     }
 
     @GetMapping("/snapshot/download/{snapshotId}")
+    @RequirePermission("tenant:snapshot:export")
     public ResponseEntity<byte[]> downloadSnapshot(@PathVariable String snapshotId) {
         byte[] bytes = meteringService.loadSnapshotArchive(snapshotId);
 

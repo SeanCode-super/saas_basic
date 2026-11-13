@@ -39,6 +39,10 @@ public final class Nl2SqlSecurityValidator {
             "\\b(?:[a-zA-Z0-9_]+\\.)?tenant_id\\s*=\\s*(\\d+)\\b",
             Pattern.CASE_INSENSITIVE
     );
+    private static final Pattern TENANT_OR_DISJUNCTION_PATTERN = Pattern.compile(
+            "(\\b(?:[a-zA-Z0-9_]+\\.)?tenant_id\\s*=\\s*\\d+\\s*\\)?\\s+OR\\b|\\bOR\\s+\\(?\\s*(?:[a-zA-Z0-9_]+\\.)?tenant_id\\s*=\\s*\\d+)",
+            Pattern.CASE_INSENSITIVE
+    );
     private static final Set<String> OWNER_SCOPED_TABLES = Set.of("crm_customer", "crm_clue", "crm_business");
     private static final Pattern OWNER_TABLE_REWRITE = Pattern.compile(
             "\\b(FROM|JOIN)\\s+`?(crm_customer|crm_clue|crm_business)`?(?=(\\s+(?:WHERE|GROUP|ORDER|LIMIT|HAVING|JOIN|LEFT|RIGHT|INNER|CROSS|ON)\\b|\\s*$))",
@@ -103,6 +107,11 @@ public final class Nl2SqlSecurityValidator {
         }
         if (referencedTables.isEmpty()) {
             throw new SecurityException("SELECT statement must query at least one whitelisted table");
+        }
+
+        // Reject OR disjunction directly attached to tenant_id to prevent tenant isolation bypass
+        if (TENANT_OR_DISJUNCTION_PATTERN.matcher(withoutStrings).find()) {
+            throw new SecurityException("Disjunction (OR) involving tenant_id predicate is strictly forbidden to prevent tenant isolation bypass");
         }
 
         // Enforce explicit matching tenant_id predicate on every non-empty query

@@ -123,7 +123,7 @@ const SERVICE_TEMPLATES: ServiceTemplate[] = [
     driverType: "HOST_PROCESS",
     defaultPort: 8086,
     workDir: "/Users/shenzhidan/ideaProject/saas_basics/server",
-    startCmdTpl: (code, port) => `java -Dfile.encoding=UTF-8 -Dserver.port=${port} -DDB_PASSWORD=19990518suo -jar ${code}/target/${code}-0.1.0-SNAPSHOT.jar`,
+    startCmdTpl: (code, port) => `java -Dfile.encoding=UTF-8 -Dserver.port=${port} -jar ${code}/target/${code}-0.1.0-SNAPSHOT.jar`,
     buildCmdTpl: (code) => `mvn clean package -DskipTests -pl ${code} -am`,
     healthUrlTpl: (code, port) => `http://127.0.0.1:${port}/actuator/health`,
     logPathTpl: (code) => `logs/${code}.log`,

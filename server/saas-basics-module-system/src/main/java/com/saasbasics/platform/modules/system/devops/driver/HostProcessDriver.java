@@ -174,7 +174,10 @@ public class HostProcessDriver implements ServiceDriver {
 
         // Inject current environment PATH and variables
         pb.environment().put("PATH", "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:" + System.getenv("PATH"));
-        pb.environment().put("DB_PASSWORD", "19990518suo");
+        String dbPassword = System.getenv("DB_PASSWORD");
+        if (dbPassword != null && !dbPassword.isBlank()) {
+            pb.environment().put("DB_PASSWORD", dbPassword);
+        }
 
         Process process = pb.start();
         long pidLong = process.pid();
@@ -314,7 +317,10 @@ public class HostProcessDriver implements ServiceDriver {
                 }
                 pb.directory(workDir);
                 pb.environment().put("PATH", "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:" + System.getenv("PATH"));
-                pb.environment().put("DB_PASSWORD", "19990518suo");
+                String dbPassword = System.getenv("DB_PASSWORD");
+                if (dbPassword != null && !dbPassword.isBlank()) {
+                    pb.environment().put("DB_PASSWORD", dbPassword);
+                }
                 pb.start();
 
                 log.info("Successor process spawned. Exiting current JVM to free port for successor/watchdog...");

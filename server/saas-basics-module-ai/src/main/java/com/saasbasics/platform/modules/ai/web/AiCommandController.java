@@ -3,6 +3,7 @@ package com.saasbasics.platform.modules.ai.web;
 import com.saasbasics.platform.common.api.ApiResponse;
 import com.saasbasics.platform.common.auth.AuthContext;
 import com.saasbasics.platform.common.auth.AuthPrincipal;
+import com.saasbasics.platform.common.auth.RequirePermission;
 import com.saasbasics.platform.modules.ai.application.dto.AiCommandDtos.AiCommandHistoryDTO;
 import com.saasbasics.platform.modules.ai.application.dto.AiCommandDtos.AiCommandRequest;
 import com.saasbasics.platform.modules.ai.application.dto.AiCommandDtos.AiCommandResponse;
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/ai")
+@RequirePermission("system:config:query")
 public class AiCommandController {
 
     private final AiCommandRouterService commandRouterService;
