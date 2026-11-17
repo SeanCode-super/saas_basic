@@ -10,8 +10,18 @@ public record FileStorageSaveRequest(
         @NotBlank String storageType,
         String endpoint,
         String bucketDefault,
+        String regionName,
+        String accessKey,
+        String secretKey,
+        String basePath,
+        String defaultFolder,
+        String pathPattern,
+        Integer maxFileMb,
+        String allowedExts,
         String publicBaseUrl,
         @NotBlank String status,
+        Boolean isDefault,
+        String uploadMode,
         String remark
 ) {
 }

@@ -56,6 +56,12 @@ public class OperationLogEntity {
     @TableField("occurred_at")
     private LocalDateTime occurredAt;
 
+    @TableField("before_json")
+    private String beforeJson;
+
+    @TableField("after_json")
+    private String afterJson;
+
     public Long getId() {
         return id;
     }
@@ -182,5 +188,21 @@ public class OperationLogEntity {
 
     public void setOccurredAt(LocalDateTime occurredAt) {
         this.occurredAt = occurredAt;
+    }
+
+    public String getBeforeJson() {
+        return beforeJson;
+    }
+
+    public void setBeforeJson(String beforeJson) {
+        this.beforeJson = beforeJson;
+    }
+
+    public String getAfterJson() {
+        return afterJson;
+    }
+
+    public void setAfterJson(String afterJson) {
+        this.afterJson = afterJson;
     }
 }

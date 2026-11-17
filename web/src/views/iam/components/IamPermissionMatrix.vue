@@ -1,6 +1,12 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
-import { Edit, Filter, Search } from "@element-plus/icons-vue";
+import {
+  computed,
+  ref
+} from "vue";
+import {
+  Edit,
+  Search
+} from "@element-plus/icons-vue";
 import type {
   IamDataPermissionRuleRow,
   IamMenuPermissionRow,
@@ -353,9 +359,12 @@ function getRoleDataScopeBadge(roleId: number) {
 <style scoped lang="scss">
 .iam-permission-matrix-card {
   margin-top: 16px;
-  background: #fff;
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.90);
+  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), 0 16px 40px -10px rgba(12, 34, 56, 0.08);
 }
 
 .matrix-toolbar {
@@ -388,7 +397,7 @@ function getRoleDataScopeBadge(roleId: number) {
 
     .stat-tag {
       font-size: 12px;
-      color: #64748b;
+      color: #475569;
       background: #f8fafc;
       border: 1px solid #e2e8f0;
       padding: 4px 10px;
@@ -403,9 +412,12 @@ function getRoleDataScopeBadge(roleId: number) {
 
 .matrix-table-container {
   overflow-x: auto;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  background: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.90);
+  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), 0 16px 40px -10px rgba(12, 34, 56, 0.08);
 }
 
 .matrix-table {
@@ -501,7 +513,7 @@ function getRoleDataScopeBadge(roleId: number) {
 
   .page-code-sub {
     font-size: 11px;
-    color: #94a3b8;
+    color: #475569;
     font-family: monospace;
   }
 }
@@ -518,7 +530,7 @@ function getRoleDataScopeBadge(roleId: number) {
     background: #f8fafc;
     border: 1px solid #e2e8f0;
     border-radius: 4px;
-    color: #64748b;
+    color: #475569;
   }
 }
 

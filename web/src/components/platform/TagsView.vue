@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from "vue";
+import {
+  ref,
+  watch
+} from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
   ArrowRight,
   CircleClose,
   Close,
-  Odometer,
   Refresh,
   Remove
 } from "@element-plus/icons-vue";
@@ -191,22 +193,28 @@ function closeAllTags() {
 
 <style scoped>
 .tags-view-container {
-  height: 38px;
+  height: 40px;
   width: 100%;
-  background: #fff;
-  border-bottom: 1px solid var(--sb-border-color, #cbd5e1);
-  box-shadow: 0 1px 3px rgb(15 23 42 / 0.04);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border-radius: 16px;
+  border: 1px solid rgba(226, 232, 240, 0.90);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    0 6px 18px -6px rgba(15, 23, 42, 0.05);
   display: flex;
   align-items: center;
   position: relative;
   z-index: 10;
   user-select: none;
+  box-sizing: border-box;
 }
 
 .tags-view-scroll {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   padding: 0 16px;
   overflow-x: auto;
   scrollbar-width: none;
@@ -219,39 +227,44 @@ function closeAllTags() {
 .tags-view-item {
   display: inline-flex;
   align-items: center;
-  height: 26px;
-  line-height: 26px;
-  border: 1px solid var(--sb-border-color, #cbd5e1);
+  height: 28px;
+  line-height: 28px;
+  border: 1px solid rgba(226, 232, 240, 0.90);
   color: #334155;
-  background: #fff;
-  padding: 0 10px;
+  background: rgba(248, 250, 252, 0.92);
+  padding: 0 12px;
   font-size: 12px;
-  font-weight: 500;
-  border-radius: 4px;
+  font-weight: 550;
+  border-radius: 9999px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
   gap: 6px;
-}
 
-.tags-view-item:hover {
-  color: #2563eb;
-  background: #eff6ff;
-  border-color: #93c5fd;
-}
+  &:hover {
+    color: var(--sb-text-primary, #0f172a);
+    background: #ffffff;
+    border-color: #cbd5e1;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+    transform: translateY(-0.5px);
+  }
 
-.tags-view-item.is-active {
-  background: #eff6ff;
-  color: #1d4ed8;
-  border-color: #2563eb;
-  font-weight: 600;
+  &.is-active {
+    background: #ffffff;
+    color: #1d4ed8;
+    border-color: #bfdbfe;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.10);
+    font-weight: 650;
+  }
 }
 
 .tag-dot {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
 }
 
 .tag-title {
@@ -263,15 +276,15 @@ function closeAllTags() {
 
 .tag-close-btn {
   font-size: 11px;
-  border-radius: 50%;
+  border-radius: 4px;
   padding: 1px;
-  color: #64748b;
-  transition: all 0.15s;
-}
+  color: #94a3b8;
+  transition: all 0.12s ease;
 
-.tag-close-btn:hover {
-  background: #dbeafe;
-  color: #1d4ed8;
+  &:hover {
+    background: #dbeafe;
+    color: #1d4ed8;
+  }
 }
 
 .context-menu {
@@ -306,5 +319,11 @@ function closeAllTags() {
 .context-menu li.danger-item:hover {
   color: #dc2626;
   background: #fef2f2;
+}
+
+@media (max-width: 760px) {
+  .tags-view-container {
+    display: none !important;
+  }
 }
 </style>

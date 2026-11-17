@@ -7,9 +7,16 @@ import {
   getWorkflowInstanceDetail,
   handleWorkflowTask,
   urgeWorkflowInstance,
-  fetchRollbackNodes
+  fetchRollbackNodes,
+  fetchFlowableTrace
 } from "@/api/modules/workflow";
-import type { FormFieldConfig, ProcessInstanceDetail, WorkflowTaskRow, RollbackTargetNode } from "@/api/modules/workflow";
+import type {
+  FormFieldConfig,
+  ProcessInstanceDetail,
+  WorkflowTaskRow,
+  RollbackTargetNode,
+  FlowableTraceResponse
+} from "@/api/modules/workflow";
 import { fetchIamUsers } from "@/api/modules/iam/service";
 import type { IamUserRow } from "@/api/modules/iam/types";
 import { useAuthStore } from "@/stores/modules/auth";
@@ -30,6 +37,7 @@ const currentUserId = computed(() => Number(authStore.currentUser?.userId ?? 0))
 const loading = ref(false);
 const submitting = ref(false);
 const detail = ref<ProcessInstanceDetail | null>(null);
+const flowableTrace = ref<FlowableTraceResponse | null>(null);
 
 // 企业人员名录与搜索
 const systemUsers = ref<IamUserRow[]>([]);
@@ -239,7 +247,12 @@ async function loadDetail() {
   if (!props.instanceId) return;
   loading.value = true;
   try {
-    detail.value = await getWorkflowInstanceDetail(props.instanceId);
+    const [d, trace] = await Promise.all([
+      getWorkflowInstanceDetail(props.instanceId),
+      fetchFlowableTrace(props.instanceId).catch(() => null)
+    ]);
+    detail.value = d;
+    flowableTrace.value = trace;
   } finally {
     loading.value = false;
   }
@@ -703,6 +716,44 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
           </div>
         </div>
 
+        <!-- 4.1 Flowable 工业级全链路审计轨迹 -->
+        <div v-if="flowableTrace && flowableTrace.traceList && flowableTrace.traceList.length > 0" class="section-card flowable-trace-card">
+          <div class="section-card__header">
+            <div class="header-title-box">
+              <h4>Flowable 工业级引擎轨迹</h4>
+              <el-tag size="small" type="success" effect="plain">{{ flowableTrace.engineType }}</el-tag>
+            </div>
+            <span class="sub-trace-text">OMG BPMN 2.0 规范节点执行时序与耗时</span>
+          </div>
+
+          <div class="flowable-trace-list">
+            <div
+              v-for="(act, aIdx) in flowableTrace.traceList"
+              :key="act.activityId + aIdx"
+              class="trace-item"
+              :class="{ 'trace-active': !act.completed }"
+            >
+              <div class="trace-badge">
+                <span class="trace-index">{{ aIdx + 1 }}</span>
+              </div>
+              <div class="trace-info">
+                <div class="trace-line-1">
+                  <span class="trace-name">{{ act.activityName || act.activityId }}</span>
+                  <el-tag size="small" type="info" effect="plain">{{ act.activityType }}</el-tag>
+                  <el-tag size="small" :type="act.completed ? 'success' : 'warning'">
+                    {{ act.completed ? '已执行' : '执行中' }}
+                  </el-tag>
+                </div>
+                <div class="trace-line-2">
+                  <span v-if="act.assignee" class="trace-assignee">办理人: {{ act.assignee }}</span>
+                  <span class="trace-time">开始时间: {{ act.startTime }}</span>
+                  <span v-if="act.durationInMillis !== undefined" class="trace-duration">耗时: {{ act.durationInMillis }}ms</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- 5. 当前待办办理操作区（如果当前人是审批人） -->
         <div v-if="myPendingTask" class="action-footer-panel">
           <div class="panel-header">
@@ -1136,7 +1187,7 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
 
       .hero-no {
         font-size: 12px;
-        color: #64748b;
+        color: #475569;
         font-family: var(--sb-font-mono, monospace);
       }
     }
@@ -1159,7 +1210,7 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
       span {
         display: block;
         font-size: 12px;
-        color: #64748b;
+        color: #475569;
         margin-bottom: 2px;
       }
 
@@ -1200,7 +1251,7 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
         font-size: 13px;
         font-weight: 600;
         background: #f1f5f9;
-        color: #64748b;
+        color: #475569;
         border: 2px solid #cbd5e1;
         transition: all 0.2s ease;
       }
@@ -1215,7 +1266,7 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
 
         .node-state-text {
           font-size: 11px;
-          color: #94a3b8;
+          color: #475569;
           white-space: nowrap;
         }
       }
@@ -1289,9 +1340,12 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
 }
 
 .section-card {
-  border: 1px solid var(--sb-border-color);
-  border-radius: var(--sb-radius-md);
-  background: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.90);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.95), 0 8px 24px -6px rgba(12, 34, 56, 0.05);
   padding: 16px;
 
   &__header {
@@ -1311,11 +1365,11 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
 
     span {
       font-size: 12px;
-      color: #64748b;
+      color: #475569;
     }
 
     .sub-hint {
-      color: #64748b;
+      color: #475569;
       font-size: 12px;
     }
   }
@@ -1335,7 +1389,7 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
     .val-label {
       display: block;
       font-size: 12px;
-      color: #64748b;
+      color: #475569;
       margin-bottom: 3px;
     }
 
@@ -1365,7 +1419,7 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
 
       .node-badge {
         font-size: 12px;
-        color: #64748b;
+        color: #475569;
         background: #f1f5f9;
         padding: 2px 6px;
         border-radius: 4px;
@@ -1388,11 +1442,13 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
 .action-footer-panel {
   position: sticky;
   bottom: 0;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(24px) saturate(210%);
+  -webkit-backdrop-filter: blur(24px) saturate(210%);
   padding: 16px;
-  border-radius: var(--sb-radius-md);
-  border: 1px solid #cbd5e1;
-  box-shadow: 0 4px 12px rgb(0 0 0 / 0.08);
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.92);
+  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), 0 8px 30px rgba(12, 34, 56, 0.10);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -1478,7 +1534,7 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
 
         .sub {
           font-size: 12px;
-          color: #64748b;
+          color: #475569;
         }
       }
     }
@@ -1577,7 +1633,7 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
 
         .radio-desc {
           font-size: 12px;
-          color: #64748b;
+          color: #475569;
         }
       }
     }
@@ -1623,7 +1679,7 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
 
       .username {
         font-size: 12px;
-        color: #64748b;
+        color: #475569;
       }
 
       .type-tag {
@@ -1635,10 +1691,89 @@ function resolveActionType(action: string): "primary" | "success" | "warning" | 
 
     .sub-line {
       font-size: 11px;
-      color: #94a3b8;
+      color: #475569;
       display: flex;
       gap: 8px;
     }
   }
+}
+
+.flowable-trace-card {
+  border-left: 3px solid #10b981;
+}
+
+.header-title-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sub-trace-text {
+  font-size: 12px;
+  color: #475569;
+}
+
+.flowable-trace-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.trace-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 10px 14px;
+
+  &.trace-active {
+    background: #ecfdf5;
+    border-color: #6ee7b7;
+  }
+}
+
+.trace-badge {
+  background: #0f172a;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.trace-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.trace-line-1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  .trace-name {
+    font-weight: 600;
+    font-size: 13px;
+    color: #1e293b;
+  }
+}
+
+.trace-line-2 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  color: #475569;
 }
 </style>

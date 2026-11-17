@@ -70,6 +70,29 @@ public class TenantAppController {
         return ApiResponse.success(null);
     }
 
+    public record BatchAuthorizeAppsRequest(
+            List<String> appCodes,
+            boolean enabled,
+            String remark
+    ) {}
+
+    @PutMapping("/batch-authorize")
+    @RequirePermission("tenant:write")
+    public ApiResponse<Void> batchAuthorize(@RequestBody BatchAuthorizeAppsRequest request,
+                                            @RequestParam(value = "tenantId", required = false) Long queryTenantId) {
+        Long tenantId = resolveTenantId(queryTenantId);
+        tenantAppService.batchAuthorizeApps(tenantId, request.appCodes(), request.enabled(), request.remark());
+        return ApiResponse.success(null);
+    }
+
+    @PostMapping("/reset-package-baseline")
+    @RequirePermission("tenant:write")
+    public ApiResponse<Void> resetPackageBaseline(@RequestParam(value = "tenantId", required = false) Long queryTenantId) {
+        Long tenantId = resolveTenantId(queryTenantId);
+        tenantAppService.resetToPackageBaseline(tenantId);
+        return ApiResponse.success(null);
+    }
+
     private Long resolveTenantId(Long queryTenantId) {
         AuthPrincipal principal = AuthContext.get();
         if (queryTenantId != null && principal != null && principal.isSuperAdmin()) {

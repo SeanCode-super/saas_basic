@@ -5,6 +5,7 @@ import com.saasbasics.platform.common.auth.RequirePermission;
 import com.saasbasics.platform.common.auth.RequireTenantFeature;
 import com.saasbasics.platform.modules.audit.dto.AuditOverviewResponse;
 import com.saasbasics.platform.modules.audit.dto.LoginLogResponse;
+import com.saasbasics.platform.modules.audit.dto.OperationLogDiffResponse;
 import com.saasbasics.platform.modules.audit.dto.OperationLogResponse;
 import com.saasbasics.platform.modules.audit.service.AuditService;
 import java.util.List;
@@ -42,5 +43,11 @@ public class AuditController {
     public ApiResponse<List<OperationLogResponse>> operationLogs(@RequestParam(required = false) String bizModule,
                                                                  @RequestParam(required = false) String operationType) {
         return ApiResponse.success(auditService.listOperationLogs(bizModule, operationType));
+    }
+
+    @GetMapping("/operation-logs/{id}/diff")
+    @RequirePermission("audit:operation:query")
+    public ApiResponse<OperationLogDiffResponse> operationLogDiff(@org.springframework.web.bind.annotation.PathVariable Long id) {
+        return ApiResponse.success(auditService.getOperationLogDiff(id));
     }
 }

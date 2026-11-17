@@ -6,6 +6,20 @@ export interface OrganizationAccessContext {
   assignmentPublicId: string;
 }
 
+export interface UserWorkspacePreferences {
+  locale: string;
+  timezone: string;
+  layoutMode: "mix" | "side" | "top";
+  railTheme: "light" | "dark";
+  showBreadcrumbs: boolean;
+  sidebarAccordion: boolean;
+  enableWatermark: boolean;
+  emailNotify: boolean;
+  siteNotify: boolean;
+  securityAlertNotify: boolean;
+  defaultAiModel: string;
+}
+
 export interface AuthCurrentUser {
   sessionId: number;
   tenantId: number;
@@ -25,15 +39,39 @@ export interface AuthCurrentUser {
   subjectBindingPublicId?: string | null;
   personPublicId?: string | null;
   organizationContext?: OrganizationAccessContext | null;
+  avatarUrl?: string | null;
+  locale?: string | null;
+  timezone?: string | null;
+  preferences?: UserWorkspacePreferences | null;
 }
 
 export interface AuthLoginRequest {
-  tenantCode: string;
+  tenantCode?: string;
   clientId?: string;
   terminalCode?: string;
+  captchaId?: string;
   captchaCode?: string;
+  totpCode?: string;
   username: string;
   password: string;
+}
+
+export interface CaptchaChallenge {
+  captchaId: string;
+  imageDataUrl: string;
+  expiresInSeconds: number;
+}
+
+export interface MfaStatusResponse {
+  enabled: boolean;
+  policyForceMfa: boolean;
+  remainingRecoveryCodes: number;
+}
+
+export interface MfaSetupResponse {
+  secret: string;
+  otpAuthUri: string;
+  recoveryCodes: string[];
 }
 
 export interface AuthLoginResponse {

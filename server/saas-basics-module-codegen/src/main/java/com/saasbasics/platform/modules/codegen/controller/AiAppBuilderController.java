@@ -1,6 +1,7 @@
 package com.saasbasics.platform.modules.codegen.controller;
 
 import com.saasbasics.platform.common.api.ApiResponse;
+import com.saasbasics.platform.common.auth.RequirePermission;
 import com.saasbasics.platform.common.auth.RequireTenantFeature;
 import com.saasbasics.platform.modules.codegen.dto.AiAppDesignResponse;
 import com.saasbasics.platform.modules.codegen.dto.AiAppPromptRequest;
@@ -15,6 +16,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/codegen/ai-builder")
 @RequireTenantFeature("codegen")
+@RequirePermission("codegen:project:query")
 public class AiAppBuilderController {
 
     private final AiAppBuilderService aiAppBuilderService;
@@ -24,11 +26,13 @@ public class AiAppBuilderController {
     }
 
     @PostMapping({"/design", "/prompt-design"})
+    @RequirePermission("codegen:project:write")
     public ApiResponse<AiAppDesignResponse> designApp(@Valid @RequestBody AiAppPromptRequest request) {
         return ApiResponse.success(aiAppBuilderService.designApp(request));
     }
 
     @PostMapping("/publish")
+    @RequirePermission("codegen:project:write")
     public ApiResponse<DynamicModelResponse> publishApp(@Valid @RequestBody DynamicModelPublishRequest request) {
         return ApiResponse.success(aiAppBuilderService.publishApp(request));
     }
@@ -39,6 +43,7 @@ public class AiAppBuilderController {
     }
 
     @DeleteMapping("/models/{id}")
+    @RequirePermission("codegen:project:write")
     public ApiResponse<Void> deleteModel(@PathVariable("id") Long id) {
         aiAppBuilderService.deleteModel(id);
         return ApiResponse.success(null);

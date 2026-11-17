@@ -4,6 +4,7 @@ import com.saasbasics.platform.common.api.ApiResponse;
 import com.saasbasics.platform.common.auth.RequireTenantFeature;
 import com.saasbasics.platform.modules.crm.dto.*;
 import com.saasbasics.platform.modules.crm.service.CrmService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -56,7 +57,7 @@ public class CrmController {
     }
 
     @PostMapping("/customers")
-    public ApiResponse<CrmCustomerResponse> createCustomer(@RequestBody CrmCustomerSaveRequest req) {
+    public ApiResponse<CrmCustomerResponse> createCustomer(@Valid @RequestBody CrmCustomerSaveRequest req) {
         return ApiResponse.success(crmService.createCustomer(req));
     }
 
@@ -152,10 +153,21 @@ public class CrmController {
     // 7. 全链路跟进记录
     @GetMapping("/follow-up-records")
     public ApiResponse<List<CrmFollowUpRecordResponse>> listFollowUpRecords(
-            @RequestParam String bizType,
-            @RequestParam Long bizId
+            @RequestParam(required = false) String bizType,
+            @RequestParam(required = false) Long bizId,
+            @RequestParam(required = false) Long customerId,
+            @RequestParam(required = false) Long clueId
     ) {
-        return ApiResponse.success(crmService.listFollowUpRecords(bizType, bizId));
+        String finalBizType = bizType;
+        Long finalBizId = bizId;
+        if (customerId != null) {
+            finalBizType = "CUSTOMER";
+            finalBizId = customerId;
+        } else if (clueId != null) {
+            finalBizType = "CLUE";
+            finalBizId = clueId;
+        }
+        return ApiResponse.success(crmService.listFollowUpRecords(finalBizType, finalBizId));
     }
 
     @PostMapping("/follow-up-records")

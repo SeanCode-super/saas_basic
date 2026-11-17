@@ -6,8 +6,9 @@ import App from "./App.vue";
 import * as ElementPlusIconsVue from "@element-plus/icons-vue";
 import DictTag from "./components/common/DictTag.vue";
 import { registerDirectives } from "./directives";
-import { router } from "./router";
-import { useDictStore } from "./stores/modules/dict";
+import {
+  router
+} from "./router";
 import { useLocaleStore } from "./stores/modules/locale";
 import "element-plus/dist/index.css";
 import "./assets/styles/index.scss";
@@ -28,7 +29,5 @@ registerDirectives(app);
 
 const localeStore = useLocaleStore(pinia);
 localeStore.bootstrap();
-const dictStore = useDictStore(pinia);
-void dictStore.bootstrap();
 
 app.mount("#app");

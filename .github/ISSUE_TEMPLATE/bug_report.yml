@@ -1,0 +1,42 @@
+name: Bug Report
+description: Report a reproducible issue in server, web, mobile, or Flyway migrations
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Thank you for reporting an issue in Tianshu Cloud (`saas_basics`). Please share reproducible details below.
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Area
+      options:
+        - Backend (`server/`)
+        - PC Console (`web/`)
+        - Mobile (`mobile/`)
+        - Flyway Migrations (`V1..V74`)
+        - Documentation / Docker
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what went wrong.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Navigate to ...
+        2. Send request / click ...
+        3. Observe error ...
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Runtime Environment
+      placeholder: "JDK 17, Node 20, MySQL 8.3, Redis 7.2, OS..."

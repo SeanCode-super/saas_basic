@@ -3,65 +3,116 @@
     {
       "path": "pages/index/index",
       "style": {
-        "navigationBarTitleText": "移动数字化工作台",
+        "navigationStyle": "custom",
         "enablePullDownRefresh": true
       }
     },
     {
       "path": "pages/workflow/list",
       "style": {
-        "navigationBarTitleText": "审批待办中心",
+        "navigationStyle": "custom",
         "enablePullDownRefresh": true
       }
     },
     {
-      "path": "pages/erp/inventory",
+      "path": "pages/crm/customers",
       "style": {
-        "navigationBarTitleText": "多仓库存与扫码",
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/contact/index",
+      "style": {
+        "navigationStyle": "custom",
         "enablePullDownRefresh": true
       }
     },
     {
       "path": "pages/profile/profile",
       "style": {
-        "navigationBarTitleText": "个人中心与多租户"
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/workflow/apply",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/crm/follow-up",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/erp/inventory",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/notify/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/ai/index",
+      "style": {
+        "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/login/login",
       "style": {
-        "navigationBarTitleText": "租户登录",
         "navigationStyle": "custom"
       }
     }
   ],
   "globalStyle": {
-    "navigationBarTextStyle": "white",
-    "navigationBarTitleText": "Antigravity",
-    "navigationBarBackgroundColor": "#0f172a",
-    "backgroundColor": "#f8fafc"
+    "navigationStyle": "custom",
+    "navigationBarTextStyle": "black",
+    "navigationBarBackgroundColor": "#ffffff",
+    "backgroundColor": "#f1f5f9"
   },
   "tabBar": {
     "color": "#64748b",
-    "selectedColor": "#0284c7",
-    "borderStyle": "black",
+    "selectedColor": "#2563eb",
+    "borderStyle": "white",
     "backgroundColor": "#ffffff",
     "list": [
       {
         "pagePath": "pages/index/index",
-        "text": "工作台"
+        "text": "工作台",
+        "iconPath": "static/tabs/workbench.png",
+        "selectedIconPath": "static/tabs/workbench-active.png"
       },
       {
         "pagePath": "pages/workflow/list",
-        "text": "待办审批"
+        "text": "待办审批",
+        "iconPath": "static/tabs/workflow.png",
+        "selectedIconPath": "static/tabs/workflow-active.png"
       },
       {
-        "pagePath": "pages/erp/inventory",
-        "text": "移动库存"
+        "pagePath": "pages/crm/customers",
+        "text": "客户外勤",
+        "iconPath": "static/tabs/crm.png",
+        "selectedIconPath": "static/tabs/crm-active.png"
+      },
+      {
+        "pagePath": "pages/contact/index",
+        "text": "通讯录",
+        "iconPath": "static/tabs/contact.png",
+        "selectedIconPath": "static/tabs/contact-active.png"
       },
       {
         "pagePath": "pages/profile/profile",
-        "text": "我的"
+        "text": "我的",
+        "iconPath": "static/tabs/profile.png",
+        "selectedIconPath": "static/tabs/profile-active.png"
       }
     ]
   }

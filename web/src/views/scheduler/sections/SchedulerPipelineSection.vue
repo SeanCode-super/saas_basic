@@ -2,22 +2,15 @@
 import { ref } from "vue";
 import { ElMessage } from "element-plus";
 import {
-  Bell,
   CircleCheck,
   Cpu,
-  DataAnalysis,
-  Document,
   Monitor,
   Operation,
-  Refresh,
-  Search,
   Timer,
-  VideoPlay,
-  Warning
+  VideoPlay
 } from "@element-plus/icons-vue";
-import BaseCard from "@/components/base/BaseCard.vue";
 
-const props = defineProps<{
+defineProps<{
   jobs?: Array<Record<string, unknown>>;
   logs?: Array<Record<string, unknown>>;
   loading?: boolean;
@@ -280,7 +273,7 @@ function runPipelineTest() {
     }
 
     .mini-arrow {
-      color: #94a3b8;
+      color: #475569;
       font-size: 12px;
     }
   }
@@ -369,7 +362,7 @@ function runPipelineTest() {
     padding-top: 8px;
     border-top: 1px dashed var(--sb-border-color);
     font-size: 11px;
-    color: #64748b;
+    color: #475569;
 
     strong {
       color: #0f172a;
@@ -394,7 +387,7 @@ function runPipelineTest() {
 }
 
 .flow-arrow {
-  color: #94a3b8;
+  color: #475569;
   font-size: 16px;
   font-weight: 700;
   user-select: none;
@@ -420,7 +413,7 @@ function runPipelineTest() {
     .mono-time {
       margin-left: auto;
       font-size: 11px;
-      color: #64748b;
+      color: #475569;
       font-family: ui-monospace, SFMono-Regular, monospace;
     }
   }
@@ -436,7 +429,7 @@ function runPipelineTest() {
     }
 
     .test-item {
-      span { color: #64748b; margin-right: 4px; }
+      span { color: #475569; margin-right: 4px; }
       strong { color: #0f172a; }
     }
   }

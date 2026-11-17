@@ -1,6 +1,7 @@
 package com.saasbasics.platform.modules.system.trash;
 
 import com.saasbasics.platform.common.api.ApiResponse;
+import com.saasbasics.platform.common.auth.RequirePermission;
 import com.saasbasics.platform.repeat.RepeatSubmit;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
@@ -9,6 +10,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/system/trash")
+@RequirePermission("system:config:query")
 public class TrashController {
 
     private final TrashService trashService;
@@ -32,6 +34,7 @@ public class TrashController {
     }
 
     @PostMapping("/restore")
+    @RequirePermission("system:config:write")
     @RepeatSubmit(interval = 1500, message = "数据恢复中，请勿重复操作")
     public ApiResponse<TrashRestoreResponse> restore(@Valid @RequestBody TrashActionRequest req) {
         TrashRestoreResponse response = trashService.restore(req);
@@ -39,6 +42,7 @@ public class TrashController {
     }
 
     @PostMapping("/purge")
+    @RequirePermission("system:config:write")
     @RepeatSubmit(interval = 1500, message = "数据清理中，请勿重复操作")
     public ApiResponse<Void> purge(@Valid @RequestBody TrashActionRequest req) {
         trashService.purge(req);

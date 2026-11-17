@@ -34,6 +34,8 @@ import type {
   UserPermissionInspection,
   PermissionSimulationRequest,
   PermissionSimulationResponse,
+  SecurityBaselineData,
+  SecurityBaselineSavePayload,
   UserRoleAssignment
 } from "./types";
 
@@ -380,6 +382,16 @@ export async function simulatePermission(payload: PermissionSimulationRequest, t
     payload,
     { params: tenantId ? { tenantId } : undefined }
   );
+  return response.data.data;
+}
+
+export async function fetchSecurityBaseline(): Promise<SecurityBaselineData> {
+  const response = await http.get<ApiResponse<SecurityBaselineData>>("/iam/security-baseline");
+  return response.data.data;
+}
+
+export async function saveSecurityBaseline(payload: SecurityBaselineSavePayload): Promise<SecurityBaselineData> {
+  const response = await http.put<ApiResponse<SecurityBaselineData>>("/iam/security-baseline", payload);
   return response.data.data;
 }
 

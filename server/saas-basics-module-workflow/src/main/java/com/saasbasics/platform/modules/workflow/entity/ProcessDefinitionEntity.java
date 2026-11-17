@@ -31,11 +31,33 @@ public class ProcessDefinitionEntity extends BaseTenantEntity {
     @TableField("flow_nodes_json")
     private String flowNodesJson;
 
+    @TableField("bpmn_xml")
+    private String bpmnXml;
+
+    @TableField("flowable_deployment_id")
+    private String flowableDeploymentId;
+
     @TableField("status")
     private String status;
 
     @TableField("sort_no")
     private Integer sortNo;
+
+    public String getBpmnXml() {
+        return bpmnXml;
+    }
+
+    public void setBpmnXml(String bpmnXml) {
+        this.bpmnXml = bpmnXml;
+    }
+
+    public String getFlowableDeploymentId() {
+        return flowableDeploymentId;
+    }
+
+    public void setFlowableDeploymentId(String flowableDeploymentId) {
+        this.flowableDeploymentId = flowableDeploymentId;
+    }
 
     public String getProcessCode() {
         return processCode;

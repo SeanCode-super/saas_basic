@@ -1,12 +1,18 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
+import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
   ArrowDown,
+  ArrowRight,
   CircleCheck,
+  Close,
   DataAnalysis,
   Edit,
   Files,
+  Grid,
+  Key,
+  MagicStick,
   Monitor,
   OfficeBuilding,
   Operation,
@@ -16,8 +22,10 @@ import {
   Warning,
   Download,
   UploadFilled,
-  Grid
+  Link,
+  Position
 } from "@element-plus/icons-vue";
+import { buildTenantSubdomainUrl } from "@/utils/portal-context";
 import {
   fetchTenantPackages,
   fetchTenantQuotas,
@@ -27,7 +35,12 @@ import {
   fetchTenantMeteringSummary,
   fetchTenantBills,
   exportTenantSnapshot,
-  restoreTenantSnapshot
+  downloadTenantSnapshotBlob,
+  restoreTenantSnapshot,
+  fetchTenantAppCatalog,
+  toggleTenantAppAuthorization,
+  batchAuthorizeTenantApps,
+  resetTenantPackageBaseline
 } from "@/api/modules/tenant";
 import type {
   TenantPackageRow,
@@ -36,7 +49,8 @@ import type {
   TenantMeteringSummary,
   TenantBillRow,
   TenantSnapshotExportResult,
-  TenantSnapshotRestoreResult
+  TenantSnapshotRestoreResult,
+  TenantAppCatalogItem
 } from "@/api/modules/tenant";
 import ProTable, { type ProTableColumn } from "@/components/pro/ProTable.vue";
 import SchemaForm, { type SchemaField } from "@/components/pro/SchemaForm.vue";
@@ -54,7 +68,7 @@ const props = defineProps<{
   openImportDialog: () => void;
 }>();
 
-const emit = defineEmits<{
+defineEmits<{
   (e: "navigate-section", section: string): void;
 }>();
 
@@ -136,12 +150,50 @@ async function handleConfirmEdit() {
   }
 }
 
+function copyTenantLoginUrl(row: TenantRow) {
+  const url = buildTenantSubdomainUrl(row.tenantCode);
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(url).then(() => {
+      ElMessage.success({
+        message: `已复制「${row.tenantName}」专属独立子域名：${url}`,
+        duration: 4000
+      });
+    }).catch(() => {
+      fallbackCopyText(url, row.tenantName);
+    });
+  } else {
+    fallbackCopyText(url, row.tenantName);
+  }
+}
+
+function fallbackCopyText(text: string, tenantName: string) {
+  try {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand("copy");
+    document.body.removeChild(textarea);
+    ElMessage.success({
+      message: `已复制「${tenantName}」专属登录链接：${text}`,
+      duration: 4000
+    });
+  } catch {
+    ElMessage.info(`专属登录链接为：${text}`);
+  }
+}
+
 function handleMoreCommand(cmd: string, row: TenantRow) {
-  if (cmd === "plan") {
+  if (cmd === "copyLoginUrl") {
+    copyTenantLoginUrl(row);
+  } else if (cmd === "openSubdomain") {
+    window.open(buildTenantSubdomainUrl(row.tenantCode), "_blank");
+  } else if (cmd === "plan") {
     openPlanRenewDialog(row);
   } else if (cmd === "apps") {
-    handleSwitchTenant(row);
-    emit("navigate-section", "apps");
+    openAppAuthDrawer(row);
   } else if (cmd === "quota") {
     openQuotaDrawer(row);
   } else if (cmd === "metering") {
@@ -211,6 +263,21 @@ function handleRestoreFileChange(uploadFile: any) {
   }
 }
 
+async function handleDownloadSnapshot() {
+  if (!snapshotResult.value?.snapshotId) return;
+  try {
+    const blob = await downloadTenantSnapshotBlob(snapshotResult.value.snapshotId);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${snapshotResult.value.snapshotId}.zip`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (err: any) {
+    ElMessage.error(err?.response?.data?.message || err?.message || "下载灾备归档包失败");
+  }
+}
+
 async function handleExecuteRestore() {
   if (!activeTenant.value || !selectedRestoreFile.value) {
     ElMessage.warning("请先选取要恢复的备份归档文件（.json 或 .zip）");
@@ -236,6 +303,125 @@ async function handleExecuteRestore() {
   } finally {
     restoreSubmitting.value = false;
   }
+}
+
+const router = useRouter();
+
+// App Entitlement Drawer
+const appAuthDrawerVisible = ref(false);
+const appAuthLoading = ref(false);
+const drawerAuthTenant = ref<TenantRow | null>(null);
+const drawerAppCatalog = ref<TenantAppCatalogItem[]>([]);
+
+async function openAppAuthDrawer(row: TenantRow) {
+  drawerAuthTenant.value = row;
+  appAuthDrawerVisible.value = true;
+  await loadDrawerCatalog();
+}
+
+async function loadDrawerCatalog() {
+  if (!drawerAuthTenant.value) return;
+  appAuthLoading.value = true;
+  try {
+    drawerAppCatalog.value = await fetchTenantAppCatalog(drawerAuthTenant.value.id);
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.message || "加载租户应用目录失败");
+  } finally {
+    appAuthLoading.value = false;
+  }
+}
+
+async function handleDrawerToggleAuth(app: TenantAppCatalogItem, enabled: boolean) {
+  if (!drawerAuthTenant.value) return;
+  const tenantName = drawerAuthTenant.value.tenantName;
+  const actionText = enabled ? "授权开通" : "停用回收";
+  try {
+    appAuthLoading.value = true;
+    await toggleTenantAppAuthorization(
+      {
+        appCode: app.appCode,
+        enabled,
+        remark: `管理员在租户台账快速${actionText}`
+      },
+      drawerAuthTenant.value.id
+    );
+    ElMessage.success(`应用【${app.appName}】已成功为企业【${tenantName}】${actionText}！`);
+    await loadDrawerCatalog();
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.message || `${actionText}失败`);
+  } finally {
+    appAuthLoading.value = false;
+  }
+}
+
+async function handleDrawerBatch(enabled: boolean) {
+  if (!drawerAuthTenant.value) return;
+  const tenantName = drawerAuthTenant.value.tenantName;
+  const actionText = enabled ? "全量授权" : "全部回收";
+  try {
+    await ElMessageBox.confirm(
+      `确定为企业【${tenantName}】执行全部可用应用【${actionText}】吗？`,
+      `确认${actionText}`,
+      {
+        confirmButtonText: `确认${actionText}`,
+        cancelButtonText: "取消",
+        type: enabled ? "success" : "warning"
+      }
+    );
+    appAuthLoading.value = true;
+    await batchAuthorizeTenantApps(
+      {
+        appCodes: drawerAppCatalog.value.map((c) => c.appCode),
+        enabled,
+        remark: `台账抽屉批量${actionText}`
+      },
+      drawerAuthTenant.value.id
+    );
+    ElMessage.success(`企业【${tenantName}】已完成应用${actionText}！`);
+    await loadDrawerCatalog();
+  } catch (e: any) {
+    if (e !== "cancel") {
+      ElMessage.error(e?.response?.data?.message || `${actionText}失败`);
+    }
+  } finally {
+    appAuthLoading.value = false;
+  }
+}
+
+async function handleDrawerResetBaseline() {
+  if (!drawerAuthTenant.value) return;
+  const tenantName = drawerAuthTenant.value.tenantName;
+  try {
+    await ElMessageBox.confirm(
+      `确定将企业【${tenantName}】的应用权限重置并对齐其套餐基线吗？\n将清除所有单独设定的覆盖配置，严格还原为套餐默认。`,
+      "对齐套餐基线",
+      {
+        confirmButtonText: "确认对齐",
+        cancelButtonText: "取消",
+        type: "info"
+      }
+    );
+    appAuthLoading.value = true;
+    await resetTenantPackageBaseline(drawerAuthTenant.value.id);
+    ElMessage.success(`企业【${tenantName}】已成功对齐套餐基线！`);
+    await loadDrawerCatalog();
+  } catch (e: any) {
+    if (e !== "cancel") {
+      ElMessage.error(e?.response?.data?.message || "对齐基线失败");
+    }
+  } finally {
+    appAuthLoading.value = false;
+  }
+}
+
+function handleGoToFullAuthPage() {
+  if (!drawerAuthTenant.value) return;
+  const tid = drawerAuthTenant.value.id;
+  appAuthDrawerVisible.value = false;
+  router.push({
+    path: "/tenant/apps",
+    query: { tenantId: String(tid) }
+  });
 }
 
 // Quota Drawer
@@ -443,6 +629,9 @@ onMounted(() => {
           <el-button link type="primary" :icon="Switch" @click="handleSwitchTenant(row)">
             切入
           </el-button>
+          <el-button link type="primary" :icon="Key" class="auth-btn" @click="openAppAuthDrawer(row)">
+            应用授权
+          </el-button>
           <el-button link type="primary" :icon="Edit" @click="openEditTenantDialog(row)">
             编辑
           </el-button>
@@ -452,6 +641,8 @@ onMounted(() => {
             </el-button>
             <template #dropdown>
               <el-dropdown-menu>
+                <el-dropdown-item command="openSubdomain" :icon="Position">打开专属空间 (新窗口)</el-dropdown-item>
+                <el-dropdown-item command="copyLoginUrl" :icon="Link">复制专属登录链接</el-dropdown-item>
                 <el-dropdown-item command="apps" :icon="Grid">应用矩阵与订阅</el-dropdown-item>
                 <el-dropdown-item command="plan" :icon="Operation">变配与续期</el-dropdown-item>
                 <el-dropdown-item command="quota" :icon="DataAnalysis">配额与画像</el-dropdown-item>
@@ -736,6 +927,99 @@ onMounted(() => {
       </div>
     </el-drawer>
 
+    <!-- Dedicated Tenant App Entitlement Drawer -->
+    <el-drawer
+      v-model="appAuthDrawerVisible"
+      :title="`企业应用授权控制台 —【${drawerAuthTenant?.tenantName || ''}】`"
+      size="640px"
+      :destroy-on-close="true"
+    >
+      <div v-loading="appAuthLoading" class="app-auth-drawer-content">
+        <!-- Tenant Summary Header -->
+        <div class="tenant-auth-header-card">
+          <div class="header-main-row">
+            <div class="tenant-title-block">
+              <span class="tenant-display-name">{{ drawerAuthTenant?.tenantName }}</span>
+              <el-tag size="small" effect="plain" class="code-tag">编码: {{ drawerAuthTenant?.tenantCode }}</el-tag>
+            </div>
+            <el-tag type="success" effect="dark" size="small">{{ drawerAuthTenant?.packageName || '默认套餐' }}</el-tag>
+          </div>
+          <div class="header-meta-row">
+            <span>隔离模式：<strong>{{ drawerAuthTenant?.isolationMode }}</strong></span>
+            <span>履约状态：<strong>{{ drawerAuthTenant?.status === 'ACTIVE' ? '正常履约' : drawerAuthTenant?.status }}</strong></span>
+            <span v-if="drawerAuthTenant?.daysRemaining != null">剩余有效期：<strong>{{ drawerAuthTenant.daysRemaining }} 天</strong></span>
+          </div>
+        </div>
+
+        <!-- Callout Banner -->
+        <el-alert
+          type="info"
+          :closable="false"
+          show-icon
+          class="auth-drawer-alert"
+        >
+          <template #title>
+            此处的每个开关<strong>仅对企业【{{ drawerAuthTenant?.tenantName }}】生效</strong>。未授权的应用在对应企业管理员和员工的菜单与侧边栏中将彻底隐藏。
+          </template>
+        </el-alert>
+
+        <!-- Batch Action Bar -->
+        <div class="drawer-batch-bar">
+          <div class="batch-title">矩阵应用授权列表 ({{ drawerAppCatalog.length }})</div>
+          <div class="batch-btns">
+            <el-button size="small" type="success" :icon="CircleCheck" @click="handleDrawerBatch(true)">
+              全量授权
+            </el-button>
+            <el-button size="small" type="primary" plain :icon="MagicStick" @click="handleDrawerResetBaseline">
+              对齐套餐
+            </el-button>
+            <el-button size="small" type="warning" plain :icon="Close" @click="handleDrawerBatch(false)">
+              全部回收
+            </el-button>
+          </div>
+        </div>
+
+        <!-- Apps List -->
+        <div class="drawer-app-list">
+          <div
+            v-for="app in drawerAppCatalog"
+            :key="app.appCode"
+            class="drawer-app-row"
+            :class="{ 'is-enabled': app.status === 'ENABLED' }"
+          >
+            <div class="drawer-app-info">
+              <div class="app-title-line">
+                <span class="drawer-app-name">{{ app.appName }}</span>
+                <el-tag size="small" effect="plain" type="info">{{ app.category }}</el-tag>
+                <el-tag v-if="app.isIncludedInPlan" size="small" effect="light" type="success">套餐标配</el-tag>
+                <el-tag v-else size="small" effect="light" type="warning">单独特许</el-tag>
+              </div>
+              <div class="drawer-app-desc">{{ app.description }}</div>
+            </div>
+
+            <div class="drawer-app-toggle">
+              <el-switch
+                :model-value="app.status === 'ENABLED'"
+                active-text="已授权"
+                inactive-text="未授权"
+                inline-prompt
+                @change="(val: any) => handleDrawerToggleAuth(app, Boolean(val))"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="drawer-footer-row">
+          <el-button type="primary" link :icon="ArrowRight" @click="handleGoToFullAuthPage">
+            在独立全屏应用授权页中管理此企业 ↗
+          </el-button>
+          <el-button @click="appAuthDrawerVisible = false">关闭</el-button>
+        </div>
+      </template>
+    </el-drawer>
+
     <!-- Tenant Snapshot Export & Restore Dialog -->
     <el-dialog
       v-model="snapshotDialogVisible"
@@ -758,16 +1042,16 @@ onMounted(() => {
               <el-descriptions :column="1" border size="small">
                 <el-descriptions-item label="快照批次 ID">{{ snapshotResult.snapshotId }}</el-descriptions-item>
                 <el-descriptions-item label="所属租户">{{ snapshotResult.tenantCode }}</el-descriptions-item>
-                <el-descriptions-item label="归档数据大小">{{ (snapshotResult.fileSizeBytes / 1024).toFixed(2) }} KB</el-descriptions-item>
-                <el-descriptions-item label="SHA-256 校验和">
-                  <span style="font-family: monospace; font-size: 11px;">{{ snapshotResult.checksum }}</span>
+                <el-descriptions-item label="归档数据大小">
+                  {{ (((snapshotResult.archiveSizeBytes ?? snapshotResult.fileSizeBytes ?? 0)) / 1024).toFixed(2) }} KB
                 </el-descriptions-item>
-                <el-descriptions-item label="生成时间">{{ snapshotResult.createdAt }}</el-descriptions-item>
+                <el-descriptions-item label="SHA-256 校验和">
+                  <span style="font-family: monospace; font-size: 11px;">{{ snapshotResult.checksumSha256 ?? snapshotResult.checksum }}</span>
+                </el-descriptions-item>
+                <el-descriptions-item label="生成时间">{{ snapshotResult.generatedAt ?? snapshotResult.createdAt }}</el-descriptions-item>
               </el-descriptions>
               <div style="margin-top: 16px; text-align: right;">
-                <a :href="snapshotResult.downloadUrl" target="_blank" style="text-decoration: none;">
-                  <el-button type="primary" :icon="Download">立即下载快照归档包</el-button>
-                </a>
+                <el-button type="primary" :icon="Download" @click="handleDownloadSnapshot">立即下载快照归档包</el-button>
               </div>
             </div>
           </div>
@@ -893,6 +1177,133 @@ onMounted(() => {
   white-space: nowrap;
 }
 
+.auth-btn {
+  font-weight: 600;
+  color: var(--el-color-primary) !important;
+}
+
+.app-auth-drawer-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tenant-auth-header-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.header-main-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.tenant-title-block {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tenant-display-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.header-meta-row {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: #475569;
+  flex-wrap: wrap;
+}
+
+.auth-drawer-alert {
+  margin-bottom: 0;
+}
+
+.drawer-batch-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.batch-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.batch-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.drawer-app-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: calc(100vh - 350px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.drawer-app-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.90);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 12px;
+  padding: 12px 16px;
+  transition: all 0.2s ease;
+
+  &.is-enabled {
+    border-left: 4px solid #10b981;
+    background: rgba(240, 253, 244, 0.65);
+  }
+}
+
+.drawer-app-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-right: 12px;
+}
+
+.app-title-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.drawer-app-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.drawer-app-desc {
+  font-size: 12px;
+  color: #475569;
+  line-height: 1.4;
+}
+
+.drawer-footer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
 .more-action-btn {
   display: inline-flex;
   align-items: center;
@@ -914,7 +1325,7 @@ onMounted(() => {
   gap: 6px;
   margin-top: 6px;
   font-size: 12px;
-  color: #64748b;
+  color: #475569;
 }
 
 .quota-drawer-content {
@@ -951,7 +1362,7 @@ onMounted(() => {
     align-items: center;
     gap: 16px;
     font-size: 13px;
-    color: #64748b;
+    color: #475569;
 
     .pkg-name {
       color: #2563eb;
@@ -973,11 +1384,13 @@ onMounted(() => {
     gap: 14px;
 
     .quota-card {
-      background: #fff;
-      border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      padding: 14px 16px;
-      box-shadow: 0 1px 2px rgb(0 0 0 / 0.02);
+      background: rgba(255, 255, 255, 0.90);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.85);
+      border-radius: 14px;
+      padding: 16px 18px;
+      box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.95), 0 4px 12px rgba(12, 34, 56, 0.04);
 
       .quota-card-header {
         display: flex;
@@ -996,7 +1409,7 @@ onMounted(() => {
 
         .quota-values {
           font-size: 13px;
-          color: #64748b;
+          color: #475569;
           font-family: ui-monospace, monospace;
 
           .used-val {
@@ -1006,7 +1419,7 @@ onMounted(() => {
 
           .unit-span {
             font-size: 11px;
-            color: #94a3b8;
+            color: #475569;
           }
         }
       }

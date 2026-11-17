@@ -18,9 +18,17 @@ import org.springframework.util.StringUtils;
 public class WorkflowDefinitionService {
 
     private final ProcessDefinitionMapper definitionMapper;
+    private final FlowableBpmnModelService bpmnModelService;
+    private final FlowableProcessBridgeService flowableBridgeService;
 
-    public WorkflowDefinitionService(ProcessDefinitionMapper definitionMapper) {
+    public WorkflowDefinitionService(
+            ProcessDefinitionMapper definitionMapper,
+            FlowableBpmnModelService bpmnModelService,
+            FlowableProcessBridgeService flowableBridgeService
+    ) {
         this.definitionMapper = definitionMapper;
+        this.bpmnModelService = bpmnModelService;
+        this.flowableBridgeService = flowableBridgeService;
     }
 
     public List<ProcessDefinitionResponse> listDefinitions(String category, String keyword, String status) {
@@ -93,6 +101,22 @@ public class WorkflowDefinitionService {
         entity.setCreatedBy(getUserId());
         entity.setUpdatedBy(getUserId());
 
+        // 自动生成 OMG BPMN 2.0 规范 XML
+        String bpmnXml = StringUtils.hasText(request.bpmnXml())
+                ? request.bpmnXml()
+                : bpmnModelService.buildBpmn20XmlFromJson(request.processCode(), request.processName(), request.flowNodesJson());
+        entity.setBpmnXml(bpmnXml);
+
+        // 部署至 Flowable 工业级引擎
+        String deploymentId = flowableBridgeService.deployBpmnXml(
+                request.processCode(),
+                request.processName(),
+                entity.getCategory(),
+                tenantId,
+                bpmnXml
+        );
+        entity.setFlowableDeploymentId(deploymentId);
+
         definitionMapper.insert(entity);
         return toResponse(entity);
     }
@@ -127,6 +151,23 @@ public class WorkflowDefinitionService {
         entity.setVersion(entity.getVersion() + 1);
         entity.setUpdatedBy(getUserId());
 
+        // 更新 BPMN 2.0 XML 并重新向 Flowable 部署新版本
+        String bpmnXml = StringUtils.hasText(request.bpmnXml())
+                ? request.bpmnXml()
+                : bpmnModelService.buildBpmn20XmlFromJson(entity.getProcessCode(), entity.getProcessName(), entity.getFlowNodesJson());
+        entity.setBpmnXml(bpmnXml);
+
+        String deploymentId = flowableBridgeService.deployBpmnXml(
+                entity.getProcessCode(),
+                entity.getProcessName(),
+                entity.getCategory(),
+                entity.getTenantId(),
+                bpmnXml
+        );
+        if (deploymentId != null) {
+            entity.setFlowableDeploymentId(deploymentId);
+        }
+
         definitionMapper.updateById(entity);
         return toResponse(entity);
     }
@@ -151,7 +192,24 @@ public class WorkflowDefinitionService {
         definitionMapper.deleteById(id);
     }
 
+    public String getBpmnXml(Long id) {
+        ProcessDefinitionEntity entity = getRequiredEntity(id);
+        if (StringUtils.hasText(entity.getBpmnXml())) {
+            return entity.getBpmnXml();
+        }
+        // 若历史数据未包含，则实时由流程树生成标准 BPMN 2.0 XML
+        String generated = bpmnModelService.buildBpmn20XmlFromJson(entity.getProcessCode(), entity.getProcessName(), entity.getFlowNodesJson());
+        entity.setBpmnXml(generated);
+        definitionMapper.updateById(entity);
+        return generated;
+    }
+
     public ProcessDefinitionResponse toResponse(ProcessDefinitionEntity entity) {
+        String xml = entity.getBpmnXml();
+        if (!StringUtils.hasText(xml) && StringUtils.hasText(entity.getFlowNodesJson())) {
+            xml = bpmnModelService.buildBpmn20XmlFromJson(entity.getProcessCode(), entity.getProcessName(), entity.getFlowNodesJson());
+        }
+
         return new ProcessDefinitionResponse(
                 entity.getId(),
                 entity.getTenantId(),
@@ -163,6 +221,8 @@ public class WorkflowDefinitionService {
                 entity.getDescription(),
                 entity.getFormSchemaJson(),
                 entity.getFlowNodesJson(),
+                xml,
+                entity.getFlowableDeploymentId(),
                 entity.getVersion(),
                 entity.getStatus(),
                 entity.getSortNo(),

@@ -26,7 +26,16 @@ public class MybatisPlusConfig {
 
     static final Set<String> PLATFORM_TABLES = Set.of(
             "plat_tenant",
-            "plat_tenant_package"
+            "plat_tenant_package",
+            "sys_app_service",
+            "sys_app_build_record",
+            "sys_app_artifact",
+            "sys_transport_crypto_policy",
+            "sys_transport_crypto_key",
+            "sys_api_endpoint_stat",
+            "sys_alert_rule",
+            "sys_alert_event",
+            "plat_outbox_event"
     );
 
     @Bean
@@ -41,8 +50,11 @@ public class MybatisPlusConfig {
             @Override
             public boolean ignoreTable(String tableName) {
                 TenantAccessContext context = TenantAccessContextHolder.current();
-                return context != null && context.bypassesTenantIsolation()
-                        || PLATFORM_TABLES.contains(tableName.toLowerCase(Locale.ROOT));
+                if (context != null && context.bypassesTenantIsolation()) {
+                    return true;
+                }
+                String lower = tableName.toLowerCase(Locale.ROOT);
+                return lower.startsWith("plat_") || PLATFORM_TABLES.contains(lower);
             }
         }));
         interceptor.addInnerInterceptor(new com.baomidou.mybatisplus.extension.plugins.inner.DataPermissionInterceptor(dataPermissionHandler));

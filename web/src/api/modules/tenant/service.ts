@@ -82,6 +82,13 @@ export async function exportTenantSnapshot(tenantId?: number): Promise<TenantSna
   return response.data.data;
 }
 
+export async function downloadTenantSnapshotBlob(snapshotId: string): Promise<Blob> {
+  const response = await http.get(`/tenant/snapshot/download/${encodeURIComponent(snapshotId)}`, {
+    responseType: "blob"
+  });
+  return response.data as Blob;
+}
+
 export async function restoreTenantSnapshot(file: File, tenantId?: number): Promise<TenantSnapshotRestoreResult> {
   const formData = new FormData();
   formData.append("file", file);
@@ -117,6 +124,21 @@ export async function updateTenantAppStatus(id: number, status: string, tenantId
 
 export async function toggleTenantAppAuthorization(payload: { appCode: string; enabled: boolean; remark?: string }, tenantId?: number): Promise<void> {
   await http.put<ApiResponse<void>>("/tenant/apps/authorize", payload, {
+    params: tenantId ? { tenantId } : {}
+  });
+}
+
+export async function batchAuthorizeTenantApps(
+  payload: { appCodes: string[]; enabled: boolean; remark?: string },
+  tenantId?: number
+): Promise<void> {
+  await http.put<ApiResponse<void>>("/tenant/apps/batch-authorize", payload, {
+    params: tenantId ? { tenantId } : {}
+  });
+}
+
+export async function resetTenantPackageBaseline(tenantId?: number): Promise<void> {
+  await http.post<ApiResponse<void>>("/tenant/apps/reset-package-baseline", null, {
     params: tenantId ? { tenantId } : {}
   });
 }

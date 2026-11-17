@@ -855,7 +855,7 @@ function getDataScopeTemplateDesc(type: string) {
 
     .account-onboard-hint {
       font-size: 12px;
-      color: #64748b;
+      color: #475569;
     }
   }
 

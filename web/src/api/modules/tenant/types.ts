@@ -115,10 +115,14 @@ export interface TenantSnapshotExportResult {
   snapshotId: string;
   tenantId: number;
   tenantCode: string;
-  fileSizeBytes: number;
+  fileSizeBytes?: number;
+  archiveSizeBytes?: number;
   downloadUrl: string;
-  checksum: string;
-  createdAt: string;
+  checksum?: string;
+  checksumSha256?: string;
+  entityCounts?: Record<string, number>;
+  createdAt?: string;
+  generatedAt?: string;
 }
 
 export interface TenantSnapshotRestoreResult {

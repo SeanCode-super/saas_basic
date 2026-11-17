@@ -2,19 +2,13 @@
 import { computed, reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
 import {
-  ArrowRight,
-  Check,
   CircleCheck,
   Cpu,
   DataAnalysis,
-  Document,
-  Download,
   Lock,
   Operation,
   Refresh,
-  Search,
-  VideoPlay,
-  Warning
+  VideoPlay
 } from "@element-plus/icons-vue";
 import type { TenantRow } from "@/api/modules/tenant";
 import BaseCard from "@/components/base/BaseCard.vue";
@@ -349,11 +343,15 @@ function runAstTest() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 16px;
-  background: #fff;
-  border-radius: 8px;
-  border: 1px solid var(--sb-border-color);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.03);
+  padding: 10px 20px;
+  background: rgba(255, 255, 255, 0.90);
+  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  border-radius: var(--sb-radius-glass-md, 18px);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow:
+    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
+    0 10px 25px -5px rgba(12, 34, 56, 0.05);
 
   .bar-left {
     display: flex;
@@ -387,11 +385,16 @@ function runAstTest() {
 }
 
 .arch-card {
-  padding: 16px 18px;
-  background: #fff;
-  border: 1px solid var(--sb-border-color);
-  border-radius: var(--sb-radius-md);
-  box-shadow: var(--sb-shadow-xs);
+  padding: 18px 20px;
+  background: rgba(255, 255, 255, 0.90);
+  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: var(--sb-radius-glass, 20px);
+  box-shadow:
+    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
+    0 14px 36px -8px rgba(12, 34, 56, 0.07);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -441,7 +444,7 @@ function runAstTest() {
   flex-direction: column;
   gap: 4px;
   font-size: 11px;
-  color: #64748b;
+  color: #475569;
 
   strong {
     color: #0f172a;
@@ -511,7 +514,7 @@ function runAstTest() {
     p {
       margin: 2px 0 0;
       font-size: 11px;
-      color: #64748b;
+      color: #475569;
       line-height: 1.4;
     }
   }
@@ -534,7 +537,7 @@ function runAstTest() {
     margin: 0;
     padding-left: 18px;
     font-size: 11px;
-    color: #64748b;
+    color: #475569;
     line-height: 1.6;
   }
 }
@@ -555,7 +558,7 @@ function runAstTest() {
 
     .tag-running { color: #0284c7; }
     .tag-done { color: #10b981; font-weight: 600; }
-    .tag-ready { color: #64748b; }
+    .tag-ready { color: #475569; }
   }
 
   .steps-stack {
@@ -568,10 +571,12 @@ function runAstTest() {
   .sim-step-item {
     display: flex;
     gap: 10px;
-    padding: 8px 10px;
-    background: #fff;
-    border-radius: 4px;
-    border: 1px solid #e2e8f0;
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.90);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 8px;
+    border: 1px solid rgba(226, 232, 240, 0.6);
     align-items: center;
 
     .step-badge {
@@ -592,7 +597,7 @@ function runAstTest() {
 
     .step-text {
       strong { font-size: 12px; color: #0f172a; }
-      p { margin: 1px 0 0; font-size: 11px; color: #64748b; }
+      p { margin: 1px 0 0; font-size: 11px; color: #475569; }
     }
   }
 }
@@ -628,7 +633,7 @@ function runAstTest() {
   .ast-hint {
     margin: 8px 0 0;
     font-size: 11px;
-    color: #64748b;
+    color: #475569;
     line-height: 1.5;
   }
 }

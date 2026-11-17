@@ -82,6 +82,11 @@ export async function deleteOpenApp(id: number): Promise<void> {
 
 // ==================== 统一支付中心 (Unified Pay Center) ====================
 
+export async function fetchPayOrders(): Promise<PayOrderRow[]> {
+  const response = await http.get<ApiResponse<PayOrderRow[]>>("/pay/orders");
+  return response.data.data;
+}
+
 export async function createPayOrder(payload: PayOrderCreatePayload): Promise<PayOrderRow> {
   const response = await http.post<ApiResponse<PayOrderRow>>("/pay/create-order", payload);
   return response.data.data;
@@ -94,5 +99,10 @@ export async function getPayOrderStatus(orderNo: string): Promise<PayOrderRow> {
 
 export async function mockPaySuccess(orderNo: string): Promise<PayOrderRow> {
   const response = await http.post<ApiResponse<PayOrderRow>>(`/pay/mock-success/${orderNo}`);
+  return response.data.data;
+}
+
+export async function refundPayOrder(orderNo: string): Promise<PayOrderRow> {
+  const response = await http.post<ApiResponse<PayOrderRow>>(`/pay/refund/${orderNo}`);
   return response.data.data;
 }

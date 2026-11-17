@@ -5,7 +5,7 @@ import { Download, DocumentCopy, Folder, Check, RefreshRight, Promotion } from "
 import type { CodegenPreviewFile, CodegenTableModel } from "@/api/modules/codegen";
 import { previewCodegen, downloadCodegenZip, writeCodegenToDisk } from "@/api/modules/codegen";
 
-const props = defineProps<{
+defineProps<{
   outputMatrix?: string[];
 }>();
 
@@ -311,7 +311,7 @@ onMounted(() => {
 
     .file-path {
       font-size: 11px;
-      color: #94a3b8;
+      color: #475569;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -341,7 +341,7 @@ onMounted(() => {
     .code-view-path {
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       font-size: 12px;
-      color: #94a3b8;
+      color: #475569;
     }
   }
 

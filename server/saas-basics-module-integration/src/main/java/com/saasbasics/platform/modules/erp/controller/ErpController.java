@@ -65,4 +65,15 @@ public class ErpController {
         erpService.stockInPurchaseOrder(id, warehouseId);
         return ApiResponse.success(null);
     }
+
+    @PostMapping("/inventory/adjust")
+    public ApiResponse<Void> adjustInventory(@RequestBody java.util.Map<String, Object> body) {
+        Long productId = Long.valueOf(body.get("productId").toString());
+        Long warehouseId = body.get("warehouseId") != null ? Long.valueOf(body.get("warehouseId").toString()) : 1L;
+        String type = body.getOrDefault("type", "IN").toString();
+        int delta = Integer.parseInt(body.getOrDefault("delta", "1").toString());
+        String remark = (String) body.get("remark");
+        erpService.adjustStock(productId, warehouseId, type, delta, remark);
+        return ApiResponse.success(null);
+    }
 }

@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/notify")
+@RequestMapping({"/api/notify", "/api/system/notify"})
 public class SystemNotifyController {
 
     private final SystemNotifyService notifyService;
@@ -44,10 +44,10 @@ public class SystemNotifyController {
     public ApiResponse<Map<String, Object>> getUnreadCount() {
         AuthPrincipal principal = AuthContext.get();
         if (principal == null) {
-            return ApiResponse.success(Map.of("unreadCount", 0));
+            return ApiResponse.success(Map.of("unreadCount", 0L, "count", 0L));
         }
         long count = notifyService.countUnread(principal.tenantId(), principal.userId());
-        return ApiResponse.success(Map.of("unreadCount", count));
+        return ApiResponse.success(Map.of("unreadCount", count, "count", count));
     }
 
     @PutMapping("/read/{id}")

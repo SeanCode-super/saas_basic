@@ -6,11 +6,14 @@ import com.saasbasics.platform.common.id.UuidV7Generator;
 import com.saasbasics.platform.modules.iam.dto.UserResponse;
 import com.saasbasics.platform.modules.iam.dto.UserSaveRequest;
 import com.saasbasics.platform.modules.iam.dto.UserStatusUpdateRequest;
+import com.saasbasics.platform.modules.iam.entity.PasswordPolicyEntity;
 import com.saasbasics.platform.modules.iam.entity.UserEntity;
+import com.saasbasics.platform.modules.iam.mapper.PasswordPolicyMapper;
 import com.saasbasics.platform.modules.iam.mapper.UserMapper;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -20,16 +23,27 @@ public class UserService {
     private final PasswordSecurityService passwordSecurityService;
     private final DataPermissionRuleService dataPermissionRuleService;
     private final com.saasbasics.platform.modules.tenant.service.TenantQuotaService tenantQuotaService;
+    private final ObjectProvider<PasswordPolicyMapper> passwordPolicyMapperProvider;
     private final UuidV7Generator uuidGenerator = new UuidV7Generator();
 
     public UserService(ObjectProvider<UserMapper> userMapperProvider,
                        PasswordSecurityService passwordSecurityService,
                        DataPermissionRuleService dataPermissionRuleService,
                        com.saasbasics.platform.modules.tenant.service.TenantQuotaService tenantQuotaService) {
+        this(userMapperProvider, passwordSecurityService, dataPermissionRuleService, tenantQuotaService, null);
+    }
+
+    @Autowired
+    public UserService(ObjectProvider<UserMapper> userMapperProvider,
+                       PasswordSecurityService passwordSecurityService,
+                       DataPermissionRuleService dataPermissionRuleService,
+                       com.saasbasics.platform.modules.tenant.service.TenantQuotaService tenantQuotaService,
+                       ObjectProvider<PasswordPolicyMapper> passwordPolicyMapperProvider) {
         this.userMapperProvider = userMapperProvider;
         this.passwordSecurityService = passwordSecurityService;
         this.dataPermissionRuleService = dataPermissionRuleService;
         this.tenantQuotaService = tenantQuotaService;
+        this.passwordPolicyMapperProvider = passwordPolicyMapperProvider;
     }
 
     public List<UserResponse> listUsers() {
@@ -91,6 +105,10 @@ public class UserService {
         entity.setEmail(request.email());
         String rawPassword = request.password();
         if (rawPassword != null && !rawPassword.isBlank()) {
+            PasswordPolicyMapper policyMapper = passwordPolicyMapperProvider != null ? passwordPolicyMapperProvider.getIfAvailable() : null;
+            Long tid = request.tenantId() != null ? request.tenantId() : 1L;
+            PasswordPolicyEntity policy = policyMapper != null ? policyMapper.selectActivePolicy(tid) : null;
+            passwordSecurityService.validate(rawPassword, policy);
             entity.setPasswordHash(passwordSecurityService.hash(rawPassword));
             entity.setPasswordChangedAt(LocalDateTime.now());
         } else if (entity.getId() == null) {

@@ -3,11 +3,15 @@ package com.saasbasics.platform.modules.iam.controller;
 import com.saasbasics.platform.common.api.ApiResponse;
 import com.saasbasics.platform.common.auth.RequireDataPermission;
 import com.saasbasics.platform.common.auth.RequirePermission;
+import com.saasbasics.platform.common.excel.ExcelUtils;
+import com.saasbasics.platform.modules.iam.dto.UserExcelVo;
 import com.saasbasics.platform.modules.iam.dto.UserResponse;
 import com.saasbasics.platform.modules.iam.dto.UserSaveRequest;
 import com.saasbasics.platform.modules.iam.dto.UserStatusUpdateRequest;
 import com.saasbasics.platform.modules.iam.service.UserService;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import java.io.IOException;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -33,6 +37,24 @@ public class UserController {
     @RequireDataPermission("iam:user:list")
     public ApiResponse<List<UserResponse>> list() {
         return ApiResponse.success(userService.listUsers());
+    }
+
+    @GetMapping("/export")
+    @RequirePermission("iam:user:query")
+    public void exportUsers(HttpServletResponse response) throws IOException {
+        List<UserResponse> list = userService.listUsers();
+        List<UserExcelVo> rows = list.stream().map(u -> new UserExcelVo(
+                u.id(),
+                u.username(),
+                u.nickname(),
+                u.userCode(),
+                u.mobile(),
+                u.email(),
+                u.status()
+        )).toList();
+
+        ExcelUtils.write(response, "用户档案台账导出_" + System.currentTimeMillis(), "用户列表",
+                UserExcelVo.class, rows);
     }
 
     @GetMapping("/{id}")

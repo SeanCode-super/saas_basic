@@ -227,11 +227,15 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 16px;
-  background: #fff;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.03);
+  padding: 12px 20px;
+  background: var(--sb-glass-bg, rgba(255, 255, 255, 0.90));
+  backdrop-filter: var(--sb-glass-blur);
+  -webkit-backdrop-filter: var(--sb-glass-blur);
+  border-radius: var(--sb-radius-glass-md, 18px);
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    0 6px 20px -6px rgba(15, 23, 42, 0.05);
 
   .strip-left {
     display: flex;
@@ -249,7 +253,7 @@ onMounted(() => {
   .divider {
     width: 1px;
     height: 14px;
-    background: #e2e8f0;
+    background: rgba(203, 213, 225, 0.6);
   }
 
   .metric-tags {
@@ -262,14 +266,16 @@ onMounted(() => {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 3px 10px;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
+    padding: 4px 12px;
+    background: rgba(255, 255, 255, 0.90);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(226, 232, 240, 0.6);
+    border-radius: 8px;
     font-size: 12px;
 
     .label {
-      color: #64748b;
+      color: #475569;
     }
 
     .value {

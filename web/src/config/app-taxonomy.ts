@@ -34,6 +34,20 @@ export const APP_TAXONOMY: Record<string, AppMeta> = {
       }
     }
   },
+  ai_center: {
+    title: "AI 智能中心",
+    cluster: "runtime",
+    badge: "AI",
+    summary: "企业级大模型网关、NL2SQL、知识库 RAG、智能体工坊与微调中心。",
+    description: "统一纳管 AI 数据分析副驾驶、混合检索知识库、智能体编排及领域微调评测。",
+    sections: {
+      copilot: { label: "AI 数据副驾驶", description: "自然语言安全查数、ECharts 图表自动推荐与一键导出。" },
+      knowledge: { label: "AI 企业知识库", description: "多格式文档切分、BM25+向量混合召回及合同合规红线审查。" },
+      agents: { label: "智能体工坊", description: "编排人设 Prompt、挂载知识库与工具权限、多渠道发布与实时沙盒。" },
+      models: { label: "AI 模型网关", description: "统一配置 DeepSeek / OpenAI / 通义 / Ollama 模型路由与配额治理。" },
+      finetune: { label: "模型微调与评测", description: "自动脱敏样本清洗、JSONL 导出与 LoRA 微调前后准确率对比。" }
+    }
+  },
   tenant: {
     title: "租户中心",
     cluster: "foundation",
@@ -42,7 +56,7 @@ export const APP_TAXONOMY: Record<string, AppMeta> = {
     description: "统一处理租户注册、审批、配额、隔离升级和生命周期治理。",
     sections: {
       overview: { label: "租户总览", description: "从平台视角看租户分布、试用窗口和隔离模型。" },
-      apps: { label: "应用矩阵与订阅", description: "两层商业化授权，各应用订阅开通与试用管理。" },
+      apps: { label: "租户应用授权", description: "顶级应用权限管控，授予或回收租户应用权限；未获授权的应用在菜单管理、角色分配及导航中完全隐形。" },
       onboarding: { label: "开通治理", description: "配置注册方式、审批模式、试用期和控制台开通规则。" },
       package: { label: "套餐配额", description: "配置套餐、席位、存储与 API 限流的默认基线。" },
       isolation: { label: "隔离升级", description: "规划共享、独 Schema、独库和读写分离升级路径。" },
@@ -109,6 +123,9 @@ export const APP_TAXONOMY: Record<string, AppMeta> = {
     description: "收口数据源、HTTP 集成、Webhook 回调、凭证轮换和集成健康信号。",
     sections: {
       overview: { label: "集成总览", description: "查看集成底座的连接安全、回调策略和接入规模。" },
+      pay: { label: "聚合支付中心", description: "聚合微信支付 Native 扫码、支付宝当面付与聚合收银台沙箱体验。" },
+      message: { label: "消息与通知网关", description: "多渠道短信网关与企业微信、钉钉、飞书机器人通知调度及审计。" },
+      openapp: { label: "企业开放平台", description: "企业 Open API 应用接入、凭据托管与 HMAC-SHA256 签名鉴权网关。" },
       connection: { label: "连接治理", description: "管理超时、网络边界、检测要求和凭证加密。" },
       callback: { label: "回调策略", description: "管理签名、重试、去重和死信队列策略。" },
       health: { label: "健康检测", description: "查看连通性、凭证异常和回调健康信号。" },
@@ -126,7 +143,8 @@ export const APP_TAXONOMY: Record<string, AppMeta> = {
       storage: { label: "存储策略", description: "统一对象存储适配、版本、桶策略和冷热分层。" },
       upload: { label: "上传治理", description: "管理分片、直传、压缩和恶意文件扫描策略。" },
       lifecycle: { label: "生命周期", description: "管理保留、归档、去重、清理和恢复规则。" },
-      audit: { label: "访问审计", description: "统一上传、下载、分享和预览的审计留痕。" }
+      audit: { label: "访问审计", description: "统一上传、下载、分享和预览的审计留痕。" },
+      "download-center": { label: "导出与下载中心", description: "SXSSF 流式防 OOM 导出队列、水印追溯与字段脱敏管理。" }
     }
   },
   scheduler: {
@@ -189,6 +207,26 @@ export const APP_TAXONOMY: Record<string, AppMeta> = {
     description: "商品主数据、多级仓储库存出入库调度与采销订单流转履约。",
     sections: {
       erp: { label: "ERP 进销存管理", description: "物料清单、仓储调度与采销进销存履约台账。" }
+    }
+  },
+  report: {
+    title: "套打与报表中心",
+    cluster: "runtime",
+    badge: "套打报表",
+    summary: "增值税发票、采购单、出入库单与物流面单高精度套打与条形码二维码打印中枢。",
+    description: "企业级多格式单据高精度预览、国家税务总局防伪印章、条形码生成与一键真实打印。",
+    sections: {
+      print: { label: "单据套打预览", description: "发票与单据高精度套打、发票防伪章与真实打印。" }
+    }
+  },
+  report_print: {
+    title: "套打与报表中心",
+    cluster: "runtime",
+    badge: "套打报表",
+    summary: "增值税发票、采购单、出入库单与物流面单高精度套打与条形码二维码打印中枢。",
+    description: "企业级多格式单据高精度预览、国家税务总局防伪印章、条形码生成与一键真实打印。",
+    sections: {
+      print: { label: "单据套打预览", description: "发票与单据高精度套打、发票防伪章与真实打印。" }
     }
   }
 };

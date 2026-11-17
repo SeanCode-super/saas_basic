@@ -56,6 +56,52 @@ public class AuditTrailService implements AuditRecorder {
         mapper.insert(entity);
     }
 
+    @Override
+    public void recordDiff(String bizModule,
+                           String bizType,
+                           String bizId,
+                           String operationType,
+                           String beforeJson,
+                           String afterJson,
+                           boolean success) {
+        OperationLogMapper mapper = operationLogMapperProvider.getIfAvailable();
+        if (mapper == null) {
+            return;
+        }
+        AuthPrincipal principal = AuthContext.get();
+        OperationLogEntity entity = new OperationLogEntity();
+        entity.setTenantId(principal != null && principal.tenantId() != null ? principal.tenantId() : 0L);
+        entity.setOperatorUserId(principal != null && principal.userId() != null ? principal.userId() : 0L);
+        entity.setOperatorName(principal != null ? principal.username() : "system");
+        entity.setBizModule(bizModule);
+        entity.setBizType(bizType);
+        entity.setBizId(bizId);
+        entity.setOperationType(operationType);
+        entity.setBeforeJson(normalizeJsonOrWrap(beforeJson));
+        entity.setAfterJson(normalizeJsonOrWrap(afterJson));
+        entity.setRequestBody(entity.getBeforeJson());
+        entity.setResponseBody(entity.getAfterJson());
+        entity.setSuccess(success);
+        entity.setDurationMs(0);
+        entity.setOccurredAt(LocalDateTime.now());
+        mapper.insert(entity);
+    }
+
+    private String normalizeJsonOrWrap(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String trimmed = value.trim();
+        if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+            try {
+                objectMapper.readTree(trimmed);
+                return trimmed;
+            } catch (Exception ignored) {
+            }
+        }
+        return toJsonPayload(value);
+    }
+
     private String toJsonPayload(String value) {
         if (value == null || value.isBlank()) {
             return null;

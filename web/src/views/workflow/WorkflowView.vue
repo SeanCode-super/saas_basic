@@ -3,8 +3,6 @@ import { computed, onMounted, onUnmounted, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
   Calendar,
-  Check,
-  CircleCheck,
   Connection,
   Document,
   Key,
@@ -12,8 +10,7 @@ import {
   Plus,
   RefreshRight,
   Tickets,
-  Timer,
-  WarningFilled
+  Timer
 } from "@element-plus/icons-vue";
 import {
   checkWorkflowHealth,
@@ -23,6 +20,7 @@ import {
   fetchMyPendingTasks,
   fetchWorkflowDefinitions,
   fetchWorkflowInstances,
+  fetchWorkflowBpmnXml,
   handleWorkflowTask,
   toggleWorkflowDefinitionStatus
 } from "@/api/modules/workflow";
@@ -234,6 +232,28 @@ function openDesignerDialog(def: ProcessDefinitionRow | null) {
   designerDialogVisible.value = true;
 }
 
+async function handleExportBpmn(def: ProcessDefinitionRow) {
+  try {
+    const xml = await fetchWorkflowBpmnXml(def.id);
+    if (!xml) {
+      ElMessage.warning("未能获取该流程的 BPMN XML 规范数据");
+      return;
+    }
+    const blob = new Blob([xml], { type: "application/xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${def.processCode}.bpmn20.xml`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    ElMessage.success(`已成功导出「${def.processName}」的 OMG BPMN 2.0 规范文件`);
+  } catch (err: any) {
+    ElMessage.error(err?.message || "导出 BPMN 文件失败");
+  }
+}
+
 // Fast Action: View Instance Detail Drawer
 function viewInstanceDetail(instanceId: number) {
   selectedInstanceId.value = instanceId;
@@ -368,6 +388,34 @@ function getCategoryBadge(category: string) {
       return { label: "常规业务", color: "#64748b" };
   }
 }
+
+// 工作台各子标签统一分页控制
+const workflowPage = ref(1);
+const workflowPageSize = ref(10);
+
+const currentSubTabList = computed(() => {
+  switch (workspaceSubTab.value) {
+    case "pending":
+      return filteredPendingTasks.value;
+    case "completed":
+      return filteredCompletedTasks.value;
+    case "my":
+      return filteredMyInstances.value;
+    case "cc":
+      return filteredCcTasks.value;
+    default:
+      return [];
+  }
+});
+
+const paginatedCurrentList = computed(() => {
+  const start = (workflowPage.value - 1) * workflowPageSize.value;
+  return currentSubTabList.value.slice(start, start + workflowPageSize.value);
+});
+
+watch(workspaceSubTab, () => {
+  workflowPage.value = 1;
+});
 </script>
 
 <template>
@@ -483,7 +531,7 @@ function getCategoryBadge(category: string) {
             <el-table
               v-if="workspaceSubTab === 'pending'"
               v-loading="tasksLoading"
-              :data="filteredPendingTasks"
+              :data="paginatedCurrentList"
               stripe
               class="data-table"
             >
@@ -511,7 +559,7 @@ function getCategoryBadge(category: string) {
                 </template>
               </el-table-column>
               <el-table-column prop="createdAt" label="到达时间" width="170" />
-              <el-table-column label="快捷操作" width="220" fixed="right">
+              <el-table-column label="快捷操作" min-width="200">
                 <template #default="{ row }">
                   <el-button size="small" type="success" @click="handleQuickApprove(row)">
                     同意
@@ -533,7 +581,7 @@ function getCategoryBadge(category: string) {
             <el-table
               v-else-if="workspaceSubTab === 'completed'"
               v-loading="tasksLoading"
-              :data="filteredCompletedTasks"
+              :data="paginatedCurrentList"
               stripe
               class="data-table"
             >
@@ -556,7 +604,7 @@ function getCategoryBadge(category: string) {
               </el-table-column>
               <el-table-column prop="comment" label="审批附言" min-width="160" show-overflow-tooltip />
               <el-table-column prop="finishTime" label="办理时间" width="170" />
-              <el-table-column label="操作" width="100" fixed="right">
+              <el-table-column label="操作" width="100">
                 <template #default="{ row }">
                   <el-button size="small" link type="primary" @click="viewInstanceDetail(row.instanceId)">
                     查看
@@ -572,7 +620,7 @@ function getCategoryBadge(category: string) {
             <el-table
               v-else-if="workspaceSubTab === 'my'"
               v-loading="tasksLoading"
-              :data="filteredMyInstances"
+              :data="paginatedCurrentList"
               stripe
               class="data-table"
             >
@@ -594,7 +642,7 @@ function getCategoryBadge(category: string) {
                 </template>
               </el-table-column>
               <el-table-column prop="startTime" label="发起时间" width="170" />
-              <el-table-column label="操作" width="100" fixed="right">
+              <el-table-column label="操作" width="100">
                 <template #default="{ row }">
                   <el-button size="small" link type="primary" @click="viewInstanceDetail(row.id)">
                     查看详情
@@ -610,7 +658,7 @@ function getCategoryBadge(category: string) {
             <el-table
               v-else-if="workspaceSubTab === 'cc'"
               v-loading="tasksLoading"
-              :data="filteredCcTasks"
+              :data="paginatedCurrentList"
               stripe
               class="data-table"
             >
@@ -624,7 +672,7 @@ function getCategoryBadge(category: string) {
               <el-table-column prop="instanceTitle" label="申请事项" min-width="220" show-overflow-tooltip />
               <el-table-column prop="initiatorName" label="申请发起人" width="130" />
               <el-table-column prop="createdAt" label="抄送时间" width="170" />
-              <el-table-column label="操作" width="100" fixed="right">
+              <el-table-column label="操作" width="100">
                 <template #default="{ row }">
                   <el-button size="small" link type="primary" @click="viewInstanceDetail(row.instanceId)">
                     查阅单据
@@ -635,6 +683,18 @@ function getCategoryBadge(category: string) {
                 <el-empty description="暂无抄送您的单据" />
               </template>
             </el-table>
+
+            <!-- 审批工作台通用分页器 -->
+            <div v-if="currentSubTabList.length > 0" class="workflow-pagination-bar">
+              <el-pagination
+                v-model:current-page="workflowPage"
+                v-model:page-size="workflowPageSize"
+                :page-sizes="[10, 20, 50]"
+                :total="currentSubTabList.length"
+                layout="total, sizes, prev, pager, next, jumper"
+                @size-change="workflowPage = 1"
+              />
+            </div>
           </div>
         </el-tab-pane>
 
@@ -748,10 +808,13 @@ function getCategoryBadge(category: string) {
                 </template>
               </el-table-column>
               <el-table-column prop="updatedAt" label="最后维护时间" width="170" />
-              <el-table-column label="设计与维护" width="220" fixed="right">
+              <el-table-column label="设计与维护" min-width="280">
                 <template #default="{ row }">
                   <el-button size="small" type="primary" plain @click="openDesignerDialog(row)">
                     设计流程
+                  </el-button>
+                  <el-button size="small" link type="primary" @click="handleExportBpmn(row)">
+                    导出 BPMN 2.0
                   </el-button>
                   <el-button
                     size="small"
@@ -795,24 +858,29 @@ function getCategoryBadge(category: string) {
 
 <style scoped>
 .workflow-hub-page {
-  padding: 16px 20px;
-  background: #f8fafc;
+  padding: 8px 4px 20px;
+  background: transparent;
   min-height: calc(100vh - 84px);
   display: flex;
   flex-direction: column;
   gap: 16px;
+  box-sizing: border-box;
 }
 
-/* Sleek Header Strip */
+/* iOS 27 晶透液态毛玻璃指令条 (Liquid Glass Header Strip) */
 .workflow-header-strip {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 16px;
-  background: #fff;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.03);
+  padding: 12px 20px;
+  background: var(--sb-glass-bg, rgba(255, 255, 255, 0.90));
+  backdrop-filter: var(--sb-glass-blur);
+  -webkit-backdrop-filter: var(--sb-glass-blur);
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  border-radius: 18px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    0 6px 20px -6px rgba(15, 23, 42, 0.05);
 
   .strip-left {
     display: flex;
@@ -841,7 +909,7 @@ function getCategoryBadge(category: string) {
   .divider {
     width: 1px;
     height: 14px;
-    background: #e2e8f0;
+    background: rgba(203, 213, 225, 0.6);
   }
 
   .metric-tags {
@@ -854,22 +922,26 @@ function getCategoryBadge(category: string) {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 3px 10px;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
+    padding: 3px 12px;
+    background: rgba(255, 255, 255, 0.90);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.75);
+    border-radius: 9999px;
     cursor: pointer;
     font-size: 12px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
     transition: all 0.15s ease;
 
     &:hover {
-      background: #f1f5f9;
-      border-color: #cbd5e1;
+      background: rgba(255, 255, 255, 0.85);
+      border-color: rgba(255, 255, 255, 0.95);
+      transform: translateY(-1px);
     }
 
     &.has-badge {
-      background: #fef2f2;
-      border-color: #fecaca;
+      background: rgba(254, 242, 242, 0.75);
+      border-color: rgba(254, 202, 202, 0.85);
 
       .value {
         color: #dc2626;
@@ -877,7 +949,7 @@ function getCategoryBadge(category: string) {
     }
 
     .label {
-      color: #64748b;
+      color: #475569;
     }
 
     .value {
@@ -893,13 +965,17 @@ function getCategoryBadge(category: string) {
   }
 }
 
-/* Tabs & Main Container */
+/* iOS 27 晶透主工作台容器卡片 (.hub-tabs-container) */
 .hub-tabs-container {
-  background: #fff;
-  border-radius: 12px;
-  padding: 16px 20px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05);
+  background: var(--sb-glass-bg, rgba(255, 255, 255, 0.90));
+  backdrop-filter: var(--sb-glass-blur);
+  -webkit-backdrop-filter: var(--sb-glass-blur);
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  border-radius: 22px;
+  padding: 20px 24px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    0 10px 28px -8px rgba(15, 23, 42, 0.06);
 }
 
 .tab-label {
@@ -961,7 +1037,7 @@ function getCategoryBadge(category: string) {
 .filter-label {
   font-size: 13px;
   font-weight: 600;
-  color: #64748b;
+  color: #475569;
 }
 
 .templates-grid {
@@ -971,19 +1047,21 @@ function getCategoryBadge(category: string) {
 }
 
 .template-card {
-  background: #fff;
+  background: rgba(255, 255, 255, 0.96);
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border-radius: 16px;
   padding: 18px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  transition: all 0.2s ease;
+  box-shadow: 0 4px 16px -4px rgba(15, 23, 42, 0.05);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .template-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.06);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), 0 14px 32px -6px rgba(12, 34, 56, 0.10);
   border-color: #3b82f6;
 }
 
@@ -1021,7 +1099,7 @@ function getCategoryBadge(category: string) {
 
 .version-tag {
   font-size: 11px;
-  color: #94a3b8;
+  color: #475569;
   background: #f1f5f9;
   padding: 1px 6px;
   border-radius: 4px;
@@ -1029,7 +1107,7 @@ function getCategoryBadge(category: string) {
 
 .template-desc {
   font-size: 13px;
-  color: #64748b;
+  color: #475569;
   line-height: 1.5;
   margin: 0 0 16px;
   min-height: 38px;
@@ -1045,7 +1123,7 @@ function getCategoryBadge(category: string) {
 
 .code-text {
   font-size: 12px;
-  color: #94a3b8;
+  color: #475569;
   font-family: monospace;
 }
 
@@ -1065,7 +1143,7 @@ function getCategoryBadge(category: string) {
 
 .left-tips {
   font-size: 13px;
-  color: #64748b;
+  color: #475569;
 }
 
 .def-title-cell {
@@ -1076,7 +1154,7 @@ function getCategoryBadge(category: string) {
 
 .ver-badge {
   font-size: 11px;
-  color: #64748b;
+  color: #475569;
   background: #f1f5f9;
   padding: 1px 6px;
   border-radius: 4px;
@@ -1114,5 +1192,14 @@ function getCategoryBadge(category: string) {
 .service-alert-desc {
   font-size: 13px;
   color: #78350f;
+}
+
+.workflow-pagination-bar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 16px;
+  border-top: 1px solid rgba(226, 232, 240, 0.6);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
 }
 </style>

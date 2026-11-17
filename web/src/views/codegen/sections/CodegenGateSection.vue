@@ -1,9 +1,20 @@
 <script setup lang="ts">
-import { reactive, ref } from "vue";
-import { ElMessage } from "element-plus";
-import { Check, Warning, CircleCheck, Search, MagicStick, Setting, ArrowUp, ArrowDown } from "@element-plus/icons-vue";
+import {
+  ref
+} from "vue";
+import {
+  ElMessage
+} from "element-plus";
+import {
+  Check,
+  CircleCheck,
+  Search,
+  MagicStick,
+  Setting,
+  ArrowUp
+} from "@element-plus/icons-vue";
 
-const props = defineProps<{
+defineProps<{
   qualityGate: {
     requireAuditField: boolean;
     requireDictBinding: boolean;
@@ -173,7 +184,7 @@ function handleAutoFix() {
             </template>
           </el-table-column>
           <el-table-column prop="status" label="状态" width="95" align="center">
-            <template #default="{ row }">
+            <template #default>
               <el-tag type="success" size="small"><el-icon><CircleCheck /></el-icon> 通过</el-tag>
             </template>
           </el-table-column>
@@ -226,7 +237,7 @@ function handleAutoFix() {
 
     .gate-summary-text {
       font-size: 12px;
-      color: #64748b;
+      color: #475569;
     }
   }
 
@@ -266,10 +277,11 @@ function handleAutoFix() {
       display: flex;
       align-items: flex-start;
       gap: 8px;
-      background: #fff;
+      background: rgba(255, 255, 255, 0.90);
+      backdrop-filter: blur(14px);
       padding: 8px 10px;
-      border-radius: 6px;
-      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.88);
 
       .toggle-content {
         display: flex;
@@ -284,7 +296,7 @@ function handleAutoFix() {
 
         .toggle-desc {
           font-size: 11px;
-          color: #64748b;
+          color: #475569;
           line-height: 1.3;
         }
       }

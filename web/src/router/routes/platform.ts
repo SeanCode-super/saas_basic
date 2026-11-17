@@ -28,7 +28,7 @@ export const platformRoutes: RouteRecordRaw[] = [
         }
       },
       {
-        path: "iam",
+        path: "iam/:section*",
         name: "iam",
         component: () => import("@/views/iam/IamView.vue"),
         meta: {
@@ -54,6 +54,16 @@ export const platformRoutes: RouteRecordRaw[] = [
         meta: {
           title: "系统中心",
           icon: "Setting",
+          permissionCode: "system:config:query"
+        }
+      },
+      {
+        path: "system/ai-models",
+        name: "system-ai-models",
+        component: () => import("@/views/system/AiModelConfigView.vue"),
+        meta: {
+          title: "AI 智能模型网关",
+          icon: "Cpu",
           permissionCode: "system:config:query"
         }
       },
@@ -159,6 +169,16 @@ export const platformRoutes: RouteRecordRaw[] = [
       {
         path: "erp",
         name: "erp",
+        component: () => import("@/views/erp/ErpView.vue"),
+        meta: {
+          title: "进销存 ERP",
+          icon: "Briefcase",
+          permissionCode: "erp:inventory:query"
+        }
+      },
+      {
+        path: "erp/:tab",
+        name: "erp-tab",
         component: () => import("@/views/erp/ErpView.vue"),
         meta: {
           title: "进销存 ERP",

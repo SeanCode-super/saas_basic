@@ -18,7 +18,7 @@ export interface LoginLog {
 }
 
 export interface OperationLog {
-  id: number;
+  id: number | string;
   tenantId: number;
   operatorUserId: number;
   operatorName: string;
@@ -28,6 +28,26 @@ export interface OperationLog {
   operationType: string;
   success: boolean;
   occurredAt: string;
+}
+
+export interface FieldDiffItem {
+  fieldPath: string;
+  beforeValue?: string | null;
+  afterValue?: string | null;
+  changeType: "ADDED" | "REMOVED" | "MODIFIED";
+}
+
+export interface OperationLogDiffResponse {
+  id: number | string;
+  bizModule: string;
+  bizType: string;
+  bizId: string;
+  operationType: string;
+  operatorName: string;
+  occurredAt: string;
+  beforeJson?: string | null;
+  afterJson?: string | null;
+  changedFields: FieldDiffItem[];
 }
 
 export interface AuditQueryParam {

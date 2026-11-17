@@ -1,5 +1,6 @@
 import { http } from "@/api/http";
 import type { ApiResponse } from "@/types/http";
+import type { TransportCryptoTrace } from "@/utils/transport-crypto";
 import type {
   SystemConfigRow,
   SystemConfigSavePayload,
@@ -12,7 +13,12 @@ import type {
   RedisInfoData,
   RedisKeyItem,
   SlowSqlReportData,
-  JvmInfoData
+  JvmInfoData,
+  TransportSecurityOverview,
+  TransportPolicyUpdatePayload,
+  TransportKeyConfigurePayload,
+  TransportRoundtripResult,
+  ApiCatalogSnapshot
 } from "./types";
 
 export async function fetchSystemConfigs(): Promise<SystemConfigRow[]> {
@@ -22,6 +28,11 @@ export async function fetchSystemConfigs(): Promise<SystemConfigRow[]> {
 
 export async function createSystemConfig(payload: SystemConfigSavePayload): Promise<SystemConfigRow> {
   const response = await http.post<ApiResponse<SystemConfigRow>>("/system/configs", payload);
+  return response.data.data;
+}
+
+export async function upsertSystemConfigByKey(payload: SystemConfigSavePayload): Promise<SystemConfigRow> {
+  const response = await http.put<ApiResponse<SystemConfigRow>>("/system/configs/by-key", payload);
   return response.data.data;
 }
 
@@ -129,5 +140,60 @@ export async function clearSlowSql(): Promise<void> {
 
 export async function fetchJvmInfo(): Promise<JvmInfoData> {
   const response = await http.get<ApiResponse<JvmInfoData>>("/system/infra/jvm/info");
+  return response.data.data;
+}
+
+// ==================== 全链路可控传输加密控制台 (Transport Security) ====================
+
+export async function fetchTransportSecurityOverview(): Promise<TransportSecurityOverview> {
+  const response = await http.get<ApiResponse<TransportSecurityOverview>>("/system/security/transport/overview");
+  return response.data.data;
+}
+
+export async function updateTransportSecurityPolicy(payload: TransportPolicyUpdatePayload): Promise<TransportSecurityOverview> {
+  const response = await http.put<ApiResponse<TransportSecurityOverview>>("/system/security/transport/policy", payload);
+  return response.data.data;
+}
+
+export async function rotateTransportSecurityKey(): Promise<TransportSecurityOverview> {
+  const response = await http.post<ApiResponse<TransportSecurityOverview>>("/system/security/transport/rotate-key");
+  return response.data.data;
+}
+
+export async function configureTransportSecurityKey(
+  payload: TransportKeyConfigurePayload
+): Promise<TransportSecurityOverview> {
+  const response = await http.post<ApiResponse<TransportSecurityOverview>>(
+    "/system/security/transport/configure-key",
+    payload
+  );
+  return response.data.data;
+}
+
+export async function activateTransportSecurityKey(keyId: string): Promise<TransportSecurityOverview> {
+  const response = await http.post<ApiResponse<TransportSecurityOverview>>(
+    "/system/security/transport/activate-key",
+    { keyId }
+  );
+  return response.data.data;
+}
+
+export async function fetchTransportApiCatalog(): Promise<ApiCatalogSnapshot> {
+  const response = await http.get<ApiResponse<ApiCatalogSnapshot>>("/system/security/transport/api-catalog");
+  return response.data.data;
+}
+
+export async function verifyTransportRoundtrip(
+  probeText: string,
+  options?: { transportEncrypt?: boolean; onCryptoTrace?: (trace: TransportCryptoTrace) => void }
+): Promise<TransportRoundtripResult> {
+  const response = await http.post<ApiResponse<TransportRoundtripResult>>(
+    "/system/security/transport/verify",
+    { probeText, clientSentAtMs: Date.now() },
+    {
+      transportEncrypt: options?.transportEncrypt ?? true,
+      onCryptoTrace: options?.onCryptoTrace
+    }
+  );
   return response.data.data;
 }

@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from "vue";
+import {
+  onMounted,
+  reactive,
+  ref
+} from "vue";
 import { ElMessage } from "element-plus";
 import {
   Download,
@@ -10,10 +14,11 @@ import {
   User,
   View
 } from "@element-plus/icons-vue";
-import { fetchLoginLogs, fetchOperationLogs } from "@/api/modules/audit";
-import type { LoginLog, OperationLog } from "@/api/modules/audit";
+import { fetchLoginLogs, fetchOperationLogDiff, fetchOperationLogs } from "@/api/modules/audit";
+import type { LoginLog, OperationLog, OperationLogDiffResponse } from "@/api/modules/audit";
+import ExportDialog from "@/components/platform/ExportDialog.vue";
 
-const props = defineProps<{
+defineProps<{
   auditPolicy: {
     retentionDays: number;
     recordPermissionChange: boolean;
@@ -44,6 +49,8 @@ const loginFilter = reactive({
 // Detail Drawer
 const detailDrawerVisible = ref(false);
 const activeLogDetail = ref<Record<string, any> | null>(null);
+const activeLogDiff = ref<OperationLogDiffResponse | null>(null);
+const diffLoading = ref(false);
 
 async function loadOperationLogs() {
   loadingOperations.value = true;
@@ -82,35 +89,28 @@ function handleTabChange(tab: any) {
   }
 }
 
-function openDetail(row: Record<string, any>) {
+async function openDetail(row: Record<string, any>) {
   activeLogDetail.value = row;
+  activeLogDiff.value = null;
   detailDrawerVisible.value = true;
+  if (row.bizModule && row.id) {
+    diffLoading.value = true;
+    try {
+      activeLogDiff.value = await fetchOperationLogDiff(row.id);
+    } catch {
+      activeLogDiff.value = null;
+    } finally {
+      diffLoading.value = false;
+    }
+  }
 }
 
+const auditExportVisible = ref(false);
+const auditExportMode = ref<"operations" | "logins">("operations");
+
 function exportCsv(type: "operations" | "logins") {
-  let content = "";
-  let filename = "";
-  if (type === "operations") {
-    content = "ID,发生时间,操作账号,业务模块,业务对象,动作代码,执行结果\n";
-    operationLogs.value.forEach((r) => {
-      content += `${r.id},"${r.occurredAt}","${r.operatorName}","${r.bizModule}","${r.bizType}:${r.bizId}","${r.operationType}","${r.success ? '成功' : '失败'}"\n`;
-    });
-    filename = `operation-audit-logs-${Date.now()}.csv`;
-  } else {
-    content = "ID,发生时间,登录账号,方式,客户端IP,状态,失败原因\n";
-    loginLogs.value.forEach((r) => {
-      content += `${r.id},"${r.occurredAt}","${r.username}","${r.loginType}","${r.loginIp}","${r.success ? '成功' : '失败'}","${r.failReason || '-'}"\n`;
-    });
-    filename = `login-audit-logs-${Date.now()}.csv`;
-  }
-  const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-  ElMessage.success("审计留痕数据已成功导出！");
+  auditExportMode.value = type;
+  auditExportVisible.value = true;
 }
 
 onMounted(() => {
@@ -151,7 +151,7 @@ onMounted(() => {
             <el-button :icon="Refresh" @click="opFilter.bizModule = ''; opFilter.operationType = ''; loadOperationLogs()">重置</el-button>
           </div>
           <div class="action-group">
-            <el-button :icon="Download" plain @click="exportCsv('operations')">导出 CSV 留痕</el-button>
+            <el-button :icon="Download" plain @click="exportCsv('operations')">安全导出 (Excel/PDF)</el-button>
             <el-button :icon="Refresh" :loading="loadingOperations" @click="loadOperationLogs">刷新</el-button>
           </div>
         </div>
@@ -162,17 +162,17 @@ onMounted(() => {
               <span class="mono-text">{{ row.occurredAt?.replace('T', ' ')?.substring(0, 19) }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="operatorName" label="操作人" width="140">
+          <el-table-column prop="operatorName" label="操作人" width="120">
             <template #default="{ row }">
               <el-tag size="small" type="info" effect="plain">{{ row.operatorName || `UID #${row.operatorUserId}` }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="bizModule" label="所属模块" width="130">
+          <el-table-column prop="bizModule" label="所属模块" width="100">
             <template #default="{ row }">
               <el-tag size="small" type="primary">{{ row.bizModule }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="operationType" label="操作动作" width="150">
+          <el-table-column prop="operationType" label="操作动作" width="168">
             <template #default="{ row }">
               <el-tag size="small" :type="row.operationType?.includes('DELETE') ? 'danger' : row.operationType?.includes('UPDATE') ? 'warning' : 'success'">
                 {{ row.operationType }}
@@ -225,7 +225,7 @@ onMounted(() => {
             <el-button :icon="Refresh" @click="loginFilter.username = ''; loginFilter.success = ''; loadLoginLogs()">重置</el-button>
           </div>
           <div class="action-group">
-            <el-button :icon="Download" plain @click="exportCsv('logins')">导出 CSV 留痕</el-button>
+            <el-button :icon="Download" plain @click="exportCsv('logins')">安全导出 (Excel/PDF)</el-button>
             <el-button :icon="Refresh" :loading="loadingLogins" @click="loadLoginLogs">刷新</el-button>
           </div>
         </div>
@@ -321,12 +321,45 @@ onMounted(() => {
           </el-descriptions-item>
           <el-descriptions-item v-if="activeLogDetail.failReason" label="失败原因">{{ activeLogDetail.failReason }}</el-descriptions-item>
         </el-descriptions>
+        <div v-if="activeLogDetail.bizModule" v-loading="diffLoading" style="margin-top: 16px;">
+          <h4 style="margin-bottom: 8px; font-size: 14px; color: #1e293b;">字段级变更对照 (Before / After Diff)</h4>
+          <el-table
+            v-if="activeLogDiff && activeLogDiff.changedFields?.length"
+            :data="activeLogDiff.changedFields"
+            border
+            size="small"
+          >
+            <el-table-column prop="fieldPath" label="字段路径" min-width="130">
+              <template #default="{ row }"><code class="mono-text">{{ row.fieldPath }}</code></template>
+            </el-table-column>
+            <el-table-column prop="changeType" label="类型" width="90" align="center">
+              <template #default="{ row }">
+                <el-tag
+                  size="small"
+                  :type="row.changeType === 'ADDED' ? 'success' : row.changeType === 'REMOVED' ? 'danger' : 'warning'"
+                >
+                  {{ row.changeType }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="beforeValue" label="变更前 (Before)" min-width="110" show-overflow-tooltip />
+            <el-table-column prop="afterValue" label="变更后 (After)" min-width="110" show-overflow-tooltip />
+          </el-table>
+          <el-empty v-else description="该记录未包含结构化前后对比字段" :image-size="48" />
+        </div>
         <div class="json-dump">
           <h4>原始事件载荷 (Event Payload)</h4>
           <pre>{{ JSON.stringify(activeLogDetail, null, 2) }}</pre>
         </div>
       </div>
     </el-drawer>
+
+    <ExportDialog
+      v-model:visible="auditExportVisible"
+      :source-code="auditExportMode === 'operations' ? 'audit_operation_log' : ''"
+      :default-title="auditExportMode === 'operations' ? '操作审计与风控轨迹日志' : '登录安全审计日志'"
+      :ad-hoc-rows="auditExportMode === 'logins' ? (loginLogs as unknown as Array<Record<string, unknown>>) : []"
+    />
   </div>
 </template>
 
@@ -338,9 +371,12 @@ onMounted(() => {
 }
 
 .audit-tabs {
-  background: #fff;
-  border-radius: var(--sb-radius-md);
-  border: 1px solid var(--sb-border-color);
+  background: rgba(255, 255, 255, 0.90);
+  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), 0 16px 40px -10px rgba(12, 34, 56, 0.08);
 }
 
 .tab-label {

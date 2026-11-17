@@ -121,7 +121,7 @@ export interface PayOrderRow {
   orderNo: string;
   amount: number;
   channel: string;
-  status: "PENDING" | "SUCCESS" | "FAILED" | "EXPIRED" | "NOT_FOUND";
+  status: "PENDING" | "SUCCESS" | "REFUNDED" | "FAILED" | "EXPIRED" | "NOT_FOUND";
   payUrl: string;
   qrCodeUrl: string;
   expireAt: string;

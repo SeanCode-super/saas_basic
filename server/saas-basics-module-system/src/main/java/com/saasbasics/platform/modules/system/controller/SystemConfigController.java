@@ -49,4 +49,10 @@ public class SystemConfigController {
                                                     @Valid @RequestBody SystemConfigSaveRequest request) {
         return ApiResponse.success(systemConfigService.updateConfig(id, request));
     }
+
+    @PutMapping("/by-key")
+    @RequirePermission("system:config:write")
+    public ApiResponse<SystemConfigResponse> upsertByKey(@Valid @RequestBody SystemConfigSaveRequest request) {
+        return ApiResponse.success(systemConfigService.upsertConfigByKey(request));
+    }
 }

@@ -11,10 +11,13 @@ import com.saasbasics.platform.modules.iam.dto.AuthRefreshTokenRequest;
 import com.saasbasics.platform.modules.iam.dto.OnlineSessionResponse;
 import com.saasbasics.platform.modules.iam.dto.SsoCallbackRequest;
 import com.saasbasics.platform.modules.iam.service.AuthService;
+import com.saasbasics.platform.modules.iam.service.CaptchaService;
+import com.saasbasics.platform.modules.iam.service.MfaAccountService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -31,9 +34,48 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final CaptchaService captchaService;
+    private final MfaAccountService mfaAccountService;
 
     public AuthController(AuthService authService) {
+        this(authService, null, null);
+    }
+
+    @Autowired
+    public AuthController(AuthService authService,
+                          CaptchaService captchaService,
+                          MfaAccountService mfaAccountService) {
         this.authService = authService;
+        this.captchaService = captchaService;
+        this.mfaAccountService = mfaAccountService;
+    }
+
+    @GetMapping("/captcha")
+    public ApiResponse<CaptchaService.CaptchaChallenge> captcha() {
+        return ApiResponse.success(captchaService.issueChallenge());
+    }
+
+    @GetMapping("/mfa/status")
+    public ApiResponse<MfaAccountService.MfaStatusResponse> mfaStatus() {
+        return ApiResponse.success(mfaAccountService.getStatus());
+    }
+
+    @PostMapping("/mfa/setup")
+    public ApiResponse<MfaAccountService.MfaSetupResponse> mfaSetup() {
+        return ApiResponse.success(mfaAccountService.setup());
+    }
+
+    @PostMapping("/mfa/enable")
+    public ApiResponse<MfaAccountService.MfaStatusResponse> mfaEnable(@RequestBody Map<String, String> body) {
+        return ApiResponse.success(mfaAccountService.enable(body != null ? body.get("totpCode") : null));
+    }
+
+    @PostMapping("/mfa/disable")
+    public ApiResponse<MfaAccountService.MfaStatusResponse> mfaDisable(@RequestBody Map<String, String> body) {
+        return ApiResponse.success(mfaAccountService.disable(
+                body != null ? body.get("password") : null,
+                body != null ? body.get("totpCode") : null
+        ));
     }
 
     @PostMapping("/login")

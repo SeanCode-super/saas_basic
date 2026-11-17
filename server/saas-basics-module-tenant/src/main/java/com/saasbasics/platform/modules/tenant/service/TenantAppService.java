@@ -44,6 +44,7 @@ public class TenantAppService {
             new SystemAppMeta("audit", "合规审计与风控中心", "全系统用户操作行为日志留存、敏感数据动态脱敏追踪与合规审计报表导出", "SECURITY", "DataAnalysis", "ENTERPRISE"),
             new SystemAppMeta("integration", "开放集成与智能中心", "多源异构数据集成通道、企业网关开放平台、AI 智能助手与消息通知网关", "INTEGRATION", "Connection", "ENTERPRISE"),
             new SystemAppMeta("system", "系统中心与企业 SSO", "开放平台 AppKey/Secret 接入凭证、企业级单点登录 (OIDC/OAuth2/SAML) 与全局参数配置", "SYSTEM", "Setting", "ENTERPRISE"),
+            new SystemAppMeta("report", "报表设计与套打中心", "可视化大屏图表建模、SQL数据集构建、套打单据设计器、在线打印与批量PDF导出", "BUSINESS", "Printer", "ENTERPRISE"),
             new SystemAppMeta("codegen", "低代码与代码生成中心", "基于数据库元数据的端到端代码一键生成引擎与前后端工程可视化模板", "DEV", "MagicStick", "PLATFORM")
     );
 
@@ -278,6 +279,36 @@ public class TenantAppService {
                 "TOGGLE_APP_AUTHORIZATION",
                 targetCode,
                 newStatus,
+                true
+        );
+    }
+
+    @Transactional
+    public void batchAuthorizeApps(Long tenantId, List<String> appCodes, boolean enabled, String remark) {
+        if (appCodes == null || appCodes.isEmpty()) {
+            return;
+        }
+        for (String code : appCodes) {
+            toggleAppAuthorization(tenantId, code, enabled, remark);
+        }
+    }
+
+    @Transactional
+    public void resetToPackageBaseline(Long tenantId) {
+        TenantAppMapper appMapper = tenantAppMapperProvider.getIfAvailable();
+        if (appMapper == null) {
+            throw new BizException("SYSTEM_ERROR", "TenantAppMapper not available");
+        }
+        appMapper.delete(new LambdaQueryWrapper<TenantAppEntity>()
+                .eq(TenantAppEntity::getTenantId, tenantId));
+        tenantFeatureProvider.invalidateCache(tenantId);
+        auditTrailService.record(
+                "tenant",
+                "plat_tenant_app",
+                String.valueOf(tenantId),
+                "RESET_PACKAGE_BASELINE",
+                "ALL",
+                "RESET",
                 true
         );
     }

@@ -1,7 +1,16 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { ElMessage, ElMessageBox } from "element-plus";
-import { Search, RefreshRight, Document, CircleCheck, CircleClose, View, Delete, Check } from "@element-plus/icons-vue";
+import {
+  ElMessage,
+  ElMessageBox
+} from "element-plus";
+import {
+  Search,
+  RefreshRight,
+  View,
+  Delete,
+  Check
+} from "@element-plus/icons-vue";
 
 const props = defineProps<{
   schedulerPolicy: {
@@ -128,7 +137,7 @@ function handleClearLogs() {
             <span>{{ row.createdAt || '2026-10-18 00:00:00' }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" min-width="160">
           <template #default="{ row }">
             <el-button link type="primary" :icon="View" @click="handleViewDetail(row)">详情与栈</el-button>
             <el-button link type="warning" :icon="RefreshRight" @click="retryJob(row)">重新执行</el-button>
@@ -199,7 +208,7 @@ function handleClearLogs() {
     gap: 10px;
 
     .panel-title { margin: 0; font-size: 15px; font-weight: 700; color: #0f172a; }
-    .panel-subtitle { margin: 0; font-size: 12px; color: #64748b; }
+    .panel-subtitle { margin: 0; font-size: 12px; color: #475569; }
   }
 
   .panel-actions-wrap {
@@ -220,7 +229,7 @@ function handleClearLogs() {
       color: #475569;
 
       .inline-unit {
-        color: #64748b;
+        color: #475569;
       }
     }
 
@@ -265,7 +274,7 @@ function handleClearLogs() {
         gap: 2px;
         font-size: 12px;
 
-        .k { color: #64748b; }
+        .k { color: #475569; }
         .v { font-weight: 600; color: #0f172a; font-family: monospace; }
       }
     }

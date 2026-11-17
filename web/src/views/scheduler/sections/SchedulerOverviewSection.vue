@@ -1,8 +1,18 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
-import { ElMessage, ElMessageBox } from "element-plus";
-import { Timer, Cpu, VideoPlay, VideoPause, RefreshRight, Document, CircleCheck, Warning } from "@element-plus/icons-vue";
+import {
+  ElMessage,
+  ElMessageBox
+} from "element-plus";
+import {
+  Timer,
+  Cpu,
+  VideoPlay,
+  RefreshRight,
+  Document,
+  CircleCheck
+} from "@element-plus/icons-vue";
 import BaseCard from "@/components/base/BaseCard.vue";
 
 const props = defineProps<{
@@ -195,7 +205,7 @@ function navigateTo(path: string) {
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="220" fixed="right">
+        <el-table-column label="操作" min-width="200">
           <template #default="{ row }">
             <el-button link type="primary" :icon="VideoPlay" @click="triggerJob?.(row)">即刻触发</el-button>
             <el-button
@@ -253,7 +263,7 @@ function navigateTo(path: string) {
     }
 
     .kpi-label {
-      color: #64748b;
+      color: #475569;
       font-size: 12px;
     }
 
@@ -263,7 +273,7 @@ function navigateTo(path: string) {
     }
 
     .kpi-desc {
-      color: #94a3b8;
+      color: #475569;
       font-size: 11px;
     }
   }
@@ -307,7 +317,7 @@ function navigateTo(path: string) {
   gap: 16px;
 
   .panel-title { margin: 0 0 4px; font-size: 16px; font-weight: 700; color: #0f172a; }
-  .panel-subtitle { margin: 0; font-size: 12px; color: #64748b; }
+  .panel-subtitle { margin: 0; font-size: 12px; color: #475569; }
   .panel-actions { display: flex; gap: 8px; }
 }
 
@@ -351,7 +361,7 @@ function navigateTo(path: string) {
         gap: 2px;
 
         .node-name { font-size: 13px; font-weight: 600; color: #1e293b; }
-        .node-role { font-size: 11px; color: #64748b; }
+        .node-role { font-size: 11px; color: #475569; }
       }
     }
   }
@@ -377,7 +387,7 @@ function navigateTo(path: string) {
     }
 
     strong { font-size: 13px; color: #0f172a; display: block; margin-bottom: 4px; }
-    p { margin: 0; font-size: 11px; color: #64748b; line-height: 1.4; }
+    p { margin: 0; font-size: 11px; color: #475569; line-height: 1.4; }
   }
 }
 

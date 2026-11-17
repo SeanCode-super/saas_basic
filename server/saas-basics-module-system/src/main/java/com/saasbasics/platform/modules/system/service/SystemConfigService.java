@@ -66,6 +66,34 @@ public class SystemConfigService {
         return response;
     }
 
+    public SystemConfigResponse upsertConfigByKey(SystemConfigSaveRequest request) {
+        SystemConfigMapper mapper = requiredMapper();
+        Long tenantId = request.tenantId() != null ? request.tenantId() : 1L;
+        SystemConfigEntity existing = mapper.selectOne(new LambdaQueryWrapper<SystemConfigEntity>()
+                .eq(SystemConfigEntity::getTenantId, tenantId)
+                .eq(SystemConfigEntity::getConfigKey, request.key())
+                .eq(SystemConfigEntity::getDeleted, 0)
+                .last("LIMIT 1"));
+        if (existing == null) {
+            SystemConfigEntity entity = new SystemConfigEntity();
+            apply(entity, new SystemConfigSaveRequest(
+                    tenantId, request.group(), request.key(), request.name(),
+                    request.value(), request.valueType(), request.status(), request.remark()
+            ));
+            mapper.insert(entity);
+            auditTrailService.record("system", "system_config", String.valueOf(entity.getId()), "UPSERT_CREATE", request.key(), request.value(), true);
+            return getConfig(entity.getId());
+        }
+        String prevValue = existing.getConfigValue();
+        apply(existing, new SystemConfigSaveRequest(
+                tenantId, request.group(), request.key(), request.name(),
+                request.value(), request.valueType(), request.status(), request.remark()
+        ));
+        mapper.updateById(existing);
+        auditTrailService.record("system", "system_config", String.valueOf(existing.getId()), "UPSERT_UPDATE", prevValue, request.value(), true);
+        return getConfig(existing.getId());
+    }
+
     private SystemConfigResponse toResponse(SystemConfigEntity entity) {
         return new SystemConfigResponse(
                 entity.getId(),

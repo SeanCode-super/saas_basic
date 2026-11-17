@@ -1,6 +1,14 @@
 <script setup lang="ts">
-import { useRouter } from "vue-router";
-import { Connection, Position, CircleCheck, Timer, Setting, Document, RefreshRight } from "@element-plus/icons-vue";
+import {
+  useRouter
+} from "vue-router";
+import {
+  Connection,
+  Position,
+  CircleCheck,
+  Timer,
+  Setting
+} from "@element-plus/icons-vue";
 import BaseCard from "@/components/base/BaseCard.vue";
 
 defineProps<{
@@ -155,11 +163,13 @@ function navigateTo(path: string) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 16px;
-  background: #fff;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.03);
+  padding: 10px 18px;
+  background: rgba(255, 255, 255, 0.90);
+  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), 0 10px 25px -5px rgba(12, 34, 56, 0.05);
 
   .telemetry-left {
     display: flex;
@@ -180,7 +190,7 @@ function navigateTo(path: string) {
 
     .label {
       font-size: 13px;
-      color: #64748b;
+      color: #475569;
     }
 
     .value {
@@ -222,7 +232,7 @@ function navigateTo(path: string) {
   gap: 16px;
 
   .panel-title { margin: 0 0 4px; font-size: 16px; font-weight: 700; color: #0f172a; }
-  .panel-subtitle { margin: 0; font-size: 12px; color: #64748b; }
+  .panel-subtitle { margin: 0; font-size: 12px; color: #475569; }
 }
 
 .matrix-grid {
@@ -260,7 +270,7 @@ function navigateTo(path: string) {
     p {
       margin: 0;
       font-size: 11px;
-      color: #64748b;
+      color: #475569;
       line-height: 1.4;
     }
   }
@@ -291,7 +301,7 @@ function navigateTo(path: string) {
 
     .proto-stat {
       font-size: 12px;
-      color: #64748b;
+      color: #475569;
     }
   }
 }

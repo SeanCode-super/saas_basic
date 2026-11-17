@@ -4,6 +4,7 @@ import { ElMessage } from "element-plus";
 import { APP_TITLE } from "@/constants/app";
 import ConsoleLayout from "@/layouts/ConsoleLayout.vue";
 import { useAuthStore } from "@/stores/modules/auth";
+import { useDictStore } from "@/stores/modules/dict";
 import { useMenuStore } from "@/stores/modules/menu";
 import { useTenantStore } from "@/stores/modules/tenant";
 import { buildPortalLoginQuery } from "@/utils/portal-context";
@@ -39,7 +40,54 @@ export const router = createRouter({
       component: ConsoleLayout,
       meta: {
         hidden: true
-      }
+      },
+      children: [
+        {
+          path: "ai/data-copilot",
+          name: "ai-data-copilot",
+          component: () => import("@/views/ai/AiDataCopilotView.vue"),
+          meta: {
+            title: "AI 数据副驾驶 (NL2SQL)",
+            hidden: true
+          }
+        },
+        {
+          path: "ai/knowledge",
+          name: "ai-knowledge-base",
+          component: () => import("@/views/ai/KnowledgeBaseView.vue"),
+          meta: {
+            title: "AI 企业知识库 (RAG)",
+            hidden: true
+          }
+        },
+        {
+          path: "ai/agents",
+          name: "ai-agent-studio",
+          component: () => import("@/views/ai/AgentStudioView.vue"),
+          meta: {
+            title: "智能体工坊 (Agent Studio)",
+            hidden: true
+          }
+        },
+        {
+          path: "ai/finetune",
+          name: "ai-finetune-studio",
+          component: () => import("@/views/ai/FinetuneStudioView.vue"),
+          meta: {
+            title: "模型微调与评测",
+            hidden: true
+          }
+        },
+        {
+          path: "file/download-center",
+          name: "file-download-center",
+          component: () => import("@/views/export/DownloadCenterView.vue"),
+          meta: {
+            title: "数据导出与下载中心",
+            hidden: true
+          }
+        }
+      ]
     },
     {
       path: "/:pathMatch(.*)*",
@@ -85,6 +133,7 @@ router.beforeEach(async (to) => {
 
   if (authStore.isAuthenticated && !menuStore.bootstrapped) {
     await menuStore.bootstrap();
+    void useDictStore().bootstrap();
   }
 
   if (authStore.isAuthenticated && !menuStore.routesReady) {
@@ -133,11 +182,11 @@ router.afterEach(() => {
 
 function toDefaultRoute(menuStore: ReturnType<typeof useMenuStore>) {
   const defaultEntry = menuStore.firstEntry;
-  if (defaultEntry) {
+  if (defaultEntry && defaultEntry.path) {
     return {
-      path: defaultEntry.path || "/dashboard",
+      path: defaultEntry.path,
       query: defaultEntry.query
     };
   }
-  return { path: "/login" };
+  return { path: "/dashboard" };
 }

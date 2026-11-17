@@ -1,12 +1,28 @@
 <script setup lang="ts">
-import { reactive, ref, computed, onMounted } from "vue";
+import {
+  reactive,
+  ref,
+  computed
+} from "vue";
 import { useRouter } from "vue-router";
-import { ElMessage } from "element-plus";
-import { Plus, Delete, Download, Connection, Refresh, Check, Search, Promotion, Setting, ArrowUp, ArrowDown } from "@element-plus/icons-vue";
+import {
+  ElMessage
+} from "element-plus";
+import {
+  Plus,
+  Delete,
+  Download,
+  Connection,
+  Check,
+  Search,
+  Promotion,
+  ArrowUp,
+  ArrowDown
+} from "@element-plus/icons-vue";
 import type { CodegenColumnModel, DbTableItem, CodegenTableModel } from "@/api/modules/codegen";
 import { fetchDbTables, fetchDbTableColumns } from "@/api/modules/codegen";
 
-const props = defineProps<{
+defineProps<{
   templatePolicy?: any;
   styleGuide?: any;
   qualityGate?: any;
@@ -448,7 +464,7 @@ function handleGoToArtifacts() {
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="80" align="center" fixed="right">
+        <el-table-column label="操作" min-width="80" align="center">
           <template #default="{ $index, row }">
             <el-button
               type="danger"
@@ -493,7 +509,7 @@ function handleGoToArtifacts() {
         </el-table-column>
         <el-table-column prop="tableComment" label="表描述 / 业务名称" min-width="200" />
         <el-table-column prop="createTime" label="创建时间" width="170" align="center" />
-        <el-table-column label="操作" width="120" align="center" fixed="right">
+        <el-table-column label="操作" min-width="100" align="center">
           <template #default="{ row }">
             <el-button type="primary" link size="small" @click="handleImportTable(row)">
               一键导入建模
@@ -589,7 +605,7 @@ function handleGoToArtifacts() {
         gap: 4px;
 
         .chip-k {
-          color: #64748b;
+          color: #475569;
         }
 
         .chip-v {
@@ -629,8 +645,9 @@ function handleGoToArtifacts() {
 
   .config-expanded-body {
     padding: 12px 14px;
-    border-top: 1px solid #e2e8f0;
-    background: #fff;
+    border-top: 1px solid rgba(226, 232, 240, 0.6);
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(12px);
 
     :deep(.el-form-item) {
       margin-bottom: 0;
@@ -681,7 +698,7 @@ function handleGoToArtifacts() {
 
   .db-tables-count {
     font-size: 13px;
-    color: #64748b;
+    color: #475569;
   }
 }
 

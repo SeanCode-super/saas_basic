@@ -168,7 +168,7 @@ function handleDownload(row: any) {
       </template>
 
       <el-table :data="objectRows" border stripe style="width: 100%">
-        <el-table-column prop="fileName" label="文件名" min-width="180">
+        <el-table-column prop="fileName" label="文件名" min-width="140" show-overflow-tooltip>
           <template #default="{ row }">
             <div style="display: flex; align-items: center; gap: 8px">
               <el-icon style="color: #3b82f6"><Document /></el-icon>
@@ -176,30 +176,30 @@ function handleDownload(row: any) {
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="objectKey" label="对象 Key / 路径" min-width="220" show-overflow-tooltip />
-        <el-table-column prop="bizType" label="业务类型" width="140">
+        <el-table-column prop="objectKey" label="对象 Key / 路径" min-width="158" show-overflow-tooltip />
+        <el-table-column prop="bizType" label="业务类型" width="122" show-overflow-tooltip>
           <template #default="{ row }">
             <el-tag size="small">{{ row.bizType || 'PORTAL_ASSET' }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="fileSize" label="大小" width="110">
+        <el-table-column prop="fileSize" label="大小" width="84">
           <template #default="{ row }">
             <span>{{ row.fileSize ? (Number(row.fileSize) / 1024).toFixed(1) + ' KB' : '1.0 MB' }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="visibility" label="可见性" width="100">
+        <el-table-column prop="visibility" label="可见性" width="88">
           <template #default="{ row }">
             <el-tag size="small" :type="row.visibility === 'PUBLIC' ? 'success' : 'info'">
               {{ row.visibility === 'PUBLIC' ? '公开' : '私有鉴权' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
-          <template #default="{ row }">
+        <el-table-column prop="status" label="状态" width="86">
+          <template #default>
             <el-tag type="success" size="small"><el-icon><CircleCheck /></el-icon> 正常</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="220" fixed="right">
+        <el-table-column label="操作" width="232" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" :icon="View" @click="handlePreview(row)">预览</el-button>
             <el-button link type="primary" :icon="CopyDocument" @click="handleCopyUrl(row)">复制直链</el-button>
@@ -232,11 +232,13 @@ function handleDownload(row: any) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 16px;
-  background: #fff;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.03);
+  padding: 10px 18px;
+  background: rgba(255, 255, 255, 0.90);
+  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), 0 10px 25px -5px rgba(12, 34, 56, 0.05);
 
   .telemetry-left {
     display: flex;
@@ -257,7 +259,7 @@ function handleDownload(row: any) {
 
     .label {
       font-size: 13px;
-      color: #64748b;
+      color: #475569;
     }
 
     .value {
@@ -306,7 +308,7 @@ function handleDownload(row: any) {
       }
 
       .pool-cap {
-        color: #64748b;
+        color: #475569;
         font-weight: 500;
       }
     }
@@ -347,7 +349,7 @@ function handleDownload(row: any) {
 
       .cat-title {
         font-size: 12px;
-        color: #64748b;
+        color: #475569;
       }
 
       .cat-num {
@@ -375,7 +377,7 @@ function handleDownload(row: any) {
   .panel-subtitle {
     margin: 0;
     font-size: 12px;
-    color: #64748b;
+    color: #475569;
   }
 }
 

@@ -34,19 +34,22 @@ public class WorkflowTaskService {
     private final ProcessDefinitionMapper definitionMapper;
     private final WorkflowTaskLogMapper taskLogMapper;
     private final WorkflowEngine workflowEngine;
+    private final FlowableProcessBridgeService flowableBridgeService;
 
     public WorkflowTaskService(
             WorkflowTaskMapper taskMapper,
             ProcessInstanceMapper instanceMapper,
             ProcessDefinitionMapper definitionMapper,
             WorkflowTaskLogMapper taskLogMapper,
-            WorkflowEngine workflowEngine
+            WorkflowEngine workflowEngine,
+            FlowableProcessBridgeService flowableBridgeService
     ) {
         this.taskMapper = taskMapper;
         this.instanceMapper = instanceMapper;
         this.definitionMapper = definitionMapper;
         this.taskLogMapper = taskLogMapper;
         this.workflowEngine = workflowEngine;
+        this.flowableBridgeService = flowableBridgeService;
     }
 
     public List<WorkflowTaskResponse> listMyPendingTasks() {
@@ -133,6 +136,11 @@ public class WorkflowTaskService {
             instance.setUpdatedBy(userId);
             instanceMapper.updateById(instance);
 
+            // 同步在 Flowable 流程引擎中终止该实例
+            if (StringUtils.hasText(instance.getFlowableProcInstId())) {
+                flowableBridgeService.terminateProcessInstance(instance.getFlowableProcInstId(), request.comment());
+            }
+
             // 写入日志
             logAction(tenantId, instance.getId(), taskId, task.getNodeName(), userId, userName, "REJECT", "驳回申请",
                     StringUtils.hasText(request.comment()) ? request.comment() : "审批人驳回了该申请。");
@@ -152,6 +160,11 @@ public class WorkflowTaskService {
 
             String targetName = StringUtils.hasText(request.transferToUserName()) ? request.transferToUserName() : "转办专员";
 
+            // Flowable 任务转派
+            if (StringUtils.hasText(task.getFlowableTaskId())) {
+                flowableBridgeService.transferTask(task.getFlowableTaskId(), request.transferToUserId(), targetName);
+            }
+
             // 创建新的待办
             WorkflowTaskEntity newTask = new WorkflowTaskEntity();
             newTask.setTenantId(tenantId);
@@ -159,6 +172,7 @@ public class WorkflowTaskService {
             newTask.setNodeId(task.getNodeId());
             newTask.setNodeName(task.getNodeName());
             newTask.setNodeType("APPROVER");
+            newTask.setFlowableTaskId(task.getFlowableTaskId());
             newTask.setAssigneeId(request.transferToUserId());
             newTask.setAssigneeName(targetName);
             newTask.setStatus("PENDING");
@@ -387,6 +401,11 @@ public class WorkflowTaskService {
             logAction(tenantId, instance.getId(), taskId, task.getNodeName(), userId, userName, "AGREE", "同意审批",
                     StringUtils.hasText(request.comment()) ? request.comment() : "审核通过。");
 
+            // 同步驱动 Flowable 工业级任务完成
+            if (StringUtils.hasText(task.getFlowableTaskId())) {
+                flowableBridgeService.completeTask(task.getFlowableTaskId(), Map.of(), request.comment(), userId);
+            }
+
             // 检查当前节点是否还有其他处于 PENDING 状态的会签任务 (BPMN 会签校验)
             List<WorkflowTaskEntity> pendingSiblings = taskMapper.selectList(new LambdaQueryWrapper<WorkflowTaskEntity>()
                     .eq(WorkflowTaskEntity::getInstanceId, instance.getId())
@@ -570,6 +589,7 @@ public class WorkflowTaskService {
                     task.getNodeId(),
                     task.getNodeName(),
                     task.getNodeType(),
+                    task.getFlowableTaskId(),
                     task.getAssigneeId(),
                     task.getAssigneeName(),
                     task.getStatus(),

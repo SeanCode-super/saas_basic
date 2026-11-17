@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import { Plus } from "@element-plus/icons-vue";
 import { createTenant, fetchTenantPackages, fetchTenantPage } from "@/api/modules/tenant";
-import type { TenantPackageRow, TenantRow } from "@/api/modules/tenant";
-import BaseCard from "@/components/base/BaseCard.vue";
+import type {
+  TenantPackageRow,
+  TenantRow
+} from "@/api/modules/tenant";
 import ControlSurface from "@/components/platform/ControlSurface.vue";
 import BaseRefreshButton from "@/components/base/BaseRefreshButton.vue";
 import ModuleSectionNav from "@/components/platform/ModuleSectionNav.vue";
 import RegistryImportDialog from "@/components/platform/RegistryImportDialog.vue";
-import ModuleWorkbench from "@/components/platform/ModuleWorkbench.vue";
 import type { ProTableColumn } from "@/components/pro/ProTable.vue";
 import { useDict } from "@/hooks/useDict";
 import { useModuleSection } from "@/hooks/useModuleSection";
@@ -76,14 +78,6 @@ const isolationPolicy = reactive({
   enforceReadWriteSplit: false
 });
 
-const packageLabelMap: Record<string, string> = {
-  SUPREME: "至尊版",
-  ENTERPRISE: "企业版",
-  PROFESSIONAL: "专业版",
-  BASIC: "基础版",
-  "至尊版": "至尊版"
-};
-
 const isolationModeLabelMap: Record<string, string> = {
   PLATFORM: "平台模式",
   SHARED_SCHEMA: "共享 Schema",
@@ -100,6 +94,9 @@ const sectionItems = [
   { key: "ledger", label: "租户台账", description: "查看并管理租户清单、状态和隔离模式。" }
 ];
 
+const route = useRoute();
+const router = useRouter();
+
 const { activeSection, updateSection } = useModuleSection(sectionItems, {
   mode: "path",
   basePath: "/tenant",
@@ -108,49 +105,24 @@ const { activeSection, updateSection } = useModuleSection(sectionItems, {
 
 const currentSection = computed(() => props.section || activeSection.value);
 const sectionLocked = computed(() => Boolean(props.section));
-const isOverviewSection = computed(() => currentSection.value === "overview");
 const activeSectionMeta = computed(
   () => sectionItems.find((item) => item.key === currentSection.value) ?? sectionItems[0]
 );
 
-const summary = computed(() => {
-  const total = rows.value.length;
-  const enabled = rows.value.filter((item) => item.status === "ENABLED").length;
-  const trial = rows.value.filter((item) => item.status === "TRIAL").length;
-  const dedicated = rows.value.filter((item) => item.isolationMode === "DEDICATED_DATABASE").length;
-  return [
-    { label: "租户总数", value: total, note: "已纳入底座治理" },
-    { label: "启用租户", value: enabled, note: "当前运行中的租户" },
-    { label: "试用租户", value: trial, note: "尚在试用期内" },
-    { label: "独库租户", value: dedicated, note: "高隔离模式租户" }
-  ];
+const targetTenantId = computed(() => {
+  const tid = route.query.tenantId;
+  return tid ? Number(tid) : undefined;
 });
 
-const tenantSpotlight = computed(() => [
-  {
-    label: "开通模式",
-    value: runtimePolicy.tenantApprovalMode === "MANUAL" ? "人工审批" : "自动开通"
-  },
-  {
-    label: "试用窗口",
-    value: `${runtimePolicy.trialDays} 天`
-  },
-  {
-    label: "默认套餐",
-    value: packageLabelMap[packagePolicy.defaultPackage] ?? packagePolicy.defaultPackage
-  },
-  {
-    label: "最高隔离",
-    value: isolationModeLabelMap[isolationPolicy.financeIsolation] ?? isolationPolicy.financeIsolation
+function handleNavigateSection(section: string, params?: Record<string, any>) {
+  updateSection(section);
+  if (params && Object.keys(params).length > 0) {
+    router.replace({
+      path: `/tenant/${section}`,
+      query: { ...route.query, ...params }
+    });
   }
-]);
-
-const operatingBlueprint = [
-  { title: "开通治理", description: "决定谁能注册、谁需要审批、试用期多久，以及是否自动开通控制台。" },
-  { title: "套餐配额", description: "定义默认套餐、席位、存储、API 限流和功能发布方式。" },
-  { title: "隔离升级", description: "平台、业务、财务三类数据按不同隔离级别治理，并保留升级路径。" },
-  { title: "租户台账", description: "统一看租户编码、状态、套餐和隔离模式，不把台账当成唯一入口。" }
-];
+}
 
 const columns: ProTableColumn[] = [
   { prop: "tenantCode", label: "租户编码", minWidth: 120 },
@@ -174,7 +146,7 @@ const columns: ProTableColumn[] = [
     formatter: (row) => isolationModeLabelMap[String(row.isolationMode ?? "")] ?? String(row.isolationMode ?? "--")
   },
   { prop: "status", label: "生命周期状态", minWidth: 120, slot: "status" },
-  { prop: "actions", label: "操作", minWidth: 180, fixed: "right", slot: "actions" }
+  { prop: "actions", label: "操作", minWidth: 260, slot: "actions" }
 ];
 
 const schema = computed(() => [
@@ -362,13 +334,15 @@ onMounted(loadData);
         :schema="schema"
         :columns="columns"
         :rows="filteredRows"
+        :tenants="rows"
+        :tenant-id="targetTenantId"
         :loading="loading"
         :reset-query="resetQuery"
         :load-data="loadData"
         :open-create-dialog="openCreateDialog"
         :open-import-dialog="openImportDialog"
         :save-policy="savePolicy"
-        @navigate-section="updateSection"
+        @navigate-section="handleNavigateSection"
       />
     </div>
   </ControlSurface>

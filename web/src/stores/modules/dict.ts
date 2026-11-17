@@ -1,6 +1,7 @@
 import { ref } from "vue";
 import { defineStore } from "pinia";
 import { fetchSystemDictOptions } from "@/api/modules/system";
+import { useAuthStore } from "./auth";
 import type { DictOption } from "@/types/dict";
 
 type DictMap = Record<string, DictOption[]>;
@@ -9,8 +10,12 @@ const DEFAULT_DICT_CODES = ["tenant_status", "job_status", "datasource_type", "c
 export const useDictStore = defineStore("dict", () => {
   const dictMap = ref<DictMap>({});
   const loadingMap = ref<Record<string, boolean>>({});
+  const authStore = useAuthStore();
 
   async function bootstrap() {
+    if (!authStore.isAuthenticated) {
+      return;
+    }
     await Promise.all(DEFAULT_DICT_CODES.map((dictCode) => loadDict(dictCode)));
   }
 

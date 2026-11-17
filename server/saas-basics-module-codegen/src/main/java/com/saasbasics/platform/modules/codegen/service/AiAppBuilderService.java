@@ -2,10 +2,12 @@ package com.saasbasics.platform.modules.codegen.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.saasbasics.platform.common.auth.AuthContext;
 import com.saasbasics.platform.common.auth.AuthPrincipal;
 import com.saasbasics.platform.common.exception.BizException;
+import com.saasbasics.platform.modules.ai.api.AiGatewayFacade;
 import com.saasbasics.platform.modules.codegen.dto.*;
 import com.saasbasics.platform.modules.codegen.entity.DynamicFieldEntity;
 import com.saasbasics.platform.modules.codegen.entity.DynamicModelEntity;
@@ -29,9 +31,14 @@ public class AiAppBuilderService {
 
     private static final Logger log = LoggerFactory.getLogger(AiAppBuilderService.class);
     private static final Pattern CODE_PATTERN = Pattern.compile("^[a-z0-9_]{2,64}$");
+    private static final Pattern SAFE_COLUMN_TYPE = Pattern.compile(
+            "^(VARCHAR\\(\\d{1,4}\\)|INT|BIGINT|TINYINT(\\(\\d{1,2}\\))?|DECIMAL\\(\\d{1,2},\\d{1,2}\\)|DATE|DATETIME(\\(\\d\\))?|TEXT)$",
+            Pattern.CASE_INSENSITIVE
+    );
 
     private final ObjectProvider<DynamicModelMapper> modelMapperProvider;
     private final ObjectProvider<DynamicFieldMapper> fieldMapperProvider;
+    private final ObjectProvider<AiGatewayFacade> aiGatewayFacadeProvider;
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
 
@@ -41,11 +48,13 @@ public class AiAppBuilderService {
     public AiAppBuilderService(
             ObjectProvider<DynamicModelMapper> modelMapperProvider,
             ObjectProvider<DynamicFieldMapper> fieldMapperProvider,
+            ObjectProvider<AiGatewayFacade> aiGatewayFacadeProvider,
             JdbcTemplate jdbcTemplate,
             ObjectMapper objectMapper
     ) {
         this.modelMapperProvider = modelMapperProvider;
         this.fieldMapperProvider = fieldMapperProvider;
+        this.aiGatewayFacadeProvider = aiGatewayFacadeProvider;
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
     }
@@ -54,13 +63,21 @@ public class AiAppBuilderService {
         String prompt = request.prompt().trim();
         log.info("[AI App Builder] Designing application from prompt: {}", prompt);
 
-        // Intelligent heuristic domain template matching with dynamic adaptation
+        // Try live LLM generation via AiGatewayFacade when configured
+        AiAppDesignResponse llmDesign = tryDesignViaLlm(prompt, request.model(), request.category());
+        if (llmDesign != null) {
+            return llmDesign;
+        }
+
+        // Intelligent heuristic domain template matching with dynamic field extraction
         String lowPrompt = prompt.toLowerCase(Locale.ROOT);
 
         if (lowPrompt.contains("会议") || lowPrompt.contains("预约") || lowPrompt.contains("room")) {
             return buildMeetingRoomDesign();
         } else if (lowPrompt.contains("报销") || lowPrompt.contains("出差") || lowPrompt.contains("费用") || lowPrompt.contains("expense")) {
             return buildExpenseClaimDesign();
+        } else if (lowPrompt.contains("巡检") || lowPrompt.contains("点检") || lowPrompt.contains("检查") || lowPrompt.contains("inspection")) {
+            return buildInspectionDesign();
         } else if (lowPrompt.contains("工单") || lowPrompt.contains("报修") || lowPrompt.contains("维修") || lowPrompt.contains("ticket")) {
             return buildRepairTicketDesign();
         } else if (lowPrompt.contains("拜访") || lowPrompt.contains("客户跟进") || lowPrompt.contains("商机") || lowPrompt.contains("visit")) {
@@ -262,7 +279,7 @@ public class AiAppBuilderService {
         for (DynamicFieldDto f : fields) {
             String col = f.fieldCode().trim().toLowerCase(Locale.ROOT);
             validateCode(col);
-            String colType = f.columnType() != null && !f.columnType().isBlank() ? f.columnType() : "VARCHAR(255)";
+            String colType = sanitizeColumnType(f.columnType());
             String comment = f.fieldName() != null ? f.fieldName().replace("'", "") : col;
 
             ddl.append(",\n  `").append(col).append("` ").append(colType)
@@ -532,12 +549,145 @@ public class AiAppBuilderService {
         );
     }
 
+    private AiAppDesignResponse tryDesignViaLlm(String prompt, String preferredModel, String preferredCategory) {
+        AiGatewayFacade facade = aiGatewayFacadeProvider.getIfAvailable();
+        if (facade == null) {
+            return null;
+        }
+        try {
+            String instruction = "请将下列业务需求转为严格合法 JSON（禁止 Markdown 代码块），字段结构："
+                    + "{\"modelCode\":\"snake_case_code\",\"modelName\":\"中文名称\",\"category\":\"BUSINESS\","
+                    + "\"icon\":\"Document\",\"description\":\"描述\","
+                    + "\"fields\":[{\"fieldCode\":\"code\",\"fieldName\":\"中文标签\",\"columnType\":\"VARCHAR(128)\","
+                    + "\"javaType\":\"String\",\"componentType\":\"input\",\"isRequired\":true,\"isQuery\":true,\"queryType\":\"LIKE\",\"optionsJson\":null,\"sortNo\":10}],"
+                    + "\"sampleData\":[{\"code\":\"示例\"}]}\n需求：" + prompt;
+            AiGatewayFacade.ChatCompletionOutput out = facade.complete(new AiGatewayFacade.ChatCompletionCommand(
+                    preferredModel,
+                    "ai-app-architect",
+                    List.of(new AiGatewayFacade.ChatMessage("user", instruction)),
+                    0.2
+            ));
+            String reply = out.reply() == null ? "" : out.reply().trim();
+            if (!reply.startsWith("{") && !reply.contains("\"modelCode\"")) {
+                return null;
+            }
+            if (reply.startsWith("```json")) reply = reply.substring(7);
+            else if (reply.startsWith("```")) reply = reply.substring(3);
+            if (reply.endsWith("```")) reply = reply.substring(0, reply.length() - 3);
+            JsonNode root = objectMapper.readTree(reply.trim());
+            String code = root.path("modelCode").asText("").trim().toLowerCase(Locale.ROOT);
+            if (!CODE_PATTERN.matcher(code).matches() || !root.path("fields").isArray() || root.path("fields").isEmpty()) {
+                return null;
+            }
+            List<DynamicFieldDto> parsedFields = new ArrayList<>();
+            int sort = 10;
+            for (JsonNode fNode : root.path("fields")) {
+                String fc = fNode.path("fieldCode").asText("").trim().toLowerCase(Locale.ROOT);
+                if (!CODE_PATTERN.matcher(fc).matches()) {
+                    continue;
+                }
+                parsedFields.add(new DynamicFieldDto(
+                        null,
+                        fc,
+                        fNode.path("fieldName").asText(fc),
+                        sanitizeColumnType(fNode.path("columnType").asText("VARCHAR(255)")),
+                        fNode.path("javaType").asText("String"),
+                        fNode.path("componentType").asText("input"),
+                        fNode.path("isRequired").asBoolean(false),
+                        fNode.path("isQuery").asBoolean(true),
+                        fNode.path("queryType").asText("LIKE"),
+                        null,
+                        fNode.path("optionsJson").isNull() ? null : fNode.path("optionsJson").asText(null),
+                        fNode.path("sortNo").asInt(sort)
+                ));
+                sort += 10;
+            }
+            if (parsedFields.isEmpty()) {
+                return null;
+            }
+            List<Map<String, Object>> sample = new ArrayList<>();
+            if (root.path("sampleData").isArray()) {
+                sample = objectMapper.convertValue(root.path("sampleData"), new TypeReference<>() {});
+            }
+            return new AiAppDesignResponse(
+                    code,
+                    root.path("modelName").asText("AI 智能应用"),
+                    "biz_dyn_" + code,
+                    preferredCategory != null ? preferredCategory : root.path("category").asText("BUSINESS"),
+                    root.path("icon").asText("Cpu"),
+                    root.path("description").asText(prompt),
+                    parsedFields,
+                    sample
+            );
+        } catch (Exception ex) {
+            log.debug("[AI App Builder] LLM design skipped, using semantic heuristics: {}", ex.getMessage());
+            return null;
+        }
+    }
+
+    private AiAppDesignResponse buildInspectionDesign() {
+        List<DynamicFieldDto> fields = List.of(
+                new DynamicFieldDto(null, "plan_no", "巡检任务编号", "VARCHAR(64)", "String", "input", true, true, "EQ", null, null, 10),
+                new DynamicFieldDto(null, "equipment_name", "巡检设备/点位", "VARCHAR(128)", "String", "input", true, true, "LIKE", null, null, 20),
+                new DynamicFieldDto(null, "cycle_type", "巡检周期", "VARCHAR(32)", "String", "select", true, true, "EQ", null,
+                        "[{\"label\":\"每日巡检\",\"value\":\"DAILY\"},{\"label\":\"每周例检\",\"value\":\"WEEKLY\"},{\"label\":\"月度特检\",\"value\":\"MONTHLY\"}]", 30),
+                new DynamicFieldDto(null, "inspector_name", "巡检责任人", "VARCHAR(64)", "String", "input", true, true, "LIKE", null, null, 40),
+                new DynamicFieldDto(null, "inspect_time", "实际巡检时间", "DATETIME", "LocalDateTime", "datetime", true, true, "BETWEEN", null, null, 50),
+                new DynamicFieldDto(null, "overall_status", "设备检查结果", "VARCHAR(32)", "String", "select", true, true, "EQ", null,
+                        "[{\"label\":\"正常运行\",\"value\":\"NORMAL\"},{\"label\":\"一般异常预警\",\"value\":\"WARNING\"},{\"label\":\"严重故障停机\",\"value\":\"CRITICAL\"}]", 60),
+                new DynamicFieldDto(null, "exception_detail", "隐患排查说明与处置", "TEXT", "String", "textarea", false, false, "LIKE", null, null, 70)
+        );
+        List<Map<String, Object>> sample = List.of(
+                Map.of("plan_no", "INS-20261112-01", "equipment_name", "一号配电室高压电容柜", "cycle_type", "WEEKLY", "inspector_name", "张工", "inspect_time", "2026-11-12 09:30:00", "overall_status", "NORMAL", "exception_detail", "红外测温 38.2°C，无异常放电声"),
+                Map.of("plan_no", "INS-20261112-02", "equipment_name", "B栋冷机房冷却水泵 #2", "cycle_type", "DAILY", "inspector_name", "李工", "inspect_time", "2026-11-12 10:15:00", "overall_status", "WARNING", "exception_detail", "轴承振动略高，建议48小时内安排润滑维保")
+        );
+        return new AiAppDesignResponse(
+                "equipment_inspection",
+                "设备巡检与隐患台账",
+                "biz_dyn_equipment_inspection",
+                "OPERATIONS",
+                "Monitor",
+                "覆盖设备巡检计划、现场点检结果、异常等级分级及隐患处置追溯。",
+                fields,
+                sample
+        );
+    }
+
     private AiAppDesignResponse buildGenericAiDesign(String prompt, String preferredCategory) {
-        // Dynamic smart parser for arbitrary prompts
         String code = "app_" + Math.abs(prompt.hashCode() % 100000);
-        String name = prompt.length() > 16 ? prompt.substring(0, 16) + "管理" : prompt + "管理系统";
+        String name = extractModelName(prompt);
 
         List<DynamicFieldDto> fields = new ArrayList<>();
+        List<String> extractedLabels = extractChineseFieldLabels(prompt);
+        if (!extractedLabels.isEmpty()) {
+            int sort = 10;
+            int idx = 1;
+            Map<String, Object> sampleRow = new LinkedHashMap<>();
+            for (String label : extractedLabels) {
+                String colCode = inferFieldCode(label, idx++);
+                String colType = inferColumnType(label);
+                String javaType = inferJavaType(colType);
+                String widget = inferWidgetType(label, colType);
+                String options = "select".equals(widget)
+                        ? "[{\"label\":\"待处理\",\"value\":\"PENDING\"},{\"label\":\"进行中\",\"value\":\"IN_PROGRESS\"},{\"label\":\"已完成\",\"value\":\"COMPLETED\"}]"
+                        : null;
+                fields.add(new DynamicFieldDto(null, colCode, label, colType, javaType, widget,
+                        sort <= 30, sort <= 50, "input".equals(widget) ? "LIKE" : "EQ", null, options, sort));
+                sampleRow.put(colCode, buildSampleValue(label, widget, options));
+                sort += 10;
+            }
+            return new AiAppDesignResponse(
+                    code,
+                    name,
+                    "biz_dyn_" + code,
+                    preferredCategory != null ? preferredCategory : "BUSINESS",
+                    "Cpu",
+                    "已根据您的自然语言描述智能拆解 " + fields.size() + " 个专属业务字段，可随时微调或一键物理发布。",
+                    fields,
+                    List.of(sampleRow)
+            );
+        }
+
         fields.add(new DynamicFieldDto(null, "title", "主题/名称", "VARCHAR(128)", "String", "input", true, true, "LIKE", null, null, 10));
         fields.add(new DynamicFieldDto(null, "code", "唯一编号", "VARCHAR(64)", "String", "input", true, true, "EQ", null, null, 20));
         fields.add(new DynamicFieldDto(null, "type", "类别/属性", "VARCHAR(32)", "String", "select", true, true, "EQ", null,
@@ -563,6 +713,94 @@ public class AiAppBuilderService {
                 fields,
                 sample
         );
+    }
+
+    private static String sanitizeColumnType(String rawType) {
+        if (rawType == null || rawType.isBlank()) {
+            return "VARCHAR(255)";
+        }
+        String trimmed = rawType.trim().toUpperCase(Locale.ROOT);
+        return SAFE_COLUMN_TYPE.matcher(trimmed).matches() ? trimmed : "VARCHAR(255)";
+    }
+
+    private static String extractModelName(String prompt) {
+        String clean = prompt.replaceAll("^(帮我|请)?(设计|生成|新建|做|构建|创建)?(一个|一套)?", "").trim();
+        int splitIdx = clean.indexOf('，');
+        if (splitIdx <= 0) splitIdx = clean.indexOf(',');
+        if (splitIdx <= 0) splitIdx = clean.indexOf("包含");
+        String core = splitIdx > 0 ? clean.substring(0, splitIdx).trim() : clean;
+        return core.length() > 18 ? core.substring(0, 18) : (core.isEmpty() ? "AI 智能业务台账" : core);
+    }
+
+    private static List<String> extractChineseFieldLabels(String prompt) {
+        int idx = prompt.indexOf("包含");
+        if (idx < 0) idx = prompt.indexOf("包括");
+        if (idx < 0) idx = prompt.indexOf("要有");
+        if (idx < 0) idx = prompt.indexOf("字段");
+        if (idx < 0) {
+            return List.of();
+        }
+        String tail = prompt.substring(idx + 2).replaceFirst("[:：有为是]*", "").replaceAll("（[^）]*）", "");
+        String[] parts = tail.split("[、，,。；;和与以及]+");
+        List<String> labels = new ArrayList<>();
+        for (String p : parts) {
+            String item = p.trim();
+            if (item.length() >= 2 && item.length() <= 16) {
+                labels.add(item);
+            }
+        }
+        return labels.size() >= 2 ? labels : List.of();
+    }
+
+    private static String inferFieldCode(String label, int idx) {
+        if (label.contains("编号") || label.contains("编码") || label.contains("单号")) return "biz_no_" + idx;
+        if (label.contains("名称") || label.contains("标题") || label.contains("主题")) return "item_name_" + idx;
+        if (label.contains("状态")) return "biz_status_" + idx;
+        if (label.contains("等级") || label.contains("级别")) return "level_code_" + idx;
+        if (label.contains("类型") || label.contains("类别")) return "biz_type_" + idx;
+        if (label.contains("金额") || label.contains("费用") || label.contains("价格")) return "amount_" + idx;
+        if (label.contains("数量") || label.contains("次数")) return "qty_" + idx;
+        if (label.contains("时间")) return "event_time_" + idx;
+        if (label.contains("日期")) return "event_date_" + idx;
+        if (label.contains("手机") || label.contains("电话")) return "contact_mobile_" + idx;
+        if (label.contains("负责人") || label.contains("人员") || label.contains("人")) return "owner_name_" + idx;
+        if (label.contains("部门")) return "dept_name_" + idx;
+        if (label.contains("备注") || label.contains("说明") || label.contains("描述")) return "detail_note_" + idx;
+        return "field_col_" + idx;
+    }
+
+    private static String inferColumnType(String label) {
+        if (label.contains("时间")) return "DATETIME";
+        if (label.contains("日期")) return "DATE";
+        if (label.contains("金额") || label.contains("价格") || label.contains("费用")) return "DECIMAL(12,2)";
+        if (label.contains("数量") || label.contains("次数")) return "INT";
+        if (label.contains("说明") || label.contains("描述") || label.contains("备注")) return "TEXT";
+        return "VARCHAR(128)";
+    }
+
+    private static String inferJavaType(String colType) {
+        if (colType.startsWith("DECIMAL")) return "BigDecimal";
+        if ("INT".equals(colType)) return "Integer";
+        if ("DATE".equals(colType)) return "LocalDate";
+        if ("DATETIME".equals(colType)) return "LocalDateTime";
+        return "String";
+    }
+
+    private static String inferWidgetType(String label, String colType) {
+        if ("DATETIME".equals(colType)) return "datetime";
+        if ("DATE".equals(colType)) return "date";
+        if (colType.startsWith("DECIMAL") || "INT".equals(colType)) return "number";
+        if ("TEXT".equals(colType)) return "textarea";
+        if (label.contains("状态") || label.contains("等级") || label.contains("类型") || label.contains("类别")) return "select";
+        return "input";
+    }
+
+    private static Object buildSampleValue(String label, String widget, String optionsJson) {
+        if ("number".equals(widget)) return 100;
+        if ("date".equals(widget)) return "2026-11-12";
+        if ("datetime".equals(widget)) return "2026-11-12 09:30:00";
+        if ("select".equals(widget) && optionsJson != null) return "PENDING";
+        return "示例" + label;
     }
 
     private void validateCode(String code) {

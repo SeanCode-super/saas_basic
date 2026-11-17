@@ -22,6 +22,16 @@ public interface PortalClientMapper extends BaseMapper<PortalClientEntity> {
     @Select("""
             SELECT *
             FROM iam_portal_client
+            WHERE tenant_code = #{tenantCode}
+              AND deleted = 0
+            ORDER BY is_default DESC, id ASC
+            LIMIT 1
+            """)
+    PortalClientEntity selectByTenantCode(@Param("tenantCode") String tenantCode);
+
+    @Select("""
+            SELECT *
+            FROM iam_portal_client
             WHERE is_default = 1
               AND status = 'ENABLED'
               AND deleted = 0

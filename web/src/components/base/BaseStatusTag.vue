@@ -25,7 +25,7 @@ const displayStatus = computed(() => statusLabelMap[props.status] ?? props.statu
 </script>
 
 <template>
-  <el-tag effect="light" round :type="type">
+  <el-tag effect="light" :type="type">
     {{ displayStatus }}
   </el-tag>
 </template>

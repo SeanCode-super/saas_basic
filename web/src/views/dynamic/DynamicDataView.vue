@@ -26,6 +26,7 @@ import {
 } from "@element-plus/icons-vue";
 import ControlSurface from "@/components/platform/ControlSurface.vue";
 import BaseCard from "@/components/base/BaseCard.vue";
+import ExportDialog from "@/components/platform/ExportDialog.vue";
 import {
   fetchDynamicMeta,
   fetchDynamicPage,
@@ -85,6 +86,7 @@ const detailRecord = ref<Record<string, any> | null>(null);
 const importDialogVisible = ref(false);
 const importCsvText = ref("");
 const importing = ref(false);
+const exportDialogVisible = ref(false);
 
 // Option parsing helper
 function parseOptions(optionsJson?: string): Array<{ label: string; value: string | number; color?: string }> {
@@ -474,32 +476,6 @@ async function handleQuickStatusChange(row: Record<string, any>, newStatus: stri
   }
 }
 
-// Export CSV
-function exportCsv() {
-  if (records.value.length === 0) {
-    ElMessage.warning("暂无数据可导出");
-    return;
-  }
-  const headers = ["序号", ...fields.value.map((f) => f.fieldName), "创建时间"];
-  const rows = records.value.map((row, idx) => [
-    idx + 1,
-    ...fields.value.map((f) => {
-      const val = row[f.fieldCode];
-      const display = f.componentType === "select" ? getOptionLabel(f, val) : val;
-      return display !== undefined && display !== null ? `"${String(display).replace(/"/g, '""')}"` : '""';
-    }),
-    row.created_at ?? ""
-  ]);
-  const csvContent = "\uFEFF" + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = `${meta.value?.modelName || "业务台账"}-导出.csv`;
-  link.click();
-  URL.revokeObjectURL(link.href);
-  ElMessage.success("台账数据导出成功");
-}
-
 // Download Import Template
 function downloadImportTemplate() {
   const headers = fields.value.map((f) => f.fieldName);
@@ -589,6 +565,19 @@ function handlePrint() {
   window.print();
 }
 
+function formatDateTime(val?: unknown) {
+  if (!val) return '-';
+  const clean = String(val).replace('T', ' ');
+  return clean.split('.')[0] || clean;
+}
+
+function resolveFieldMinWidth(field: DynamicFieldItem) {
+  if (field.componentType === 'select') return 105;
+  if (field.componentType === 'number') return 115;
+  if (field.componentType === 'date') return 115;
+  return 125;
+}
+
 watch(
   () => modelCode.value,
   () => {
@@ -621,7 +610,7 @@ onMounted(() => {
           载入演示数据
         </el-button>
         <el-button :icon="Upload" @click="importDialogVisible = true">批量导入</el-button>
-        <el-button :icon="Download" @click="exportCsv">导出台账</el-button>
+        <el-button :icon="Download" @click="exportDialogVisible = true">安全导出 / AI 报告</el-button>
         <el-button :icon="RefreshRight" :loading="loading" @click="loadData">刷新</el-button>
         <el-button
           v-if="selectedRows.length > 0"
@@ -826,7 +815,7 @@ onMounted(() => {
               <el-table-column
                 :prop="field.fieldCode"
                 :label="field.fieldName"
-                min-width="150"
+                :min-width="resolveFieldMinWidth(field)"
                 show-overflow-tooltip
               >
                 <template #default="{ row }">
@@ -854,14 +843,22 @@ onMounted(() => {
             </template>
 
             <!-- 审计创建时间 -->
-            <el-table-column prop="created_at" label="登记时间" width="170" align="center" />
+            <el-table-column prop="created_at" label="登记时间" width="145" align="center">
+              <template #default="{ row }">
+                <span style="font-family: var(--el-font-family-monospace, monospace); font-size: 12px; color: #475569;">
+                  {{ formatDateTime(row.created_at) }}
+                </span>
+              </template>
+            </el-table-column>
 
             <!-- 操作列 -->
-            <el-table-column label="操作" width="180" fixed="right" align="center">
+            <el-table-column label="操作" min-width="160" align="center">
               <template #default="{ row }">
-                <el-button link type="primary" :icon="View" @click="openDetailDrawer(row)">详情</el-button>
-                <el-button link type="primary" :icon="Edit" @click="openEditDialog(row)">编辑</el-button>
-                <el-button link type="danger" :icon="Delete" @click="handleDelete(row)">删除</el-button>
+                <div class="table-actions-cell">
+                  <el-button link :icon="View" @click="openDetailDrawer(row)">详情</el-button>
+                  <el-button link type="primary" :icon="Edit" @click="openEditDialog(row)">编辑</el-button>
+                  <el-button link type="danger" :icon="Delete" @click="handleDelete(row)">删除</el-button>
+                </div>
               </template>
             </el-table-column>
           </el-table>
@@ -1242,6 +1239,12 @@ onMounted(() => {
         </span>
       </template>
     </el-dialog>
+
+    <ExportDialog
+      v-model:visible="exportDialogVisible"
+      :source-code="modelCode ? `dynamic:${modelCode}` : ''"
+      :default-title="meta?.modelName ? `${meta.modelName}_业务台账` : ''"
+    />
   </div>
 </template>
 
@@ -1259,15 +1262,17 @@ onMounted(() => {
   align-items: center;
   gap: 14px;
   padding: 16px;
-  border-radius: 8px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.04);
+  border-radius: 18px;
+  background: var(--sb-glass-bg, rgba(255, 255, 255, 0.90));
+  backdrop-filter: var(--sb-glass-blur);
+  -webkit-backdrop-filter: var(--sb-glass-blur);
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.98), 0 8px 22px -6px rgba(15, 23, 42, 0.05);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgb(0 0 0 / 0.08);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 1), 0 12px 28px -8px rgba(15, 23, 42, 0.08);
   }
 
   .kpi-icon-box {
@@ -1306,26 +1311,27 @@ onMounted(() => {
 
     .kpi-label {
       font-size: 13px;
-      color: #64748b;
+      color: #334155;
+      font-weight: 500;
       margin-bottom: 4px;
     }
 
     .kpi-val {
       font-size: 22px;
       font-weight: 700;
-      color: #1e293b;
+      color: #0f172a;
       line-height: 1.2;
 
       .kpi-unit {
         font-size: 13px;
         font-weight: normal;
-        color: #94a3b8;
+        color: #475569;
       }
     }
 
     .kpi-sub {
       font-size: 12px;
-      color: #94a3b8;
+      color: #475569;
       margin-top: 4px;
       display: flex;
       align-items: center;
@@ -1363,7 +1369,7 @@ onMounted(() => {
 
       .pills-label {
         font-size: 13px;
-        color: #64748b;
+        color: #475569;
       }
     }
   }
@@ -1429,9 +1435,10 @@ onMounted(() => {
 
     .lane-header {
       padding: 12px 16px;
-      border-bottom: 1px solid #e2e8f0;
-      background: #fff;
-      border-radius: 8px 8px 0 0;
+      border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+      background: rgba(255, 255, 255, 0.90);
+      backdrop-filter: blur(14px);
+      border-radius: 18px 18px 0 0;
 
       .lane-title {
         display: flex;
@@ -1453,19 +1460,21 @@ onMounted(() => {
       .lane-empty {
         text-align: center;
         padding: 30px 10px;
-        color: #94a3b8;
+        color: #475569;
         font-size: 13px;
       }
     }
   }
 
   .kanban-card {
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.90);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.88);
+    border-radius: 14px;
     padding: 12px;
     cursor: pointer;
-    box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+    box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.95), 0 4px 12px rgba(12, 34, 56, 0.05);
     transition: all 0.2s ease;
 
     &:hover {
@@ -1482,7 +1491,7 @@ onMounted(() => {
 
       .card-id {
         font-size: 12px;
-        color: #94a3b8;
+        color: #475569;
         font-family: monospace;
       }
     }
@@ -1497,7 +1506,7 @@ onMounted(() => {
 
     &__meta {
       font-size: 12px;
-      color: #64748b;
+      color: #475569;
       display: flex;
       flex-direction: column;
       gap: 4px;
@@ -1507,7 +1516,7 @@ onMounted(() => {
         justify-content: space-between;
 
         .meta-k {
-          color: #94a3b8;
+          color: #475569;
         }
 
         .meta-v {
@@ -1545,7 +1554,7 @@ onMounted(() => {
       margin-bottom: 6px;
 
       .item-stats {
-        color: #64748b;
+        color: #475569;
       }
     }
   }
@@ -1574,7 +1583,7 @@ onMounted(() => {
 
       p {
         font-size: 12px;
-        color: #64748b;
+        color: #475569;
         margin: 4px 0 0;
         line-height: 1.5;
       }
@@ -1607,7 +1616,7 @@ onMounted(() => {
 
     .hero-sub {
       font-size: 12px;
-      color: #94a3b8;
+      color: #475569;
     }
   }
 
@@ -1650,7 +1659,7 @@ onMounted(() => {
 }
 
 .text-muted {
-  color: #94a3b8;
+  color: #475569;
 }
 
 .py-6 {

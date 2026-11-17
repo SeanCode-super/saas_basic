@@ -10,8 +10,7 @@ import {
   Lock,
   Iphone,
   Search,
-  CircleCheck,
-  WarningFilled
+  CircleCheck
 } from "@element-plus/icons-vue";
 import BaseCard from "@/components/base/BaseCard.vue";
 import { fetchOnlineSessions, kickoutOnlineSession } from "@/api/modules/auth";
@@ -142,7 +141,7 @@ async function handleBatchKickout() {
 
     ElMessage.success(`已批量下线 ${candidates.length} 个活跃会话`);
     await loadSessions();
-  } catch (e) {
+  } catch {
     // cancel
   }
 }
@@ -308,7 +307,7 @@ onMounted(() => {
           </template>
         </el-table-column>
 
-        <el-table-column label="治理操作" width="110" fixed="right" align="center">
+        <el-table-column label="治理操作" min-width="110" align="center">
           <template #default="{ row }">
             <el-button
               type="danger"
@@ -374,7 +373,7 @@ onMounted(() => {
     }
 
     .telemetry-label {
-      color: #64748b;
+      color: #475569;
       font-size: 12px;
     }
 

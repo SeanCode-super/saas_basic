@@ -4,6 +4,7 @@ public record FileObjectResponse(
         Long id,
         Long tenantId,
         Long bucketId,
+        Long storageId,
         String objectKey,
         String fileName,
         String fileExt,
@@ -14,6 +15,9 @@ public record FileObjectResponse(
         Integer versionNo,
         String status,
         String storagePath,
+        String uploadMode,
+        String targetDir,
+        String publicUrl,
         String remark
 ) {
 }

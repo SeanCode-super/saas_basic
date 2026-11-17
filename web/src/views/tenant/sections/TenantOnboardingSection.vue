@@ -2,19 +2,8 @@
 import { reactive, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
-  Bell,
   Check,
-  CircleCheck,
-  Close,
-  Document,
-  Message,
-  OfficeBuilding,
-  Operation,
-  Plus,
-  Refresh,
-  Timer,
-  User,
-  Warning
+  Close
 } from "@element-plus/icons-vue";
 
 import { createTenant } from "@/api/modules/tenant";
@@ -268,10 +257,12 @@ async function handleReject(app: OnboardingApplication) {
 }
 
 .switch-stack {
-  padding: 10px 12px;
-  background: #f8fafc;
-  border-radius: 6px;
-  border: 1px solid var(--sb-border-color);
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.90);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 10px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
   margin-bottom: 16px;
 }
 

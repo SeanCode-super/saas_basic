@@ -5,41 +5,40 @@ import com.saasbasics.platform.common.api.ApiResponse;
 import com.saasbasics.platform.common.auth.AuthContext;
 import com.saasbasics.platform.common.auth.AuthPrincipal;
 import com.saasbasics.platform.common.excel.ExcelUtils;
-import com.saasbasics.platform.modules.file.service.FileObjectService;
-import com.saasbasics.platform.modules.file.storage.FileClient;
-import com.saasbasics.platform.modules.file.storage.FileClientFactory;
+import com.saasbasics.platform.common.file.PlatformFileStorageGateway;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.net.URLConnection;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
 @RestController
 @RequestMapping("/api/file")
 public class FileStorageEngineController {
 
-    private final FileClientFactory fileClientFactory;
-    private final FileObjectService fileObjectService;
+    private final PlatformFileStorageGateway storageGateway;
 
-    public FileStorageEngineController(FileClientFactory fileClientFactory,
-                                       FileObjectService fileObjectService) {
-        this.fileClientFactory = fileClientFactory;
-        this.fileObjectService = fileObjectService;
+    public FileStorageEngineController(PlatformFileStorageGateway storageGateway) {
+        this.storageGateway = storageGateway;
+    }
+
+    @GetMapping("/storage-status")
+    public ApiResponse<PlatformFileStorageGateway.StorageAvailability> storageStatus(
+            @RequestParam(required = false, defaultValue = "COMMON") String bizType) {
+        AuthPrincipal principal = AuthContext.get();
+        Long tenantId = principal != null ? principal.tenantId() : 1L;
+        return ApiResponse.success(storageGateway.checkAvailability(tenantId, bizType));
     }
 
     @PostMapping("/raw-upload")
@@ -51,36 +50,28 @@ public class FileStorageEngineController {
             return ApiResponse.failure("FILE_EMPTY", "上传文件不能为空");
         }
 
-        String originalFilename = file.getOriginalFilename();
-        if (originalFilename == null) {
-            originalFilename = "unnamed.bin";
-        }
-
-        String ext = "";
-        int dotIdx = originalFilename.lastIndexOf('.');
-        if (dotIdx >= 0) {
-            ext = originalFilename.substring(dotIdx + 1);
-        }
-
-        String datePrefix = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
-        String uniqueName = UUID.randomUUID().toString().replace("-", "").substring(0, 16) + "_" + originalFilename;
-        String objectKey = "uploads/" + datePrefix + "/" + uniqueName;
-
-        FileClient client = fileClientFactory.getDefaultClient();
-        String publicUrl = client.upload(file.getBytes(), objectKey, file.getContentType());
-
-        // Save file_object metadata
         AuthPrincipal principal = AuthContext.get();
         Long tenantId = principal != null ? principal.tenantId() : 1L;
-        fileObjectService.recordUploadedFile(tenantId, objectKey, originalFilename, ext,
-                file.getContentType(), file.getSize(), bizType);
+        PlatformFileStorageGateway.StoredUploadResult result = storageGateway.uploadBytes(
+                tenantId,
+                bizType,
+                file.getOriginalFilename(),
+                file.getContentType(),
+                file.getBytes()
+        );
 
-        return ApiResponse.success(Map.of(
-                "objectKey", objectKey,
-                "url", publicUrl,
-                "fileName", originalFilename,
-                "fileSize", file.getSize(),
-                "contentType", file.getContentType() != null ? file.getContentType() : "application/octet-stream"
+        return ApiResponse.success(Map.ofEntries(
+                Map.entry("fileId", result.fileId() != null ? result.fileId() : 0L),
+                Map.entry("storageId", result.storageId()),
+                Map.entry("storageCode", result.storageCode()),
+                Map.entry("storageType", result.storageType()),
+                Map.entry("uploadMode", result.uploadMode()),
+                Map.entry("targetDir", result.targetDir()),
+                Map.entry("objectKey", result.objectKey()),
+                Map.entry("url", result.url()),
+                Map.entry("fileName", result.fileName()),
+                Map.entry("fileSize", result.fileSize()),
+                Map.entry("contentType", result.contentType())
         ));
     }
 
@@ -91,19 +82,22 @@ public class FileStorageEngineController {
         int idx = uri.indexOf(prefix);
         String path = (idx >= 0) ? uri.substring(idx + prefix.length()) : uri;
 
-        FileClient client = fileClientFactory.getDefaultClient();
-        byte[] bytes = client.download(path);
+        AuthPrincipal principal = AuthContext.get();
+        Long tenantId = principal != null ? principal.tenantId() : 1L;
+        byte[] bytes = storageGateway.downloadObject(tenantId, path);
 
         String filename = path.substring(path.lastIndexOf('/') + 1);
+        String guessed = URLConnection.guessContentTypeFromName(filename);
+        MediaType mediaType = (guessed != null) ? MediaType.parseMediaType(guessed) : MediaType.APPLICATION_OCTET_STREAM;
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .contentType(mediaType)
                 .body(bytes);
     }
 
     /**
-     * FastExcel 流式高性能导出示例 (对标芋道 EasyExcel 导出能力并超越)
+     * FastExcel 流式高性能导出示例
      */
     @GetMapping("/export-demo-excel")
     public void exportDemoExcel(HttpServletResponse response) throws IOException {

@@ -459,3 +459,31 @@ export interface PermissionSimulationResponse {
   simulatedSqlCondition: string;
 }
 
+export interface SecurityBaselineData {
+  minLength: number;
+  maxLength: number;
+  requireUppercase: boolean;
+  requireLowercase: boolean;
+  requireNumber: boolean;
+  requireSpecial: boolean;
+  passwordHistory: number;
+  sessionTimeoutMinutes: number;
+  forceMfa: boolean;
+  maxFailedCount: number;
+  lockMinutes: number;
+}
+
+export interface SecurityBaselineSavePayload {
+  minLength: number;
+  maxLength?: number;
+  requireUppercase?: boolean;
+  requireLowercase?: boolean;
+  requireNumber?: boolean;
+  requireSpecial: boolean;
+  passwordHistory: number;
+  sessionTimeoutMinutes: number;
+  forceMfa: boolean;
+  maxFailedCount?: number;
+  lockMinutes?: number;
+}
+

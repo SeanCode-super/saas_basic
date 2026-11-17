@@ -9,12 +9,15 @@ import com.saasbasics.platform.modules.scheduler.dto.JobResponse;
 import com.saasbasics.platform.modules.scheduler.dto.JobSaveRequest;
 import com.saasbasics.platform.modules.scheduler.dto.JobStatusUpdateRequest;
 import com.saasbasics.platform.modules.scheduler.dto.JobTriggerRequest;
+import com.saasbasics.platform.modules.scheduler.engine.JobExecutionEngine;
 import com.saasbasics.platform.modules.scheduler.entity.JobAlarmEntity;
 import com.saasbasics.platform.modules.scheduler.entity.JobEntity;
 import com.saasbasics.platform.modules.scheduler.entity.JobLogEntity;
+import com.saasbasics.platform.modules.scheduler.entity.JobTriggerEntity;
 import com.saasbasics.platform.modules.scheduler.mapper.JobAlarmMapper;
 import com.saasbasics.platform.modules.scheduler.mapper.JobMapper;
 import com.saasbasics.platform.modules.scheduler.mapper.JobLogMapper;
+import com.saasbasics.platform.modules.scheduler.mapper.JobTriggerMapper;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
@@ -28,13 +31,19 @@ public class SchedulerService {
     private final ObjectProvider<JobMapper> jobMapperProvider;
     private final ObjectProvider<JobLogMapper> jobLogMapperProvider;
     private final ObjectProvider<JobAlarmMapper> jobAlarmMapperProvider;
+    private final ObjectProvider<JobTriggerMapper> jobTriggerMapperProvider;
+    private final JobExecutionEngine jobExecutionEngine;
 
     public SchedulerService(ObjectProvider<JobMapper> jobMapperProvider,
                             ObjectProvider<JobLogMapper> jobLogMapperProvider,
-                            ObjectProvider<JobAlarmMapper> jobAlarmMapperProvider) {
+                            ObjectProvider<JobAlarmMapper> jobAlarmMapperProvider,
+                            ObjectProvider<JobTriggerMapper> jobTriggerMapperProvider,
+                            JobExecutionEngine jobExecutionEngine) {
         this.jobMapperProvider = jobMapperProvider;
         this.jobLogMapperProvider = jobLogMapperProvider;
         this.jobAlarmMapperProvider = jobAlarmMapperProvider;
+        this.jobTriggerMapperProvider = jobTriggerMapperProvider;
+        this.jobExecutionEngine = jobExecutionEngine;
     }
 
     public List<JobResponse> listJobs() {
@@ -50,6 +59,9 @@ public class SchedulerService {
     }
 
     public JobResponse createJob(JobSaveRequest request) {
+        if (request.handlerName() != null && !jobExecutionEngine.hasHandler(request.handlerName())) {
+            throw new BizException("HANDLER_NOT_FOUND", "指定的任务处理器 [" + request.handlerName() + "] 不存在，系统注册的可用处理器: " + jobExecutionEngine.getAvailableHandlerNames());
+        }
         JobEntity entity = new JobEntity();
         apply(entity, request);
         requiredMapper().insert(entity);
@@ -61,6 +73,9 @@ public class SchedulerService {
         JobEntity entity = mapper.selectById(id);
         if (entity == null || entity.getDeleted() != null && entity.getDeleted() == 1) {
             throw new BizException("SCHED_JOB_NOT_FOUND", "Scheduler job not found");
+        }
+        if (request.handlerName() != null && !jobExecutionEngine.hasHandler(request.handlerName())) {
+            throw new BizException("HANDLER_NOT_FOUND", "指定的任务处理器 [" + request.handlerName() + "] 不存在，系统注册的可用处理器: " + jobExecutionEngine.getAvailableHandlerNames());
         }
         apply(entity, request);
         mapper.updateById(entity);
@@ -76,6 +91,21 @@ public class SchedulerService {
         entity.setTenantId(request.tenantId());
         entity.setStatus(request.status());
         mapper.updateById(entity);
+
+        if ("ENABLED".equalsIgnoreCase(request.status())) {
+            String cron = "0 */5 * * * ?";
+            JobTriggerMapper triggerMapper = jobTriggerMapperProvider.getIfAvailable();
+            if (triggerMapper != null) {
+                JobTriggerEntity trigger = triggerMapper.selectPrimaryTriggerByJobId(id);
+                if (trigger != null && trigger.getCronExpr() != null && !trigger.getCronExpr().isBlank()) {
+                    cron = trigger.getCronExpr();
+                }
+            }
+            jobExecutionEngine.scheduleJob(entity, cron);
+        } else {
+            jobExecutionEngine.cancelScheduledJob(id);
+        }
+
         return getJob(id);
     }
 
@@ -90,25 +120,26 @@ public class SchedulerService {
             throw new BizException("SCHED_JOB_NOT_FOUND", "Scheduler job not found");
         }
 
-        JobLogMapper logMapper = requiredLogMapper();
-        JobLogEntity entity = new JobLogEntity();
-        entity.setTenantId(request.tenantId());
-        entity.setJobId(id);
-        entity.setTriggerId(0L);
-        entity.setExecutionNo("MANUAL-" + UUID.randomUUID().toString().replace("-", "").substring(0, 16).toUpperCase());
-        entity.setExecutorId(job.getExecutorId());
-        entity.setStartedAt(LocalDateTime.now());
-        entity.setFinishedAt(LocalDateTime.now());
-        entity.setRunStatus("SUCCESS");
-        entity.setSuccess(true);
-        entity.setRetryCount(0);
-        entity.setErrorMessage(request.remark());
-        entity.setTraceId("manual-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12));
-        logMapper.insert(entity);
+        String executionNo = "MANUAL-" + UUID.randomUUID().toString().replace("-", "").substring(0, 16).toUpperCase();
+        JobLogEntity logEntity = jobExecutionEngine.executeJobSynchronously(job, "MANUAL", executionNo, 0, request.remark());
+
         return listLogs().stream()
-                .filter(item -> item.id().equals(entity.getId()))
+                .filter(item -> item.id().equals(logEntity.getId()))
                 .findFirst()
-                .orElseThrow(() -> new BizException("SCHED_JOB_LOG_NOT_FOUND", "Scheduler log not found"));
+                .orElse(new JobLogResponse(
+                        logEntity.getId(),
+                        logEntity.getTenantId(),
+                        logEntity.getJobId(),
+                        logEntity.getExecutionNo(),
+                        logEntity.getExecutorId(),
+                        logEntity.getStartedAt(),
+                        logEntity.getFinishedAt(),
+                        logEntity.getRunStatus(),
+                        logEntity.getSuccess(),
+                        logEntity.getRetryCount(),
+                        logEntity.getErrorMessage(),
+                        logEntity.getTraceId()
+                ));
     }
 
     public JobLogResponse retryJob(Long id, JobRetryRequest request) {
@@ -124,25 +155,27 @@ public class SchedulerService {
                 .max()
                 .orElse(0) + 1;
 
-        JobLogEntity entity = new JobLogEntity();
-        entity.setTenantId(request.tenantId());
-        entity.setJobId(id);
-        entity.setTriggerId(0L);
-        entity.setExecutionNo("RETRY-" + UUID.randomUUID().toString().replace("-", "").substring(0, 16).toUpperCase());
-        entity.setExecutorId(job.getExecutorId());
-        entity.setStartedAt(LocalDateTime.now());
-        entity.setFinishedAt(LocalDateTime.now());
-        entity.setRunStatus("RETRY_SUCCESS");
-        entity.setSuccess(true);
-        entity.setRetryCount(retryCount);
-        entity.setErrorMessage(request.remark() == null || request.remark().isBlank() ? "手动重试成功" : request.remark());
-        entity.setTraceId("retry-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12));
-        requiredLogMapper().insert(entity);
+        String executionNo = "RETRY-" + UUID.randomUUID().toString().replace("-", "").substring(0, 16).toUpperCase();
+        JobLogEntity logEntity = jobExecutionEngine.executeJobSynchronously(job, "RETRY", executionNo, retryCount,
+                request.remark() == null || request.remark().isBlank() ? "手动补偿触发重试" : request.remark());
 
         return listLogs().stream()
-                .filter(item -> item.id().equals(entity.getId()))
+                .filter(item -> item.id().equals(logEntity.getId()))
                 .findFirst()
-                .orElseThrow(() -> new BizException("SCHED_JOB_LOG_NOT_FOUND", "Scheduler log not found"));
+                .orElse(new JobLogResponse(
+                        logEntity.getId(),
+                        logEntity.getTenantId(),
+                        logEntity.getJobId(),
+                        logEntity.getExecutionNo(),
+                        logEntity.getExecutorId(),
+                        logEntity.getStartedAt(),
+                        logEntity.getFinishedAt(),
+                        logEntity.getRunStatus(),
+                        logEntity.getSuccess(),
+                        logEntity.getRetryCount(),
+                        logEntity.getErrorMessage(),
+                        logEntity.getTraceId()
+                ));
     }
 
     public List<JobAlarmResponse> listAlarms() {

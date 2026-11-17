@@ -1,0 +1,28 @@
+# Production profile baseline: externalized secrets and strict security enforcement
+spring:
+  datasource:
+    url: jdbc:mysql://${DB_HOST:mysql}:${DB_PORT:3306}/${DB_NAME:saas_basics}?useUnicode=true&characterEncoding=utf8&useSSL=true&allowPublicKeyRetrieval=true
+    username: ${DB_USERNAME:saas_app}
+    password: ${DB_PASSWORD}
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
+saas:
+  vault:
+    master-key: ${SAAS_VAULT_MASTER_KEY}
+  pay:
+    webhook-secret: ${SAAS_PAY_WEBHOOK_SECRET:}
+    wechat:
+      public-key: ${SAAS_PAY_WECHAT_PUBLIC_KEY:}
+    alipay:
+      public-key: ${SAAS_PAY_ALIPAY_PUBLIC_KEY:}
+
+security:
+  auth:
+    strict-server-captcha: true
+    strict-sso-validation: true
+  cors-allowed-origins:
+    - ${SAAS_CORS_ORIGIN:https://console.tianshu.example}

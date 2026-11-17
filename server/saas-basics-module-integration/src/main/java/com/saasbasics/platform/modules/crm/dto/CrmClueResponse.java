@@ -1,13 +1,18 @@
 package com.saasbasics.platform.modules.crm.dto;
 
+import com.saasbasics.platform.common.mask.DataMaskType;
+import com.saasbasics.platform.mask.DataMask;
 import java.time.LocalDateTime;
 
 public class CrmClueResponse {
     private Long id;
     private String name;
     private String contactName;
+    @DataMask(type = DataMaskType.MOBILE)
     private String mobile;
+    @DataMask(type = DataMaskType.MOBILE)
     private String telephone;
+    @DataMask(type = DataMaskType.EMAIL)
     private String email;
     private String address;
     private String source;

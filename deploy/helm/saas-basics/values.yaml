@@ -1,0 +1,62 @@
+replicaCount:
+  server: 2
+  web: 2
+
+image:
+  server:
+    repository: saas-basics/server
+    tag: latest
+    pullPolicy: IfNotPresent
+  web:
+    repository: saas-basics/web
+    tag: latest
+    pullPolicy: IfNotPresent
+
+service:
+  serverPort: 8080
+  webPort: 80
+
+ingress:
+  enabled: true
+  className: nginx
+  host: console.tianshu.example
+  tls:
+    enabled: false
+    secretName: saas-basics-tls
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 8
+  targetCPUUtilizationPercentage: 70
+
+resources:
+  server:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+  web:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+env:
+  springProfilesActive: prod
+  dbHost: mysql.saas-infra.svc.cluster.local
+  dbPort: "3306"
+  dbName: saas_basics
+  dbUsername: saas_app
+  redisHost: redis.saas-infra.svc.cluster.local
+  redisPort: "6379"
+  corsOrigin: https://console.tianshu.example
+
+secrets:
+  dbPassword: "CHANGE_ME_VIA_SECRET_MANAGER"
+  vaultMasterKey: "CHANGE_ME_VIA_KMS_OR_VAULT_KEY"
+  payWebhookSecret: ""

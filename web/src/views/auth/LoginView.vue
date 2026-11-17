@@ -3,33 +3,37 @@ import { computed, onMounted, reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
 import { useRoute, useRouter } from "vue-router";
 import {
-  OfficeBuilding,
   User,
   Lock,
   Key,
-  RefreshRight,
-  CircleCheckFilled,
-  Platform,
-  Cpu,
-  DataLine
+  RefreshRight
 } from "@element-plus/icons-vue";
 import { fetchPortalEntry, type PortalEntry } from "@/api/modules/portal";
+import { fetchAuthCaptcha } from "@/api/modules/auth";
 import { useAuthStore } from "@/stores/modules/auth";
-import { rememberPortalContext, resolvePortalContext } from "@/utils/portal-context";
-import loginBg from "@/assets/login-bg-light.jpg";
+import {
+  rememberPortalContext,
+  resolvePortalContext,
+  extractSubdomainTenant
+} from "@/utils/portal-context";
+import loginBg from "@/assets/ios27-liquid-glass-bg.jpg";
+import TianshuLogo from "@/components/brand/TianshuLogo.vue";
 
 const form = reactive({
-  tenantCode: "platform",
+  tenantCode: "",
   clientId: "",
   terminalCode: "web",
   captchaCode: "",
+  totpCode: "",
   username: "admin",
   password: "Admin@123456"
 });
 const loading = ref(false);
 const booting = ref(false);
 const portal = ref<PortalEntry | null>(null);
-const captchaSeed = ref("");
+const captchaId = ref("");
+const captchaImageUrl = ref("");
+const mfaRequired = ref(false);
 const loginError = ref("");
 
 const router = useRouter();
@@ -59,8 +63,15 @@ function resolveThemeColor(themeCode?: string) {
   }
 }
 
-function refreshCaptcha() {
-  captchaSeed.value = Math.random().toString(36).slice(2, 6).toUpperCase();
+async function refreshCaptcha() {
+  try {
+    const challenge = await fetchAuthCaptcha();
+    captchaId.value = challenge.captchaId;
+    captchaImageUrl.value = challenge.imageDataUrl;
+  } catch {
+    captchaId.value = "";
+    captchaImageUrl.value = "";
+  }
 }
 
 async function bootstrapPortal() {
@@ -74,16 +85,33 @@ async function bootstrapPortal() {
     form.tenantCode = entry.tenantCode;
     document.title = `${entry.portalTitle} | 登录`;
     loginError.value = "";
-    refreshCaptcha();
-    rememberPortalContext({ clientId: entry.clientId, terminalCode: entry.terminal.terminalCode });
-    if (route.query.clientId !== entry.clientId || route.query.terminalCode !== entry.terminal.terminalCode) {
+    await refreshCaptcha();
+    rememberPortalContext({
+      clientId: entry.clientId,
+      terminalCode: entry.terminal.terminalCode,
+      tenantCode: entry.tenantCode
+    });
+    const subdomain = extractSubdomainTenant();
+    const currentQuery: Record<string, any> = { ...route.query };
+    let needsUpdate = false;
+    // 只有在非二级子域名模式下，才把 tenantCode 同步至 query 参数
+    if (!subdomain && entry.tenantCode && currentQuery.tenantCode !== entry.tenantCode) {
+      currentQuery.tenantCode = entry.tenantCode;
+      delete currentQuery.tenant;
+      needsUpdate = true;
+    }
+    if (currentQuery.clientId !== entry.clientId) {
+      currentQuery.clientId = entry.clientId;
+      needsUpdate = true;
+    }
+    if (currentQuery.terminalCode !== entry.terminal.terminalCode) {
+      currentQuery.terminalCode = entry.terminal.terminalCode;
+      needsUpdate = true;
+    }
+    if (needsUpdate) {
       await router.replace({
         path: route.path,
-        query: {
-          ...route.query,
-          clientId: entry.clientId,
-          terminalCode: entry.terminal.terminalCode
-        }
+        query: currentQuery
       });
     }
   } catch (error: any) {
@@ -94,21 +122,22 @@ async function bootstrapPortal() {
   }
 }
 
-function fillDemoAccount() {
-  form.tenantCode = "platform";
-  form.username = "admin";
-  form.password = "Admin@123456";
-  if (captchaSeed.value) {
-    form.captchaCode = captchaSeed.value;
+function fillDemoAccount(type: "admin" | "user" = "admin") {
+  form.tenantCode = portal.value?.tenantCode || (route.query.tenantCode as string) || (route.query.tenant as string) || "platform";
+  if (type === "user") {
+    form.username = "user";
+    form.password = "User@123456";
+    form.captchaCode = "";
+    ElMessage.success(`已填入员工凭证 (user，专属企业: ${portal.value?.clientName || form.tenantCode})`);
+  } else {
+    form.username = "admin";
+    form.password = "Admin@123456";
+    form.captchaCode = "";
+    ElMessage.success(`已填入管理员凭据 (admin，专属企业: ${portal.value?.clientName || form.tenantCode})`);
   }
-  ElMessage.success("已自动填入超级管理员默认凭证");
 }
 
 function validateForm() {
-  if (!form.tenantCode.trim()) {
-    loginError.value = "请输入租户编码";
-    return false;
-  }
   if (!form.username.trim()) {
     loginError.value = "请输入用户名";
     return false;
@@ -121,6 +150,10 @@ function validateForm() {
     loginError.value = "请输入图形验证码";
     return false;
   }
+  if (mfaRequired.value && !form.totpCode.trim()) {
+    loginError.value = "请输入 6 位 MFA 动态验证码或恢复码";
+    return false;
+  }
   return true;
 }
 
@@ -130,30 +163,33 @@ async function handleLogin() {
     ElMessage.error(loginError.value);
     return;
   }
-  if (captchaEnabled.value && form.captchaCode.trim().toUpperCase() !== captchaSeed.value) {
-    loginError.value = "图形验证码不正确";
-    ElMessage.error(loginError.value);
-    refreshCaptcha();
-    form.captchaCode = "";
-    return;
-  }
   loading.value = true;
   try {
     await authStore.login({
-      tenantCode: form.tenantCode,
+      tenantCode: form.tenantCode.trim() || undefined,
       clientId: form.clientId,
       terminalCode: form.terminalCode,
-      captchaCode: form.captchaCode,
-      username: form.username,
-      password: form.password
+      captchaId: captchaEnabled.value && captchaId.value ? captchaId.value : undefined,
+      captchaCode: form.captchaCode.trim() || undefined,
+      totpCode: mfaRequired.value ? form.totpCode.trim() : undefined,
+      username: form.username.trim(),
+      password: form.password.trim()
     });
-    const redirect = typeof route.query.redirect === "string" ? route.query.redirect : "/dashboard";
+    const redirect = typeof route.query.redirect === "string" ? route.query.redirect : "/";
     router.push(redirect);
   } catch (error: any) {
-    loginError.value = error?.response?.data?.message ?? "登录失败，请检查账号、密码或验证码";
-    ElMessage.error(loginError.value);
+    const errCode = error?.response?.data?.code;
+    const errMsg = error?.response?.data?.message ?? "登录失败，请检查账号、密码或验证码";
+    if (errCode === "AUTH_MFA_REQUIRED") {
+      mfaRequired.value = true;
+      loginError.value = errMsg;
+      ElMessage.warning(errMsg);
+    } else {
+      loginError.value = errMsg;
+      ElMessage.error(errMsg);
+    }
     if (captchaEnabled.value) {
-      refreshCaptcha();
+      await refreshCaptcha();
       form.captchaCode = "";
     }
   } finally {
@@ -173,7 +209,7 @@ async function handleSsoLogin(channel: string) {
       tenantCode: form.tenantCode.trim() || "platform"
     });
     ElMessage.success(`${channelName} SSO 鉴权成功，正在进入工作台...`);
-    const redirect = typeof route.query.redirect === "string" ? route.query.redirect : "/dashboard";
+    const redirect = typeof route.query.redirect === "string" ? route.query.redirect : "/";
     router.push(redirect);
   } catch (err: any) {
     loginError.value = err?.response?.data?.message || err?.message || "SSO 登录失败";
@@ -197,20 +233,17 @@ onMounted(() => {
     <!-- Top Navigation Header -->
     <header class="login-page__header">
       <div class="login-page__brand">
-        <div class="login-page__logo">
-          <img v-if="portal?.logoUrl" :src="portal.logoUrl" alt="" />
-          <span v-else>{{ (portal?.portalTitle || "SB").slice(0, 2) }}</span>
-        </div>
+        <TianshuLogo :size="32" />
         <div class="login-page__brand-meta">
-          <strong>{{ portal?.portalTitle || "SaaS 基础底座平台" }}</strong>
-          <span class="login-page__brand-badge">Enterprise Edition</span>
+          <strong>{{ portal?.portalTitle || "天枢企业协同管理平台" }}</strong>
+          <span class="login-page__brand-badge">企业标准版</span>
         </div>
       </div>
 
       <div class="login-page__header-extras">
         <span class="login-page__status-indicator">
           <span class="status-dot" />
-          系统服务正常 · 99.99% SLA
+          系统运行正常 · 数据安全受控
         </span>
         <span v-if="portal" class="login-page__terminal-tag">
           {{ portal.terminal.terminalName }}
@@ -218,66 +251,24 @@ onMounted(() => {
       </div>
     </header>
 
-    <!-- Main Container: Dual-Pane on Desktop -->
+    <!-- Main Container: Centered Flagship Card -->
     <main class="login-page__main">
       <div class="login-page__container">
-        <!-- Left Hero: Platform Architecture & Values -->
-        <section class="login-hero" aria-label="底座特性介绍">
-          <div class="login-hero__tag">
-            <el-icon><Cpu /></el-icon>
-            <span>NEXT-GEN CLOUD FOUNDATION</span>
-          </div>
-
-          <h1 class="login-hero__title">
-            统一数字化底座<br />
-            <span class="login-hero__title--gradient">高隔离企业级多租户引擎</span>
-          </h1>
-
-          <p class="login-hero__desc">
-            基于微内核架构打造的标准云原生底座，提供全链路租户生命周期隔离、行级数据权限规则与商业化配额治理能力。
-          </p>
-
-          <div class="login-hero__features">
-            <div class="hero-feature-card">
-              <div class="hero-feature-card__icon hero-feature-card__icon--blue">
-                <el-icon><Platform /></el-icon>
-              </div>
-              <div class="hero-feature-card__content">
-                <strong>云原生多租户隔离</strong>
-                <p>独立 Schema 与共享模式动态路由，支持实时订阅套餐与席位硬配额防穿透</p>
-              </div>
-            </div>
-
-            <div class="hero-feature-card">
-              <div class="hero-feature-card__icon hero-feature-card__icon--emerald">
-                <el-icon><CircleCheckFilled /></el-icon>
-              </div>
-              <div class="hero-feature-card__content">
-                <strong>统一安全与行级权限</strong>
-                <p>细粒度 RBAC 授权、SQL 级行级数据权限拦截与全链路安全操作审计</p>
-              </div>
-            </div>
-
-            <div class="hero-feature-card">
-              <div class="hero-feature-card__icon hero-feature-card__icon--cyan">
-                <el-icon><DataLine /></el-icon>
-              </div>
-              <div class="hero-feature-card__content">
-                <strong>高可用自动化运营</strong>
-                <p>集成工作流自动化审批、Quartz 调度管道与多源连接引擎</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- Right: Glassmorphism Login Card -->
+        <!-- Glassmorphism Login Card -->
         <section class="login-panel" aria-label="登录">
           <header class="login-panel__header">
-            <div>
-              <h2>欢迎登录</h2>
-              <p class="login-panel__subtitle">请输入您的租户账号凭证以访问控制台</p>
+            <div class="login-brand-capsule-wrap">
+              <div class="login-brand-capsule">
+                <div class="capsule-logo-badge">
+                  <TianshuLogo :size="18" />
+                </div>
+                <span class="capsule-brand-name">天枢云基</span>
+                <span class="capsule-sep" />
+                <span class="capsule-portal-name">{{ portal?.clientName || "平台统一门户" }}</span>
+              </div>
             </div>
-            <span v-if="portal" class="login-panel__client-badge">{{ portal.clientName }}</span>
+
+            <h2 class="login-panel__title">欢迎登录</h2>
           </header>
 
           <el-skeleton :loading="booting" animated>
@@ -294,25 +285,17 @@ onMounted(() => {
                 :title="loginError"
               />
 
-              <el-form-item label="租户编码">
-                <el-input
-                  v-model="form.tenantCode"
-                  placeholder="例如: platform 或租户标识"
-                  :prefix-icon="OfficeBuilding"
-                />
-              </el-form-item>
-
-              <el-form-item label="用户名">
+              <el-form-item label="账号凭证">
                 <el-input
                   v-model="form.username"
-                  placeholder="用户名 / 手机号 / 邮箱"
+                  placeholder="用户名 / 手机号 / 企业邮箱"
                   autocomplete="username"
                   :prefix-icon="User"
                   @keyup.enter="handleLogin"
                 />
               </el-form-item>
 
-              <el-form-item label="密码">
+              <el-form-item label="访问密码">
                 <el-input
                   v-model="form.password"
                   type="password"
@@ -328,7 +311,7 @@ onMounted(() => {
                 <div class="login-page__captcha">
                   <el-input
                     v-model="form.captchaCode"
-                    placeholder="请输入验证码"
+                    placeholder="请输入图形验证码"
                     :prefix-icon="Key"
                     @keyup.enter="handleLogin"
                   />
@@ -338,10 +321,26 @@ onMounted(() => {
                     title="点击刷新验证码"
                     @click="refreshCaptcha"
                   >
-                    <span>{{ captchaSeed }}</span>
+                    <img
+                      v-if="captchaImageUrl"
+                      :src="captchaImageUrl"
+                      alt="安全验证码"
+                      class="captcha-svg-img"
+                    />
+                    <span v-else class="captcha-loading-text">刷新</span>
                     <el-icon class="captcha-refresh-icon"><RefreshRight /></el-icon>
                   </button>
                 </div>
+              </el-form-item>
+
+              <el-form-item v-if="mfaRequired" label="MFA 动态口令 / 恢复码">
+                <el-input
+                  v-model="form.totpCode"
+                  placeholder="请输入 Authenticator 6 位数字或备用恢复码"
+                  maxlength="16"
+                  :prefix-icon="Lock"
+                  @keyup.enter="handleLogin"
+                />
               </el-form-item>
 
               <el-button
@@ -353,20 +352,30 @@ onMounted(() => {
                 {{ loading ? "正在安全验证..." : "登 录" }}
               </el-button>
 
-              <div class="login-page__security-hint">
-                <span>🔒 启用 256 位端到端加密传输 · 账号安全策略已防护</span>
-                <span class="demo-acc-hint" @click="fillDemoAccount" style="cursor: pointer;" title="点击一键填入演示凭据">
-                  演示体验默认超级管理员账号：<strong style="color: #2563eb; text-decoration: underline;">admin / Admin@123456</strong> (点击自动填入)
-                </span>
+              <div class="demo-acc-wrapper" style="margin-top: 14px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+                <el-tag
+                  effect="plain"
+                  type="primary"
+                  style="cursor: pointer;"
+                  title="点击填入超管凭证"
+                  @click="fillDemoAccount('admin')"
+                >
+                  👑 超管: admin / Admin@123456
+                </el-tag>
+                <el-tag
+                  effect="plain"
+                  type="success"
+                  style="cursor: pointer;"
+                  title="点击填入测试凭证"
+                  @click="fillDemoAccount('user')"
+                >
+                  👤 普通用户: user / User@123456
+                </el-tag>
               </div>
 
               <!-- 企业 SSO 快捷单点登录通道 -->
               <div class="login-sso-section">
-                <div class="sso-divider">
-                  <span class="sso-divider-line" />
-                  <span class="sso-divider-text">企业社交与单点登录 (SSO)</span>
-                  <span class="sso-divider-line" />
-                </div>
+                <div class="sso-divider-line" />
 
                 <div class="sso-buttons">
                   <button
@@ -432,15 +441,22 @@ onMounted(() => {
   --portal-bg-image: none;
   --portal-accent: #0284c7;
 
-  position: relative;
-  min-height: 100vh;
-  display: grid;
-  grid-template-rows: 64px minmax(0, 1fr) 48px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   background:
-    linear-gradient(135deg, rgb(248 250 252 / 0.88) 0%, rgb(241 245 249 / 0.78) 50%, rgb(248 250 252 / 0.92) 100%),
-    var(--portal-bg-image) center/cover no-repeat,
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(191, 219, 254, 0.40), transparent 75%),
+    var(--portal-bg-image) center center / cover no-repeat fixed,
     var(--portal-bg-color);
-  overflow-x: hidden;
+  overflow: hidden;
   color: #0f172a;
 }
 
@@ -472,42 +488,26 @@ onMounted(() => {
 
 /* Header */
 .login-page__header {
+  height: 56px;
+  flex-shrink: 0;
   position: relative;
   z-index: 10;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 0 36px;
-  border-bottom: 1px solid rgb(226 232 240 / 0.8);
-  background: rgb(255 255 255 / 0.75);
-  backdrop-filter: blur(16px);
+  padding: 0 32px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.90);
+  background: rgba(255, 255, 255, 0.68);
+  backdrop-filter: blur(28px) saturate(200%);
+  -webkit-backdrop-filter: blur(28px) saturate(200%);
+  box-shadow: 0 2px 16px rgba(15, 23, 42, 0.04);
 }
 
 .login-page__brand {
   display: flex;
   align-items: center;
   gap: 12px;
-}
-
-.login-page__logo {
-  width: 36px;
-  height: 36px;
-  display: grid;
-  place-items: center;
-  border-radius: 8px;
-  overflow: hidden;
-  background: linear-gradient(135deg, #0284c7, #2563eb);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 800;
-  box-shadow: 0 4px 12px rgb(2 132 199 / 0.3);
-
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-  }
 }
 
 .login-page__brand-meta {
@@ -577,210 +577,138 @@ onMounted(() => {
 
 /* Main Container */
 .login-page__main {
+  flex: 1;
+  min-height: 0;
   position: relative;
   z-index: 10;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px 24px;
+  padding: 16px 24px;
+  overflow-y: auto;
 }
 
 .login-page__container {
   width: 100%;
-  max-width: 1200px;
+  max-width: 440px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: 64px;
+  justify-content: center;
+  margin: auto;
 }
 
-/* Left Hero Section */
-.login-hero {
-  flex: 1;
-  max-width: 600px;
-
-  &__tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 14px;
-    border-radius: 20px;
-    background: #eff6ff;
-    border: 1px solid #dbeafe;
-    color: #2563eb;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 1.2px;
-    margin-bottom: 20px;
-  }
-
-  &__title {
-    font-size: 38px;
-    font-weight: 800;
-    line-height: 1.28;
-    margin: 0 0 16px;
-    color: #0f172a;
-    letter-spacing: -0.5px;
-
-    &--gradient {
-      background: linear-gradient(135deg, #0284c7 0%, #2563eb 50%, #4f46e5 100%);
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-  }
-
-  &__desc {
-    font-size: 15px;
-    line-height: 1.65;
-    color: #475569;
-    margin: 0 0 32px;
-  }
-
-  &__features {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-}
-
-.hero-feature-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  padding: 16px 20px;
-  border-radius: 12px;
-  background: rgb(255 255 255 / 0.85);
-  border: 1px solid rgb(226 232 240 / 0.9);
-  backdrop-filter: blur(12px);
-  box-shadow: 0 4px 16px rgb(15 23 42 / 0.03);
-  transition: all 0.25s ease;
-
-  &:hover {
-    border-color: #bae6fd;
-    background: #fff;
-    transform: translateX(4px);
-    box-shadow: 0 8px 24px rgb(2 132 199 / 0.08);
-  }
-
-  &__icon {
-    width: 38px;
-    height: 38px;
-    border-radius: 10px;
-    display: grid;
-    place-items: center;
-    font-size: 18px;
-    flex-shrink: 0;
-
-    &--blue {
-      background: #e0f2fe;
-      color: #0284c7;
-      border: 1px solid #bae6fd;
-    }
-
-    &--emerald {
-      background: #dcfce7;
-      color: #059669;
-      border: 1px solid #a7f3d0;
-    }
-
-    &--cyan {
-      background: #e0e7ff;
-      color: #4f46e5;
-      border: 1px solid #c7d2fe;
-    }
-  }
-
-  &__content {
-    strong {
-      display: block;
-      font-size: 15px;
-      color: #0f172a;
-      margin-bottom: 4px;
-    }
-
-    p {
-      margin: 0;
-      font-size: 13px;
-      color: #64748b;
-      line-height: 1.5;
-    }
-  }
-}
-
-/* Right Login Card (Clean Light Luxury Glass) */
+/* Flagship Login Card (VisionOS / iOS 27 Liquid Titanium Glass) */
 .login-panel {
   width: 100%;
   max-width: 440px;
-  padding: 36px 36px 32px;
-  border: 1px solid rgb(226 232 240 / 0.95);
-  border-radius: 16px;
-  background: rgb(255 255 255 / 0.88);
-  backdrop-filter: blur(24px);
+  padding: 30px 32px 24px;
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.74);
+  backdrop-filter: blur(48px) saturate(220%) contrast(102%);
+  -webkit-backdrop-filter: blur(48px) saturate(220%) contrast(102%);
   box-shadow:
-    0 20px 40px -15px rgb(15 23 42 / 0.08),
-    0 0 0 1px rgb(255 255 255 / 0.8) inset;
+    inset 0 2px 3px 0 rgba(255, 255, 255, 1),
+    inset 0 -1px 2px 0 rgba(255, 255, 255, 0.5),
+    0 24px 50px -12px rgba(15, 23, 42, 0.12),
+    0 4px 16px -2px rgba(15, 23, 42, 0.04);
 
   &__header {
+    margin-bottom: 20px;
+    text-align: center;
+  }
+
+  &__title {
+    margin: 8px 0 0;
+    font-size: 23px;
+    font-weight: 750;
+    color: #0f172a;
+    letter-spacing: -0.02em;
+  }
+}
+
+.login-brand-capsule-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.login-brand-capsule {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px 4px 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.76);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05), inset 0 1px 0 rgba(255, 255, 255, 1);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+
+  .capsule-logo-badge {
     display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 26px;
-
-    h2 {
-      margin: 0 0 6px;
-      font-size: 24px;
-      font-weight: 700;
-      color: #0f172a;
-    }
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(59, 130, 246, 0.04));
+    flex-shrink: 0;
   }
 
-  &__subtitle {
-    margin: 0;
-    font-size: 13px;
-    color: #64748b;
+  .capsule-brand-name {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #0f172a;
+    letter-spacing: -0.01em;
   }
 
-  &__client-badge {
-    padding: 3px 10px;
-    border-radius: 6px;
-    background: #e0f2fe;
-    border: 1px solid #bae6fd;
-    color: #0284c7;
-    font-size: 12px;
-    font-weight: 500;
-    white-space: nowrap;
+  .capsule-sep {
+    width: 1px;
+    height: 12px;
+    background: rgba(148, 163, 184, 0.45);
+    flex-shrink: 0;
+  }
+
+  .capsule-portal-name {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #2563eb;
+    letter-spacing: -0.01em;
   }
 }
 
 /* Form Styles */
 .login-panel :deep(.el-form-item) {
-  margin-bottom: 20px;
+  margin-bottom: 14px;
 }
 
 .login-panel :deep(.el-form-item__label) {
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   color: #334155;
   font-size: 13px;
   font-weight: 600;
-  line-height: 1.4;
+  line-height: 1.3;
 }
 
 .login-panel :deep(.el-input__wrapper) {
-  min-height: 44px;
-  background: #f8fafc;
-  box-shadow: 0 0 0 1px #cbd5e1 inset;
-  border-radius: 8px;
-  transition: all 0.2s ease;
+  min-height: 42px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 0 0 1px rgba(203, 213, 225, 0.8) inset, inset 0 1px 2px rgba(15, 23, 42, 0.03);
+  border-radius: 12px;
+  backdrop-filter: blur(12px);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 
   &:hover {
-    box-shadow: 0 0 0 1px #94a3b8 inset;
-    background: #fff;
+    box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.9) inset;
+    background: rgba(255, 255, 255, 0.95);
   }
 
   &.is-focus {
-    background: #fff;
-    box-shadow: 0 0 0 2px #0284c7 inset, 0 0 10px rgb(2 132 199 / 0.15) !important;
+    background: #ffffff;
+    box-shadow: 0 0 0 2px #2563eb inset, 0 0 12px rgba(37, 99, 235, 0.2) !important;
   }
 }
 
@@ -799,14 +727,14 @@ onMounted(() => {
 }
 
 .login-page__error {
-  margin-bottom: 20px;
+  margin-bottom: 14px;
 }
 
 /* Captcha */
 .login-page__captcha {
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 110px;
+  grid-template-columns: minmax(0, 1fr) 128px;
   gap: 10px;
 }
 
@@ -814,23 +742,36 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  background: #f1f5f9;
-  color: #0284c7;
+  gap: 4px;
+  padding: 2px;
+  overflow: hidden;
+  border: 1px solid rgba(203, 213, 225, 0.9);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #2563eb;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 16px;
-  font-weight: 800;
-  letter-spacing: 3px;
+  font-size: 13px;
+  font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
   user-select: none;
 
+  .captcha-svg-img {
+    width: 102px;
+    height: 36px;
+    display: block;
+    border-radius: 8px;
+  }
+
+  .captcha-loading-text {
+    font-size: 12px;
+    letter-spacing: 0;
+  }
+
   &:hover {
-    border-color: #0284c7;
-    background: #e0f2fe;
-    box-shadow: 0 2px 8px rgb(2 132 199 / 0.15);
+    border-color: #2563eb;
+    background: #eff6ff;
+    box-shadow: 0 2px 10px rgba(37, 99, 235, 0.18);
 
     .captcha-refresh-icon {
       transform: rotate(180deg);
@@ -847,21 +788,21 @@ onMounted(() => {
 /* Submit Button */
 .login-page__submit {
   width: 100%;
-  height: 46px;
-  margin-top: 6px;
-  border-radius: 8px;
+  height: 44px;
+  margin-top: 4px;
+  border-radius: 12px;
   border: none;
-  background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
   color: #fff;
   font-size: 15px;
   font-weight: 600;
   letter-spacing: 2px;
-  box-shadow: 0 4px 14px rgb(2 132 199 / 0.35);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.32), inset 0 1px 1px rgba(255, 255, 255, 0.35);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 
   &:hover {
-    background: linear-gradient(135deg, #0369a1 0%, #1d4ed8 100%);
-    box-shadow: 0 6px 18px rgb(2 132 199 / 0.45);
+    background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+    box-shadow: 0 8px 22px rgba(37, 99, 235, 0.42), inset 0 1px 1px rgba(255, 255, 255, 0.5);
     transform: translateY(-1px);
   }
 
@@ -870,79 +811,44 @@ onMounted(() => {
   }
 }
 
-/* Security Note */
-.login-page__security-hint {
-  margin-top: 20px;
-  text-align: center;
-  font-size: 12px;
-  color: #64748b;
-  line-height: 1.4;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-
-  .demo-acc-hint {
-    font-size: 11px;
-    color: #0284c7;
-    background: #f0f9ff;
-    border: 1px solid #bae6fd;
-    padding: 3px 8px;
-    border-radius: 4px;
-    display: inline-block;
-    align-self: center;
-  }
-}
-
 /* SSO Login Section */
 .login-sso-section {
-  margin-top: 24px;
+  margin-top: 14px;
 }
 
-.sso-divider {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-
-  .sso-divider-line {
-    flex: 1;
-    height: 1px;
-    background: #e2e8f0;
-  }
-
-  .sso-divider-text {
-    font-size: 12px;
-    color: #94a3b8;
-    white-space: nowrap;
-  }
+.sso-divider-line {
+  height: 1px;
+  background: rgba(226, 232, 240, 0.85);
+  margin-bottom: 12px;
 }
 
 .sso-buttons {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
 }
 
 .sso-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 9px 8px;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  background: #fff;
+  gap: 4px;
+  padding: 8px 4px;
+  border-radius: 10px;
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(12px);
   color: #334155;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 12px;
+  font-weight: 550;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 
   &:hover {
-    border-color: #cbd5e1;
-    background: #f8fafc;
+    border-color: rgba(148, 163, 184, 0.6);
+    background: #fff;
     transform: translateY(-1px);
-    box-shadow: 0 2px 6px rgb(0 0 0 / 0.04);
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
   }
 
   &--wecom:hover {
@@ -961,16 +867,19 @@ onMounted(() => {
   }
 
   .sso-icon {
-    font-size: 15px;
+    font-size: 14px;
   }
 
   .sso-label {
-    font-size: 12px;
+    font-size: 11px;
+    white-space: nowrap;
   }
 }
 
 /* Footer */
 .login-page__footer {
+  height: 38px;
+  flex-shrink: 0;
   position: relative;
   z-index: 10;
   display: flex;
@@ -979,9 +888,11 @@ onMounted(() => {
   gap: 8px;
   color: #64748b;
   font-size: 12px;
-  border-top: 1px solid rgb(226 232 240 / 0.8);
-  background: rgb(255 255 255 / 0.7);
-  backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  box-sizing: border-box;
 
   .footer-divider {
     color: #cbd5e1;
@@ -989,39 +900,6 @@ onMounted(() => {
 }
 
 /* Responsive */
-@media (max-width: 1024px) {
-  .login-page__container {
-    flex-direction: column;
-    justify-content: center;
-    gap: 36px;
-  }
-
-  .login-hero {
-    max-width: 500px;
-    text-align: center;
-
-    &__tag {
-      margin: 0 auto 16px;
-    }
-
-    &__title {
-      font-size: 30px;
-    }
-
-    &__desc {
-      margin-bottom: 20px;
-    }
-
-    &__features {
-      display: none;
-    }
-  }
-
-  .login-panel {
-    max-width: 440px;
-  }
-}
-
 @media (max-width: 640px) {
   .login-page__header {
     padding: 0 16px;
@@ -1031,12 +909,9 @@ onMounted(() => {
     display: none;
   }
 
-  .login-hero {
-    display: none;
-  }
-
   .login-panel {
-    padding: 28px 20px;
+    padding: 24px 20px 20px;
+    border-radius: 18px;
   }
 }
 </style>

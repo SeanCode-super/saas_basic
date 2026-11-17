@@ -61,16 +61,16 @@ export const userColumns: ProTableColumn[] = [
 
 export const roleColumns: ProTableColumn[] = [
   { prop: "roleCode", label: "角色编码", minWidth: 150 },
-  { prop: "roleName", label: "角色名称", minWidth: 180 },
-  { prop: "roleType", label: "角色类型", minWidth: 120, formatter: (row) => localizeRoleType(String(row.roleType ?? "")) },
+  { prop: "roleName", label: "角色名称", minWidth: 145 },
+  { prop: "roleType", label: "角色类型", minWidth: 110, formatter: (row) => localizeRoleType(String(row.roleType ?? "")) },
   {
     prop: "dataScopeType",
     label: "数据范围",
-    minWidth: 140,
+    minWidth: 110,
     formatter: (row) => localizeDataScope(String(row.dataScopeType ?? ""))
   },
-  { prop: "status", label: "状态", minWidth: 100, slot: "status" },
-  { prop: "actions", label: "操作", minWidth: 170, slot: "actions" }
+  { prop: "status", label: "状态", minWidth: 85, slot: "status" },
+  { prop: "actions", label: "操作", minWidth: 235, slot: "actions", fixed: "right" }
 ];
 
 export const apiColumns: ProTableColumn[] = [

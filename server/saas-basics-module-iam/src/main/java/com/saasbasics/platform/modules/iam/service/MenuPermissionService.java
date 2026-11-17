@@ -28,6 +28,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import com.saasbasics.platform.common.tenant.TenantAccessContext;
+import com.saasbasics.platform.common.tenant.TenantAccessContextHolder;
 import com.saasbasics.platform.common.tenant.TenantFeatureProvider;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -267,20 +269,26 @@ public class MenuPermissionService {
                 ? featureProvider.getEffectiveFeatures(principal.tenantId())
                 : Set.of("*");
 
+        List<MenuResponse> allTemplateMenus;
+        try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openSystemBypass(
+                TenantAccessContext.BypassOperation.SYSTEM_TASK_OR_ANNOTATION_IGNORE, "Load system menu templates")) {
+            allTemplateMenus = requiredMenuMapper().selectMenuList();
+        }
+
         // 1. 系统底层无租户环境 (Tenant 0 或 null) 直通系统所有启用的菜单
         if (principal.isSuperAdmin() && (principal.tenantId() == null || principal.tenantId() <= 0L)) {
-            return requiredMenuMapper().selectMenuList()
+            return allTemplateMenus
                     .stream()
-                    .filter(menu -> menu.tenantId() == null || Long.valueOf(0L).equals(menu.tenantId()))
+                    .filter(menu -> menu.tenantId() == null || Long.valueOf(0L).equals(menu.tenantId()) || Long.valueOf(1L).equals(menu.tenantId()))
                     .filter(menu -> "ENABLED".equalsIgnoreCase(menu.status()))
                     .toList();
         }
 
         // 2. 租户超级管理员 (Tenant >= 1L)：必须受该租户已获授权应用权限严格过滤！
         if (principal.isSuperAdmin()) {
-            return requiredMenuMapper().selectMenuList()
+            return allTemplateMenus
                     .stream()
-                    .filter(menu -> menu.tenantId() == null || Long.valueOf(0L).equals(menu.tenantId()) || principal.tenantId().equals(menu.tenantId()))
+                    .filter(menu -> menu.tenantId() == null || Long.valueOf(0L).equals(menu.tenantId()) || Long.valueOf(1L).equals(menu.tenantId()) || principal.tenantId().equals(menu.tenantId()))
                     .filter(menu -> "ENABLED".equalsIgnoreCase(menu.status()))
                     .filter(menu -> isMenuAllowedForTenant(menu, effectiveFeatures))
                     .toList();
@@ -310,17 +318,26 @@ public class MenuPermissionService {
             }
         }
 
-        if (grantedMenuIds.isEmpty()) {
-            return List.of();
-        }
-
-        List<MenuResponse> allMenus = requiredMenuMapper().selectMenuList()
+        List<MenuResponse> allMenus = allTemplateMenus
                 .stream()
-                .filter(menu -> menu.tenantId() == null || Long.valueOf(0L).equals(menu.tenantId()) || principal.tenantId().equals(menu.tenantId()))
+                .filter(menu -> menu.tenantId() == null || Long.valueOf(0L).equals(menu.tenantId()) || Long.valueOf(1L).equals(menu.tenantId()) || principal.tenantId().equals(menu.tenantId()))
                 .filter(menu -> "ENABLED".equalsIgnoreCase(menu.status()))
                 .filter(menu -> menu.permissionCode() == null || principal.permissions().contains(menu.permissionCode()))
                 .filter(menu -> isMenuAllowedForTenant(menu, effectiveFeatures))
                 .toList();
+
+        // 3. 兜底回退：如果角色菜单映射未单独配置，但账号拥有权限码，自动激活权限码对应菜单
+        if (grantedMenuIds.isEmpty() && principal.permissions() != null && !principal.permissions().isEmpty()) {
+            for (MenuResponse menu : allMenus) {
+                if (menu.permissionCode() != null && principal.permissions().contains(menu.permissionCode())) {
+                    grantedMenuIds.add(menu.id());
+                }
+            }
+        }
+
+        if (grantedMenuIds.isEmpty()) {
+            return List.of();
+        }
 
         Map<Long, MenuResponse> menuMap = allMenus.stream().collect(Collectors.toMap(MenuResponse::id, item -> item));
         LinkedHashSet<Long> visibleIds = new LinkedHashSet<>();

@@ -11,6 +11,7 @@ import {
   fetchSystemDictItems,
   fetchSystemDictTypes,
   refreshSystemDictCache,
+  upsertSystemConfigByKey,
   updateSystemDictItem,
   updateSystemDictItemStatus,
   updateSystemDictType,
@@ -37,7 +38,12 @@ import type {
   PortalTerminalRow,
   PortalTerminalSavePayload
 } from "@/api/modules/portal";
-import { fetchIamLoginPolicies, fetchIamPasswordPolicies } from "@/api/modules/iam";
+import {
+  fetchIamLoginPolicies,
+  fetchIamPasswordPolicies,
+  fetchSecurityBaseline,
+  saveSecurityBaseline
+} from "@/api/modules/iam";
 import type { IamLoginPolicyRow, IamPasswordPolicyRow } from "@/api/modules/iam";
 import BaseCard from "@/components/base/BaseCard.vue";
 import ControlSurface from "@/components/platform/ControlSurface.vue";
@@ -352,13 +358,14 @@ const currentSectionComponent = computed(
 async function loadData() {
   loading.value = true;
   try {
-    const [configRows, nextDictTypes, nextPortalClients, nextPortalTerminals, nextLoginPolicies, nextPasswordPolicies] = await Promise.all([
+    const [configRows, nextDictTypes, nextPortalClients, nextPortalTerminals, nextLoginPolicies, nextPasswordPolicies, baselineData] = await Promise.all([
       fetchSystemConfigs(),
       fetchSystemDictTypes(),
       fetchPortalClients(),
       fetchPortalTerminals(),
       fetchIamLoginPolicies(),
-      fetchIamPasswordPolicies()
+      fetchIamPasswordPolicies(),
+      fetchSecurityBaseline().catch(() => null)
     ]);
     rows.value = configRows;
     dictTypes.value = nextDictTypes;
@@ -377,18 +384,31 @@ async function loadData() {
         dictItems.value = [];
       }
     }
-    const minLength = rows.value.find((item) => item.key === "password.min_length");
-    const needSpecial = rows.value.find((item) => item.key === "password.need_special");
-    const defaultLocale = rows.value.find((item) => item.key === "i18n.default_locale");
-    if (minLength) {
-      securityPolicy.minLength = Number(minLength.value);
+    if (baselineData) {
+      securityPolicy.minLength = baselineData.minLength;
+      securityPolicy.requireSpecial = baselineData.requireSpecial;
+      securityPolicy.sessionTimeoutMinutes = baselineData.sessionTimeoutMinutes;
+      securityPolicy.passwordHistory = baselineData.passwordHistory;
+      securityPolicy.forceMfa = baselineData.forceMfa;
+    } else {
+      const minLength = rows.value.find((item) => item.key === "password.min_length");
+      const needSpecial = rows.value.find((item) => item.key === "password.need_special");
+      if (minLength) {
+        securityPolicy.minLength = Number(minLength.value);
+      }
+      if (needSpecial) {
+        securityPolicy.requireSpecial = needSpecial.value === "true";
+      }
     }
-    if (needSpecial) {
-      securityPolicy.requireSpecial = needSpecial.value === "true";
-    }
-    if (defaultLocale) {
-      localePolicy.defaultLocale = defaultLocale.value;
-    }
+    const cfgVal = (key: string) => rows.value.find((item) => item.key === key)?.value;
+    if (cfgVal("i18n.default_locale")) localePolicy.defaultLocale = cfgVal("i18n.default_locale")!;
+    if (cfgVal("i18n.fallback_locale")) localePolicy.fallbackLocale = cfgVal("i18n.fallback_locale")!;
+    if (cfgVal("i18n.cache_minutes")) localePolicy.dictionaryCacheMinutes = Number(cfgVal("i18n.cache_minutes"));
+    if (cfgVal("i18n.auto_publish") !== undefined) localePolicy.autoPublishI18n = cfgVal("i18n.auto_publish") !== "false";
+    if (cfgVal("sequence.tenant_prefix")) sequencePolicy.tenantPrefix = cfgVal("sequence.tenant_prefix")!;
+    if (cfgVal("sequence.order_prefix")) sequencePolicy.orderPrefix = cfgVal("sequence.order_prefix")!;
+    if (cfgVal("sequence.reset_cycle")) sequencePolicy.resetCycle = cfgVal("sequence.reset_cycle")!;
+    if (cfgVal("sequence.length")) sequencePolicy.sequenceLength = Number(cfgVal("sequence.length"));
   } finally {
     loading.value = false;
   }
@@ -928,11 +948,43 @@ async function handleSavePortalTerminal() {
   }
 }
 
-function savePolicy(message: string) {
-  if (currentSection.value === "locale") {
-    localeStore.setLocale(localePolicy.defaultLocale === "en-US" ? "en-US" : "zh-CN");
+async function savePolicy(message: string) {
+  const tenantId = authStore.currentUser?.tenantId ?? 1;
+  try {
+    if (currentSection.value === "security") {
+      const updated = await saveSecurityBaseline({
+        minLength: securityPolicy.minLength,
+        requireSpecial: securityPolicy.requireSpecial,
+        sessionTimeoutMinutes: securityPolicy.sessionTimeoutMinutes,
+        passwordHistory: securityPolicy.passwordHistory,
+        forceMfa: securityPolicy.forceMfa
+      });
+      securityPolicy.minLength = updated.minLength;
+      securityPolicy.requireSpecial = updated.requireSpecial;
+      securityPolicy.sessionTimeoutMinutes = updated.sessionTimeoutMinutes;
+      securityPolicy.passwordHistory = updated.passwordHistory;
+      securityPolicy.forceMfa = updated.forceMfa;
+    } else if (currentSection.value === "locale") {
+      const targetLocale = localePolicy.defaultLocale === "en-US" ? "en-US" : "zh-CN";
+      localeStore.setLocale(targetLocale);
+      await Promise.all([
+        upsertSystemConfigByKey({ tenantId, group: "i18n", key: "i18n.default_locale", name: "默认语言", value: targetLocale, valueType: "STRING", status: "ENABLED" }),
+        upsertSystemConfigByKey({ tenantId, group: "i18n", key: "i18n.fallback_locale", name: "回退语言", value: localePolicy.fallbackLocale, valueType: "STRING", status: "ENABLED" }),
+        upsertSystemConfigByKey({ tenantId, group: "i18n", key: "i18n.cache_minutes", name: "字典缓存分钟数", value: String(localePolicy.dictionaryCacheMinutes), valueType: "NUMBER", status: "ENABLED" }),
+        upsertSystemConfigByKey({ tenantId, group: "i18n", key: "i18n.auto_publish", name: "自动刷新字典缓存", value: String(localePolicy.autoPublishI18n), valueType: "BOOLEAN", status: "ENABLED" })
+      ]);
+    } else if (currentSection.value === "sequence") {
+      await Promise.all([
+        upsertSystemConfigByKey({ tenantId, group: "sequence", key: "sequence.tenant_prefix", name: "租户编号前缀", value: sequencePolicy.tenantPrefix, valueType: "STRING", status: "ENABLED" }),
+        upsertSystemConfigByKey({ tenantId, group: "sequence", key: "sequence.order_prefix", name: "订单编号前缀", value: sequencePolicy.orderPrefix, valueType: "STRING", status: "ENABLED" }),
+        upsertSystemConfigByKey({ tenantId, group: "sequence", key: "sequence.reset_cycle", name: "序号重置周期", value: sequencePolicy.resetCycle, valueType: "STRING", status: "ENABLED" }),
+        upsertSystemConfigByKey({ tenantId, group: "sequence", key: "sequence.length", name: "流水号固定长度", value: String(sequencePolicy.sequenceLength), valueType: "NUMBER", status: "ENABLED" })
+      ]);
+    }
+    ElMessage.success(message);
+  } catch (err: any) {
+    ElMessage.error(err?.response?.data?.message || err?.message || "策略持久化保存失败");
   }
-  ElMessage.success(message);
 }
 
 onMounted(loadData);

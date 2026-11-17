@@ -11,12 +11,14 @@ import com.saasbasics.platform.modules.iam.dto.SsoConfigResponse;
 import com.saasbasics.platform.modules.iam.dto.SsoConfigSaveRequest;
 import com.saasbasics.platform.modules.iam.entity.IamSsoConfigEntity;
 import com.saasbasics.platform.modules.iam.mapper.IamSsoConfigMapper;
+import com.saasbasics.platform.security.vault.CredentialVaultService;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,11 +27,14 @@ public class IamSsoService {
 
     private final IamSsoConfigMapper ssoConfigMapper;
     private final AuthService authService;
+    private final ObjectProvider<CredentialVaultService> credentialVaultProvider;
 
     public IamSsoService(IamSsoConfigMapper ssoConfigMapper,
-                         AuthService authService) {
+                         AuthService authService,
+                         ObjectProvider<CredentialVaultService> credentialVaultProvider) {
         this.ssoConfigMapper = ssoConfigMapper;
         this.authService = authService;
+        this.credentialVaultProvider = credentialVaultProvider;
     }
 
     public List<SsoConfigResponse> listConfigs() {
@@ -85,7 +90,8 @@ public class IamSsoService {
         entity.setIdpType(req.idpType());
         entity.setAppId(req.appId());
         if (req.appSecret() != null && !req.appSecret().isBlank()) {
-            entity.setAppSecret(req.appSecret());
+            CredentialVaultService vault = credentialVaultProvider.getIfAvailable();
+            entity.setAppSecret(vault != null ? vault.encrypt(req.appSecret()) : req.appSecret());
         }
         entity.setRedirectUri(req.redirectUri() != null ? req.redirectUri() : "");
         entity.setStatus(req.status() != null ? req.status() : "ENABLED");
@@ -128,17 +134,8 @@ public class IamSsoService {
     }
 
     public SsoAuthorizeResponse getAuthorizeUrl(String idpType, String redirectUri) {
-        String state = UUID.randomUUID().toString().replace("-", "");
-        String encodedRedirect = URLEncoder.encode(redirectUri != null ? redirectUri : "http://localhost:5173/auth/sso/callback", StandardCharsets.UTF_8);
-
-        String authorizeUrl = switch (idpType.toUpperCase()) {
-            case "WECOM" -> "https://open.work.weixin.qq.com/wwopen/sso/qrConnect?appid=ww_mock_enterprise&agentid=100001&redirect_uri=" + encodedRedirect + "&state=" + state;
-            case "FEISHU" -> "https://passport.feishu.cn/suite/pas/oauth/authorize?client_id=cli_mock_feishu&response_type=code&redirect_uri=" + encodedRedirect + "&state=" + state;
-            case "DINGTALK" -> "https://login.dingtalk.com/oauth2/auth?client_id=ding_mock_app&response_type=code&scope=openid&redirect_uri=" + encodedRedirect + "&state=" + state;
-            default -> "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=oidc_client_mock&response_type=code&redirect_uri=" + encodedRedirect + "&state=" + state;
-        };
-
-        return new SsoAuthorizeResponse(idpType, authorizeUrl, state);
+        java.util.Map<String, String> res = authService.getSsoAuthorizeUrl(idpType, redirectUri);
+        return new SsoAuthorizeResponse(res.get("channel"), res.get("authorizeUrl"), res.get("state"));
     }
 
     @Transactional

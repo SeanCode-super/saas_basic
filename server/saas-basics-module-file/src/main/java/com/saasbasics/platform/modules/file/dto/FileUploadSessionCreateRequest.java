@@ -6,13 +6,14 @@ import jakarta.validation.constraints.NotNull;
 
 public record FileUploadSessionCreateRequest(
         @NotNull Long tenantId,
-        @NotNull Long bucketId,
-        @NotNull Long storageId,
-        @NotBlank String objectKey,
+        Long bucketId,
+        Long storageId,
+        String objectKey,
         @NotBlank String fileName,
         @NotNull @Min(1) Long fileSize,
-        @NotBlank String uploadMode,
+        String uploadMode,
         @NotNull @Min(1) Integer partCount,
-        @NotNull Long ownerUserId
+        @NotNull Long ownerUserId,
+        String bizType
 ) {
 }

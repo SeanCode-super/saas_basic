@@ -48,6 +48,12 @@ public class WorkflowDefinitionController {
         return ApiResponse.success(definitionService.getDefinition(id));
     }
 
+    @GetMapping("/{id}/bpmn-xml")
+    @RequirePermission("workflow:definition:query")
+    public ApiResponse<String> getBpmnXml(@PathVariable Long id) {
+        return ApiResponse.success(definitionService.getBpmnXml(id));
+    }
+
     @PostMapping
     @RequirePermission("workflow:definition:write")
     public ApiResponse<ProcessDefinitionResponse> create(@Valid @RequestBody ProcessDefinitionSaveRequest request) {

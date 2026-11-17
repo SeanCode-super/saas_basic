@@ -16,52 +16,61 @@ Release gate: the default branch must build and test successfully, and a tagged 
 
 ## M1: Standard organization and identity core
 
-Status: in progress. The first V25 organization resources are implemented, but this milestone is not complete.
+Status: in progress (`V25`–`V30`, `V69`, `V74` delivered; legacy cutover remains open).
 
-Remaining work includes identity and security migration, User/Person binding, organization-scoped roles and data permissions, permission and endpoint registry separation, public RFC 9457 and OpenAPI 3.1 contracts, idempotency and outbox events, observability, frontend workflows, extension installation contracts, and load, upgrade, and rollback verification.
+Delivered foundations include the `saas-basics-module-organization` bounded context (`V25`–`V30` RFC 9562 UUIDv7, 10 standard org/identity tables, User-Person bindings, assignment-scoped contexts, PC/Mobile profile assignment view) and initial persistent outbox (`V69` `plat_outbox_event`).
 
-The core model remains industry-neutral: tenants, organization subjects, typed relations, organization units, people, engagements, positions, assignments, accounts, roles, permissions, and audit records. Legal registration, taxation, healthcare, education, and other vertical concepts belong in optional extension packages.
+Remaining release blockers (tracked in [`M1_ORGANIZATION_IMPLEMENTATION_STATUS.md`](./M1_ORGANIZATION_IMPLEMENTATION_STATUS.md)) include legacy `iam_department` / `iam_position` / `iam_employee` backfill & switchover, organization-scoped RoleBinding/DataScope refactor, public RFC 9457 / OpenAPI 3.1 contract tests, idempotency & CloudEvents 1.0 outbox consumers, OpenTelemetry full tracing, extension installation contracts, and load/upgrade/rollback verification.
 
 ## M2: IAM and platform security
 
-Deliver a complete identity and access foundation shared by every module:
+Status: substantial core implemented (`V65`–`V70`, `V74`); contract & recovery hardening ongoing.
 
-- account lifecycle, sessions, credential upgrade, MFA, and recovery;
-- organization-scoped role bindings and data-permission evaluation;
-- menu, API, endpoint, and capability registries with a stable public contract;
-- audit, security events, rate limits, and tenant/platform administration;
-- OpenAPI 3.1, RFC 9457 errors, idempotency, and compatibility tests.
+Delivered capabilities:
+
+- account lifecycle, sessions, self-service active session revocation (`/api/iam/profile/sessions`), credential upgrade, and TOTP MFA (`V67`);
+- Vault AES-256-GCM secret management and dynamic X25519 + HKDF-SHA256 + AES-256-GCM transport encryption with replay protection & keyring (`V65`–`V66`);
+- menu, API, and capability registries, API endpoint telemetry & alert rules (`V68`), audit before/after diff snapshots (`V70`), rate limits, and tenant/platform administration.
+
+Remaining work includes SMS/email OTP self-service login/recovery, OpenAPI 3.1 + RFC 9457 Problem Details unification, and compatibility contract suites.
 
 ## M3: AI-native platform services
 
-Provide provider-neutral AI capabilities under the same tenant, identity, authorization, and audit context as other platform APIs:
+Status: core capabilities implemented (`V63`–`V64`, `V71`–`V73`); model evaluation & async job workers evolving.
 
-- AI Gateway and Provider SPI with model and capability registries;
-- prompt templates, conversations, runs, tools, MCP servers, and policy checks;
-- knowledge sources, retrieval, evaluation, cost and usage accounting;
-- deterministic execution records, human approval points, and data-boundary controls.
+Delivered capabilities:
 
-No model vendor, hosted service, or vertical workflow is a required dependency of the core.
+- AI Gateway, multi-provider & model config registries (`V63`), credential refs, prompt versions, MCP servers/tools, runs, and tenant quotas (`V64`);
+- ⌘K natural-language command router & NL2SQL Data Copilot with schema catalog and history (`V71`);
+- enterprise knowledge bases with Hybrid/chunk RAG ingestion and document review (`KnowledgeBaseView`, `V72`), visual Agent Studio (`AgentStudioView`), and fine-tuning dataset curation / LoRA job tracking (`FinetuneStudioView`, `V72`–`V73`).
+
+Remaining work includes live GPU/external fine-tune trainer runners, automated offline RAG evaluation suites, and token/cost billing reconciliation.
 
 ## M4: Developer platform and extensions
 
 Make the foundation straightforward to extend and maintain:
 
 - module SDK and extension package contracts;
-- metadata-driven scaffolding and code generation;
+- metadata-driven scaffolding, AI App Builder, and code generation;
 - migration, configuration, feature-flag, and capability registration APIs;
-- stable UI shell contracts, reusable administration workflows, and examples;
+- stable UI shell contracts (including cloud-synced workspace preferences in `V74`), reusable administration workflows, and examples;
 - compatibility, extension installation, upgrade, and rollback tooling.
 
 ## M5: Operations and ecosystem hardening
 
-Harden the platform for sustained open-source use:
+Status: major infrastructure delivered (`V62`, `V68`–`V74`); cloud-native adapter & chaos hardening ongoing.
 
-- files, notifications, scheduling, integrations, and webhook primitives;
-- metrics, traces, structured logs, health checks, and operational runbooks;
-- performance, tenant-isolation, security, dependency, and upgrade testing;
-- versioning policy, changelog automation, release artifacts, and support boundaries;
-- contributor documentation, reference extensions, and community feedback loops.
+Delivered capabilities:
+
+- configurable multi-storage file engine (`LOCAL`, `S3`/`MinIO`/`OSS`/`COS`/`OBS` config), per-business upload mode & directory routing (`file_upload_route`, `V74`), and missing-storage-source fail-fast guard;
+- global sync/async data export queue, saved templates, scheduled report delivery, Download Center (`V71`–`V72`), and document Print Center (`PrintCenterView`);
+- tenant disaster-recovery snapshot/restore (`V69` `plat_tenant_snapshot_record`), DevOps service orchestration (`V62`), API stats & alert rules (`V68`).
+
+Remaining hardening work:
+
+- real AWS SigV4 / cloud SDK HTTP signing for non-local object storage direct PUT/GET;
+- persistent SMS/Email/Push transport adapters (replacing in-memory `MessageGatewayService` deque);
+- full Prometheus/OTel dashboards, load/chaos/tenant-isolation/upgrade tests, versioning policy, and release automation.
 
 ## Release policy
 

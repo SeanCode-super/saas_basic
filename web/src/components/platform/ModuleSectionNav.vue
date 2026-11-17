@@ -38,35 +38,41 @@ function update(value: string) {
 <style scoped lang="scss">
 .module-section-nav {
   display: block;
+  background: var(--sb-glass-bg, rgba(255, 255, 255, 0.90));
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  border-radius: 14px;
+  padding: 4px 16px 0;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 4px 14px -4px rgba(15, 23, 42, 0.05);
 }
 
 .module-section-nav__grid {
   display: flex;
   flex-wrap: wrap;
   gap: 20px;
-  border-bottom: 1px solid var(--sb-border-color);
 }
 
 .module-section-nav__item {
   display: inline-flex;
   align-items: center;
   margin-bottom: -1px;
-  padding: 9px 2px;
+  padding: 10px 4px;
   border: 0;
-  border-bottom: 2px solid transparent;
+  border-bottom: 2.5px solid transparent;
   background: transparent;
-  color: var(--sb-text-secondary);
+  color: var(--sb-text-muted, #475569);
   text-align: left;
   cursor: pointer;
   transition: 140ms ease;
 
   &:hover {
-    color: var(--sb-text-primary);
+    color: var(--sb-text-primary, #0f172a);
   }
 
   &.is-active {
-    border-bottom-color: var(--sb-primary-color);
-    color: var(--sb-primary-color);
+    border-bottom-color: var(--sb-primary-color, #2563eb);
+    color: var(--sb-primary-color, #2563eb);
   }
 
   strong {

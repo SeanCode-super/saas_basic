@@ -47,7 +47,33 @@ public class TenantBootstrapService {
         long userId = createAdminUser(tenantId, tenantCode, tenantName);
         bindUserRole(tenantId, userId, roleId);
         createPortalClientAndTerminal(tenantId, tenantCode, tenantName, loginPolicyId, passwordPolicyId);
+        initializeTenantApps(tenantId);
+        cloneDefaultProcessDefinitions(tenantId);
         auditTrailService.record("tenant", "tenant_bootstrap", String.valueOf(tenantId), "BOOTSTRAP", tenantCode, "initialized", true);
+    }
+
+    private void initializeTenantApps(Long tenantId) {
+        jdbcTemplate.update("""
+                INSERT INTO plat_tenant_app (tenant_id, app_code, app_name, status, remark, created_by, updated_by)
+                SELECT ?, app_code, app_name, 'ENABLED', 'tenant bootstrap', 1, 1
+                FROM plat_tenant_app
+                WHERE tenant_id = ? AND deleted = 0
+                ON DUPLICATE KEY UPDATE status = 'ENABLED'
+                """, tenantId, SOURCE_TENANT_ID);
+    }
+
+    private void cloneDefaultProcessDefinitions(Long tenantId) {
+        jdbcTemplate.update("""
+                INSERT INTO wf_process_definition (
+                    tenant_id, process_code, process_name, category, icon, color, description,
+                    form_schema_json, flow_nodes_json, bpmn_xml, flowable_deployment_id, version, status, sort_no, created_by, updated_by, deleted
+                )
+                SELECT
+                    ?, process_code, process_name, category, icon, color, description,
+                    form_schema_json, flow_nodes_json, bpmn_xml, flowable_deployment_id, version, status, sort_no, 1, 1, 0
+                FROM wf_process_definition
+                WHERE tenant_id = ? AND deleted = 0 AND status = 'PUBLISHED'
+                """, tenantId, SOURCE_TENANT_ID);
     }
 
     private long cloneLoginPolicy(Long tenantId, String tenantCode, String tenantName) {

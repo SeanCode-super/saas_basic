@@ -21,6 +21,7 @@ declare module 'vue' {
     ElAvatar: typeof import('element-plus/es')['ElAvatar']
     ElBadge: typeof import('element-plus/es')['ElBadge']
     ElButton: typeof import('element-plus/es')['ElButton']
+    ElButtonGroup: typeof import('element-plus/es')['ElButtonGroup']
     ElCard: typeof import('element-plus/es')['ElCard']
     ElCheckbox: typeof import('element-plus/es')['ElCheckbox']
     ElCheckboxGroup: typeof import('element-plus/es')['ElCheckboxGroup']
@@ -75,6 +76,7 @@ declare module 'vue' {
     ElTreeSelect: typeof import('element-plus/es')['ElTreeSelect']
     ElUpload: typeof import('element-plus/es')['ElUpload']
     ElWatermark: typeof import('element-plus/es')['ElWatermark']
+    ExportDialog: typeof import('./../components/platform/ExportDialog.vue')['default']
     ModuleSectionNav: typeof import('./../components/platform/ModuleSectionNav.vue')['default']
     ModuleWorkbench: typeof import('./../components/platform/ModuleWorkbench.vue')['default']
     NavigationAtlas: typeof import('./../components/platform/NavigationAtlas.vue')['default']
@@ -87,6 +89,7 @@ declare module 'vue' {
     SchemaForm: typeof import('./../components/pro/SchemaForm.vue')['default']
     TagsView: typeof import('./../components/platform/TagsView.vue')['default']
     TenantSwitcher: typeof import('./../components/platform/TenantSwitcher.vue')['default']
+    TianshuLogo: typeof import('./../components/brand/TianshuLogo.vue')['default']
   }
   export interface GlobalDirectives {
     vLoading: typeof import('element-plus/es')['ElLoadingDirective']

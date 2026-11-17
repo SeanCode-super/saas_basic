@@ -21,23 +21,31 @@ public class MessageGatewayService {
     private final SmsClientFactory smsClientFactory;
     private final MailClient mailClient;
     private final EnterpriseBotClient enterpriseBotClient;
+    private final SmsRateLimiter smsRateLimiter;
     private final Deque<MessageLogItem> logQueue = new ConcurrentLinkedDeque<>();
 
-    public MessageGatewayService(SmsClientFactory smsClientFactory, MailClient mailClient, EnterpriseBotClient enterpriseBotClient) {
+    public MessageGatewayService(SmsClientFactory smsClientFactory, MailClient mailClient, EnterpriseBotClient enterpriseBotClient, SmsRateLimiter smsRateLimiter) {
         this.smsClientFactory = smsClientFactory;
         this.mailClient = mailClient;
         this.enterpriseBotClient = enterpriseBotClient;
+        this.smsRateLimiter = smsRateLimiter;
 
         // 初始化几条演示审计台账
         initSampleLogs();
     }
 
     public SmsSendResult sendSms(SmsSendRequest request) {
+        // 工业级短信风控安全校验
+        smsRateLimiter.checkRateLimit(request.phone());
+
         long start = System.currentTimeMillis();
         SmsClient client = smsClientFactory.getClient(request.channelCode());
         SmsSendResult result;
         try {
             result = client.sendSms(request);
+            if (result.success()) {
+                smsRateLimiter.recordSuccess(request.phone());
+            }
         } catch (Exception e) {
             log.error("[MessageGateway] 短信发送异常: phone={}", request.phone(), e);
             result = SmsSendResult.failure(client.getChannelCode(), request.phone(), "SEND_ERROR", e.getMessage());

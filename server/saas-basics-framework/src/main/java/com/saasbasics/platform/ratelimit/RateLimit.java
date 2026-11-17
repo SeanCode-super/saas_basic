@@ -7,7 +7,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 接口防刷与租户级限流注解。
+ * 接口防刷与租户级滑动窗口限流注解。
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
@@ -20,9 +20,19 @@ public @interface RateLimit {
     RateLimitType type() default RateLimitType.TENANT;
 
     /**
-     * 频次限制（每秒允许的最大请求数，QPS）
+     * 频次限制（默认每秒最大请求数；若设置 permits &gt; 0 则优先使用 permits + windowSeconds）
      */
     int permitsPerSecond() default 100;
+
+    /**
+     * 自定义窗口内最大许可数（为 0 时回退使用 permitsPerSecond）
+     */
+    int permits() default 0;
+
+    /**
+     * 滑动时间窗口长度（秒），默认 1 秒
+     */
+    int windowSeconds() default 1;
 
     /**
      * 限流触发时的提示消息

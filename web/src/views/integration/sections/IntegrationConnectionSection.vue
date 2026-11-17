@@ -1,10 +1,21 @@
 <script setup lang="ts">
-import { reactive, ref } from "vue";
-import { ElMessage } from "element-plus";
-import { CircleCheck, Connection, Cpu, Refresh, Setting, VideoPlay, Warning, Key } from "@element-plus/icons-vue";
+import {
+  ref
+} from "vue";
+import {
+  ElMessage
+} from "element-plus";
+import {
+  CircleCheck,
+  Connection,
+  Cpu,
+  Refresh,
+  Setting,
+  Key
+} from "@element-plus/icons-vue";
 import BaseCard from "@/components/base/BaseCard.vue";
 
-const props = defineProps<{
+defineProps<{
   connectionPolicy: {
     defaultTimeoutMs: number;
     rotationCycleDays: number;
@@ -214,7 +225,7 @@ function probeSingle(row: any) {
     }
 
     .telemetry-label {
-      color: #64748b;
+      color: #475569;
       font-size: 12px;
     }
 

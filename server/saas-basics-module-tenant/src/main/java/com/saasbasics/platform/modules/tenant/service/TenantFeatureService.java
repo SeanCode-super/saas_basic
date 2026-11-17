@@ -168,7 +168,7 @@ public class TenantFeatureService implements TenantFeatureProvider {
 
         // Platform root tenant (tenantId == 1) defaults to having all system apps enabled unless explicitly disabled
         if (tenantId == 1L) {
-            for (String code : List.of("iam", "tenant", "workflow", "file", "crm", "erp", "scheduler", "audit", "integration", "system", "codegen", "dashboard")) {
+            for (String code : List.of("iam", "tenant", "workflow", "file", "crm", "erp", "scheduler", "audit", "integration", "system", "codegen", "dashboard", "report")) {
                 effective.add(code);
                 effective.add("saas." + code + ".basic");
                 effective.add("saas." + code + ".all");

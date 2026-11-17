@@ -16,6 +16,7 @@ public record WorkflowTaskResponse(
         String nodeId,
         String nodeName,
         String nodeType,
+        String flowableTaskId,
         Long assigneeId,
         String assigneeName,
         String status,

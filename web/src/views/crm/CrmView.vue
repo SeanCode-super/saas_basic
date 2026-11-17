@@ -7,7 +7,9 @@ import {
   Check,
   Close,
   Document,
+  Download,
   Lock,
+  MagicStick,
   Money,
   Phone,
   Plus,
@@ -49,10 +51,23 @@ import type {
   CrmReceivableRow,
   CrmStatistics
 } from "@/api/modules/crm";
+import ExportDialog from "@/components/platform/ExportDialog.vue";
+import { fetchCrmCopilotSuggestion, type KnowledgeCitation } from "@/api/modules/ai";
 
 const route = useRoute();
 const activeTab = ref<"customers" | "clues" | "businesses" | "contracts" | "receivables">("customers");
 const loading = ref(false);
+const exportDialogVisible = ref(false);
+const crmExportSourceCode = computed(() => {
+  const map: Record<string, string> = {
+    customers: "crm_customer",
+    clues: "crm_clue",
+    businesses: "crm_business",
+    contracts: "crm_contract",
+    receivables: "crm_receivable"
+  };
+  return map[activeTab.value] || "crm_customer";
+});
 
 function syncTabFromRoute() {
   const p = route.path.toLowerCase();
@@ -186,6 +201,30 @@ async function loadStats() {
     console.error("Failed to load CRM stats:", err);
   }
 }
+
+// 统一分页
+const crmPage = ref(1);
+const crmPageSize = ref(10);
+
+const currentCrmList = computed(() => {
+  switch (activeTab.value) {
+    case "customers": return customers.value;
+    case "clues": return clues.value;
+    case "businesses": return businesses.value;
+    case "contracts": return contracts.value;
+    case "receivables": return receivables.value;
+    default: return [];
+  }
+});
+
+const paginatedCrmList = computed(() => {
+  const start = (crmPage.value - 1) * crmPageSize.value;
+  return currentCrmList.value.slice(start, start + crmPageSize.value);
+});
+
+watch(activeTab, () => {
+  crmPage.value = 1;
+});
 
 // 加载客户列表
 async function loadCustomers() {
@@ -454,10 +493,42 @@ async function handleApproveReceivable(row: CrmReceivableRow) {
 }
 
 // 跟进记录抽屉
+const crmCopilotLoading = ref(false);
+const crmCopilotAdvice = ref<{
+  targetName: string;
+  riskLevel: string;
+  riskSummary: string;
+  suggestedPitch: string;
+  policyReferences: KnowledgeCitation[];
+  recentContractCount: number;
+} | null>(null);
+
+async function loadCrmCopilotAdvice() {
+  if (!currentFollowUpTarget.value.bizId) return;
+  crmCopilotLoading.value = true;
+  try {
+    crmCopilotAdvice.value = await fetchCrmCopilotSuggestion(
+      currentFollowUpTarget.value.bizType,
+      currentFollowUpTarget.value.bizId
+    );
+  } catch {
+    ElMessage.error("生成 AI 话术建议失败");
+  } finally {
+    crmCopilotLoading.value = false;
+  }
+}
+
+function applyCopilotPitchToInput() {
+  if (crmCopilotAdvice.value?.suggestedPitch) {
+    followUpForm.content = crmCopilotAdvice.value.suggestedPitch;
+  }
+}
+
 async function openFollowUpDrawer(bizType: string, bizId: number, title: string) {
   currentFollowUpTarget.value = { bizType, bizId, title };
   followUpForm.content = "";
   followUpForm.nextContactTime = "";
+  crmCopilotAdvice.value = null;
   followUpDrawerVisible.value = true;
   await loadFollowUpRecords();
 }
@@ -469,7 +540,7 @@ async function loadFollowUpRecords() {
       bizId: currentFollowUpTarget.value.bizId
     });
     followUpRecords.value = res.data || [];
-  } catch (err: any) {
+  } catch {
     ElMessage.error("加载跟进记录失败");
   }
 }
@@ -537,6 +608,11 @@ onMounted(() => {
           <span class="value">¥{{ (stats.receivableReceivedAmount || 0).toLocaleString() }}</span>
         </div>
       </div>
+      <div class="telemetry-right">
+        <el-button type="primary" plain size="small" :icon="Download" @click="exportDialogVisible = true">
+          安全导出 / AI 报告
+        </el-button>
+      </div>
     </div>
 
     <!-- 核心业务多标签控制台 -->
@@ -564,37 +640,37 @@ onMounted(() => {
             </div>
           </div>
 
-          <el-table :data="customers" v-loading="loading" stripe border style="width: 100%">
-            <el-table-column prop="customerCode" label="客户编号" width="160" />
-            <el-table-column prop="name" label="企业客户名称" min-width="200">
+          <el-table :data="paginatedCrmList" v-loading="loading" stripe border style="width: 100%">
+            <el-table-column prop="customerCode" label="客户编号" width="136" show-overflow-tooltip />
+            <el-table-column prop="name" label="企业客户名称" min-width="172" show-overflow-tooltip>
               <template #default="{ row }">
                 <span class="customer-name-link" @click="openFollowUpDrawer('CUSTOMER', row.id, row.name)">{{ row.name }}</span>
                 <el-tag size="small" type="danger" v-if="row.lockStatus === 1" style="margin-left: 6px">锁定</el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="level" label="客户级别" width="100" align="center">
+            <el-table-column prop="level" label="级别" width="78" align="center">
               <template #default="{ row }">
                 <el-tag :type="row.level === 'A' ? 'danger' : row.level === 'B' ? 'warning' : 'info'" effect="dark">
                   {{ row.level }} 级
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="industry" label="所属行业" width="130" />
-            <el-table-column prop="mobile" label="联系电话" width="130" />
-            <el-table-column prop="dealStatus" label="成交状态" width="100" align="center">
+            <el-table-column prop="industry" label="所属行业" min-width="136" show-overflow-tooltip />
+            <el-table-column prop="mobile" label="联系电话" width="122" />
+            <el-table-column prop="dealStatus" label="成交状态" width="90" align="center">
               <template #default="{ row }">
                 <el-tag :type="row.dealStatus === 1 ? 'success' : 'info'">
                   {{ row.dealStatus === 1 ? "已成交" : "未成交" }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="ownerUserName" label="当前归属" width="120">
+            <el-table-column prop="ownerUserName" label="当前归属" width="102" show-overflow-tooltip>
               <template #default="{ row }">
                 <span :class="row.isPool === 1 ? 'pool-owner' : 'active-owner'">{{ row.ownerUserName || '公海池' }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="lastContactTime" label="最后跟进时间" width="160" />
-            <el-table-column label="操作" width="240" fixed="right">
+            <el-table-column prop="lastContactTime" label="最后跟进时间" width="128" show-overflow-tooltip />
+            <el-table-column label="操作" width="246" fixed="right">
               <template #default="{ row }">
                 <el-button v-if="row.isPool === 1" link type="success" size="small" :icon="TrendCharts" @click="handleClaim(row)">抢单认领</el-button>
                 <template v-else>
@@ -627,7 +703,7 @@ onMounted(() => {
             </div>
           </div>
 
-          <el-table :data="clues" v-loading="loading" stripe border style="width: 100%">
+          <el-table :data="paginatedCrmList" v-loading="loading" stripe border style="width: 100%">
             <el-table-column prop="name" label="线索名称/项目意向" min-width="180" />
             <el-table-column prop="contactName" label="联系人" width="120" />
             <el-table-column prop="mobile" label="手机号码" width="130" />
@@ -641,7 +717,7 @@ onMounted(() => {
             </el-table-column>
             <el-table-column prop="ownerUserName" label="跟进责任人" width="120" />
             <el-table-column prop="nextContactTime" label="预约下次跟进" width="160" />
-            <el-table-column label="操作" width="220" fixed="right">
+            <el-table-column label="操作" min-width="200">
               <template #default="{ row }">
                 <el-button link type="primary" size="small" :icon="Calendar" @click="openFollowUpDrawer('CLUE', row.id, row.name)">写跟进</el-button>
                 <el-button v-if="row.status !== 'CONVERTED'" link type="success" size="small" :icon="Check" @click="handleConvertClue(row)">一键转客户</el-button>
@@ -669,7 +745,7 @@ onMounted(() => {
             </div>
           </div>
 
-          <el-table :data="businesses" v-loading="loading" stripe border style="width: 100%">
+          <el-table :data="paginatedCrmList" v-loading="loading" stripe border style="width: 100%">
             <el-table-column prop="businessCode" label="商机编号" width="160" />
             <el-table-column prop="name" label="商机名称" min-width="180" />
             <el-table-column prop="customerName" label="关联企业客户" min-width="160" />
@@ -691,7 +767,7 @@ onMounted(() => {
               </template>
             </el-table-column>
             <el-table-column prop="dealDate" label="预计结单日" width="120" />
-            <el-table-column label="操作" width="180" fixed="right">
+            <el-table-column label="操作" min-width="180">
               <template #default="{ row }">
                 <el-button link type="primary" size="small" :icon="TrendCharts" @click="openStageDialog(row)">推进阶段</el-button>
                 <el-button link type="info" size="small" :icon="Calendar" @click="openFollowUpDrawer('BUSINESS', row.id, row.name)">跟进</el-button>
@@ -718,7 +794,7 @@ onMounted(() => {
             </div>
           </div>
 
-          <el-table :data="contracts" v-loading="loading" stripe border style="width: 100%">
+          <el-table :data="paginatedCrmList" v-loading="loading" stripe border style="width: 100%">
             <el-table-column prop="contractNo" label="合同编号" width="160" />
             <el-table-column prop="name" label="合同名称" min-width="200" />
             <el-table-column prop="customerName" label="客户名录" min-width="160" />
@@ -739,7 +815,7 @@ onMounted(() => {
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="220" fixed="right">
+            <el-table-column label="操作" min-width="200">
               <template #default="{ row }">
                 <template v-if="row.status === 'APPROVING'">
                   <el-button link type="success" size="small" :icon="Check" @click="handleApproveContract(row, true)">通过</el-button>
@@ -766,7 +842,7 @@ onMounted(() => {
             </div>
           </div>
 
-          <el-table :data="receivables" v-loading="loading" stripe border style="width: 100%">
+          <el-table :data="paginatedCrmList" v-loading="loading" stripe border style="width: 100%">
             <el-table-column prop="receivableNo" label="回款单号" width="160" />
             <el-table-column prop="contractName" label="对应商务合同" min-width="180" />
             <el-table-column prop="customerName" label="付款方企业" min-width="160" />
@@ -788,7 +864,7 @@ onMounted(() => {
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="160" fixed="right">
+            <el-table-column label="操作" min-width="150">
               <template #default="{ row }">
                 <el-button v-if="row.status === 'PENDING'" link type="success" size="small" :icon="Check" @click="handleApproveReceivable(row)">确认到账</el-button>
                 <span v-else style="color: #909399; font-size: 13px">已到账归档</span>
@@ -797,6 +873,17 @@ onMounted(() => {
           </el-table>
         </el-tab-pane>
       </el-tabs>
+
+      <div class="crm-pagination-bar">
+        <el-pagination
+          v-model:current-page="crmPage"
+          v-model:page-size="crmPageSize"
+          :page-sizes="[10, 20, 50, 100]"
+          layout="total, sizes, prev, pager, next, jumper"
+          :total="currentCrmList.length"
+          background
+        />
+      </div>
     </el-card>
 
     <!-- 弹窗 1：新建客户 -->
@@ -1017,6 +1104,33 @@ onMounted(() => {
           </div>
         </el-card>
 
+        <!-- AI 内嵌跟进参谋（话术建议 & 风险摘要） -->
+        <el-card shadow="never" style="margin: 12px 0; border-radius: 10px; background: #f8fafc;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+            <span style="font-size: 13px; font-weight: 600; color: #1e3a8a;">✨ AI 跟进话术与合规风险参谋</span>
+            <el-button size="small" type="primary" plain :icon="MagicStick" :loading="crmCopilotLoading" @click="loadCrmCopilotAdvice">
+              生成 AI 建议
+            </el-button>
+          </div>
+          <template v-if="crmCopilotAdvice">
+            <div style="margin-bottom: 6px; font-size: 12px; color: #334155;">
+              <el-tag size="small" :type="crmCopilotAdvice.riskLevel === 'LOW' ? 'success' : 'warning'" style="margin-right: 6px;">
+                风险等级 {{ crmCopilotAdvice.riskLevel }}
+              </el-tag>
+              {{ crmCopilotAdvice.riskSummary }}
+            </div>
+            <div style="padding: 8px 10px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 12px; line-height: 1.5; white-space: pre-wrap;">
+              {{ crmCopilotAdvice.suggestedPitch }}
+            </div>
+            <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
+              <el-button link type="primary" size="small" @click="applyCopilotPitchToInput">一键填入跟进框</el-button>
+            </div>
+          </template>
+          <div v-else style="font-size: 12px; color: #64748b;">
+            点击生成基于客户历史合同与企业知识库红线的推荐话术与履约风险提示。
+          </div>
+        </el-card>
+
         <!-- 历史时间轴 -->
         <div class="timeline-wrapper">
           <el-timeline v-if="followUpRecords.length > 0">
@@ -1043,25 +1157,36 @@ onMounted(() => {
         </div>
       </div>
     </el-drawer>
+
+    <ExportDialog
+      v-model:visible="exportDialogVisible"
+      :source-code="crmExportSourceCode"
+    />
   </div>
 </template>
 
 <style scoped>
 .crm-container {
-  padding: 16px;
-  background-color: var(--el-bg-color-page, #f5f7fa);
+  padding: 8px 4px 20px;
+  background: transparent;
   min-height: calc(100vh - 84px);
+  box-sizing: border-box;
 }
 
+/* iOS 27 晶透遥测指令条 */
 .crm-telemetry-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 16px;
-  background: #fff;
-  border-radius: 8px;
-  border: 1px solid var(--el-border-color-light, #e4e7ed);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.03);
+  padding: 12px 20px;
+  background: var(--sb-glass-bg, rgba(255, 255, 255, 0.90));
+  backdrop-filter: var(--sb-glass-blur);
+  -webkit-backdrop-filter: var(--sb-glass-blur);
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  border-radius: 18px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    0 6px 20px -6px rgba(15, 23, 42, 0.05);
   margin-bottom: 16px;
 
   .telemetry-left {
@@ -1084,12 +1209,12 @@ onMounted(() => {
 
     .label {
       font-size: 13px;
-      color: #64748b;
+      color: #475569;
     }
 
     .value {
       font-size: 13px;
-      font-weight: 600;
+      font-weight: 650;
       color: #0f172a;
     }
   }
@@ -1097,12 +1222,19 @@ onMounted(() => {
   .divider {
     width: 1px;
     height: 14px;
-    background: #e2e8f0;
+    background: #cbd5e1;
   }
 }
 
 .main-card {
-  border-radius: 8px;
+  border-radius: 22px;
+  background: var(--sb-glass-bg, rgba(255, 255, 255, 0.90)) !important;
+  backdrop-filter: var(--sb-glass-blur) !important;
+  -webkit-backdrop-filter: var(--sb-glass-blur) !important;
+  border: 1px solid rgba(226, 232, 240, 0.92) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    0 10px 28px -8px rgba(15, 23, 42, 0.06) !important;
 }
 
 .tab-toolbar {
@@ -1181,7 +1313,7 @@ onMounted(() => {
 
 .timeline-operator {
   font-size: 12px;
-  color: #64748b;
+  color: #475569;
 }
 
 .timeline-content {
@@ -1195,5 +1327,13 @@ onMounted(() => {
   font-size: 12px;
   color: #0284c7;
   font-weight: 500;
+}
+
+.crm-pagination-bar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 16px 8px 8px;
+  margin-top: 12px;
+  border-top: 1px solid rgba(226, 232, 240, 0.6);
 }
 </style>

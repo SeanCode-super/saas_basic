@@ -1,9 +1,19 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { ElMessage, ElMessageBox } from "element-plus";
-import { Plus, Check, RefreshRight, Tickets, MagicStick, CircleCheck, Setting, Key } from "@element-plus/icons-vue";
+import {
+  ElMessage,
+  ElMessageBox
+} from "element-plus";
+import {
+  Check,
+  RefreshRight,
+  Tickets,
+  MagicStick,
+  CircleCheck,
+  Setting
+} from "@element-plus/icons-vue";
 
-const props = defineProps<{
+defineProps<{
   sequencePolicy: {
     tenantPrefix: string;
     orderPrefix: string;
@@ -14,8 +24,6 @@ const props = defineProps<{
 }>();
 
 const policyExpanded = ref(false);
-const simulatedTenantSeq = ref(42);
-const simulatedOrderSeq = ref(1089);
 const editDialogVisible = ref(false);
 const editingRule = ref<any>(null);
 
@@ -225,7 +233,7 @@ function handleSaveRule() {
             <span class="seq-code" style="color: #16a34a">{{ row.sample }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="动作演练与配置" width="220" fixed="right">
+        <el-table-column label="动作演练与配置" min-width="180">
           <template #default="{ row }">
             <el-button link type="primary" :icon="MagicStick" @click="handleGenerateNext(row)">发号测试</el-button>
             <el-button link type="warning" :icon="RefreshRight" @click="handleResetCounter(row)">归零重置</el-button>
@@ -317,7 +325,7 @@ function handleSaveRule() {
     }
 
     .telemetry-label {
-      color: #64748b;
+      color: #475569;
       font-size: 12px;
     }
 
@@ -365,7 +373,7 @@ function handleSaveRule() {
   .panel-subtitle {
     margin: 0;
     font-size: 12px;
-    color: #64748b;
+    color: #475569;
   }
 }
 

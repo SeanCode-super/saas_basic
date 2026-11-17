@@ -46,6 +46,8 @@ export interface ProcessDefinitionRow {
   description?: string;
   formSchemaJson?: string;
   flowNodesJson?: string;
+  bpmnXml?: string;
+  flowableDeploymentId?: string;
   version: number;
   status: "DRAFT" | "PUBLISHED" | "DISABLED";
   sortNo: number;
@@ -68,6 +70,7 @@ export interface ProcessInstanceRow {
   initiatorDeptName?: string;
   currentNodeId?: string;
   currentNodeName?: string;
+  flowableProcInstId?: string;
   status: "RUNNING" | "APPROVED" | "REJECTED" | "CANCELLED";
   startTime: string;
   endTime?: string;
@@ -88,6 +91,7 @@ export interface WorkflowTaskRow {
   nodeId: string;
   nodeName: string;
   nodeType: "APPROVER" | "CC" | "DELEGATE" | string;
+  flowableTaskId?: string;
   assigneeId: number;
   assigneeName: string;
   status: "PENDING" | "COMPLETED" | "REJECTED" | "TRANSFERRED" | "CANCELLED" | "ROLLBACK" | "DELEGATED" | string;
@@ -129,6 +133,7 @@ export interface ProcessDefinitionSavePayload {
   description?: string;
   formSchemaJson?: string;
   flowNodesJson?: string;
+  bpmnXml?: string;
   status?: string;
   sortNo?: number;
 }
@@ -245,4 +250,37 @@ export async function checkWorkflowHealth(): Promise<{ status: string; standalon
   const res = await http.get<ApiResponse<{ status: string; standaloneUrl?: string }>>("/workflow/health");
   return res.data.data;
 }
+
+export async function fetchWorkflowBpmnXml(id: number): Promise<string> {
+  const res = await http.get<ApiResponse<string>>(`/workflow/definitions/${id}/bpmn-xml`);
+  return res.data.data;
+}
+
+export interface FlowableTraceItem {
+  activityId: string;
+  activityName: string;
+  activityType: string;
+  assignee?: string;
+  startTime: string;
+  endTime?: string;
+  durationInMillis?: number;
+  completed: boolean;
+}
+
+export interface FlowableTraceResponse {
+  instanceId: number;
+  instanceNo: string;
+  processCode: string;
+  flowableProcInstId?: string;
+  status: string;
+  engineType: string;
+  activeActivityIds: string[];
+  traceList: FlowableTraceItem[];
+}
+
+export async function fetchFlowableTrace(instanceId: number): Promise<FlowableTraceResponse> {
+  const res = await http.get<ApiResponse<FlowableTraceResponse>>(`/workflow/instances/${instanceId}/flowable-trace`);
+  return res.data.data;
+}
+
 

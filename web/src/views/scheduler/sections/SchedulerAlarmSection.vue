@@ -303,7 +303,7 @@ function resolveTriggerBadge(rule: any) {
     }
 
     .metric-label {
-      color: #64748b;
+      color: #475569;
       font-size: 12px;
     }
 

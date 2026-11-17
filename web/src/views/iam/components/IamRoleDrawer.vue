@@ -5,12 +5,10 @@ import {
   ArrowRight,
   Check,
   Clock,
-  Close,
   DataAnalysis,
   Delete,
   Document,
   Expand,
-  Filter,
   Fold,
   Key,
   Plus,
@@ -1179,16 +1177,18 @@ async function handleSaveAll() {
 
     .role-desc {
       font-size: 13px;
-      color: #64748b;
+      color: #475569;
       line-height: 1.5;
     }
   }
 }
 
 .drawer-tabs-wrapper {
-  background: #fff;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   padding: 12px 24px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
 
   .segmented-tabs {
     display: flex;
@@ -1269,9 +1269,9 @@ async function handleSaveAll() {
 }
 
 .empty-search-box {
-  background: #fff;
-  border-radius: 10px;
-  border: 1px dashed #cbd5e1;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 14px;
+  border: 1px dashed rgba(203, 213, 225, 0.8);
   padding: 32px 0;
 }
 
@@ -1283,14 +1283,19 @@ async function handleSaveAll() {
 }
 
 .menu-group-card {
-  background: #fff;
-  border-radius: 10px;
-  border: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.90);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.95), 0 8px 20px -6px rgba(12, 34, 56, 0.05);
   overflow: hidden;
-  transition: border-color 0.15s ease;
+  transition: all 0.18s ease;
 
   &:hover {
-    border-color: #cbd5e1;
+    border-color: rgba(255, 255, 255, 0.98);
+    background: rgba(255, 255, 255, 0.75);
+    box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 1), 0 12px 28px -6px rgba(12, 34, 56, 0.08);
   }
 
   .group-header {
@@ -1315,7 +1320,7 @@ async function handleSaveAll() {
 
       .chevron-icon {
         font-size: 13px;
-        color: #94a3b8;
+        color: #475569;
         transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 
         &.is-open {
@@ -1350,7 +1355,7 @@ async function handleSaveAll() {
 
       &.inactive {
         background: #f1f5f9;
-        color: #94a3b8;
+        color: #475569;
       }
     }
   }
@@ -1403,7 +1408,7 @@ async function handleSaveAll() {
         .page-code {
           margin-left: 6px;
           font-size: 11px;
-          color: #94a3b8;
+          color: #475569;
           font-family: ui-monospace, monospace;
         }
       }
@@ -1418,7 +1423,7 @@ async function handleSaveAll() {
           padding: 2px 8px;
           border-radius: 10px;
           font-size: 11px;
-          color: #94a3b8;
+          color: #475569;
           background: #f1f5f9;
           cursor: help;
           user-select: none;
@@ -1433,7 +1438,7 @@ async function handleSaveAll() {
           border: 1px solid #e2e8f0;
           background: #fff;
           font-size: 11px;
-          color: #64748b;
+          color: #475569;
           cursor: pointer;
           transition: all 0.15s ease;
           outline: none;
@@ -1491,7 +1496,7 @@ async function handleSaveAll() {
           align-items: center;
           gap: 6px;
           font-size: 11px;
-          color: #64748b;
+          color: #475569;
           font-weight: 500;
 
           .guide-icon {
@@ -1531,7 +1536,7 @@ async function handleSaveAll() {
 
           .act-code {
             font-size: 10px;
-            color: #94a3b8;
+            color: #475569;
             font-family: ui-monospace, monospace;
           }
 
@@ -1600,22 +1605,26 @@ async function handleSaveAll() {
 }
 
 .scope-select-card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.90);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
   padding: 14px 16px;
   cursor: pointer;
   transition: all 0.18s ease;
 
   &:hover {
-    border-color: #93c5fd;
-    box-shadow: 0 2px 6px rgb(37 99 235 / 0.05);
+    border-color: rgba(255, 255, 255, 1);
+    background: rgba(255, 255, 255, 0.8);
+    box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 1), 0 8px 20px -4px rgba(12, 34, 56, 0.08);
   }
 
   &.selected {
     border-color: #2563eb;
-    background: #f0f7ff;
-    box-shadow: 0 0 0 1px #2563eb;
+    background: rgba(239, 246, 255, 0.85);
+    box-shadow: 0 0 0 1px #2563eb, inset 0 1px 1.5px 0 rgba(255, 255, 255, 1);
   }
 
   .card-radio-row {
@@ -1657,15 +1666,16 @@ async function handleSaveAll() {
   .card-sub {
     margin-left: 26px;
     font-size: 12px;
-    color: #64748b;
+    color: #475569;
     line-height: 1.45;
   }
 }
 
 .custom-scope-box {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.90);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 16px;
+  box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.95);
   padding: 16px;
 
   .field-label {
@@ -1678,9 +1688,9 @@ async function handleSaveAll() {
 }
 
 .preview-sql-box {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.90);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 14px;
   padding: 12px 16px;
 
   .preview-header {
@@ -1694,10 +1704,10 @@ async function handleSaveAll() {
   }
 
   .preview-code {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
+    background: rgba(248, 250, 252, 0.6);
+    border: 1px solid rgba(226, 232, 240, 0.6);
     padding: 8px 12px;
-    border-radius: 6px;
+    border-radius: 8px;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-size: 12px;
     color: #2563eb;
@@ -1724,9 +1734,11 @@ async function handleSaveAll() {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.90);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  border-radius: 14px;
+  box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.95);
   padding: 10px 14px;
 
   .user-avatar-initial {
@@ -1760,13 +1772,13 @@ async function handleSaveAll() {
 
       .user-handle {
         font-size: 12px;
-        color: #94a3b8;
+        color: #475569;
       }
     }
 
     .user-sub-line {
       font-size: 11px;
-      color: #64748b;
+      color: #475569;
       margin-top: 2px;
     }
   }
@@ -1833,7 +1845,7 @@ async function handleSaveAll() {
 
         .log-operator {
           font-size: 12px;
-          color: #64748b;
+          color: #475569;
         }
       }
     }
@@ -1880,7 +1892,7 @@ async function handleSaveAll() {
 
   .summary-stat {
     font-size: 13px;
-    color: #64748b;
+    color: #475569;
 
     strong {
       color: #1e293b;

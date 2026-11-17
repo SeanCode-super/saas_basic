@@ -27,7 +27,14 @@ management:
   endpoint:
     health:
       show-details: always
+      probes:
+        enabled: true
     prometheus:
+      enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
       enabled: true
 
 springdoc:
@@ -53,6 +60,48 @@ saas-basics:
   security:
     cors-allowed-origins:
       - http://localhost:9527
+      - http://*.localhost:9527
       - http://127.0.0.1:9527
+      - http://localhost:5173
+      - http://*.localhost:5173
+      - http://127.0.0.1:5173
+      - http://[::1]:5173
+      - http://localhost:8080
+      - http://127.0.0.1:8080
     auth:
       session-ttl-minutes: 480
+    vault:
+      enabled: true
+      active-key-version: v1
+      master-key: ${SAAS_VAULT_MASTER_KEY:tianshu-saas-basics-local-vault-master-key-change-in-prod}
+    transport:
+      enabled: true
+      mode: OPTIONAL
+      scope-mode: ALL_API
+      encrypt-request: true
+      encrypt-response: true
+      encrypt-query: true
+      replay-protection: true
+      timestamp-skew-seconds: 300
+      key-rotation-hours: 24
+      max-grace-keys: 3
+  rate-limit:
+    enabled: true
+    tenant-rpm: 1200
+    ai-tenant-rpm: 60
+    ip-rpm: 600
+    window-seconds: 60
+  telemetry:
+    enabled: true
+    service-name: saas-basics-server
+    otlp-enabled: ${OTEL_EXPORTER_OTLP_ENABLED:false}
+    otlp-endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://127.0.0.1:4318/v1/traces}
+    max-recent-traces: 100
+
+flowable:
+  database-schema-update: true
+  async-executor-activate: false
+  history-level: full
+  process:
+    definition-cache-limit: 100
+
