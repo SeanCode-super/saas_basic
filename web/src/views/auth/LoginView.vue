@@ -75,6 +75,7 @@ interface PresetPalette {
   label: string;
   color: string;
   rgb: string;
+  btnMid: string;
   secondary: string;
   secondaryRgb: string;
 }
@@ -85,32 +86,36 @@ const presetOptions: PresetPalette[] = [
     label: "曜石极光",
     color: "#6366f1",
     rgb: "99, 102, 241",
-    secondary: "#38bdf8",
-    secondaryRgb: "56, 189, 248"
+    btnMid: "#4338ca",
+    secondary: "#0ea5e9",
+    secondaryRgb: "14, 165, 233"
   },
   {
     value: "emerald",
     label: "松石森境",
     color: "#14b8a6",
     rgb: "20, 184, 166",
-    secondary: "#38bdf8",
-    secondaryRgb: "56, 189, 248"
+    btnMid: "#0f766e",
+    secondary: "#0284c7",
+    secondaryRgb: "2, 132, 199"
   },
   {
     value: "titanium",
     label: "钛金琥珀",
     color: "#f59e0b",
     rgb: "245, 158, 11",
-    secondary: "#818cf8",
-    secondaryRgb: "129, 140, 248"
+    btnMid: "#d97706",
+    secondary: "#ea580c",
+    secondaryRgb: "234, 88, 12"
   },
   {
     value: "cobalt",
     label: "极光青蓝",
     color: "#3b82f6",
     rgb: "59, 130, 246",
-    secondary: "#22d3ee",
-    secondaryRgb: "34, 211, 238"
+    btnMid: "#1d4ed8",
+    secondary: "#06b6d4",
+    secondaryRgb: "6, 182, 212"
   }
 ];
 
@@ -123,6 +128,7 @@ const activePreset = computed(
 const universeStyle = computed(() => ({
   "--portal-glow": activePreset.value.color,
   "--portal-glow-rgb": activePreset.value.rgb,
+  "--portal-btn-mid": activePreset.value.btnMid,
   "--portal-secondary": activePreset.value.secondary,
   "--portal-secondary-rgb": activePreset.value.secondaryRgb
 }));
@@ -841,8 +847,22 @@ onMounted(() => {
 .login-universe {
   --portal-glow: #6366f1;
   --portal-glow-rgb: 99, 102, 241;
-  --portal-secondary: #38bdf8;
-  --portal-secondary-rgb: 56, 189, 248;
+  --portal-btn-mid: #4338ca;
+  --portal-secondary: #0ea5e9;
+  --portal-secondary-rgb: 14, 165, 233;
+
+  /* 强制覆写全局浅色/毛玻璃控件令牌，防止浅色模式下表单容器被全局样式染白 */
+  --sb-control-bg: rgba(17, 25, 48, 0.88);
+  --sb-control-bg-hover: rgba(22, 33, 62, 0.95);
+  --sb-border-color: rgba(148, 163, 184, 0.34);
+  --sb-border-strong: rgba(var(--portal-glow-rgb), 0.72);
+  --sb-primary-color: var(--portal-glow);
+  --sb-text-primary: #ffffff;
+  --sb-text-secondary: #ffffff;
+  --sb-text-muted: #cbd5e1;
+  --el-input-text-color: #ffffff;
+  --el-text-color-regular: #ffffff;
+  --el-text-color-placeholder: rgba(148, 163, 184, 0.78);
 
   position: relative;
   min-height: 100vh;
@@ -1079,7 +1099,7 @@ onMounted(() => {
   text-overflow: ellipsis;
 }
 
-.prism-form {
+.login-universe .prism-form {
   :deep(.el-form-item) {
     margin-bottom: 16px;
   }
@@ -1087,34 +1107,39 @@ onMounted(() => {
   :deep(.el-input__wrapper) {
     height: 46px;
     padding: 0 14px;
-    border-radius: 12px;
-    background: rgba(15, 23, 42, 0.72);
-    box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.24) inset;
+    border-radius: 12px !important;
+    background: rgba(17, 25, 48, 0.88) !important;
+    box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.34) inset !important;
     transition: box-shadow 180ms ease, background 180ms ease;
 
     &:hover {
-      box-shadow: 0 0 0 1px rgba(var(--portal-glow-rgb), 0.56) inset;
+      background: rgba(22, 33, 62, 0.95) !important;
+      box-shadow: 0 0 0 1px rgba(var(--portal-glow-rgb), 0.68) inset !important;
     }
 
-    &.is-focus {
-      background: rgba(15, 23, 42, 0.96);
+    &.is-focus,
+    &:focus-within {
+      background: rgba(24, 36, 68, 0.98) !important;
       box-shadow:
         0 0 0 1.5px var(--portal-glow) inset,
-        0 0 22px -6px rgba(var(--portal-glow-rgb), 0.55);
+        0 0 22px -5px rgba(var(--portal-glow-rgb), 0.58) !important;
     }
   }
 
   :deep(.el-input__inner) {
-    color: #f8fafc;
+    color: #ffffff !important;
+    font-size: 14px;
+    font-weight: 500;
     caret-color: var(--portal-secondary);
 
     &::placeholder {
-      color: rgba(148, 163, 184, 0.65);
+      color: rgba(148, 163, 184, 0.78) !important;
+      font-weight: 400;
     }
 
     &:-webkit-autofill {
-      -webkit-text-fill-color: #f8fafc;
-      -webkit-box-shadow: 0 0 0 1000px #0d162d inset;
+      -webkit-text-fill-color: #ffffff !important;
+      -webkit-box-shadow: 0 0 0 1000px #111930 inset !important;
       transition: background-color 5000s ease-in-out 0s;
     }
   }
@@ -1122,7 +1147,7 @@ onMounted(() => {
   :deep(.el-input__prefix),
   :deep(.el-input__suffix),
   :deep(.el-input__icon) {
-    color: rgba(148, 163, 184, 0.78);
+    color: rgba(203, 213, 225, 0.85) !important;
   }
 }
 
@@ -1142,8 +1167,8 @@ onMounted(() => {
   position: relative;
   height: 46px;
   border-radius: 12px;
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  background: rgba(248, 250, 252, 0.94);
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  background: rgba(17, 25, 48, 0.92);
   padding: 0;
   overflow: hidden;
   cursor: pointer;
@@ -1161,6 +1186,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  background: #f8fafc;
   overflow: hidden;
 }
 
@@ -1176,9 +1202,9 @@ onMounted(() => {
 }
 
 .captcha-refresh-pill {
-  border-left: 1px solid rgba(203, 213, 225, 0.72);
-  background: rgba(241, 245, 249, 0.92);
-  color: #475569;
+  border-left: 1px solid rgba(148, 163, 184, 0.32);
+  background: rgba(17, 25, 48, 0.92);
+  color: #e2e8f0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1200,7 +1226,7 @@ onMounted(() => {
 }
 
 .meta-dot {
-  color: rgba(148, 163, 184, 0.45);
+  color: rgba(148, 163, 184, 0.55);
   font-size: 12px;
 }
 
@@ -1209,19 +1235,19 @@ onMounted(() => {
   border: 0;
   background: transparent;
   font-size: 12.5px;
-  color: rgba(148, 163, 184, 0.85);
+  color: rgba(203, 213, 225, 0.90);
   cursor: pointer;
   transition: color 150ms ease;
 
   &:hover {
-    color: #f8fafc;
+    color: #ffffff;
   }
 
   &.is-accent {
-    color: var(--portal-secondary);
+    color: #7dd3fc;
 
     &:hover {
-      color: #e0f2fe;
+      color: #ffffff;
     }
   }
 }
@@ -1232,14 +1258,15 @@ onMounted(() => {
   width: 100%;
   height: 48px;
   padding: 0 18px;
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.24);
   border-radius: 12px;
-  background: linear-gradient(110deg, var(--portal-glow) 0%, #4338ca 52%, var(--portal-secondary) 100%);
+  background: linear-gradient(110deg, var(--portal-glow) 0%, var(--portal-btn-mid) 52%, var(--portal-secondary) 100%);
   background-size: 160% 100%;
   color: #ffffff;
   font-size: 15px;
   font-weight: 600;
   letter-spacing: 0.04em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.32);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1296,7 +1323,7 @@ onMounted(() => {
 .sso-hairline {
   height: 1px;
   width: 100%;
-  background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.26), transparent);
+  background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.28), transparent);
   margin-bottom: 16px;
 }
 
@@ -1312,9 +1339,9 @@ onMounted(() => {
   height: 40px;
   padding: 0;
   border-radius: 50%;
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  background: rgba(15, 23, 42, 0.56);
-  color: rgba(203, 213, 225, 0.88);
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  background: rgba(15, 23, 42, 0.62);
+  color: rgba(226, 232, 240, 0.92);
   display: inline-flex;
   align-items: center;
   justify-content: center;
