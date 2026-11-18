@@ -988,7 +988,8 @@ onMounted(() => {
     </aside>
 
     <div class="console-shell__main">
-      <header class="console-shell__topbar">
+      <div class="console-shell__top-dock">
+        <header class="console-shell__topbar">
         <!-- 移动端汉堡导航菜单按钮 (<760px 显示) -->
         <button
           class="console-shell__mobile-menu-btn"
@@ -1370,8 +1371,9 @@ onMounted(() => {
         </div>
       </header>
 
-      <!-- 多标签页 TagsView 导航条 (在概览控制台首页沉浸模式下隐藏，确保毛玻璃纯粹无干扰) -->
+      <!-- 多标签页 TagsView 导航条：合并到统一 Top Dock 底座中 -->
       <TagsView v-if="route.path !== '/dashboard'" />
+      </div>
 
       <el-watermark class="console-shell__watermark-wrap" :content="watermarkContent" :font="{ color: 'rgba(0, 0, 0, 0.015)', fontSize: 13 }">
         <main class="console-shell__workspace">
@@ -1782,38 +1784,41 @@ onMounted(() => {
   color: var(--rail-text-app);
   box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.18), 0 20px 40px -10px rgba(0, 0, 0, 0.35);
 
-  /* 主题 B：iOS 27 极简清透雅白 (High-Legibility Pearl White Rail) */
+  /* 主题 B：iOS 27 高透柔雾雅白侧栏 (Liquid Frosted Pearl Rail) */
   &.rail-theme--light {
-    --rail-bg: rgba(255, 255, 255, 0.92);
-    --rail-border: rgba(226, 232, 240, 0.95);
-    --rail-brand-bg: rgba(248, 250, 252, 0.94);
-    --rail-brand-border: #e2e8f0;
-    --rail-text-cluster: #334155;       /* 顶层主域大字：稳重深灰 Slate-700 */
+    --rail-bg: rgba(255, 255, 255, 0.58);
+    --rail-border: rgba(255, 255, 255, 0.72);
+    --rail-brand-bg: rgba(255, 255, 255, 0.36);
+    --rail-brand-border: rgba(255, 255, 255, 0.48);
+    --rail-text-cluster: #334155;
     --rail-text-cluster-hover: #0f172a;
     --rail-text-cluster-active: #0f172a;
-    --rail-text-app: #1e293b;           /* 二级功能文字：高对比深色 Slate-800 */
+    --rail-text-app: #1e293b;
     --rail-text-app-hover: #0f172a;
-    --rail-text-app-active: #1d4ed8;
-    --rail-app-bg-hover: rgba(241, 245, 249, 0.95);
-    --rail-app-bg-active: rgba(37, 99, 235, 0.12);
-    --rail-expanded-bg: rgba(241, 245, 249, 0.92);
+    --rail-text-app-active: var(--sb-primary-color, #4f46e5);
+    --rail-app-bg-hover: rgba(255, 255, 255, 0.48);
+    --rail-app-bg-active: rgba(255, 255, 255, 0.78);
+    --rail-expanded-bg: rgba(255, 255, 255, 0.42);
     --rail-expanded-text: #0f172a;
-    --rail-expanded-icon: #2563eb;
-    --rail-icon-color: #2563eb;
-    --rail-icon-active: #2563eb;
-    --rail-indicator: #2563eb;
-    --rail-indicator-glow: 0 0 8px rgba(37, 99, 235, 0.35);
+    --rail-expanded-icon: var(--sb-primary-color, #4f46e5);
+    --rail-icon-color: var(--sb-primary-color, #4f46e5);
+    --rail-icon-active: var(--sb-primary-color, #4f46e5);
+    --rail-indicator: var(--sb-primary-color, #4f46e5);
+    --rail-indicator-glow: 0 0 8px rgba(79, 70, 229, 0.35);
     --rail-arrow-color: #64748b;
-    --rail-tree-line: rgba(203, 213, 225, 0.90);
-    --rail-footer-bg: rgba(248, 250, 252, 0.94);
-    --rail-footer-border: #e2e8f0;
+    --rail-tree-line: rgba(148, 163, 184, 0.42);
+    --rail-footer-bg: rgba(255, 255, 255, 0.36);
+    --rail-footer-border: rgba(255, 255, 255, 0.48);
     --rail-btn-text: #1e293b;
-    --rail-btn-border: #cbd5e1;
+    --rail-btn-border: rgba(255, 255, 255, 0.65);
 
-    backdrop-filter: blur(24px) saturate(160%);
-    -webkit-backdrop-filter: blur(24px) saturate(160%);
-    border: 1px solid var(--sb-border-subtle, #e2e8f0);
-    box-shadow: var(--sb-shadow-md);
+    backdrop-filter: var(--sb-glass-blur);
+    -webkit-backdrop-filter: var(--sb-glass-blur);
+    border: 1px solid var(--rail-border);
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.90),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.34),
+      0 18px 40px -12px rgba(30, 41, 92, 0.12);
   }
 }
 
@@ -2629,12 +2634,21 @@ onMounted(() => {
   box-shadow: 0 1px 3px rgba(9, 9, 11, 0.04);
 }
 
-:global(html:not([data-surface="glass"])) .console-shell__topbar {
-  height: 52px;
-  flex: 0 0 52px;
+:global(html:not([data-surface="glass"])) .console-shell__top-dock {
   border-radius: 0;
   border: 0;
   border-bottom: 1px solid var(--sb-border-subtle);
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+
+:global(html:not([data-surface="glass"])) .console-shell__topbar {
+  height: 50px;
+  flex: 0 0 50px;
+  border-radius: 0;
+  border: 0;
   background: transparent;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
@@ -2647,21 +2661,44 @@ onMounted(() => {
   padding: 14px var(--sb-workspace-x) 24px;
 }
 
+.console-shell__top-dock {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  border-radius: var(--sb-radius-glass-md, 14px);
+  border: 1px solid var(--sb-border-subtle, #e2e8f0);
+  background: var(--sb-tier1-bg, rgba(255, 255, 255, 0.56));
+  backdrop-filter: var(--sb-glass-blur);
+  -webkit-backdrop-filter: var(--sb-glass-blur);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.86),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.28),
+    0 10px 26px -10px rgba(30, 41, 92, 0.10);
+  overflow: hidden;
+}
+
+:global(html.dark[data-surface="glass"]) .console-shell__top-dock {
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.14),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 12px 28px -10px rgba(0, 0, 0, 0.48);
+}
+
 .console-shell__topbar {
-  height: 54px;
-  flex: 0 0 54px;
+  height: 48px;
+  flex: 0 0 48px;
   box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
   padding: 0 14px;
-  border-radius: var(--sb-radius-glass-md, 14px);
-  border: 1px solid var(--sb-border-subtle, #e2e8f0);
-  background: var(--sb-tier1-bg, rgba(255, 255, 255, 0.88));
-  backdrop-filter: var(--sb-glass-blur-sm);
-  -webkit-backdrop-filter: var(--sb-glass-blur-sm);
-  box-shadow: var(--sb-shadow-xs);
+  border-radius: 0;
+  border: 0;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
 }
 
 .console-shell__rail-toggle-pill {

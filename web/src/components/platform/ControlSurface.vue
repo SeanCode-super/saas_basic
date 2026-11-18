@@ -46,16 +46,16 @@ withDefaults(
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 10px 14px;
-  min-height: 46px;
-  padding: 8px 16px;
-  margin-bottom: 10px;
-  border-radius: var(--sb-radius-glass-md, 14px);
-  background: var(--sb-tier1-bg, rgba(255, 255, 255, 0.88));
-  border: 1px solid var(--sb-border-subtle, #e2e8f0);
-  backdrop-filter: var(--sb-glass-blur-sm, blur(14px) saturate(150%));
-  -webkit-backdrop-filter: var(--sb-glass-blur-sm, blur(14px) saturate(150%));
-  box-shadow: var(--sb-shadow-xs);
+  gap: 8px 14px;
+  min-height: 36px;
+  padding: 2px 2px 6px;
+  margin-bottom: 8px;
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
 }
 
 .control-surface__heading {

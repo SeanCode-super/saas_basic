@@ -12,7 +12,10 @@ import com.saasbasics.platform.modules.iam.mapper.UserMapper;
 import com.saasbasics.platform.modules.iam.mapper.UserRoleMapper;
 import com.saasbasics.platform.cache.SystemCacheService;
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
@@ -89,6 +92,118 @@ public class AccessSubjectProfileService {
             return cache.getOrCompute(cacheKey, 7200, () -> computeDepartmentTree(tenantId, rootIds));
         }
         return computeDepartmentTree(tenantId, rootIds);
+    }
+
+    public UserEntity findActiveUser(Long tenantId, Long userId) {
+        UserMapper userMapper = userMapperProvider.getIfAvailable();
+        if (userMapper == null || tenantId == null || userId == null) {
+            return null;
+        }
+        UserEntity user = userMapper.selectById(userId);
+        if (user == null || !tenantId.equals(user.getTenantId()) || Integer.valueOf(1).equals(user.getDeleted())) {
+            return null;
+        }
+        return user;
+    }
+
+    public List<Long> resolveUserIdsByDepartments(Long tenantId, Collection<Long> deptIds) {
+        if (tenantId == null || deptIds == null || deptIds.isEmpty()) {
+            return List.of();
+        }
+        EmployeeMapper employeeMapper = employeeMapperProvider.getIfAvailable();
+        UserMapper userMapper = userMapperProvider.getIfAvailable();
+        if (employeeMapper == null || userMapper == null) {
+            return List.of();
+        }
+        List<EmployeeEntity> employees = employeeMapper.selectList(new LambdaQueryWrapper<EmployeeEntity>()
+                .eq(EmployeeEntity::getTenantId, tenantId)
+                .eq(EmployeeEntity::getDeleted, 0)
+                .in(EmployeeEntity::getDeptId, deptIds));
+        return mapEmployeesToUserIds(tenantId, userMapper, employees);
+    }
+
+    public List<Long> resolveUserIdsByPositions(Long tenantId, Collection<Long> positionIds) {
+        if (tenantId == null || positionIds == null || positionIds.isEmpty()) {
+            return List.of();
+        }
+        EmployeeMapper employeeMapper = employeeMapperProvider.getIfAvailable();
+        UserMapper userMapper = userMapperProvider.getIfAvailable();
+        if (employeeMapper == null || userMapper == null) {
+            return List.of();
+        }
+        List<EmployeeEntity> employees = employeeMapper.selectList(new LambdaQueryWrapper<EmployeeEntity>()
+                .eq(EmployeeEntity::getTenantId, tenantId)
+                .eq(EmployeeEntity::getDeleted, 0)
+                .in(EmployeeEntity::getPositionId, positionIds));
+        return mapEmployeesToUserIds(tenantId, userMapper, employees);
+    }
+
+    public List<Long> resolveUserIdsByRoles(Long tenantId, Collection<Long> roleIds) {
+        if (tenantId == null || roleIds == null || roleIds.isEmpty()) {
+            return List.of();
+        }
+        UserRoleMapper userRoleMapper = userRoleMapperProvider.getIfAvailable();
+        if (userRoleMapper == null) {
+            return List.of();
+        }
+        Set<Long> result = new LinkedHashSet<>();
+        LocalDateTime now = LocalDateTime.now();
+        for (Long roleId : roleIds) {
+            if (roleId != null && roleId > 0) {
+                List<Long> ids = userRoleMapper.selectUserIdsByRoleId(tenantId, roleId, now);
+                if (ids != null) {
+                    result.addAll(ids);
+                }
+            }
+        }
+        return List.copyOf(result);
+    }
+
+    public List<Long> resolveSubordinateUserIds(Long tenantId, Long leaderUserId) {
+        if (leaderUserId == null || leaderUserId <= 0) {
+            return List.of();
+        }
+        Set<Long> userIds = new LinkedHashSet<>();
+        userIds.add(leaderUserId);
+        DepartmentMapper deptMapper = departmentMapperProvider.getIfAvailable();
+        if (tenantId != null && deptMapper != null) {
+            List<DepartmentEntity> managedDepts = deptMapper.selectList(new LambdaQueryWrapper<DepartmentEntity>()
+                    .eq(DepartmentEntity::getTenantId, tenantId)
+                    .eq(DepartmentEntity::getDeleted, 0)
+                    .eq(DepartmentEntity::getLeaderUserId, leaderUserId));
+            if (managedDepts != null && !managedDepts.isEmpty()) {
+                List<Long> rootIds = managedDepts.stream().map(DepartmentEntity::getId).toList();
+                List<Long> expandedDeptIds = expandDepartmentTree(tenantId, rootIds);
+                userIds.addAll(resolveUserIdsByDepartments(tenantId, expandedDeptIds));
+            }
+        }
+        return List.copyOf(userIds);
+    }
+
+    private List<Long> mapEmployeesToUserIds(Long tenantId, UserMapper userMapper, List<EmployeeEntity> employees) {
+        if (employees == null || employees.isEmpty()) {
+            return List.of();
+        }
+        List<Long> employeeIds = employees.stream()
+                .map(EmployeeEntity::getId)
+                .filter(id -> id != null && id > 0)
+                .distinct()
+                .toList();
+        if (employeeIds.isEmpty()) {
+            return List.of();
+        }
+        List<UserEntity> users = userMapper.selectList(new LambdaQueryWrapper<UserEntity>()
+                .eq(UserEntity::getTenantId, tenantId)
+                .eq(UserEntity::getDeleted, 0)
+                .in(UserEntity::getEmployeeId, employeeIds));
+        if (users == null || users.isEmpty()) {
+            return List.of();
+        }
+        return users.stream()
+                .map(UserEntity::getId)
+                .filter(id -> id != null && id > 0)
+                .distinct()
+                .toList();
     }
 
     private List<Long> computeDepartmentTree(Long tenantId, List<Long> rootIds) {

@@ -1,5 +1,7 @@
 package com.saasbasics.platform.modules.tenant.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.saasbasics.platform.common.exception.BizException;
 import com.saasbasics.platform.common.id.UuidV7Generator;
 import com.saasbasics.platform.modules.audit.service.AuditTrailService;
@@ -11,8 +13,11 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.HexFormat;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
@@ -28,6 +33,7 @@ public class TenantBootstrapService {
     private final JdbcTemplate jdbcTemplate;
     private final AuditTrailService auditTrailService;
     private final UuidV7Generator uuidGenerator = new UuidV7Generator();
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public TenantBootstrapService(JdbcTemplate jdbcTemplate, AuditTrailService auditTrailService) {
         this.jdbcTemplate = jdbcTemplate;
@@ -36,6 +42,11 @@ public class TenantBootstrapService {
 
     @Transactional
     public void initializeTenant(Long tenantId, String tenantCode, String tenantName) {
+        initializeTenant(tenantId, tenantCode, tenantName, null);
+    }
+
+    @Transactional
+    public void initializeTenant(Long tenantId, String tenantCode, String tenantName, Long packageId) {
         long loginPolicyId = cloneLoginPolicy(tenantId, tenantCode, tenantName);
         long passwordPolicyId = clonePasswordPolicy(tenantId, tenantCode, tenantName);
         long roleId = createAdminRole(tenantId, tenantCode, tenantName);
@@ -47,19 +58,95 @@ public class TenantBootstrapService {
         long userId = createAdminUser(tenantId, tenantCode, tenantName);
         bindUserRole(tenantId, userId, roleId);
         createPortalClientAndTerminal(tenantId, tenantCode, tenantName, loginPolicyId, passwordPolicyId);
-        initializeTenantApps(tenantId);
+        initializeTenantApps(tenantId, packageId);
         cloneDefaultProcessDefinitions(tenantId);
         auditTrailService.record("tenant", "tenant_bootstrap", String.valueOf(tenantId), "BOOTSTRAP", tenantCode, "initialized", true);
     }
 
-    private void initializeTenantApps(Long tenantId) {
-        jdbcTemplate.update("""
-                INSERT INTO plat_tenant_app (tenant_id, app_code, app_name, status, remark, created_by, updated_by)
-                SELECT ?, app_code, app_name, 'ENABLED', 'tenant bootstrap', 1, 1
+    private void initializeTenantApps(Long tenantId, Long packageId) {
+        Set<String> allowedAppCodes = resolvePackageAllowedAppCodes(packageId);
+        if (allowedAppCodes == null) {
+            jdbcTemplate.update("""
+                    INSERT INTO plat_tenant_app (tenant_id, app_code, app_name, status, remark, created_by, updated_by)
+                    SELECT ?, app_code, app_name, 'ENABLED', 'tenant bootstrap (all)', 1, 1
+                    FROM plat_tenant_app
+                    WHERE tenant_id = ? AND deleted = 0
+                    ON DUPLICATE KEY UPDATE status = 'ENABLED'
+                    """, tenantId, SOURCE_TENANT_ID);
+            return;
+        }
+
+        List<Map<String, Object>> templateApps = jdbcTemplate.queryForList("""
+                SELECT app_code, app_name
                 FROM plat_tenant_app
                 WHERE tenant_id = ? AND deleted = 0
-                ON DUPLICATE KEY UPDATE status = 'ENABLED'
-                """, tenantId, SOURCE_TENANT_ID);
+                """, SOURCE_TENANT_ID);
+        for (Map<String, Object> row : templateApps) {
+            String appCode = String.valueOf(row.get("app_code")).trim().toLowerCase(Locale.ROOT);
+            String appName = String.valueOf(row.get("app_name"));
+            String status = ("iam".equals(appCode) || allowedAppCodes.contains(appCode)) ? "ENABLED" : "DISABLED";
+            jdbcTemplate.update("""
+                    INSERT INTO plat_tenant_app (tenant_id, app_code, app_name, status, remark, created_by, updated_by)
+                    VALUES (?, ?, ?, ?, 'tenant bootstrap (package)', 1, 1)
+                    ON DUPLICATE KEY UPDATE status = VALUES(status)
+                    """, tenantId, appCode, appName, status);
+        }
+    }
+
+    private Set<String> resolvePackageAllowedAppCodes(Long packageId) {
+        if (packageId == null || packageId <= 0) {
+            return null;
+        }
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                SELECT feature_flags_json
+                FROM plat_tenant_package
+                WHERE id = ? AND deleted = 0
+                LIMIT 1
+                """, packageId);
+        if (rows.isEmpty()) {
+            return null;
+        }
+        Object rawObj = rows.get(0).get("feature_flags_json");
+        if (rawObj == null) {
+            return null;
+        }
+        String json = String.valueOf(rawObj).trim();
+        if (json.isBlank() || json.contains("*")) {
+            return null;
+        }
+        try {
+            List<String> flags = objectMapper.readValue(json, new TypeReference<>() {});
+            if (flags == null || flags.isEmpty()) {
+                return null;
+            }
+            Set<String> resolved = new LinkedHashSet<>();
+            resolved.add("iam");
+            for (String flag : flags) {
+                String normalized = normalizePackageFeatureToAppCode(flag);
+                if (!normalized.isBlank()) {
+                    resolved.add(normalized);
+                }
+            }
+            return resolved;
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    private static String normalizePackageFeatureToAppCode(String rawFlag) {
+        if (rawFlag == null || rawFlag.isBlank()) {
+            return "";
+        }
+        String val = rawFlag.trim().toLowerCase(Locale.ROOT);
+        if (val.startsWith("saas.") && val.split("\\.").length >= 2) {
+            val = val.split("\\.")[1];
+        }
+        return switch (val) {
+            case "org", "organization" -> "iam";
+            case "ai_center" -> "integration";
+            case "report_print" -> "report";
+            default -> val;
+        };
     }
 
     private void cloneDefaultProcessDefinitions(Long tenantId) {

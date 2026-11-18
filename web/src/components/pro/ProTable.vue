@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import type { TableInstance } from "element-plus";
-import { Download, Operation, Setting } from "@element-plus/icons-vue";
+import { Download, Filter, Operation, Setting } from "@element-plus/icons-vue";
 import BaseCard from "@/components/base/BaseCard.vue";
 import DimensionSliceBar from "@/components/pro/DimensionSliceBar.vue";
 import { useThemeStore } from "@/stores/modules/theme";
@@ -62,6 +62,11 @@ const isCompact = computed(() => props.compact || themeStore.tableDensity === "c
 const currentPage = ref(1);
 const currentPageSize = ref(props.pageSize ?? 10);
 const dimensionSelections = ref<Record<string, string>>({});
+const slicePanelOpen = ref(false);
+
+const activeDimensionCount = computed(
+  () => Object.values(dimensionSelections.value).filter(Boolean).length
+);
 
 const hiddenColumnProps = ref<string[]>(
   props.columns.filter((col) => col.defaultHidden).map((col) => col.prop)
@@ -225,7 +230,20 @@ function exportRows(rows: object[], mode: "selected" | "current") {
           <h3>{{ title }}</h3>
           <span>{{ total }} 条</span>
         </div>
+        <div v-if="$slots.search" class="pro-table__header-search">
+          <slot name="search" />
+        </div>
         <div class="pro-table__actions">
+          <el-button
+            v-if="dimensions?.length"
+            :icon="Filter"
+            :type="slicePanelOpen || activeDimensionCount > 0 ? 'primary' : 'default'"
+            plain
+            size="small"
+            @click="slicePanelOpen = !slicePanelOpen"
+          >
+            多维切片{{ activeDimensionCount > 0 ? ` (${activeDimensionCount})` : "" }}
+          </el-button>
           <el-tooltip
             :content="themeStore.tableDensity === 'compact' ? '切换为舒适行高' : '切换为紧凑高密度'"
             placement="top"
@@ -287,12 +305,8 @@ function exportRows(rows: object[], mode: "selected" | "current") {
       </div>
     </div>
 
-    <div v-if="$slots.search" class="pro-table__search">
-      <slot name="search" />
-    </div>
-
     <DimensionSliceBar
-      v-if="dimensions?.length"
+      v-if="dimensions?.length && (slicePanelOpen || activeDimensionCount > 0)"
       v-model="dimensionSelections"
       :axes="dimensions"
       :rows="isServerPaginated ? slicedData : data"
@@ -398,10 +412,13 @@ function exportRows(rows: object[], mode: "selected" | "current") {
   font-size: 12px;
 }
 
-.pro-table__search {
-  margin: 0;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--sb-border-subtle);
+.pro-table__header-search {
+  flex: 1 1 240px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .pro-table__bulkbar {

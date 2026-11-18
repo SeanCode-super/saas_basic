@@ -8,7 +8,9 @@ import com.saasbasics.platform.common.auth.DataPermissionSqlSpec;
 import com.saasbasics.platform.modules.audit.service.AuditTrailService;
 import com.saasbasics.platform.modules.iam.dto.AccessSubjectProfile;
 import com.saasbasics.platform.modules.iam.entity.DataPermissionRuleEntity;
+import com.saasbasics.platform.modules.iam.entity.RoleEntity;
 import com.saasbasics.platform.modules.iam.mapper.DataPermissionRuleMapper;
+import com.saasbasics.platform.modules.iam.mapper.RoleMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -37,18 +39,30 @@ class DataPermissionRuleServiceTest {
     @Mock
     private AuditTrailService auditTrailService;
 
+    @Mock
+    private RoleMapper roleMapper;
+
     private DataPermissionRuleService service;
+    private DataPermissionRuleService roleAwareService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @BeforeEach
     void setUp() {
         StaticListableBeanFactory beanFactory = new StaticListableBeanFactory();
         beanFactory.addBean("dataPermissionRuleMapper", dataPermissionRuleMapper);
+        beanFactory.addBean("roleMapper", roleMapper);
         service = new DataPermissionRuleService(
                 beanFactory.getBeanProvider(DataPermissionRuleMapper.class),
                 accessSubjectProfileService,
                 auditTrailService,
                 objectMapper
+        );
+        roleAwareService = new DataPermissionRuleService(
+                beanFactory.getBeanProvider(DataPermissionRuleMapper.class),
+                accessSubjectProfileService,
+                auditTrailService,
+                objectMapper,
+                beanFactory.getBeanProvider(RoleMapper.class)
         );
     }
 
@@ -213,5 +227,80 @@ class DataPermissionRuleServiceTest {
         assertThat(spec.getDepartmentIds()).containsExactlyInAnyOrder(300L, 400L);
         assertThat(spec.getUserIds()).containsExactly(999L);
         assertThat(spec.getTreePaths()).containsExactly("/300/");
+    }
+
+    @Test
+    @DisplayName(":query 动作后缀归一化命中领域资源规则（crm:customer），并按 AND 生成部门成员与 ABAC 过滤")
+    void normalizesActionSuffixToCanonicalDomainResource() {
+        AuthContext.set(createPrincipal(8L, "TENANT", List.of("crm:customer:query"), List.of(30L)));
+        when(accessSubjectProfileService.load(1001L, 8L))
+                .thenReturn(new AccessSubjectProfile(1001L, 8L, 88L, 500L, 12L, 50L, List.of(30L)));
+        when(accessSubjectProfileService.resolveUserIdsByDepartments(1001L, List.of(500L)))
+                .thenReturn(List.of(8L, 9L));
+
+        DataPermissionRuleEntity rule = new DataPermissionRuleEntity();
+        rule.setTenantId(1001L);
+        rule.setResourceCode("crm:customer");
+        rule.setSubjectType("ROLE");
+        rule.setSubjectValue("30");
+        rule.setScopeType("DEPT_ONLY");
+        rule.setConfigJson("{\"conditions\":[{\"field\":\"deal_status\",\"operator\":\"EQ\",\"value\":1}]}");
+
+        when(dataPermissionRuleMapper.selectList(any())).thenReturn(List.of(rule));
+
+        DataPermissionSqlSpec spec = roleAwareService.resolveDataPermission("crm:customer:query");
+        assertThat(spec.isAllowAll()).isFalse();
+        assertThat(spec.getDepartmentIds()).containsExactly(500L);
+        assertThat(spec.getAbacConditions()).hasSize(1);
+        assertThat(spec.toSqlExpression(new net.sf.jsqlparser.schema.Table("crm_customer"), "", "", "owner_user_id").toString())
+                .isEqualTo("(crm_customer.owner_user_id IN (8, 9) AND crm_customer.deal_status = 1)");
+    }
+
+    @Test
+    @DisplayName("未配置显式规则时按 L3 RoleEntity.dataScopeType 兜底；无有效角色时收敛为仅本人（Fail-Closed）")
+    void fallsBackToRoleDataScopeAndSelfWhenNoRulesExist() {
+        AuthContext.set(createPrincipal(10L, "TENANT", List.of(), List.of(40L)));
+        when(accessSubjectProfileService.load(1001L, 10L))
+                .thenReturn(new AccessSubjectProfile(1001L, 10L, 100L, 600L, 15L, 50L, List.of(40L)));
+        when(dataPermissionRuleMapper.selectList(any())).thenReturn(List.of());
+
+        RoleEntity selfRole = new RoleEntity();
+        selfRole.setId(40L);
+        selfRole.setTenantId(1001L);
+        selfRole.setDataScopeType("SELF");
+        when(roleMapper.selectList(any())).thenReturn(List.of(selfRole));
+
+        DataPermissionSqlSpec spec = roleAwareService.resolveDataPermission("crm:receivable");
+        assertThat(spec.isAllowAll()).isFalse();
+        assertThat(spec.getUserIds()).containsExactly(10L);
+
+        // 无角色分配时同样失败关闭至 SELF，绝不 allowAll
+        when(accessSubjectProfileService.load(1001L, 10L))
+                .thenReturn(new AccessSubjectProfile(1001L, 10L, 100L, 600L, 15L, 50L, List.of()));
+        DataPermissionSqlSpec noRoleSpec = roleAwareService.resolveDataPermission("crm:receivable");
+        assertThat(noRoleSpec.isAllowAll()).isFalse();
+        assertThat(noRoleSpec.getUserIds()).containsExactly(10L);
+    }
+
+    @Test
+    @DisplayName("SELF_AND_SUBORDINATES 展开负责人管辖部门下属成员列表")
+    void expandsSubordinatesForLeader() {
+        AuthContext.set(createPrincipal(12L, "TENANT", List.of(), List.of(50L)));
+        when(accessSubjectProfileService.load(1001L, 12L))
+                .thenReturn(new AccessSubjectProfile(1001L, 12L, 120L, 700L, 18L, 50L, List.of(50L)));
+        when(accessSubjectProfileService.resolveSubordinateUserIds(1001L, 12L))
+                .thenReturn(List.of(12L, 13L, 14L));
+
+        DataPermissionRuleEntity rule = new DataPermissionRuleEntity();
+        rule.setTenantId(1001L);
+        rule.setResourceCode("*");
+        rule.setSubjectType("USER");
+        rule.setSubjectValue("12");
+        rule.setScopeType("SELF_AND_SUBORDINATES");
+
+        when(dataPermissionRuleMapper.selectList(any())).thenReturn(List.of(rule));
+
+        DataPermissionSqlSpec spec = roleAwareService.resolveDataPermission("erp:order");
+        assertThat(spec.getUserIds()).containsExactlyInAnyOrder(12L, 13L, 14L);
     }
 }

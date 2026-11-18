@@ -714,17 +714,6 @@ async function batchUpdateRules(rows: IamDataPermissionRuleRow[], status: "ENABL
 
 <template>
   <div class="data-scope-view">
-    <div class="data-scope-priority-bar">
-      <span class="priority-pill priority-pill--l1">L1 平台超管豁免</span>
-      <span class="priority-arrow">→</span>
-      <span class="priority-pill priority-pill--l2">L2 资源级 5D 规则覆盖</span>
-      <span class="priority-arrow">→</span>
-      <span class="priority-pill priority-pill--l3">L3 角色默认数据范围兜底</span>
-      <span class="priority-note">
-        规则匹配优先采用领域资源编码（如 crm:customer、erp:order、*），未命中精确规则时按角色基线裁决。
-      </span>
-    </div>
-
     <div class="data-scope-header">
       <div class="data-scope-header__nav">
         <el-radio-group v-model="activeScopeTab" size="default">
@@ -736,14 +725,12 @@ async function batchUpdateRules(rows: IamDataPermissionRuleRow[], status: "ENABL
           </el-radio-button>
         </el-radio-group>
       </div>
-      <div class="data-scope-header__hint">
-        <el-icon><InfoFilled /></el-icon>
-        <span v-if="activeScopeTab === 'rules'">
-          面向业务主管与管理员，通过可视化勾选配置个人、部门、上下级及自定义数据访问边界。
-        </span>
-        <span v-else>
-          预设企业通用访问边界模板，供角色和业务模块一键绑定与复用。
-        </span>
+      <div class="data-scope-header__priority">
+        <span class="priority-pill priority-pill--l1">L1 超管破窗</span>
+        <span class="priority-arrow">→</span>
+        <span class="priority-pill priority-pill--l2">L2 资源 5D 规则</span>
+        <span class="priority-arrow">→</span>
+        <span class="priority-pill priority-pill--l3">L3 角色默认范围</span>
       </div>
     </div>
 
@@ -1100,12 +1087,12 @@ async function batchUpdateRules(rows: IamDataPermissionRuleRow[], status: "ENABL
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 10px 18px;
-  border-radius: var(--sb-radius-glass-md, 14px);
-  background: var(--sb-tier1-bg);
-  border: 1px solid var(--sb-border-subtle);
-  box-shadow: var(--sb-shadow-xs);
+  gap: 12px;
+  padding: 2px 0 4px;
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
   flex-wrap: wrap;
 }
 
@@ -1114,17 +1101,12 @@ async function batchUpdateRules(rows: IamDataPermissionRuleRow[], status: "ENABL
   align-items: center;
 }
 
-.data-scope-header__hint {
+.data-scope-header__priority {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--sb-text-secondary);
-
-  .el-icon {
-    color: var(--sb-primary-color);
-    font-size: 15px;
-  }
+  gap: 6px;
+  font-size: 12px;
 }
 
 .data-scope-table-wrap {
@@ -1297,18 +1279,6 @@ async function batchUpdateRules(rows: IamDataPermissionRuleRow[], status: "ENABL
   }
 }
 
-.data-scope-priority-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 14px;
-  border-radius: 10px;
-  background: var(--sb-tier1-bg);
-  border: 1px solid var(--sb-border-subtle);
-  font-size: 12px;
-}
-
 .priority-pill {
   display: inline-flex;
   align-items: center;
@@ -1318,7 +1288,7 @@ async function batchUpdateRules(rows: IamDataPermissionRuleRow[], status: "ENABL
   border: 1px solid var(--sb-border-subtle);
 
   &--l1 {
-    background: var(--sb-surface-soft);
+    background: var(--sb-tier1-bg);
     color: var(--sb-text-primary);
   }
 
@@ -1337,10 +1307,5 @@ async function batchUpdateRules(rows: IamDataPermissionRuleRow[], status: "ENABL
 .priority-arrow {
   color: var(--sb-text-muted);
   font-weight: 600;
-}
-
-.priority-note {
-  color: var(--sb-text-muted);
-  margin-left: auto;
 }
 </style>

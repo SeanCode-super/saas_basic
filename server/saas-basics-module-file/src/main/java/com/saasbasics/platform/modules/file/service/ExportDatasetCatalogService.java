@@ -1,5 +1,7 @@
 package com.saasbasics.platform.modules.file.service;
 
+import com.saasbasics.platform.common.auth.DataPermissionSqlSpec;
+import com.saasbasics.platform.common.auth.SqlAstDataGuard;
 import com.saasbasics.platform.common.exception.BizException;
 import com.saasbasics.platform.modules.file.dto.ExportDtos.ExportDatasetInfoDTO;
 import com.saasbasics.platform.modules.file.dto.ExportDtos.ExportFieldSpec;
@@ -55,16 +57,29 @@ public class ExportDatasetCatalogService {
     }
 
     public long countRows(Long tenantId, String sourceCode, Map<String, Object> filters) {
+        return countRows(tenantId, sourceCode, filters, null);
+    }
+
+    public long countRows(Long tenantId, String sourceCode, Map<String, Object> filters, DataPermissionSqlSpec spec) {
         ResolvedDatasetQuery q = buildQuery(tenantId, sourceCode, null, filters);
-        Long cnt = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM " + q.tableSql() + q.whereSql(), Long.class, q.args().toArray());
+        String sql = "SELECT COUNT(*) FROM " + q.tableSql() + q.whereSql();
+        sql = applyDataPermissionGuard(sql, q.physicalTable(), spec);
+        Long cnt = jdbcTemplate.queryForObject(sql, Long.class, q.args().toArray());
         return cnt != null ? cnt : 0L;
     }
 
     public void streamRows(Long tenantId, String sourceCode, List<String> selectedFields,
                            Map<String, Object> filters, int maxRows, Consumer<Map<String, Object>> rowConsumer) {
+        streamRows(tenantId, sourceCode, selectedFields, filters, maxRows, null, rowConsumer);
+    }
+
+    public void streamRows(Long tenantId, String sourceCode, List<String> selectedFields,
+                           Map<String, Object> filters, int maxRows, DataPermissionSqlSpec spec,
+                           Consumer<Map<String, Object>> rowConsumer) {
         ResolvedDatasetQuery q = buildQuery(tenantId, sourceCode, selectedFields, filters);
         String sql = "SELECT " + q.selectColsSql() + " FROM " + q.tableSql() + q.whereSql()
                 + " ORDER BY id DESC" + (maxRows > 0 ? " LIMIT " + maxRows : "");
+        sql = applyDataPermissionGuard(sql, q.physicalTable(), spec);
         jdbcTemplate.query(sql, ps -> {
             for (int i = 0; i < q.args().size(); i++) {
                 ps.setObject(i + 1, q.args().get(i));
@@ -78,6 +93,30 @@ public class ExportDatasetCatalogService {
             }
             rowConsumer.accept(row);
         });
+    }
+
+    private String applyDataPermissionGuard(String sql, String physicalTable, DataPermissionSqlSpec spec) {
+        if (spec == null || spec.isAllowAll()) {
+            return sql;
+        }
+        String userColumn = resolveUserColumnForTable(physicalTable);
+        return SqlAstDataGuard.rewriteSelectSql(sql, table ->
+                physicalTable.equalsIgnoreCase(table)
+                        ? new SqlAstDataGuard.TableScopeConfig(spec, "", "", userColumn)
+                        : null
+        );
+    }
+
+    private static String resolveUserColumnForTable(String physicalTable) {
+        if (physicalTable == null) {
+            return "created_by";
+        }
+        return switch (physicalTable.toLowerCase(Locale.ROOT)) {
+            case "crm_customer", "crm_clue", "crm_business" -> "owner_user_id";
+            case "erp_inventory", "erp_inventory_record", "audit_operation_log" -> "";
+            case "iam_user" -> "id";
+            default -> "created_by";
+        };
     }
 
     public List<ExportFieldSpec> resolveSelectedFieldSpecs(ExportDatasetInfoDTO dataset, List<String> selectedFields) {
@@ -152,7 +191,7 @@ public class ExportDatasetCatalogService {
             }
         }
 
-        return new ResolvedDatasetQuery("`" + physicalTable + "`", selectCols, where.toString(), args);
+        return new ResolvedDatasetQuery(physicalTable, "`" + physicalTable + "`", selectCols, where.toString(), args);
     }
 
     private String resolvePhysicalTable(Long tenantId, String sourceCode) {
@@ -359,5 +398,5 @@ public class ExportDatasetCatalogService {
         return new ExportFieldSpec(code, label, isSensitiveField(code), dataType);
     }
 
-    private record ResolvedDatasetQuery(String tableSql, String selectColsSql, String whereSql, List<Object> args) {}
+    private record ResolvedDatasetQuery(String physicalTable, String tableSql, String selectColsSql, String whereSql, List<Object> args) {}
 }

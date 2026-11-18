@@ -6,6 +6,6 @@ import com.saasbasics.platform.modules.erp.entity.ErpProductEntity;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-@DataScope(resource = "erp:product", userColumn = "created_by")
+@DataScope(resource = "erp:product", orgColumn = "", unitColumn = "", userColumn = "created_by")
 public interface ErpProductMapper extends BaseMapper<ErpProductEntity> {
 }

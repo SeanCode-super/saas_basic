@@ -36,13 +36,16 @@ function update(value: string) {
 
 <style scoped lang="scss">
 .module-section-nav {
-  display: block;
-  background: var(--sb-tier1-bg, rgba(255, 255, 255, 0.88));
+  display: inline-flex;
+  align-self: flex-start;
+  width: fit-content;
+  max-width: 100%;
+  background: var(--sb-tier1-bg, rgba(255, 255, 255, 0.64));
   border: 1px solid var(--sb-border-subtle, #e2e8f0);
-  border-radius: 12px;
-  padding: 4px;
-  backdrop-filter: var(--sb-glass-blur-sm, blur(14px));
-  -webkit-backdrop-filter: var(--sb-glass-blur-sm, blur(14px));
+  border-radius: 10px;
+  padding: 3px;
+  backdrop-filter: var(--sb-glass-blur-sm, blur(18px));
+  -webkit-backdrop-filter: var(--sb-glass-blur-sm, blur(18px));
   box-shadow: var(--sb-shadow-xs);
 }
 

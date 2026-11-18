@@ -348,19 +348,20 @@ async function handleToolbarCommand(command: string | number | Record<string, un
 
 <style scoped>
 .tags-view-container {
-  height: 40px;
+  height: 34px;
   width: 100%;
-  background: var(--sb-tier1-bg, rgba(255, 255, 255, 0.88));
-  backdrop-filter: var(--sb-glass-blur-sm, blur(14px) saturate(150%));
-  -webkit-backdrop-filter: var(--sb-glass-blur-sm, blur(14px) saturate(150%));
-  border-radius: var(--sb-radius-glass-md, 14px);
-  border: 1px solid var(--sb-border-subtle, #e2e8f0);
-  box-shadow: var(--sb-shadow-xs);
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-radius: 0;
+  border: 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.20);
+  box-shadow: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding-right: 10px;
+  padding: 0 10px;
   position: relative;
   z-index: 10;
   user-select: none;
@@ -368,11 +369,11 @@ async function handleToolbarCommand(command: string | number | Record<string, un
 }
 
 :global(html:not([data-surface="glass"])) .tags-view-container {
-  height: 38px;
+  height: 34px;
   border-radius: 0;
   border: 0;
-  border-bottom: 1px solid var(--sb-border-subtle);
-  background: var(--sb-tier1-bg);
+  border-top: 1px solid var(--sb-border-subtle);
+  background: transparent;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   box-shadow: none;
@@ -383,8 +384,8 @@ async function handleToolbarCommand(command: string | number | Record<string, un
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 6px 0 16px;
+  gap: 6px;
+  padding: 0 4px 0 4px;
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -423,20 +424,20 @@ async function handleToolbarCommand(command: string | number | Record<string, un
 .tags-view-item {
   display: inline-flex;
   align-items: center;
-  height: 28px;
-  line-height: 28px;
+  height: 24px;
+  line-height: 24px;
   border: 1px solid var(--sb-border-subtle, #e2e8f0);
   color: var(--sb-text-tertiary, #334155);
-  background: var(--sb-control-bg, rgba(248, 250, 252, 0.92));
-  padding: 0 12px;
+  background: var(--sb-control-bg, rgba(255, 255, 255, 0.56));
+  padding: 0 10px;
   font-size: 12px;
   font-weight: 550;
   border-radius: 9999px;
-  box-shadow: var(--sb-shadow-xs);
+  box-shadow: none;
   cursor: pointer;
   transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
-  gap: 6px;
+  gap: 5px;
 
   &:hover {
     color: var(--sb-text-primary);

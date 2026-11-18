@@ -5,6 +5,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.saasbasics.platform.common.auth.AuthContext;
 import com.saasbasics.platform.common.auth.AuthPrincipal;
+import com.saasbasics.platform.common.auth.DataPermissionProvider;
+import com.saasbasics.platform.common.auth.DataPermissionSqlSpec;
 import com.saasbasics.platform.common.exception.BizException;
 import com.saasbasics.platform.common.tenant.TenantAccessContextHolder;
 import com.saasbasics.platform.modules.audit.api.AuditRecorder;
@@ -34,12 +36,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -67,6 +72,7 @@ public class EnterpriseExportService {
     private final ObjectProvider<ReportScheduleMapper> scheduleMapperProvider;
     private final ObjectProvider<AuditRecorder> auditRecorderProvider;
     private final ObjectProvider<PlatformWebSocketSessionManager> wsManagerProvider;
+    private final ObjectProvider<DataPermissionProvider> dataPermissionProviderProvider;
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
 
@@ -82,6 +88,35 @@ public class EnterpriseExportService {
             JdbcTemplate jdbcTemplate,
             ObjectMapper objectMapper
     ) {
+        this(
+                datasetCatalogService,
+                rendererService,
+                fileClientFactory,
+                taskMapperProvider,
+                templateMapperProvider,
+                scheduleMapperProvider,
+                auditRecorderProvider,
+                wsManagerProvider,
+                new StaticListableBeanFactory().getBeanProvider(DataPermissionProvider.class),
+                jdbcTemplate,
+                objectMapper
+        );
+    }
+
+    @Autowired
+    public EnterpriseExportService(
+            ExportDatasetCatalogService datasetCatalogService,
+            ExportRendererService rendererService,
+            FileClientFactory fileClientFactory,
+            ObjectProvider<ExportTaskMapper> taskMapperProvider,
+            ObjectProvider<ExportTemplateMapper> templateMapperProvider,
+            ObjectProvider<ReportScheduleMapper> scheduleMapperProvider,
+            ObjectProvider<AuditRecorder> auditRecorderProvider,
+            ObjectProvider<PlatformWebSocketSessionManager> wsManagerProvider,
+            ObjectProvider<DataPermissionProvider> dataPermissionProviderProvider,
+            JdbcTemplate jdbcTemplate,
+            ObjectMapper objectMapper
+    ) {
         this.datasetCatalogService = datasetCatalogService;
         this.rendererService = rendererService;
         this.fileClientFactory = fileClientFactory;
@@ -90,6 +125,7 @@ public class EnterpriseExportService {
         this.scheduleMapperProvider = scheduleMapperProvider;
         this.auditRecorderProvider = auditRecorderProvider;
         this.wsManagerProvider = wsManagerProvider;
+        this.dataPermissionProviderProvider = dataPermissionProviderProvider;
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
     }
@@ -127,8 +163,9 @@ public class EnterpriseExportService {
         String title = resolveTaskTitle(request);
 
         try {
+            DataPermissionSqlSpec dataPermissionSpec = resolveForegroundSpec(request.sourceCode());
             RenderedDatasetPayload data = loadAndRender(
-                    tenantId, request, title, format, desensitize, includeWatermark, watermarkText, traceCode, operatorName);
+                    tenantId, request, title, format, desensitize, includeWatermark, watermarkText, traceCode, operatorName, dataPermissionSpec);
             String fullName = sanitizeFilename(title) + "_" + traceCode + "." + data.output().fileExtension();
             String objectKey = storeExportFile(tenantId, fullName, data.output().bytes(), data.output().contentType());
 
@@ -191,7 +228,8 @@ public class EnterpriseExportService {
         boolean includeWatermark = request.includeWatermark() == null || request.includeWatermark();
         boolean desensitize = request.desensitizeEnabled() == null || request.desensitizeEnabled();
 
-        long estimatedRows = estimateRows(tenantId, request);
+        DataPermissionSqlSpec spec = resolveForegroundOrUserSpec(tenantId, userId, isAdmin, request.sourceCode());
+        long estimatedRows = estimateRows(tenantId, request, spec);
         boolean highRiskApproval = Boolean.TRUE.equals(request.requireApproval())
                 || (!isAdmin && (!desensitize || estimatedRows > 10_000L));
 
@@ -241,7 +279,7 @@ public class EnterpriseExportService {
         Long taskId = entity.getId();
         submitAfterCommit(() -> runAsyncExportJob(
                 taskId, tenantId, tenantCode, userId, operatorName, request, title,
-                format, desensitize, includeWatermark, watermarkText, traceCode, notifyUserIds
+                format, desensitize, includeWatermark, watermarkText, traceCode, notifyUserIds, spec
         ));
 
         return toTaskDto(entity);
@@ -288,10 +326,11 @@ public class EnterpriseExportService {
         Long ownerId = task.getOperatorUserId() != null ? task.getOperatorUserId() : approverId;
         String ownerName = task.getOperatorName() != null ? task.getOperatorName() : approverName;
 
+        DataPermissionSqlSpec ownerSpec = resolveUserSpec(tenantId, ownerId, rebuilt.sourceCode());
         submitAfterCommit(() -> runAsyncExportJob(
                 task.getId(), tenantId, tenantCode, ownerId, ownerName, rebuilt,
                 task.getTaskName(), task.getExportFormat(), desensitize, includeWatermark,
-                task.getWatermarkText(), task.getTraceCode(), List.of(ownerId)
+                task.getWatermarkText(), task.getTraceCode(), List.of(ownerId), ownerSpec
         ));
         return toTaskDto(task);
     }
@@ -347,7 +386,8 @@ public class EnterpriseExportService {
     private void runAsyncExportJob(
             Long taskId, Long tenantId, String tenantCode, Long userId, String operatorName,
             ExportCreateRequest request, String title, String format, boolean desensitize,
-            boolean includeWatermark, String watermarkText, String traceCode, List<Long> notifyUserIds
+            boolean includeWatermark, String watermarkText, String traceCode, List<Long> notifyUserIds,
+            DataPermissionSqlSpec preResolvedSpec
     ) {
         ExportTaskMapper mapper = taskMapperProvider.getIfAvailable();
         if (mapper == null) {
@@ -363,8 +403,11 @@ public class EnterpriseExportService {
             task.setUpdatedAt(LocalDateTime.now());
             mapper.updateById(task);
 
+            DataPermissionSqlSpec effectiveSpec = preResolvedSpec != null
+                    ? preResolvedSpec
+                    : resolveUserSpec(tenantId, userId, request.sourceCode());
             RenderedDatasetPayload data = loadAndRender(
-                    tenantId, request, title, format, desensitize, includeWatermark, watermarkText, traceCode, operatorName);
+                    tenantId, request, title, format, desensitize, includeWatermark, watermarkText, traceCode, operatorName, effectiveSpec);
 
             task.setTotalRows(data.rowCount());
             task.setProcessedRows(data.rowCount());
@@ -408,10 +451,15 @@ public class EnterpriseExportService {
         if (mapper == null) {
             return List.of();
         }
+        AuthPrincipal principal = AuthContext.get();
         Long tenantId = currentTenantId();
-        return mapper.selectList(new LambdaQueryWrapper<ExportTaskEntity>()
-                        .eq(ExportTaskEntity::getTenantId, tenantId)
-                        .eq(ExportTaskEntity::getDeleted, 0)
+        LambdaQueryWrapper<ExportTaskEntity> wrapper = new LambdaQueryWrapper<ExportTaskEntity>()
+                .eq(ExportTaskEntity::getTenantId, tenantId)
+                .eq(ExportTaskEntity::getDeleted, 0);
+        if (!isAdminUser(principal)) {
+            wrapper.eq(ExportTaskEntity::getOperatorUserId, currentUserId());
+        }
+        return mapper.selectList(wrapper
                         .orderByDesc(ExportTaskEntity::getId)
                         .last("LIMIT 100"))
                 .stream()
@@ -455,6 +503,10 @@ public class EnterpriseExportService {
                 .eq(ExportTaskEntity::getDeleted, 0));
         if (task == null || !"COMPLETED".equals(task.getStatus()) || task.getObjectKey() == null) {
             throw new BizException("EXPORT_FILE_NOT_READY", "导出文件不存在或尚未生成完成");
+        }
+        AuthPrincipal principal = AuthContext.get();
+        if (!isAdminUser(principal) && !Objects.equals(task.getOperatorUserId(), currentUserId())) {
+            throw new BizException("EXPORT_DOWNLOAD_FORBIDDEN", "无权访问或下载其他用户的导出文件");
         }
         FileClient client = fileClientFactory.getDefaultClient();
         byte[] bytes = client.download(task.getObjectKey());
@@ -594,7 +646,8 @@ public class EnterpriseExportService {
             boolean includeWatermark,
             String watermarkText,
             String traceCode,
-            String operatorName
+            String operatorName,
+            DataPermissionSqlSpec dataPermissionSpec
     ) throws Exception {
         List<ExportFieldSpec> columns;
         List<Map<String, Object>> rows;
@@ -615,7 +668,7 @@ public class EnterpriseExportService {
             int cap = Boolean.TRUE.equals(request.async()) ? MAX_EXPORT_ROWS : SYNC_ROW_THRESHOLD;
             List<Map<String, Object>> collected = new ArrayList<>();
             datasetCatalogService.streamRows(tenantId, request.sourceCode(), request.selectedFields(),
-                    request.filters(), cap, collected::add);
+                    request.filters(), cap, dataPermissionSpec, collected::add);
             rows = collected;
         }
 
@@ -743,16 +796,63 @@ public class EnterpriseExportService {
         );
     }
 
-    private long estimateRows(Long tenantId, ExportCreateRequest request) {
+    private long estimateRows(Long tenantId, ExportCreateRequest request, DataPermissionSqlSpec spec) {
         if ("AD_HOC".equalsIgnoreCase(request.sourceType())
                 || (request.adHocRows() != null && !request.adHocRows().isEmpty())) {
             return request.adHocRows() != null ? request.adHocRows().size() : 0L;
         }
         try {
-            return datasetCatalogService.countRows(tenantId, request.sourceCode(), request.filters());
+            return datasetCatalogService.countRows(tenantId, request.sourceCode(), request.filters(), spec);
         } catch (Exception ex) {
             return 0L;
         }
+    }
+
+    private DataPermissionSqlSpec resolveForegroundSpec(String sourceCode) {
+        DataPermissionProvider provider = dataPermissionProviderProvider.getIfAvailable();
+        if (provider == null) {
+            return null;
+        }
+        return provider.resolveDataPermission(resolveDatasetResourceCode(sourceCode));
+    }
+
+    private DataPermissionSqlSpec resolveForegroundOrUserSpec(Long tenantId, Long userId, boolean isAdmin, String sourceCode) {
+        if (AuthContext.get() != null) {
+            return resolveForegroundSpec(sourceCode);
+        }
+        if (isAdmin) {
+            return DataPermissionSqlSpec.allowAll(tenantId);
+        }
+        return resolveUserSpec(tenantId, userId, sourceCode);
+    }
+
+    private DataPermissionSqlSpec resolveUserSpec(Long tenantId, Long userId, String sourceCode) {
+        DataPermissionProvider provider = dataPermissionProviderProvider.getIfAvailable();
+        if (provider == null || tenantId == null || userId == null) {
+            return null;
+        }
+        return provider.resolveDataPermissionForUser(tenantId, userId, resolveDatasetResourceCode(sourceCode));
+    }
+
+    private static String resolveDatasetResourceCode(String sourceCode) {
+        if (sourceCode == null || sourceCode.isBlank()) {
+            return "*";
+        }
+        String normalized = sourceCode.trim().toLowerCase(Locale.ROOT);
+        return switch (normalized) {
+            case "crm_customer" -> "crm:customer";
+            case "crm_clue" -> "crm:clue";
+            case "crm_business" -> "crm:business";
+            case "crm_contract" -> "crm:contract";
+            case "crm_receivable" -> "crm:receivable";
+            case "erp_product" -> "erp:product";
+            case "erp_purchase_order" -> "erp:order";
+            case "erp_sale_order" -> "erp:sale-order";
+            case "erp_inventory" -> "erp:inventory";
+            case "iam_user" -> "iam:user";
+            case "audit_operation_log" -> "audit:log";
+            default -> normalized.startsWith("dynamic:") ? normalized : normalized.replace('_', ':');
+        };
     }
 
     private ExportCreateRequest rebuildRequestFromTask(ExportTaskEntity task) {

@@ -9,6 +9,6 @@ import org.apache.ibatis.annotations.Mapper;
  * 采购订单数据访问层，绑定行级数据权限拦截器
  */
 @Mapper
-@DataScope(resource = "erp:order", userColumn = "created_by")
+@DataScope(resource = "erp:order", orgColumn = "", unitColumn = "", userColumn = "created_by")
 public interface ErpPurchaseOrderMapper extends BaseMapper<ErpPurchaseOrderEntity> {
 }

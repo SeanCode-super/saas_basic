@@ -9,7 +9,7 @@ export type SurfaceStyle = "matte" | "glass";
 const THEME_STORAGE_KEY = "sb-theme-mode";
 const DENSITY_STORAGE_KEY = "sb-table-density";
 const PRESET_STORAGE_KEY = "sb-theme-preset";
-const SURFACE_STORAGE_KEY = "sb-surface-style";
+const SURFACE_STORAGE_KEY = "sb-surface-style-v2";
 
 function readInitialThemeMode(): ThemeMode {
   if (typeof window === "undefined") {
@@ -43,10 +43,10 @@ function readInitialPreset(): ThemePreset {
 
 function readInitialSurface(): SurfaceStyle {
   if (typeof window === "undefined") {
-    return "matte";
+    return "glass";
   }
   const stored = localStorage.getItem(SURFACE_STORAGE_KEY);
-  return stored === "glass" ? "glass" : "matte";
+  return stored === "matte" ? "matte" : "glass";
 }
 
 function prefersSystemDark(): boolean {

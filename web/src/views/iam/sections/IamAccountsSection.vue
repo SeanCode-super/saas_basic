@@ -1122,22 +1122,22 @@ function handleExportUsers() {
   font-weight: 550;
 }
 
-/* Sleek User Telemetry Strip */
+/* Sleek Compact User Metric Pills */
 .user-telemetry-strip {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 8px 16px;
-  background: var(--el-bg-color, #fff);
-  border: 1px solid var(--sb-border-color, #e2e8f0);
-  border-radius: 8px;
+  justify-content: flex-start;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 8px;
 
   .telemetry-items {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 8px;
     flex-wrap: wrap;
   }
 
@@ -1145,16 +1145,23 @@ function handleExportUsers() {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 13px;
+    height: 30px;
+    padding: 0 11px;
+    border-radius: 9999px;
+    background: var(--sb-tier1-bg);
+    border: 1px solid var(--sb-border-subtle);
+    backdrop-filter: var(--sb-glass-blur-sm);
+    -webkit-backdrop-filter: var(--sb-glass-blur-sm);
+    font-size: 12.5px;
 
     .telemetry-icon {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 24px;
-      height: 24px;
-      border-radius: 4px;
-      font-size: 13px;
+      width: 20px;
+      height: 20px;
+      border-radius: 9999px;
+      font-size: 12px;
 
       &.blue { background: #eff6ff; color: #2563eb; }
       &.emerald { background: #ecfdf5; color: #059669; }
@@ -1163,20 +1170,18 @@ function handleExportUsers() {
     }
 
     .telemetry-label {
-      color: #475569;
+      color: var(--sb-text-muted);
       font-size: 12px;
     }
 
     .telemetry-val {
-      color: #0f172a;
-      font-weight: 600;
+      color: var(--sb-text-primary);
+      font-weight: 650;
     }
   }
 
   .telemetry-divider {
-    width: 1px;
-    height: 18px;
-    background: #e2e8f0;
+    display: none;
   }
 }
 

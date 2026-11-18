@@ -402,6 +402,14 @@ onMounted(async () => {
   >
     <template #actions>
       <el-button
+        v-if="isLegacyOrgRoute"
+        type="primary"
+        plain
+        @click="goToOrganizationCenter"
+      >
+        前往组织与成员中心 →
+      </el-button>
+      <el-button
         v-if="activeHub === 'identity'"
         type="primary"
         :icon="Plus"
@@ -413,32 +421,21 @@ onMounted(async () => {
       <BaseRefreshButton :loading="loading" @click="refreshData" />
     </template>
 
-    <div class="iam-hub-nav-stack">
+    <div class="iam-nav-inline-row">
       <ModuleSectionNav
         :model-value="activeHub"
         :items="IAM_HUB_ITEMS"
         @update:model-value="handleHubSelect"
       />
-      <div v-if="activeHubSubTabs.length" class="iam-subnav-bar">
-        <span class="iam-subnav-bar__label">控制面视图</span>
-        <el-radio-group v-model="activeTab" size="small">
-          <el-radio-button
-            v-for="item in activeHubSubTabs"
-            :key="item.key"
-            :value="item.key"
-          >
-            {{ item.label }}
-          </el-radio-button>
-        </el-radio-group>
-      </div>
-      <div v-if="isLegacyOrgRoute" class="iam-org-redirect-banner">
-        <span>
-          组织树、岗位与员工档案主数据已收口至独立工作台「组织与成员中心」，当前视图仅为深度路由兼容入口。
-        </span>
-        <el-button type="primary" link @click="goToOrganizationCenter">
-          前往组织与成员中心 →
-        </el-button>
-      </div>
+      <el-radio-group v-if="activeHubSubTabs.length" v-model="activeTab" size="small">
+        <el-radio-button
+          v-for="item in activeHubSubTabs"
+          :key="item.key"
+          :value="item.key"
+        >
+          {{ item.label }}
+        </el-radio-button>
+      </el-radio-group>
     </div>
 
     <IamFoundationSection
@@ -674,41 +671,12 @@ onMounted(async () => {
 </template>
 
 <style scoped lang="scss">
-.iam-hub-nav-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.iam-subnav-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 12px;
-  border-radius: 10px;
-  background: var(--sb-tier1-bg);
-  border: 1px solid var(--sb-border-subtle);
-
-  &__label {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--sb-text-muted);
-  }
-}
-
-.iam-org-redirect-banner {
+.iam-nav-inline-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 9px 14px;
-  border-radius: 10px;
-  border: 1px solid var(--sb-badge-primary-border);
-  background: var(--sb-badge-primary-bg);
-  color: var(--sb-badge-primary-text);
-  font-size: 12.5px;
+  gap: 10px;
+  margin-bottom: 10px;
 }
 </style>

@@ -12,4 +12,11 @@ public interface DataPermissionProvider {
      * @return 经过多角色并集求解后的数据权限规约
      */
     DataPermissionSqlSpec resolveDataPermission(String resourceCode);
+
+    /**
+     * 针对异步后台任务等无 HTTP 会话线程，按显式租户与操作人主体解析数据权限规约
+     */
+    default DataPermissionSqlSpec resolveDataPermissionForUser(Long tenantId, Long userId, String resourceCode) {
+        return resolveDataPermission(resourceCode);
+    }
 }

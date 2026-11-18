@@ -1383,34 +1383,32 @@ function getPositionEmployeeList(posId: number) {
   }
 }
 
-/* 核心量化看板 (统计卡片网格) */
+/* 核心量化看板 (紧凑单行微卡片) */
 .org-stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
-  margin-bottom: 16px;
+  gap: 10px;
+  margin-bottom: 12px;
 
   .stat-card {
     display: flex;
     align-items: center;
-    gap: 14px;
-    padding: 16px 20px;
-    border-radius: var(--sb-radius-glass-md, 18px);
-    background: rgba(255, 255, 255, 0.90);
-    backdrop-filter: blur(28px) saturate(210%) contrast(104%);
-    -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
-    border: 1px solid rgba(255, 255, 255, 0.85);
-    box-shadow:
-      inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
-      0 10px 25px -5px rgba(12, 34, 56, 0.05);
+    gap: 10px;
+    padding: 9px 14px;
+    border-radius: var(--sb-radius-glass-md, 14px);
+    background: var(--sb-tier1-bg);
+    backdrop-filter: var(--sb-glass-blur-sm);
+    -webkit-backdrop-filter: var(--sb-glass-blur-sm);
+    border: 1px solid var(--sb-border-subtle);
+    box-shadow: var(--sb-shadow-xs);
 
     .stat-icon-wrap {
-      width: 44px;
-      height: 44px;
+      width: 34px;
+      height: 34px;
       display: grid;
       place-items: center;
-      border-radius: 10px;
-      font-size: 20px;
+      border-radius: 9px;
+      font-size: 16px;
       flex-shrink: 0;
 
       &.is-primary { background: #eff6ff; color: #2563eb; }
@@ -1424,21 +1422,21 @@ function getPositionEmployeeList(posId: number) {
       min-width: 0;
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: 1px;
 
       .stat-label {
-        font-size: 12px;
-        color: #475569;
+        font-size: 11.5px;
+        color: var(--sb-text-muted);
         font-weight: 500;
       }
 
       .stat-val {
-        font-size: 22px;
+        font-size: 18px;
         font-weight: 700;
         line-height: 1.2;
         font-family: var(--sb-font-mono, monospace);
 
-        &.text-primary { color: #2563eb; }
+        &.text-primary { color: var(--sb-primary-color); }
         &.text-success { color: #10b981; }
         &.text-warning { color: #f59e0b; }
         &.text-danger { color: #ef4444; }
@@ -1447,7 +1445,7 @@ function getPositionEmployeeList(posId: number) {
 
       .stat-sub {
         font-size: 11px;
-        color: #475569;
+        color: var(--sb-text-muted);
       }
     }
   }
@@ -1457,20 +1455,18 @@ function getPositionEmployeeList(posId: number) {
 .emp-split-layout {
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr);
-  gap: 16px;
+  gap: 14px;
   align-items: start;
 }
 
 .emp-dept-sidebar {
-  background: rgba(255, 255, 255, 0.90);
-  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
-  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  border-radius: var(--sb-radius-glass-md, 18px);
+  background: var(--sb-tier1-bg);
+  backdrop-filter: var(--sb-glass-blur-sm);
+  -webkit-backdrop-filter: var(--sb-glass-blur-sm);
+  border: 1px solid var(--sb-border-subtle);
+  border-radius: var(--sb-radius-glass-md, 14px);
   overflow: hidden;
-  box-shadow:
-    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
-    0 12px 30px -6px rgba(12, 34, 56, 0.05);
+  box-shadow: var(--sb-shadow-xs);
 
   .dept-sidebar-header {
     display: flex;

@@ -78,7 +78,12 @@ public class TenantService {
                 "tenant:write",
                 TenantAccessContext.BypassOperation.TENANT_BOOTSTRAP,
                 "Initialize required records for tenant " + entity.getTenantCode())) {
-            tenantBootstrapService.initializeTenant(entity.getId(), entity.getTenantCode(), entity.getTenantName());
+            tenantBootstrapService.initializeTenant(
+                    entity.getId(),
+                    entity.getTenantCode(),
+                    entity.getTenantName(),
+                    entity.getPackageId()
+            );
         }
         TenantResponse response = getTenant(entity.getId());
         auditTrailService.record("tenant", "tenant", String.valueOf(response.id()), "CREATE", request.tenantCode(), response.tenantCode(), true);

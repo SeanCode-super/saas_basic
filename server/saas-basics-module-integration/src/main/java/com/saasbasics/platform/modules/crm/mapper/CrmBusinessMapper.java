@@ -6,6 +6,6 @@ import com.saasbasics.platform.modules.crm.entity.CrmBusinessEntity;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-@DataScope(resource = "crm:business", userColumn = "owner_user_id")
+@DataScope(resource = "crm:business", orgColumn = "", unitColumn = "", userColumn = "owner_user_id")
 public interface CrmBusinessMapper extends BaseMapper<CrmBusinessEntity> {
 }

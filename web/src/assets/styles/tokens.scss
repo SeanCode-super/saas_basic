@@ -73,9 +73,9 @@
   /* ==========================================================================
      iOS 27 / visionOS 高清晰柔雾玻璃系统 (High-Legibility Frosted Glass Tokens)
      ========================================================================== */
-  --sb-glass-blur: blur(22px) saturate(165%) contrast(101%);
-  --sb-glass-blur-sm: blur(14px) saturate(150%);
-  --sb-glass-blur-lg: blur(30px) saturate(180%);
+  --sb-glass-blur: blur(30px) saturate(200%) contrast(102%);
+  --sb-glass-blur-sm: blur(22px) saturate(185%);
+  --sb-glass-blur-lg: blur(38px) saturate(210%);
 
   /* 晶透表面材质（高对比清透柔白，彻底杜绝深色底图透色刺眼） */
   --sb-glass-bg: rgba(255, 255, 255, 0.90);
@@ -141,7 +141,10 @@
   --sb-shell-rail-hover: rgba(255, 255, 255, 0.10);
   --sb-shell-rail-active: rgba(37, 99, 235, 0.30);
   --sb-shell-rail-indicator: #38bdf8;
-  --sb-shell-main: linear-gradient(135deg, rgba(240, 245, 253, 0.72) 0%, rgba(248, 250, 252, 0.64) 55%, rgba(241, 245, 251, 0.74) 100%);
+  --sb-shell-main:
+    radial-gradient(circle at 12% 10%, rgba(99, 102, 241, 0.22), transparent 46%),
+    radial-gradient(circle at 88% 14%, rgba(14, 165, 233, 0.18), transparent 44%),
+    radial-gradient(circle at 52% 92%, rgba(168, 85, 247, 0.16), transparent 50%);
   --sb-panel-muted: rgba(248, 250, 252, 0.90);
 
   /* 严谨工程微阴影 (触点微投影，拒绝大面积糊状阴影) */
@@ -305,6 +308,10 @@ html.dark {
    ========================================================================== */
 html[data-preset="emerald"] {
   --sb-app-canvas: #f2f4f1;
+  --sb-shell-main:
+    radial-gradient(circle at 14% 12%, rgba(16, 185, 129, 0.20), transparent 46%),
+    radial-gradient(circle at 86% 16%, rgba(14, 165, 233, 0.15), transparent 44%),
+    radial-gradient(circle at 54% 90%, rgba(20, 184, 166, 0.14), transparent 50%);
   --sb-primary-color: #0f766e;
   --sb-primary-hover: #115e59;
   --sb-primary-strong: #134e4a;
@@ -342,6 +349,10 @@ html.dark[data-preset="emerald"] {
 
 html[data-preset="titanium"] {
   --sb-app-canvas: #f1f5f9;
+  --sb-shell-main:
+    radial-gradient(circle at 14% 12%, rgba(245, 158, 11, 0.16), transparent 46%),
+    radial-gradient(circle at 86% 18%, rgba(99, 102, 241, 0.14), transparent 44%),
+    radial-gradient(circle at 52% 90%, rgba(148, 163, 184, 0.18), transparent 50%);
   --sb-primary-color: #b45309;
   --sb-primary-hover: #92400e;
   --sb-primary-strong: #78350f;
@@ -383,6 +394,10 @@ html.dark[data-preset="titanium"] {
 
 html[data-preset="cobalt"] {
   --sb-app-canvas: #eff4fb;
+  --sb-shell-main:
+    radial-gradient(circle at 12% 10%, rgba(37, 99, 235, 0.22), transparent 46%),
+    radial-gradient(circle at 88% 16%, rgba(56, 189, 248, 0.18), transparent 44%),
+    radial-gradient(circle at 52% 92%, rgba(99, 102, 241, 0.14), transparent 50%);
   --sb-primary-color: #2563eb;
   --sb-primary-hover: #1d4ed8;
   --sb-primary-strong: #1e40af;
@@ -417,16 +432,41 @@ html.dark[data-preset="cobalt"] {
 }
 
 html[data-surface="glass"] {
-  --sb-radius-glass: 20px;
+  --sb-radius-glass: 18px;
   --sb-radius-glass-md: 14px;
   --sb-radius-glass-sm: 10px;
-  --sb-tier1-bg: rgba(255, 255, 255, 0.86);
-  --sb-tier2-bg: rgba(255, 255, 255, 0.94);
-  --sb-tier2-header-bg: rgba(248, 250, 252, 0.96);
+  --sb-tier1-bg: rgba(255, 255, 255, 0.54);
+  --sb-tier2-bg: rgba(255, 255, 255, 0.64);
+  --sb-tier2-header-bg: rgba(255, 255, 255, 0.44);
+  --sb-tier2-zebra-bg: rgba(255, 255, 255, 0.26);
+  --sb-tier2-fixed-bg: rgba(246, 248, 254, 0.88);
+  --sb-tier2-fixed-zebra-bg: rgba(241, 245, 253, 0.88);
+  --sb-tier3-bg: rgba(255, 255, 255, 0.78);
+  --sb-control-bg: rgba(255, 255, 255, 0.58);
+  --sb-control-bg-hover: rgba(255, 255, 255, 0.80);
+  --sb-border-subtle: rgba(255, 255, 255, 0.72);
+  --sb-border-color: rgba(255, 255, 255, 0.82);
+  --el-fill-color-blank: rgba(255, 255, 255, 0.58);
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: rgba(255, 255, 255, 0.28);
+  --el-table-header-bg-color: rgba(255, 255, 255, 0.46);
+  --el-table-border-color: rgba(148, 163, 184, 0.22);
+  --el-table-row-hover-bg-color: rgba(79, 70, 229, 0.08);
 }
 
 html.dark[data-surface="glass"] {
-  --sb-tier1-bg: rgba(15, 23, 42, 0.80);
-  --sb-tier2-bg: rgba(15, 23, 42, 0.90);
-  --sb-tier2-header-bg: rgba(30, 41, 59, 0.92);
+  --sb-tier1-bg: rgba(17, 20, 34, 0.54);
+  --sb-tier2-bg: rgba(19, 23, 38, 0.62);
+  --sb-tier2-header-bg: rgba(26, 31, 50, 0.52);
+  --sb-tier2-zebra-bg: rgba(255, 255, 255, 0.025);
+  --sb-tier2-fixed-bg: rgba(19, 23, 38, 0.90);
+  --sb-tier2-fixed-zebra-bg: rgba(22, 27, 44, 0.90);
+  --sb-tier3-bg: rgba(17, 21, 36, 0.84);
+  --sb-control-bg: rgba(28, 33, 52, 0.58);
+  --sb-border-subtle: rgba(255, 255, 255, 0.13);
+  --sb-border-color: rgba(255, 255, 255, 0.18);
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: rgba(255, 255, 255, 0.02);
+  --el-table-header-bg-color: rgba(255, 255, 255, 0.05);
+  --el-table-border-color: rgba(255, 255, 255, 0.08);
 }

@@ -6,6 +6,7 @@ import com.saasbasics.platform.common.auth.AuthContext;
 import com.saasbasics.platform.common.auth.AuthPrincipal;
 import com.saasbasics.platform.common.auth.DataPermissionProvider;
 import com.saasbasics.platform.common.auth.DataPermissionSqlSpec;
+import com.saasbasics.platform.common.auth.SqlAstDataGuard;
 import com.saasbasics.platform.common.mask.DataMaskUtils;
 import com.saasbasics.platform.modules.ai.api.AiGatewayFacade;
 import com.saasbasics.platform.modules.ai.application.dto.AiCommandDtos.Nl2SqlQueryRequest;
@@ -95,11 +96,10 @@ public class Nl2SqlService {
 
         ValidatedSql validated = Nl2SqlSecurityValidator.validateAndNormalize(plan.sql(), allowedTables, tenantId);
         String executableSql = validated.sanitizedSql();
-        boolean ownerScopedApplied = false;
-        if (Nl2SqlSecurityValidator.containsOwnerScopedTable(validated.referencedTables()) && !isAdminUser(principal)) {
-            Set<Long> allowedOwnerIds = resolveAllowedOwnerIds(principal, validated.referencedTables(), userId);
-            executableSql = Nl2SqlSecurityValidator.applyOwnerScopePredicate(executableSql, tenantId, allowedOwnerIds);
-            ownerScopedApplied = true;
+        boolean dataGuardApplied = false;
+        if (!isAdminUser(principal)) {
+            executableSql = applyUnifiedDataGuard(executableSql, tenantId, userId, validated.referencedTables());
+            dataGuardApplied = true;
         }
         verifyExplainGuard(executableSql);
 
@@ -115,8 +115,8 @@ public class Nl2SqlService {
         String seriesField = resolveSeriesField(plan.seriesField(), columns, xAxis, maskedRows);
 
         List<String> insights = new ArrayList<>(buildInsights(question, maskedRows, plan.insights(), seriesField, xAxis, maskedFields));
-        if (ownerScopedApplied) {
-            insights.add("🔒 已自动叠加行级数据权限（owner_user_id）隔离策略，仅返回您授权范围内的数据。");
+        if (dataGuardApplied) {
+            insights.add("🔒 已自动叠加全维度数据权限隔离策略（SqlAstDataGuard），仅返回您授权范围内的数据。");
         }
         List<String> followUps = plan.followUps().isEmpty()
                 ? defaultFollowUps(validated.referencedTables())
@@ -639,41 +639,88 @@ public class Nl2SqlService {
         return principal.permissions() != null && principal.permissions().contains("*");
     }
 
-    private Set<Long> resolveAllowedOwnerIds(AuthPrincipal principal, List<String> tables, Long userId) {
-        Set<Long> ownerIds = new LinkedHashSet<>();
+    private String applyUnifiedDataGuard(String sql, Long tenantId, Long userId, List<String> referencedTables) {
         DataPermissionProvider dp = dataPermissionProvider.getIfAvailable();
-        if (dp != null) {
-            String primaryTable = tables.stream()
-                    .filter(t -> List.of("crm_customer", "crm_clue", "crm_business").contains(t))
-                    .findFirst()
-                    .orElse("crm_customer");
-            String resourceCode = switch (primaryTable) {
-                case "crm_clue" -> "crm:clue:query";
-                case "crm_business" -> "crm:business:query";
-                default -> "crm:customer:query";
-            };
-            try {
-                DataPermissionSqlSpec spec = dp.resolveDataPermission(resourceCode);
-                if (spec != null) {
-                    if (spec.isAllowAll()) {
-                        return Set.of();
-                    }
-                    if (spec.isDenyAll()) {
-                        throw new SecurityException("当前账号数据权限受限，无法访问该明细数据");
-                    }
-                    if (spec.getUserIds() != null) {
-                        ownerIds.addAll(spec.getUserIds());
-                    }
+        Map<String, SqlAstDataGuard.TableScopeConfig> tableConfigs = new LinkedHashMap<>();
+        for (String table : referencedTables) {
+            String normalized = table.toLowerCase(Locale.ROOT);
+            String resourceCode = resolveResourceCodeForTable(normalized);
+            DataPermissionSqlSpec spec = null;
+            if (dp != null) {
+                spec = dp.resolveDataPermission(resourceCode);
+            }
+            if (spec == null) {
+                spec = buildDefaultSelfSpec(tenantId, userId, normalized);
+            }
+            if (spec != null) {
+                if (spec.isDenyAll()) {
+                    throw new SecurityException("当前账号数据权限受限，无法访问该明细数据");
                 }
-            } catch (SecurityException se) {
-                throw se;
-            } catch (Exception ignored) {
+                if (!spec.isAllowAll()) {
+                    tableConfigs.put(
+                            normalized,
+                            new SqlAstDataGuard.TableScopeConfig(
+                                    spec,
+                                    "",
+                                    resolveUnitColumnForTable(normalized),
+                                    resolveUserColumnForTable(normalized)
+                            )
+                    );
+                }
             }
         }
-        if (ownerIds.isEmpty() && userId != null) {
-            ownerIds.add(userId);
+        if (tableConfigs.isEmpty()) {
+            return sql;
         }
-        return ownerIds;
+        return SqlAstDataGuard.rewriteSelectSql(sql, tableConfigs::get);
+    }
+
+    private static DataPermissionSqlSpec buildDefaultSelfSpec(Long tenantId, Long userId, String table) {
+        if (resolveUserColumnForTable(table).isBlank() || userId == null || userId <= 0) {
+            return null;
+        }
+        DataPermissionSqlSpec spec = new DataPermissionSqlSpec();
+        spec.setTenantId(tenantId);
+        DataPermissionSqlSpec.RuleClause clause = new DataPermissionSqlSpec.RuleClause();
+        clause.addUserId(userId);
+        spec.addAllowClause(clause);
+        return spec;
+    }
+
+    private static String resolveResourceCodeForTable(String table) {
+        return switch (table) {
+            case "crm_customer" -> "crm:customer";
+            case "crm_clue" -> "crm:clue";
+            case "crm_business" -> "crm:business";
+            case "crm_contract" -> "crm:contract";
+            case "crm_receivable" -> "crm:receivable";
+            case "crm_follow_up_record" -> "crm:follow-up";
+            case "erp_product" -> "erp:product";
+            case "erp_purchase_order" -> "erp:order";
+            case "erp_sale_order" -> "erp:sale-order";
+            case "erp_inventory" -> "erp:inventory";
+            case "erp_inventory_record" -> "erp:inventory-record";
+            case "wf_process_instance" -> "workflow:instance";
+            case "wf_task" -> "workflow:task";
+            case "file_object" -> "file:object";
+            case "iam_user" -> "iam:user";
+            default -> table.startsWith("biz_dyn_") ? "dynamic:" + table.substring("biz_dyn_".length()) : table.replace('_', ':');
+        };
+    }
+
+    private static String resolveUnitColumnForTable(String table) {
+        return "wf_process_instance".equals(table) ? "initiator_dept_id" : "";
+    }
+
+    private static String resolveUserColumnForTable(String table) {
+        return switch (table) {
+            case "crm_customer", "crm_clue", "crm_business" -> "owner_user_id";
+            case "wf_process_instance" -> "initiator_id";
+            case "wf_task" -> "assignee_id";
+            case "erp_inventory", "erp_inventory_record", "audit_operation_log" -> "";
+            case "iam_user" -> "id";
+            default -> "created_by";
+        };
     }
 
     private record GeneratedPlan(

@@ -12,7 +12,15 @@ body {
 }
 
 html[data-surface="glass"] body {
-  background: url("/ios27-liquid-glass-bg.jpg") no-repeat center center fixed;
+  background-color: #dbeafe;
+  background-image:
+    radial-gradient(circle at 14% 16%, rgba(99, 102, 241, 0.24), transparent 44%),
+    radial-gradient(circle at 86% 20%, rgba(14, 165, 233, 0.20), transparent 44%),
+    radial-gradient(circle at 54% 88%, rgba(168, 85, 247, 0.18), transparent 48%),
+    url("/ios27-liquid-glass-bg.jpg");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-attachment: fixed;
   background-size: cover;
 }
 
@@ -983,6 +991,8 @@ html[data-density="compact"] .el-table {
 [class*="-control-bar"],
 [class*="-action-toolbar"],
 [class*="-filter-panel"] {
+  min-height: 36px;
+  padding: 6px 14px !important;
   background: var(--sb-tier1-bg) !important;
   backdrop-filter: var(--sb-glass-blur-sm) !important;
   -webkit-backdrop-filter: var(--sb-glass-blur-sm) !important;
@@ -1081,9 +1091,35 @@ html.dark body {
 
 html.dark[data-surface="glass"] body {
   background:
-    radial-gradient(circle at 18% 20%, rgba(30, 58, 138, 0.42), transparent 55%),
-    radial-gradient(circle at 82% 78%, rgba(14, 116, 144, 0.28), transparent 55%),
-    #020617;
+    radial-gradient(circle at 16% 18%, rgba(79, 70, 229, 0.38), transparent 46%),
+    radial-gradient(circle at 84% 22%, rgba(14, 165, 233, 0.28), transparent 44%),
+    radial-gradient(circle at 50% 88%, rgba(139, 92, 246, 0.24), transparent 52%),
+    #060914;
+}
+
+html[data-surface="glass"] .el-card,
+html[data-surface="glass"] .base-card,
+html[data-surface="glass"] .ep-card,
+html[data-surface="glass"] .workbench-card {
+  backdrop-filter: var(--sb-glass-blur) !important;
+  -webkit-backdrop-filter: var(--sb-glass-blur) !important;
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.88),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.34),
+    0 14px 34px -10px rgba(30, 41, 92, 0.11),
+    0 2px 8px -2px rgba(15, 23, 42, 0.05) !important;
+}
+
+html.dark[data-surface="glass"] .el-card,
+html.dark[data-surface="glass"] .base-card,
+html.dark[data-surface="glass"] .ep-card,
+html.dark[data-surface="glass"] .workbench-card {
+  backdrop-filter: var(--sb-glass-blur) !important;
+  -webkit-backdrop-filter: var(--sb-glass-blur) !important;
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.14),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 18px 40px -12px rgba(0, 0, 0, 0.55) !important;
 }
 
 html.dark .el-card,
