@@ -30,7 +30,7 @@ const form = reactive({
   password: "Admin@123456"
 });
 const loading = ref(false);
-const booting = ref(false);
+const booting = ref(true);
 const portal = ref<PortalEntry | null>(null);
 const mfaRequired = ref(false);
 const loginError = ref("");
@@ -124,7 +124,7 @@ const modeOptions: Array<{ value: ThemeMode; label: string; icon: typeof Sunny }
   { value: "system", label: "跟随系统", icon: Monitor }
 ];
 
-const captchaEnabled = computed(() => portal.value?.captcha.mode !== "NONE");
+const captchaEnabled = computed(() => Boolean(portal.value && portal.value.captcha.mode !== "NONE"));
 
 const activePreset = computed(
   () => presetOptions.find((item) => item.value === themeStore.preset) ?? presetOptions[0]

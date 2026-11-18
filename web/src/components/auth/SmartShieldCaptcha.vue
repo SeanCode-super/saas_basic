@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, reactive, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { Close, RefreshRight } from "@element-plus/icons-vue";
 import {
@@ -17,10 +17,12 @@ const props = withDefaults(
   defineProps<{
     dark?: boolean;
     modeHint?: string;
+    autoVerify?: boolean;
   }>(),
   {
     dark: false,
-    modeHint: "SMART"
+    modeHint: "SMART",
+    autoVerify: true
   }
 );
 
@@ -32,10 +34,11 @@ const emit = defineEmits<{
 const PUZZLE_VIEW_WIDTH = 312;
 const PIECE_STRIP_WIDTH = 60;
 const MAX_SLIDE_PX = PUZZLE_VIEW_WIDTH - PIECE_STRIP_WIDTH;
+const AUTO_REFRESH_INTERVAL_MS = 240_000;
 const textEncoder = new TextEncoder();
 
-const status = ref<"idle" | "checking" | "slider" | "verified" | "error">("idle");
-const statusText = ref("点击进行智能安全核验");
+const status = ref<"idle" | "checking" | "slider_ready" | "slider" | "verified" | "error">("idle");
+const statusText = ref("正在初始化安全护盾...");
 const verifiedTicket = ref<CaptchaTicket | null>(null);
 const sliderOpen = ref(false);
 const sliderChallenge = ref<SmartCaptchaChallenge | null>(null);
@@ -56,6 +59,8 @@ const sliderState = reactive({
 
 let pendingResolve: ((ticket: CaptchaTicket | null) => void) | null = null;
 let dragMaxTrackPx = MAX_SLIDE_PX;
+let refreshTimer: number | null = null;
+let inFlightAutoPromise: Promise<CaptchaTicket | null> | null = null;
 
 const pieceLeftPercent = computed(() => `${(sliderState.x / PUZZLE_VIEW_WIDTH) * 100}%`);
 const thumbLeftPx = computed(() => {
@@ -88,6 +93,27 @@ async function solvePowNonce(salt: string, difficulty: number): Promise<string> 
     }
   }
   return "0";
+}
+
+function clearRefreshTimer() {
+  if (refreshTimer !== null) {
+    window.clearTimeout(refreshTimer);
+    refreshTimer = null;
+  }
+}
+
+function scheduleAutoRefresh() {
+  clearRefreshTimer();
+  if (!props.autoVerify) {
+    return;
+  }
+  refreshTimer = window.setTimeout(() => {
+    if (status.value === "verified") {
+      verifiedTicket.value = null;
+      emit("reset");
+      void autoCheckOnLoad();
+    }
+  }, AUTO_REFRESH_INTERVAL_MS);
 }
 
 function resolvePending(ticket: CaptchaTicket | null) {
@@ -144,9 +170,72 @@ function syncTrackMetrics() {
   }
 }
 
+async function autoCheckOnLoad(): Promise<CaptchaTicket | null> {
+  if (inFlightAutoPromise) {
+    return inFlightAutoPromise;
+  }
+  const run = async (): Promise<CaptchaTicket | null> => {
+    if (props.modeHint === "SLIDER") {
+      status.value = "slider_ready";
+      statusText.value = "请点击或登录完成滑动拼图核验";
+      return null;
+    }
+
+    status.value = "checking";
+    statusText.value = "正在自动检测安全环境...";
+    try {
+      const startMs = Date.now();
+      const challenge = await fetchSmartCaptchaChallenge("AUTO");
+      if (challenge.challengeType === "SLIDER") {
+        sliderChallenge.value = challenge;
+        resetSliderState();
+        status.value = "slider_ready";
+        statusText.value = "检测到异常尝试，请完成拼图验证";
+        return null;
+      }
+
+      const [nonce] = await Promise.all([
+        solvePowNonce(challenge.powSalt || "", challenge.powDifficulty || 3),
+        new Promise((resolve) => setTimeout(resolve, 260))
+      ]);
+
+      const res = await verifySmartCaptcha({
+        captchaId: challenge.captchaId,
+        nonce,
+        durationMs: Math.max(120, Date.now() - startMs),
+        trailCount: 2
+      });
+      const ticket: CaptchaTicket = {
+        captchaId: challenge.captchaId,
+        passToken: res.passToken
+      };
+      verifiedTicket.value = ticket;
+      status.value = "verified";
+      statusText.value = "安全环境自动核验通过";
+      emit("verified", ticket);
+      scheduleAutoRefresh();
+      return ticket;
+    } catch (error: unknown) {
+      if (getAxiosCode(error) === "AUTH_CAPTCHA_UPGRADE_SLIDER") {
+        status.value = "slider_ready";
+        statusText.value = "请点击完成滑动拼图验证";
+        return null;
+      }
+      status.value = "error";
+      statusText.value = "安全环境检测失败，点击重试";
+      return null;
+    }
+  };
+
+  inFlightAutoPromise = run().finally(() => {
+    inFlightAutoPromise = null;
+  });
+  return inFlightAutoPromise;
+}
+
 async function runVerificationFlow(forceSlider = false): Promise<CaptchaTicket | null> {
   if (status.value === "checking") {
-    return null;
+    return inFlightAutoPromise;
   }
   const preferSlider = forceSlider || props.modeHint === "SLIDER";
   if (preferSlider) {
@@ -187,8 +276,9 @@ async function runVerificationFlow(forceSlider = false): Promise<CaptchaTicket |
     };
     verifiedTicket.value = ticket;
     status.value = "verified";
-    statusText.value = "智能安全核验已通过";
+    statusText.value = "安全环境自动核验通过";
     emit("verified", ticket);
+    scheduleAutoRefresh();
     return ticket;
   } catch (error: unknown) {
     if (getAxiosCode(error) === "AUTH_CAPTCHA_UPGRADE_SLIDER") {
@@ -198,6 +288,18 @@ async function runVerificationFlow(forceSlider = false): Promise<CaptchaTicket |
     statusText.value = "核验未通过，请点击重试";
     return null;
   }
+}
+
+function openPrefetchedSlider(): Promise<CaptchaTicket | null> {
+  resetSliderState();
+  status.value = "slider";
+  statusText.value = "请完成滑动拼图核验";
+  sliderOpen.value = true;
+  syncTrackMetrics();
+  return new Promise<CaptchaTicket | null>((resolve) => {
+    resolvePending(null);
+    pendingResolve = resolve;
+  });
 }
 
 function openAndWaitSlider(): Promise<CaptchaTicket | null> {
@@ -210,6 +312,14 @@ function openAndWaitSlider(): Promise<CaptchaTicket | null> {
 
 function handleBarClick() {
   if (status.value === "verified" || status.value === "checking") {
+    return;
+  }
+  if (status.value === "slider_ready") {
+    if (sliderChallenge.value) {
+      void openPrefetchedSlider();
+    } else {
+      void openAndWaitSlider();
+    }
     return;
   }
   if (status.value === "slider") {
@@ -280,6 +390,7 @@ async function handleSliderPointerUp() {
     status.value = "verified";
     statusText.value = "滑动拼图核验已通过";
     emit("verified", ticket);
+    scheduleAutoRefresh();
 
     setTimeout(() => {
       sliderOpen.value = false;
@@ -299,8 +410,8 @@ async function handleSliderPointerUp() {
 function closeSliderModal() {
   sliderOpen.value = false;
   if (status.value !== "verified") {
-    status.value = "idle";
-    statusText.value = "点击完成安全核验";
+    status.value = "slider_ready";
+    statusText.value = "请点击或登录完成拼图验证";
   }
   resolvePending(null);
 }
@@ -309,25 +420,44 @@ async function ensureVerified(): Promise<CaptchaTicket | null> {
   if (verifiedTicket.value) {
     return verifiedTicket.value;
   }
+  if (inFlightAutoPromise) {
+    const settled = await inFlightAutoPromise;
+    if (settled) {
+      return settled;
+    }
+  }
+  if (status.value === "slider_ready") {
+    if (sliderChallenge.value) {
+      return openPrefetchedSlider();
+    }
+    return openAndWaitSlider();
+  }
   return runVerificationFlow(false);
 }
 
 function resetShield(escalateToSlider = false) {
+  clearRefreshTimer();
   verifiedTicket.value = null;
   sliderChallenge.value = null;
   sliderOpen.value = false;
   resetSliderState();
   emit("reset");
   if (escalateToSlider) {
-    status.value = "idle";
-    statusText.value = "请点击完成滑动拼图核验";
+    status.value = "slider_ready";
+    statusText.value = "密码校验未通过，请拖动拼图继续";
   } else {
-    status.value = "idle";
-    statusText.value = "点击进行智能安全核验";
+    void autoCheckOnLoad();
   }
 }
 
+onMounted(() => {
+  if (props.autoVerify) {
+    void autoCheckOnLoad();
+  }
+});
+
 onBeforeUnmount(() => {
+  clearRefreshTimer();
   window.removeEventListener("pointermove", handleSliderPointerMove);
   window.removeEventListener("pointerup", handleSliderPointerUp);
   window.removeEventListener("pointercancel", handleSliderPointerUp);
@@ -459,6 +589,18 @@ defineExpose({
     }
   }
 
+  &.state--slider_ready {
+    border-color: rgba(245, 158, 11, 0.45);
+    background: rgba(255, 251, 235, 0.92);
+    color: #b45309;
+
+    .shield-indicator {
+      background: rgba(245, 158, 11, 0.16);
+      border-color: rgba(245, 158, 11, 0.45);
+      color: #d97706;
+    }
+  }
+
   &.state--error {
     border-color: rgba(239, 68, 68, 0.45);
     color: #b91c1c;
@@ -479,6 +621,18 @@ defineExpose({
     border-color: rgba(16, 185, 129, 0.52);
     background: rgba(6, 78, 59, 0.36);
     color: #a7f3d0;
+  }
+
+  &.state--slider_ready {
+    border-color: rgba(245, 158, 11, 0.48);
+    background: rgba(120, 53, 15, 0.28);
+    color: #fde68a;
+
+    .shield-indicator {
+      background: rgba(245, 158, 11, 0.22);
+      border-color: rgba(245, 158, 11, 0.48);
+      color: #fbbf24;
+    }
   }
 }
 

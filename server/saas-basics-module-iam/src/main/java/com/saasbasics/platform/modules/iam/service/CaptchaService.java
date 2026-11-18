@@ -27,7 +27,7 @@ public class CaptchaService {
     private static final String REDIS_RISK_PREFIX = "saas:auth:captcha:risk:";
     private static final String CHARS = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
     private static final int TTL_SECONDS = 180;
-    private static final int PASS_TTL_SECONDS = 120;
+    private static final int PASS_TTL_SECONDS = 300;
     private static final int RISK_TTL_SECONDS = 600;
     private static final int SMART_POW_DIFFICULTY = 3;
     private static final int SLIDER_TOLERANCE_PX = 6;
