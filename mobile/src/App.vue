@@ -55,6 +55,25 @@ page {
   box-sizing: border-box;
 }
 
+/* #ifdef H5 */
+@media screen and (min-width: 640px) {
+  body {
+    display: flex;
+    justify-content: center;
+    background: #070d1e !important;
+  }
+  uni-app, #app {
+    max-width: 430px;
+    width: 100%;
+    margin: 0 auto;
+    min-height: 100vh;
+    box-shadow: 0 0 60px rgba(0, 0, 0, 0.50);
+    position: relative;
+    overflow-x: hidden;
+  }
+}
+/* #endif */
+
 /* 移除默认顶部导航条，实现全屏沉浸式无界体验 */
 uni-page-head {
   display: none !important;
@@ -62,6 +81,13 @@ uni-page-head {
 }
 
 uni-page-head .uni-page-head {
+  display: none !important;
+}
+
+/* 消除 uni-app 默认原生 button::after 灰色方框描边，释放现代高定材质质感 */
+button::after,
+uni-button::after {
+  border: none !important;
   display: none !important;
 }
 

@@ -749,10 +749,9 @@ onMounted(() => {
   line-height: 30px;
   padding: 0 14px;
   font-size: 11.5px;
-  font-weight: 650;
+  font-weight: 700;
   border-radius: 9999px;
-  border: none;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.40);
   transition: transform 0.15s ease;
 }
 
@@ -761,10 +760,10 @@ onMounted(() => {
 }
 
 .is-agree {
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 55%, #4f46e5 100%);
   color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.4), 0 4px 14px rgba(37, 99, 235, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.5), 0 4px 14px rgba(37, 99, 235, 0.32);
 }
 
 /* 快捷审批弹窗 */

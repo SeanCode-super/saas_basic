@@ -7,7 +7,8 @@
         <text class="page-desc">在线审批单据、办理流转与历史追溯</text>
       </view>
       <button class="apply-btn" @click="navToApply">
-        + 发起审批
+        <text class="apply-plus">+</text>
+        <text class="apply-text">发起审批</text>
       </button>
     </view>
 
@@ -59,7 +60,10 @@
     <view v-else class="tasks-container">
       <view v-for="task in currentList" :key="task.id" class="task-card" @click="openTaskDetail(task)">
         <view class="card-top">
-          <text class="instance-no">{{ task.instanceNo || 'FLOW-2026102601' }}</text>
+          <view class="no-wrap">
+            <view class="no-dot" />
+            <text class="instance-no">{{ task.instanceNo || 'FLOW-2026102601' }}</text>
+          </view>
           <text class="node-badge" :class="[task.status === 'COMPLETED' ? 'is-done' : 'is-pending']">
             {{ task.nodeName || '部门初审' }}
           </text>
@@ -82,10 +86,16 @@
           </view>
         </view>
 
-        <!-- 仅待办卡片显示操作按钮组 -->
+        <!-- 仅待办卡片显示操作按钮组：未来感流光微玻极客胶囊 -->
         <view v-if="activeTab === 'pending'" class="card-actions" @click.stop>
-          <button class="btn btn-reject" @click="openActionModal(task, 'REJECT')">驳回退回</button>
-          <button class="btn btn-agree" @click="openActionModal(task, 'AGREE')">同意核准</button>
+          <button class="btn btn-reject" @click="openActionModal(task, 'REJECT')">
+            <AppIcon name="close" :size="12" color="#e11d48" :stroke-width="2.4" />
+            <text class="btn-label">驳回退回</text>
+          </button>
+          <button class="btn btn-agree" @click="openActionModal(task, 'AGREE')">
+            <AppIcon name="check" :size="13" color="#ffffff" :stroke-width="2.6" />
+            <text class="btn-label">同意核准</text>
+          </button>
         </view>
       </view>
     </view>
@@ -192,6 +202,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { onPullDownRefresh } from "@dcloudio/uni-app";
+import AppIcon from "../../components/ui/AppIcon.vue";
 import AppSkeleton from "../../components/ui/AppSkeleton.vue";
 import AppEmpty from "../../components/ui/AppEmpty.vue";
 import AppModal from "../../components/ui/AppModal.vue";
@@ -353,19 +364,37 @@ onMounted(() => {
 .apply-btn {
   height: 34px;
   line-height: 34px;
-  padding: 0 16px;
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  padding: 0 14px;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0369a1 100%);
   color: #ffffff;
   border-radius: 9999px;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 650;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.4), 0 4px 14px rgba(37, 99, 235, 0.30);
-  transition: transform 0.16s ease;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow:
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.40),
+    0 4px 14px rgba(15, 23, 42, 0.20);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.16s ease;
 }
 
 .apply-btn:active {
   transform: scale(0.96);
+  opacity: 0.92;
+}
+
+.apply-plus {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.apply-text {
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.2px;
 }
 
 .workflow-tabs {
@@ -440,29 +469,46 @@ onMounted(() => {
   margin-bottom: 8px;
 }
 
+.no-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.no-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: #38bdf8;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+}
+
 .instance-no {
-  font-size: 12px;
+  font-size: 11.5px;
   color: #64748b;
   font-family: monospace;
-  font-weight: 550;
+  font-weight: 600;
+  letter-spacing: -0.2px;
 }
 
 .node-badge {
   font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 6px;
+  padding: 3px 10px;
+  border-radius: 9999px;
   font-weight: 650;
+  letter-spacing: 0.2px;
 }
 
 .node-badge.is-pending {
-  background: rgba(37, 99, 235, 0.12);
-  border: 1px solid rgba(37, 99, 235, 0.25);
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.22);
   color: #2563eb;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.04);
 }
 
 .node-badge.is-done {
-  background: rgba(16, 185, 129, 0.12);
-  border: 1px solid rgba(16, 185, 129, 0.25);
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.22);
   color: #059669;
 }
 
@@ -475,15 +521,16 @@ onMounted(() => {
 }
 
 .card-details {
-  background: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.62);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  border-radius: 12px;
-  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.92);
+  border-radius: 14px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.02);
 }
 
 .detail-row {
@@ -516,36 +563,73 @@ onMounted(() => {
 
 .card-actions {
   display: flex;
-  gap: 10px;
+  align-items: center;
+  gap: 12px;
   margin-top: 14px;
 }
 
 .btn {
   flex: 1;
-  height: 38px;
-  line-height: 38px;
-  font-size: 13px;
-  font-weight: 650;
-  border-radius: 12px;
+  height: 40px;
+  line-height: 40px;
+  border-radius: 9999px;
   border: none;
-  transition: transform 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-sizing: border-box;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.btn::after,
+.apply-btn::after {
+  border: none !important;
+  display: none !important;
 }
 
 .btn:active {
-  transform: scale(0.97);
+  transform: scale(0.975);
 }
 
+/* 驳回退回：珠光雾面冷萃微玻，高质感珊瑚粉冷雾渐变 + 细腻微描边 */
 .btn-reject {
-  background: rgba(239, 68, 68, 0.08);
-  color: #dc2626;
-  border: 1px solid rgba(239, 68, 68, 0.25);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 241, 242, 0.85) 100%);
+  color: #e11d48;
+  border: 1px solid rgba(254, 205, 211, 0.85);
+  box-shadow:
+    inset 0 1px 1.5px 0 #ffffff,
+    inset 0 -1px 2px 0 rgba(225, 29, 72, 0.04),
+    0 4px 14px -2px rgba(225, 29, 72, 0.10);
 }
 
+.btn-reject:active {
+  background: linear-gradient(135deg, rgba(254, 226, 226, 0.95) 0%, rgba(255, 241, 242, 0.90) 100%);
+  box-shadow: inset 0 1px 2px 0 rgba(225, 29, 72, 0.12);
+}
+
+/* 同意核准：未来感极光深空流光微玻，青蓝霓光微动与晶透倒角 */
 .btn-agree {
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 52%, #4f46e5 100%);
   color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.4), 0 4px 12px rgba(37, 99, 235, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.40);
+  box-shadow:
+    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.60),
+    inset 0 -1.5px 2px 0 rgba(15, 23, 42, 0.25),
+    0 8px 22px -3px rgba(37, 99, 235, 0.40);
+}
+
+.btn-agree:active {
+  background: linear-gradient(135deg, #0369a1 0%, #1d4ed8 52%, #4338ca 100%);
+  box-shadow:
+    inset 0 1px 2px 0 rgba(0, 0, 0, 0.25),
+    0 4px 12px -2px rgba(37, 99, 235, 0.35);
+}
+
+.btn-label {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
 }
 
 /* 审批操作弹窗内样式 */

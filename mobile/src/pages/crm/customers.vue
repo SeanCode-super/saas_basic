@@ -637,61 +637,79 @@ onMounted(() => {
 
 .card-actions {
   display: flex;
+  align-items: center;
   gap: 10px;
 }
 
 .action-btn {
   flex: 1;
-  height: 36px;
-  line-height: 36px;
+  height: 38px;
+  line-height: 38px;
   font-size: 13px;
-  font-weight: 650;
-  border-radius: 12px;
+  font-weight: 700;
+  border-radius: 9999px;
   border: none;
-  transition: transform 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  box-sizing: border-box;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .action-btn:active {
-  transform: scale(0.97);
+  transform: scale(0.975);
 }
 
 .is-claim {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
   color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.4), 0 4px 12px rgba(217, 119, 6, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.40);
+  box-shadow:
+    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -1.5px 2px 0 rgba(0, 0, 0, 0.15),
+    0 6px 18px -2px rgba(234, 88, 12, 0.35);
 }
 
 .is-follow {
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 55%, #4f46e5 100%);
   color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.4), 0 4px 12px rgba(37, 99, 235, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.40);
+  box-shadow:
+    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.60),
+    inset 0 -1.5px 2px 0 rgba(15, 23, 42, 0.25),
+    0 8px 20px -3px rgba(37, 99, 235, 0.38);
 }
 
 .is-return {
-  background: rgba(255, 255, 255, 0.65);
-  border: 1px solid rgba(203, 213, 225, 0.85);
-  color: #64748b;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(241, 245, 249, 0.90) 100%);
+  border: 1px solid rgba(203, 213, 225, 0.95);
+  color: #475569;
+  box-shadow:
+    inset 0 1px 1px 0 #ffffff,
+    0 4px 12px -2px rgba(15, 23, 42, 0.06);
 }
 
 .is-delete {
-  flex: 0 0 54px;
-  background: rgba(254, 242, 242, 0.85);
-  border: 1px solid rgba(254, 202, 202, 0.9);
-  color: #ef4444;
+  flex: 0 0 58px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 241, 242, 0.88) 100%);
+  border: 1px solid rgba(254, 205, 211, 0.90);
+  color: #e11d48;
   font-size: 12px;
+  box-shadow:
+    inset 0 1px 1px 0 #ffffff,
+    0 4px 12px -2px rgba(225, 29, 72, 0.08);
 }
 
 .is-delete:active {
-  background: rgba(254, 226, 226, 0.95);
+  background: linear-gradient(135deg, rgba(254, 226, 226, 0.95) 0%, rgba(255, 241, 242, 0.90) 100%);
 }
 
 .float-btn {
   position: fixed;
   right: 20px;
   bottom: calc(88px + env(safe-area-inset-bottom));
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0284c7 100%);
   color: #ffffff;
   border-radius: 9999px;
   padding: 10px 18px;

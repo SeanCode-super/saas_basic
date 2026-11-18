@@ -482,20 +482,27 @@ async function submitWorkflow() {
 }
 
 .submit-btn {
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 55%, #4f46e5 100%);
   color: #ffffff;
   border-radius: 9999px;
   font-size: 14.5px;
-  font-weight: 650;
-  height: 46px;
-  line-height: 46px;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.4), 0 6px 18px rgba(37, 99, 235, 0.32);
-  transition: transform 0.15s ease;
+  font-weight: 700;
+  height: 48px;
+  line-height: 48px;
+  border: 1px solid rgba(255, 255, 255, 0.40);
+  box-shadow:
+    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.60),
+    inset 0 -1.5px 2px 0 rgba(15, 23, 42, 0.25),
+    0 10px 24px -4px rgba(37, 99, 235, 0.40);
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .submit-btn:active {
-  transform: scale(0.97);
+  transform: scale(0.98);
+  background: linear-gradient(135deg, #0369a1 0%, #1d4ed8 55%, #4338ca 100%);
+  box-shadow:
+    inset 0 1px 2px 0 rgba(0, 0, 0, 0.25),
+    0 4px 12px -2px rgba(37, 99, 235, 0.35);
 }
 
 /* 预览弹窗 */

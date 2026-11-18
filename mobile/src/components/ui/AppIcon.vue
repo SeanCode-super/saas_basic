@@ -120,6 +120,18 @@
         <polyline points="20 6 9 17 4 12" />
       </g>
 
+      <!-- 关闭 / 驳回 / X -->
+      <g v-else-if="name === 'close' || name === 'x' || name === 'reject'">
+        <line x1="18" y1="6" x2="6" y2="18" />
+        <line x1="6" y1="6" x2="18" y2="18" />
+      </g>
+
+      <!-- 圆形对勾 -->
+      <g v-else-if="name === 'check-circle' || name === 'agree'">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+        <polyline points="22 4 12 14.01 9 11.01" />
+      </g>
+
       <!-- 密码锁 -->
       <g v-else-if="name === 'lock'">
         <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
