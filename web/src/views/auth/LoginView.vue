@@ -1376,21 +1376,21 @@ onMounted(() => {
   }
 }
 
-/* 主登录行动按钮 */
+/* 主登录行动按钮：亮色晶透浅色高雅质感，暗色曜石霓虹流光 */
 .cyber-submit-btn {
   position: relative;
   width: 100%;
   height: 48px;
   padding: 0 18px;
-  border: 1px solid rgba(255, 255, 255, 0.24);
+  border: 1px solid rgba(var(--portal-glow-rgb), 0.28);
   border-radius: 12px;
-  background: linear-gradient(110deg, var(--portal-glow) 0%, var(--portal-btn-mid) 52%, var(--portal-secondary) 100%);
+  background: linear-gradient(135deg, #ffffff 0%, rgba(240, 244, 255, 0.96) 50%, rgba(224, 231, 255, 0.92) 100%);
   background-size: 160% 100%;
-  color: #ffffff;
+  color: #0f172a;
   font-size: 15px;
   font-weight: 600;
   letter-spacing: 0.04em;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.26);
+  text-shadow: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1398,16 +1398,20 @@ onMounted(() => {
   cursor: pointer;
   overflow: hidden;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.34),
-    0 14px 30px -8px rgba(var(--portal-glow-rgb), 0.52);
-  transition: transform 180ms ease, box-shadow 180ms ease, background-position 260ms ease, opacity 180ms ease;
+    inset 0 1px 0 #ffffff,
+    0 6px 20px -4px rgba(var(--portal-glow-rgb), 0.18),
+    0 2px 6px -1px rgba(0, 0, 0, 0.04);
+  transition: transform 180ms ease, box-shadow 180ms ease, background-position 260ms ease, border-color 180ms ease, color 180ms ease, opacity 180ms ease;
 
   &:hover:not(:disabled) {
     background-position: 80% 0;
     transform: translateY(-1px);
+    border-color: rgba(var(--portal-glow-rgb), 0.48);
+    color: var(--portal-glow);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.42),
-      0 18px 36px -8px rgba(var(--portal-glow-rgb), 0.65);
+      inset 0 1px 0 #ffffff,
+      0 10px 24px -4px rgba(var(--portal-glow-rgb), 0.25),
+      0 3px 8px -2px rgba(0, 0, 0, 0.06);
   }
 
   &:hover:not(:disabled) .btn-arrow {
@@ -1427,7 +1431,7 @@ onMounted(() => {
 .btn-sheen {
   position: absolute;
   inset: 0;
-  background: linear-gradient(110deg, transparent 20%, rgba(255, 255, 255, 0.28) 48%, transparent 72%);
+  background: linear-gradient(110deg, transparent 20%, rgba(255, 255, 255, 0.65) 48%, transparent 72%);
   transform: translateX(-110%);
   transition: transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
   pointer-events: none;
@@ -1437,6 +1441,27 @@ onMounted(() => {
   width: 17px;
   height: 17px;
   transition: transform 180ms ease;
+}
+
+.is-dark .cyber-submit-btn {
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: linear-gradient(110deg, var(--portal-glow) 0%, var(--portal-btn-mid) 52%, var(--portal-secondary) 100%);
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.26);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.34),
+    0 14px 30px -8px rgba(var(--portal-glow-rgb), 0.52);
+
+  &:hover:not(:disabled) {
+    color: #ffffff;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.42),
+      0 18px 36px -8px rgba(var(--portal-glow-rgb), 0.65);
+  }
+
+  .btn-sheen {
+    background: linear-gradient(110deg, transparent 20%, rgba(255, 255, 255, 0.28) 48%, transparent 72%);
+  }
 }
 
 /* 极简纯图标 SSO 行 */
