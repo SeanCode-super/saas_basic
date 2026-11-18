@@ -249,7 +249,7 @@ onMounted(() => {
             <span class="seq-code" style="color: #16a34a">{{ row.sample }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="动作演练与配置" min-width="180">
+        <el-table-column label="动作演练与配置" min-width="250">
           <template #default="{ row }">
             <el-button link type="primary" :icon="MagicStick" @click="handleGenerateNext(row)">发号测试</el-button>
             <el-button link type="warning" :icon="RefreshRight" @click="handleResetCounter(row)">归零重置</el-button>

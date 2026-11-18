@@ -200,7 +200,7 @@ function handleDownload(row: any) {
             <el-tag type="success" size="small"><el-icon><CircleCheck /></el-icon> 正常</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="232" fixed="right">
+        <el-table-column label="操作" width="255" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" :icon="View" @click="handlePreview(row)">预览</el-button>
             <el-button link type="primary" :icon="CopyDocument" @click="handleCopyUrl(row)">复制直链</el-button>

@@ -767,7 +767,7 @@ function handleExportUsers() {
               </el-table-column>
 
               <!-- Actions -->
-              <el-table-column label="操作" width="205" fixed="right">
+              <el-table-column label="操作" width="225" fixed="right">
                 <template #default="{ row }">
                   <div class="action-cell">
                     <el-button

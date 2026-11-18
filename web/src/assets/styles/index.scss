@@ -499,7 +499,7 @@ html.dark .el-radio-group:has(.el-radio-button) {
   td.el-table__cell {
     .el-button {
       height: 26px !important;
-      padding: 0 8px !important;
+      padding: 0 6px !important;
       border-radius: 6px !important;
       font-size: 13px !important;
       font-weight: 550 !important;
@@ -511,7 +511,7 @@ html.dark .el-radio-group:has(.el-radio-button) {
       display: inline-flex !important;
       align-items: center !important;
       justify-content: center !important;
-      gap: 3px !important;
+      gap: 4px !important;
       letter-spacing: -0.01em !important;
       background: transparent !important;
       border: 1px solid transparent !important;
@@ -521,7 +521,11 @@ html.dark .el-radio-group:has(.el-radio-button) {
 
       .el-icon {
         font-size: 13px !important;
-        margin-right: 2px !important;
+        margin-right: 0 !important;
+      }
+
+      [class*="el-icon"] + span {
+        margin-left: 0 !important;
       }
 
       /* 主要/编辑/授权/诊断操作 (天枢微晶钴蓝) */
@@ -646,7 +650,7 @@ html.dark .el-radio-group:has(.el-radio-button) {
     justify-content: center !important;
     flex-wrap: nowrap !important;
     gap: 4px !important;
-    padding: 0 6px !important;
+    padding: 0 8px !important;
     box-sizing: border-box !important;
   }
 

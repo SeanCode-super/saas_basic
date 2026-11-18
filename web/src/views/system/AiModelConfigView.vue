@@ -822,7 +822,7 @@ onMounted(() => {
             </template>
           </el-table-column>
 
-          <el-table-column label="管理操作" width="220" fixed="right" align="center">
+          <el-table-column label="管理操作" width="245" fixed="right" align="center">
             <template #default="{ row }">
               <div class="action-btn-group">
                 <el-button
@@ -876,7 +876,7 @@ onMounted(() => {
           <el-table-column prop="temperature" label="温度" width="80" align="center">
             <template #default="{ row }"><span class="mono-spec">{{ row.temperature }}</span></template>
           </el-table-column>
-          <el-table-column label="管理操作" width="210" fixed="right" align="center">
+          <el-table-column label="管理操作" width="235" fixed="right" align="center">
             <template #default="{ row }">
               <div class="action-btn-group">
                 <el-button
@@ -934,7 +934,7 @@ onMounted(() => {
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="170" align="center">
+          <el-table-column label="操作" width="190" align="center">
             <template #default="{ row }">
               <el-button size="small" type="primary" plain @click="handleProbeMcp(row)">MCP 握手探测</el-button>
               <el-button

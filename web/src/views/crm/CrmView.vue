@@ -671,7 +671,7 @@ onMounted(() => {
               </template>
             </el-table-column>
             <el-table-column prop="lastContactTime" label="最后跟进时间" width="128" show-overflow-tooltip />
-            <el-table-column label="操作" width="246" fixed="right">
+            <el-table-column label="操作" width="280" align="center" fixed="right">
               <template #default="{ row }">
                 <el-button v-if="row.isPool === 1" link type="success" size="small" :icon="TrendCharts" @click="handleClaim(row)">抢单认领</el-button>
                 <template v-else>
@@ -718,7 +718,7 @@ onMounted(() => {
             </el-table-column>
             <el-table-column prop="ownerUserName" label="跟进责任人" width="120" />
             <el-table-column prop="nextContactTime" label="预约下次跟进" width="160" />
-            <el-table-column label="操作" min-width="200">
+            <el-table-column label="操作" min-width="220">
               <template #default="{ row }">
                 <el-button link type="primary" size="small" :icon="Calendar" @click="openFollowUpDrawer('CLUE', row.id, row.name)">写跟进</el-button>
                 <el-button v-if="row.status !== 'CONVERTED'" link type="success" size="small" :icon="Check" @click="handleConvertClue(row)">一键转客户</el-button>
@@ -768,7 +768,7 @@ onMounted(() => {
               </template>
             </el-table-column>
             <el-table-column prop="dealDate" label="预计结单日" width="120" />
-            <el-table-column label="操作" min-width="180">
+            <el-table-column label="操作" min-width="195">
               <template #default="{ row }">
                 <el-button link type="primary" size="small" :icon="TrendCharts" @click="openStageDialog(row)">推进阶段</el-button>
                 <el-button link type="info" size="small" :icon="Calendar" @click="openFollowUpDrawer('BUSINESS', row.id, row.name)">跟进</el-button>
@@ -816,7 +816,7 @@ onMounted(() => {
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="操作" min-width="200">
+            <el-table-column label="操作" min-width="235">
               <template #default="{ row }">
                 <template v-if="row.status === 'APPROVING'">
                   <el-button link type="success" size="small" :icon="Check" @click="handleApproveContract(row, true)">通过</el-button>
