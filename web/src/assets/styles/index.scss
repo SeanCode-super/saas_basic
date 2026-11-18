@@ -12,11 +12,12 @@ body {
 }
 
 html[data-surface="glass"] body {
-  background-color: #dbeafe;
+  background-color: #e4ecfb;
   background-image:
-    radial-gradient(circle at 14% 16%, rgba(99, 102, 241, 0.24), transparent 44%),
-    radial-gradient(circle at 86% 20%, rgba(14, 165, 233, 0.20), transparent 44%),
-    radial-gradient(circle at 54% 88%, rgba(168, 85, 247, 0.18), transparent 48%),
+    radial-gradient(circle at 14% 16%, var(--sb-glass-orb-1, rgba(99, 102, 241, 0.28)), transparent 46%),
+    radial-gradient(circle at 86% 20%, var(--sb-glass-orb-2, rgba(14, 165, 233, 0.22)), transparent 44%),
+    radial-gradient(circle at 54% 88%, var(--sb-glass-orb-3, rgba(168, 85, 247, 0.20)), transparent 48%),
+    linear-gradient(135deg, rgba(238, 243, 255, 0.74) 0%, rgba(245, 248, 255, 0.58) 48%, rgba(244, 241, 255, 0.68) 100%),
     url("/ios27-liquid-glass-bg.jpg");
   background-repeat: no-repeat;
   background-position: center center;
@@ -178,6 +179,55 @@ h1, h2, h3, h4, h5, h6 {
 .el-button--primary.is-text {
   --el-button-text-color: var(--sb-primary-color);
   --el-button-hover-text-color: var(--sb-primary-hover);
+}
+
+/* 晶透分段控制器 (Frosted Segmented Control for el-radio-group) */
+.el-radio-group:has(.el-radio-button) {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--sb-tier1-bg);
+  border: 1px solid var(--sb-border-subtle);
+  box-shadow: var(--sb-shadow-xs);
+
+  .el-radio-button__inner {
+    border: 1px solid transparent !important;
+    border-radius: 7px !important;
+    background: transparent !important;
+    color: var(--sb-text-secondary) !important;
+    font-weight: 600;
+    box-shadow: none !important;
+    transition: all 140ms ease;
+
+    &:hover {
+      color: var(--sb-text-primary) !important;
+      background: var(--sb-surface-soft) !important;
+    }
+  }
+
+  .el-radio-button.is-active .el-radio-button__inner,
+  .el-radio-button__original-radio:checked + .el-radio-button__inner {
+    background: #ffffff !important;
+    color: var(--sb-primary-color) !important;
+    border-color: var(--sb-border-subtle) !important;
+    box-shadow: var(--sb-shadow-xs) !important;
+  }
+}
+
+html[data-surface="glass"] .el-radio-group:has(.el-radio-button) {
+  backdrop-filter: var(--sb-glass-blur-sm);
+  -webkit-backdrop-filter: var(--sb-glass-blur-sm);
+}
+
+html.dark .el-radio-group:has(.el-radio-button) {
+  .el-radio-button.is-active .el-radio-button__inner,
+  .el-radio-button__original-radio:checked + .el-radio-button__inner {
+    background: var(--sb-cta-bg) !important;
+    color: #ffffff !important;
+    border-color: transparent !important;
+  }
 }
 
 /* ==========================================================================
@@ -943,7 +993,6 @@ html[data-density="compact"] .el-table {
 .arch-card,
 .quota-card,
 .compact-app-card,
-.module-workbench__summary,
 .policy-table-card,
 .foundation-tabs,
 .matrix-module-card,
@@ -981,7 +1030,6 @@ html[data-density="compact"] .el-table {
 .file-telemetry-bar,
 .audit-metric-strip,
 .lifecycle-metric-strip,
-.data-scope-header,
 .emp-filter-panel,
 .role-view-control-bar,
 [class*="-metric-strip"],
@@ -1100,7 +1148,24 @@ html.dark[data-surface="glass"] body {
 html[data-surface="glass"] .el-card,
 html[data-surface="glass"] .base-card,
 html[data-surface="glass"] .ep-card,
-html[data-surface="glass"] .workbench-card {
+html[data-surface="glass"] .workbench-card,
+html[data-surface="glass"] .matrix-table-container,
+html[data-surface="glass"] .plan-card,
+html[data-surface="glass"] .arch-card,
+html[data-surface="glass"] .quota-card,
+html[data-surface="glass"] .compact-app-card,
+html[data-surface="glass"] .policy-table-card,
+html[data-surface="glass"] .foundation-tabs,
+html[data-surface="glass"] .matrix-module-card,
+html[data-surface="glass"] .emp-dept-sidebar,
+html[data-surface="glass"] .role-sidebar,
+html[data-surface="glass"] [class*="-table-container"],
+html[data-surface="glass"] [class*="-table-card"],
+html[data-surface="glass"] [class*="-grid-card"],
+html[data-surface="glass"] [class*="-dept-sidebar"],
+html[data-surface="glass"] [class*="-role-sidebar"],
+html[data-surface="glass"] [class*="-matrix-card"],
+html[data-surface="glass"] [class*="-stat-card"] {
   backdrop-filter: var(--sb-glass-blur) !important;
   -webkit-backdrop-filter: var(--sb-glass-blur) !important;
   box-shadow:
@@ -1113,7 +1178,24 @@ html[data-surface="glass"] .workbench-card {
 html.dark[data-surface="glass"] .el-card,
 html.dark[data-surface="glass"] .base-card,
 html.dark[data-surface="glass"] .ep-card,
-html.dark[data-surface="glass"] .workbench-card {
+html.dark[data-surface="glass"] .workbench-card,
+html.dark[data-surface="glass"] .matrix-table-container,
+html.dark[data-surface="glass"] .plan-card,
+html.dark[data-surface="glass"] .arch-card,
+html.dark[data-surface="glass"] .quota-card,
+html.dark[data-surface="glass"] .compact-app-card,
+html.dark[data-surface="glass"] .policy-table-card,
+html.dark[data-surface="glass"] .foundation-tabs,
+html.dark[data-surface="glass"] .matrix-module-card,
+html.dark[data-surface="glass"] .emp-dept-sidebar,
+html.dark[data-surface="glass"] .role-sidebar,
+html.dark[data-surface="glass"] [class*="-table-container"],
+html.dark[data-surface="glass"] [class*="-table-card"],
+html.dark[data-surface="glass"] [class*="-grid-card"],
+html.dark[data-surface="glass"] [class*="-dept-sidebar"],
+html.dark[data-surface="glass"] [class*="-role-sidebar"],
+html.dark[data-surface="glass"] [class*="-matrix-card"],
+html.dark[data-surface="glass"] [class*="-stat-card"] {
   backdrop-filter: var(--sb-glass-blur) !important;
   -webkit-backdrop-filter: var(--sb-glass-blur) !important;
   box-shadow:

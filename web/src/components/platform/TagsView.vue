@@ -427,8 +427,8 @@ async function handleToolbarCommand(command: string | number | Record<string, un
   height: 24px;
   line-height: 24px;
   border: 1px solid var(--sb-border-subtle, #e2e8f0);
-  color: var(--sb-text-tertiary, #334155);
-  background: var(--sb-control-bg, rgba(255, 255, 255, 0.56));
+  color: var(--sb-text-secondary, #1e293b);
+  background: var(--sb-control-bg, rgba(255, 255, 255, 0.78));
   padding: 0 10px;
   font-size: 12px;
   font-weight: 550;
@@ -448,12 +448,32 @@ async function handleToolbarCommand(command: string | number | Record<string, un
   }
 
   &.is-active {
-    background: var(--sb-badge-primary-bg, rgba(37, 99, 235, 0.10));
-    color: var(--sb-badge-primary-text, #1d4ed8);
-    border-color: var(--sb-badge-primary-border, rgba(37, 99, 235, 0.24));
-    box-shadow: var(--sb-shadow-xs);
+    background: var(--sb-primary-color, #4f46e5);
+    color: #ffffff;
+    border-color: var(--sb-primary-color, #4f46e5);
+    box-shadow: 0 2px 8px var(--sb-primary-glow, rgba(79, 70, 229, 0.24));
     font-weight: 650;
+
+    .tag-dot {
+      background: #ffffff;
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.30);
+    }
+
+    .tag-close-btn {
+      color: rgba(255, 255, 255, 0.82);
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.22);
+        color: #ffffff;
+      }
+    }
   }
+}
+
+:global(html.dark) .tags-view-item.is-active {
+  background: var(--sb-cta-bg, #6366f1);
+  border-color: var(--sb-cta-bg, #6366f1);
+  color: #ffffff;
 }
 
 .tag-dot {

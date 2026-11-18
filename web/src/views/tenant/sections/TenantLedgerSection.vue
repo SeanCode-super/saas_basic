@@ -573,14 +573,6 @@ onMounted(() => {
 
 <template>
   <section class="module-registry-shell">
-    <div class="module-registry-shell__header">
-      <div>
-        <span class="module-registry-shell__eyebrow">ENTERPRISE SAAS TENANT CONTROL</span>
-        <h3>租户全生命周期台账</h3>
-        <p>集中掌控全平台多租户订购套餐、账号席位配额水位、履约到期倒计时与隔离模式。</p>
-      </div>
-    </div>
-
     <SchemaForm v-model="queryModel" :schema="schema">
       <template #actions>
         <el-button @click="resetQuery">重置</el-button>

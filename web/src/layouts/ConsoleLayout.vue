@@ -1683,8 +1683,8 @@ onMounted(() => {
   grid-template-columns: 242px minmax(0, 1fr);
   overflow: hidden;
   background: var(--sb-shell-main);
-  backdrop-filter: blur(22px) saturate(135%);
-  -webkit-backdrop-filter: blur(22px) saturate(135%);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   transition: grid-template-columns 160ms cubic-bezier(0.4, 0, 0.2, 1);
   padding: 12px 14px 12px 14px;
   gap: 14px;
@@ -1786,31 +1786,31 @@ onMounted(() => {
 
   /* 主题 B：iOS 27 高透柔雾雅白侧栏 (Liquid Frosted Pearl Rail) */
   &.rail-theme--light {
-    --rail-bg: rgba(255, 255, 255, 0.58);
-    --rail-border: rgba(255, 255, 255, 0.72);
-    --rail-brand-bg: rgba(255, 255, 255, 0.36);
-    --rail-brand-border: rgba(255, 255, 255, 0.48);
+    --rail-bg: rgba(255, 255, 255, 0.74);
+    --rail-border: rgba(255, 255, 255, 0.86);
+    --rail-brand-bg: rgba(255, 255, 255, 0.46);
+    --rail-brand-border: rgba(255, 255, 255, 0.56);
     --rail-text-cluster: #334155;
     --rail-text-cluster-hover: #0f172a;
     --rail-text-cluster-active: #0f172a;
     --rail-text-app: #1e293b;
     --rail-text-app-hover: #0f172a;
     --rail-text-app-active: var(--sb-primary-color, #4f46e5);
-    --rail-app-bg-hover: rgba(255, 255, 255, 0.48);
-    --rail-app-bg-active: rgba(255, 255, 255, 0.78);
-    --rail-expanded-bg: rgba(255, 255, 255, 0.42);
+    --rail-app-bg-hover: rgba(255, 255, 255, 0.62);
+    --rail-app-bg-active: rgba(255, 255, 255, 0.94);
+    --rail-expanded-bg: rgba(255, 255, 255, 0.50);
     --rail-expanded-text: #0f172a;
     --rail-expanded-icon: var(--sb-primary-color, #4f46e5);
     --rail-icon-color: var(--sb-primary-color, #4f46e5);
     --rail-icon-active: var(--sb-primary-color, #4f46e5);
     --rail-indicator: var(--sb-primary-color, #4f46e5);
     --rail-indicator-glow: 0 0 8px rgba(79, 70, 229, 0.35);
-    --rail-arrow-color: #64748b;
+    --rail-arrow-color: #475569;
     --rail-tree-line: rgba(148, 163, 184, 0.42);
-    --rail-footer-bg: rgba(255, 255, 255, 0.36);
-    --rail-footer-border: rgba(255, 255, 255, 0.48);
+    --rail-footer-bg: rgba(255, 255, 255, 0.46);
+    --rail-footer-border: rgba(255, 255, 255, 0.56);
     --rail-btn-text: #1e293b;
-    --rail-btn-border: rgba(255, 255, 255, 0.65);
+    --rail-btn-border: rgba(255, 255, 255, 0.72);
 
     backdrop-filter: var(--sb-glass-blur);
     -webkit-backdrop-filter: var(--sb-glass-blur);
@@ -2800,7 +2800,7 @@ onMounted(() => {
 
   .console-shell__breadcrumb-app {
     flex-shrink: 0;
-    color: var(--sb-text-muted);
+    color: var(--sb-text-secondary);
     font-weight: 500;
   }
 

@@ -1106,6 +1106,13 @@ async function batchUpdateRules(rows: IamDataPermissionRuleRow[], status: "ENABL
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  background: var(--sb-tier1-bg);
+  border: 1px solid var(--sb-border-subtle);
+  backdrop-filter: var(--sb-glass-blur-sm);
+  -webkit-backdrop-filter: var(--sb-glass-blur-sm);
+  box-shadow: var(--sb-shadow-xs);
   font-size: 12px;
 }
 
@@ -1305,7 +1312,7 @@ async function batchUpdateRules(rows: IamDataPermissionRuleRow[], status: "ENABL
 }
 
 .priority-arrow {
-  color: var(--sb-text-muted);
+  color: var(--sb-text-secondary);
   font-weight: 600;
 }
 </style>

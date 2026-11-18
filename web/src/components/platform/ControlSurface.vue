@@ -60,10 +60,22 @@ withDefaults(
 
 .control-surface__heading {
   min-width: 0;
-  flex: 1 1 280px;
+  flex: 0 1 auto;
+  max-width: 100%;
+  min-height: 34px;
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+:global(html[data-surface="glass"]) .control-surface__heading {
+  padding: 4px 14px 4px 6px;
+  border-radius: 9999px;
+  background: var(--sb-tier2-bg);
+  border: 1px solid var(--sb-border-subtle);
+  backdrop-filter: var(--sb-glass-blur-sm);
+  -webkit-backdrop-filter: var(--sb-glass-blur-sm);
+  box-shadow: var(--sb-shadow-xs);
 }
 
 .control-surface__title {
@@ -80,16 +92,21 @@ withDefaults(
 .control-surface__badge {
   display: inline-flex;
   align-items: center;
-  padding: 2px 8px;
+  padding: 2px 9px;
   border-radius: 9999px;
-  background: var(--sb-badge-primary-bg, rgba(37, 99, 235, 0.10));
-  border: 1px solid var(--sb-badge-primary-border, rgba(37, 99, 235, 0.24));
-  color: var(--sb-badge-primary-text, #1d4ed8);
+  background: var(--sb-primary-color, #4f46e5);
+  border: 1px solid transparent;
+  color: #ffffff;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 650;
   line-height: 1.35;
   white-space: nowrap;
   flex-shrink: 0;
+}
+
+:global(html.dark) .control-surface__badge {
+  background: var(--sb-cta-bg, #6366f1);
+  color: #ffffff;
 }
 
 .control-surface__divider {
@@ -102,9 +119,10 @@ withDefaults(
 .control-surface__desc {
   margin: 0;
   flex: 1;
-  min-width: 120px;
+  min-width: 0;
   font-size: 12.5px;
-  color: var(--sb-text-muted);
+  font-weight: 500;
+  color: var(--sb-text-tertiary);
   line-height: 1.35;
   overflow: hidden;
   text-overflow: ellipsis;

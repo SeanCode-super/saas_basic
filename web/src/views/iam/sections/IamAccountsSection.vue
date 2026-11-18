@@ -995,19 +995,19 @@ function handleExportUsers() {
 }
 
 .user-tree-panel {
-  background: rgba(255, 255, 255, 0.90);
-  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
-  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
-  border: 1px solid rgba(255, 255, 255, 0.88);
+  background: var(--sb-tier2-bg);
+  backdrop-filter: var(--sb-glass-blur);
+  -webkit-backdrop-filter: var(--sb-glass-blur);
+  border: 1px solid var(--sb-border-subtle);
   border-radius: 20px;
-  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), 0 16px 40px -10px rgba(12, 34, 56, 0.08);
+  box-shadow: var(--sb-shadow-sm);
   display: flex;
   flex-direction: column;
   min-height: 580px;
 
   .tree-panel-header {
     padding: 14px 16px;
-    border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+    border-bottom: 1px solid var(--sb-border-subtle);
 
     .panel-title-row {
       display: flex;
@@ -1018,14 +1018,14 @@ function handleExportUsers() {
       .panel-title {
         font-size: 14px;
         font-weight: 650;
-        color: #0f172a;
+        color: var(--sb-text-primary);
       }
     }
 
     .tree-search-input {
       :deep(.el-input__wrapper) {
         border-radius: 6px;
-        background: rgba(255, 255, 255, 0.75);
+        background: var(--sb-control-bg);
       }
     }
   }
@@ -1081,11 +1081,11 @@ function handleExportUsers() {
 
     .node-icon {
       font-size: 15px;
-      color: #475569;
+      color: var(--sb-text-tertiary);
     }
 
     .node-label {
-      color: #1e293b;
+      color: var(--sb-text-secondary);
       font-weight: 500;
     }
   }
@@ -1095,8 +1095,8 @@ function handleExportUsers() {
     font-size: 11px;
     font-weight: 550;
     border-radius: 10px;
-    background: rgba(241, 245, 249, 0.9);
-    color: #475569;
+    background: var(--sb-surface-contrast);
+    color: var(--sb-text-secondary);
     font-family: var(--sb-font-mono);
   }
 }
@@ -1113,9 +1113,8 @@ function handleExportUsers() {
   justify-content: flex-end;
   align-items: center;
   padding: 14px 16px;
-  border-top: 1px solid rgba(226, 232, 240, 0.6);
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
+  border-top: 1px solid var(--sb-border-subtle);
+  background: var(--sb-tier2-header-bg);
 }
 
 .active-dept-filter-tag {
@@ -1148,7 +1147,7 @@ function handleExportUsers() {
     height: 30px;
     padding: 0 11px;
     border-radius: 9999px;
-    background: var(--sb-tier1-bg);
+    background: var(--sb-tier2-bg);
     border: 1px solid var(--sb-border-subtle);
     backdrop-filter: var(--sb-glass-blur-sm);
     -webkit-backdrop-filter: var(--sb-glass-blur-sm);
@@ -1170,8 +1169,9 @@ function handleExportUsers() {
     }
 
     .telemetry-label {
-      color: var(--sb-text-muted);
+      color: var(--sb-text-secondary);
       font-size: 12px;
+      font-weight: 500;
     }
 
     .telemetry-val {
@@ -1253,14 +1253,14 @@ function handleExportUsers() {
   background: transparent !important;
 
   :deep(.el-table__header) th {
-    background: rgba(255, 255, 255, 0.95) !important;
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
+    background: var(--sb-tier2-header-bg) !important;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
     color: var(--sb-text-primary);
     font-size: 12.5px;
     font-weight: 650;
     padding: 11px 0;
-    border-bottom: 1px solid rgba(203, 213, 225, 0.6) !important;
+    border-bottom: 1px solid var(--sb-border-subtle) !important;
   }
 
   :deep(.el-table__row) {
@@ -1308,7 +1308,7 @@ function handleExportUsers() {
 
         .user-nickname {
           font-size: 13px;
-          color: #0f172a;
+          color: var(--sb-text-primary);
           font-weight: 600;
         }
 
@@ -1356,25 +1356,25 @@ function handleExportUsers() {
       gap: 6px;
       padding: 3px 8px;
       border-radius: 6px;
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
+      background: var(--sb-surface-soft);
+      border: 1px solid var(--sb-border-subtle);
       cursor: pointer;
       transition: all 0.15s ease;
 
       &:hover {
-        background: #f1f5f9;
-        border-color: #cbd5e1;
+        background: var(--sb-control-bg-hover);
+        border-color: var(--sb-border-color);
       }
 
       .emp-icon {
-        color: #4f46e5;
+        color: var(--sb-primary-color);
         font-size: 13px;
       }
 
       .emp-name {
         font-size: 12px;
         font-weight: 500;
-        color: #1e293b;
+        color: var(--sb-text-secondary);
       }
 
       .emp-no {
@@ -1466,14 +1466,12 @@ function handleExportUsers() {
     align-items: center;
     justify-content: space-between;
     padding: 12px 20px;
-    background: rgba(255, 255, 255, 0.90);
-    backdrop-filter: blur(28px) saturate(210%) contrast(104%);
-    -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
-    border-radius: var(--sb-radius-glass-md, 18px);
-    border: 1px solid rgba(255, 255, 255, 0.85);
-    box-shadow:
-      inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
-      0 10px 25px -5px rgba(12, 34, 56, 0.05);
+    background: var(--sb-tier1-bg);
+    backdrop-filter: var(--sb-glass-blur-sm);
+    -webkit-backdrop-filter: var(--sb-glass-blur-sm);
+    border-radius: var(--sb-radius-glass-md, 14px);
+    border: 1px solid var(--sb-border-subtle);
+    box-shadow: var(--sb-shadow-xs);
 
     .segmented-role-switch {
       :deep(.el-radio-button__inner) {

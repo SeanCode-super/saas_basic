@@ -68,7 +68,7 @@ defineProps<{
   padding: 0 12px;
   border-radius: 9999px;
   border: 1px solid var(--sb-border-subtle, #e2e8f0);
-  background: var(--sb-tier1-bg, rgba(255, 255, 255, 0.64));
+  background: var(--sb-tier2-bg, rgba(255, 255, 255, 0.80));
   backdrop-filter: var(--sb-glass-blur-sm, blur(18px));
   -webkit-backdrop-filter: var(--sb-glass-blur-sm, blur(18px));
   box-shadow: var(--sb-shadow-xs);
@@ -79,8 +79,9 @@ defineProps<{
   }
 
   span {
-    color: var(--sb-text-tertiary);
+    color: var(--sb-text-secondary);
     font-size: 12px;
+    font-weight: 500;
     white-space: nowrap;
   }
 
