@@ -98,6 +98,7 @@ const sidebarAccordion = ref<boolean>(
 );
 const settingsDrawerVisible = ref(false);
 const commandPaletteVisible = ref(false);
+const viewRefreshSeed = ref(0);
 const enableWatermark = ref(localStorage.getItem("sb_enable_watermark") === "true");
 const railTheme = ref<"dark" | "light">(
   (localStorage.getItem("sb_rail_theme") as "dark" | "light") || "light"
@@ -184,9 +185,14 @@ function handleGlobalKeydown(e: KeyboardEvent) {
   }
 }
 
+function handleRefreshActiveView() {
+  viewRefreshSeed.value += 1;
+}
+
 onMounted(() => {
   window.addEventListener("keydown", handleGlobalKeydown);
   window.addEventListener("sb-preferences-synced", handlePreferencesSynced);
+  window.addEventListener("sb-refresh-active-view", handleRefreshActiveView);
   if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
     railCompactMediaQuery = window.matchMedia(COMPACT_RAIL_QUERY);
     syncRailForViewport(railCompactMediaQuery.matches);
@@ -197,6 +203,7 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener("keydown", handleGlobalKeydown);
   window.removeEventListener("sb-preferences-synced", handlePreferencesSynced);
+  window.removeEventListener("sb-refresh-active-view", handleRefreshActiveView);
   railCompactMediaQuery?.removeEventListener?.("change", handleCompactViewportChange);
 });
 
@@ -1366,7 +1373,7 @@ onMounted(() => {
             <h2 class="console-shell__page-header-title">{{ currentSectionMeta.label }}</h2>
           </div>
 
-          <router-view />
+          <router-view :key="`${route.fullPath}::${viewRefreshSeed}`" />
         </main>
       </el-watermark>
     </div>
@@ -3192,15 +3199,15 @@ onMounted(() => {
   min-width: 0;
   min-height: 0;
 
-  --sb-workspace-x: 24px;
+  --sb-workspace-x: 2px;
 
-  padding: 20px var(--sb-workspace-x) 32px;
+  padding: 2px var(--sb-workspace-x) 24px;
   overflow: auto;
 }
 
 .console-shell__page-header-bar {
-  margin-bottom: 20px;
-  padding-bottom: 14px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
   border-bottom: 1px solid var(--sb-border-color);
 
   .console-shell__page-header-title {
@@ -3853,9 +3860,9 @@ onMounted(() => {
   }
 
   .console-shell__workspace {
-    --sb-workspace-x: 16px;
+    --sb-workspace-x: 2px;
 
-    padding: 14px var(--sb-workspace-x) 24px;
+    padding: 2px var(--sb-workspace-x) 20px;
   }
 }
 
@@ -3971,8 +3978,9 @@ onMounted(() => {
   }
 
   .console-shell__workspace {
-    --sb-workspace-x: 10px;
-    padding: 10px;
+    --sb-workspace-x: 2px;
+
+    padding: 2px var(--sb-workspace-x) 16px;
   }
 
   .console-shell__user-details {

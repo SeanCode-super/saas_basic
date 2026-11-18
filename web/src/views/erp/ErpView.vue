@@ -505,7 +505,7 @@ async function handleStockIn(order: ErpPurchaseOrderRow) {
 
 <style scoped>
 .erp-container {
-  padding: 8px 4px 20px;
+  padding: 0 0 16px;
   background: transparent;
   box-sizing: border-box;
 }
