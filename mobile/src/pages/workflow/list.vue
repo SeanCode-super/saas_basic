@@ -69,7 +69,7 @@
           </text>
         </view>
 
-        <text class="instance-title">{{ task.instanceTitle || task.title || '移动端通用流程审批申请' }}</text>
+        <view class="instance-title">{{ task.instanceTitle || task.title || '移动端通用流程审批申请' }}</view>
 
         <!-- 全新轻盈赛博元数据流：呼吸感充盈，彻底替代内嵌方块 -->
         <view class="card-meta-flow">
@@ -473,7 +473,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .no-wrap {
@@ -520,11 +520,13 @@ onMounted(() => {
 }
 
 .instance-title {
+  display: block;
   font-size: 15.5px;
   font-weight: 750;
   color: #0f172a;
   line-height: 1.45;
-  margin-bottom: 16px;
+  margin-top: 4px;
+  margin-bottom: 14px;
 }
 
 /* 全新轻盈赛博元数据流：呼吸感充盈，彻底替代内嵌方块 */
@@ -532,13 +534,13 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: rgba(248, 250, 252, 0.65);
+  background: rgba(248, 250, 252, 0.75);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.90);
+  border: 1px solid rgba(255, 255, 255, 0.95);
   border-radius: 12px;
   padding: 8px 12px;
-  margin-bottom: 14px;
+  margin-bottom: 15px;
 }
 
 .meta-item {
