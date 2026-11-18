@@ -702,8 +702,6 @@ onMounted(() => {
 
       <!-- 右侧：极简自适应琉璃登录舱（亮色晶透白 / 暗色曜石黑） -->
       <section class="auth-prism-card" aria-label="账号登录">
-        <div class="prism-top-beam" aria-hidden="true" />
-
         <header class="card-brand">
           <img v-if="customLogoUrl" :src="customLogoUrl" alt="品牌标识" class="custom-portal-logo" />
           <TianshuLogo v-else :size="42" :theme="themeStore.isDark ? 'dark' : 'light'" animated />
@@ -1219,17 +1217,6 @@ onMounted(() => {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.16),
     0 30px 72px -18px rgba(0, 0, 0, 0.68);
-}
-
-.prism-top-beam {
-  position: absolute;
-  top: 0;
-  left: 32px;
-  right: 32px;
-  height: 2px;
-  border-radius: 9999px;
-  background: linear-gradient(90deg, transparent, var(--portal-glow), var(--portal-secondary), transparent);
-  opacity: 0.92;
 }
 
 .card-brand {
