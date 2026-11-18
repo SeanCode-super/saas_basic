@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
+import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import {
   createSystemConfig,
@@ -48,7 +49,6 @@ import type { IamLoginPolicyRow, IamPasswordPolicyRow } from "@/api/modules/iam"
 import BaseCard from "@/components/base/BaseCard.vue";
 import ControlSurface from "@/components/platform/ControlSurface.vue";
 import BaseRefreshButton from "@/components/base/BaseRefreshButton.vue";
-import ModuleSectionNav from "@/components/platform/ModuleSectionNav.vue";
 import RegistryImportDialog from "@/components/platform/RegistryImportDialog.vue";
 import ModuleWorkbench from "@/components/platform/ModuleWorkbench.vue";
 import type { ProTableColumn } from "@/components/pro/ProTable.vue";
@@ -210,14 +210,14 @@ const sectionItems = [
 ];
 
 
-const { activeSection, updateSection } = useModuleSection(sectionItems, {
+const router = useRouter();
+const { activeSection } = useModuleSection(sectionItems, {
   mode: "path",
   basePath: "/system",
   fallback: "overview"
 });
 
 const currentSection = computed(() => props.section || activeSection.value);
-const sectionLocked = computed(() => Boolean(props.section));
 const isOverviewSection = computed(() => currentSection.value === "overview");
 const activeSectionMeta = computed(
   () => sectionItems.find((item) => item.key === currentSection.value) ?? sectionItems[0]
@@ -999,6 +999,8 @@ onMounted(loadData);
     :summary="summary"
   >
     <template #actions>
+      <el-button @click="router.push('/system/infra')">运维监控</el-button>
+      <el-button @click="router.push('/system/trash')">数据回收站</el-button>
       <BaseRefreshButton :loading="loading" @click="loadData" />
       <el-button type="primary" @click="openCreateDialog">新增配置</el-button>
     </template>
@@ -1057,13 +1059,6 @@ onMounted(loadData);
     </template>
 
     <div class="module-section-stack">
-      <ModuleSectionNav
-        v-if="!sectionLocked"
-        :model-value="currentSection"
-        :items="sectionItems"
-        @update:model-value="updateSection"
-      />
-
       <component
         :is="currentSectionComponent"
         :security-policy="securityPolicy"
@@ -1115,6 +1110,12 @@ onMounted(loadData);
     :description="activeSectionMeta.description"
   >
     <template #actions>
+      <el-button
+        v-if="currentSection === 'infra' || currentSection === 'trash'"
+        @click="router.push('/system/overview')"
+      >
+        返回系统总览
+      </el-button>
       <BaseRefreshButton :loading="loading" @click="loadData" />
     </template>
 

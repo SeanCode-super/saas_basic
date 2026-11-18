@@ -2,7 +2,6 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import ControlSurface from "@/components/platform/ControlSurface.vue";
-import ModuleSectionNav from "@/components/platform/ModuleSectionNav.vue";
 import BaseRefreshButton from "@/components/base/BaseRefreshButton.vue";
 import { useAuthStore } from "@/stores/modules/auth";
 import IamEditorDialogs from "./IamEditorDialogs.vue";
@@ -234,36 +233,6 @@ const policyRows = [...IAM_POLICY_ROWS];
 
 type IamHubKey = "foundation" | "identity" | "access" | "security";
 
-interface IamSubTabOption {
-  key: IamSection;
-  label: string;
-}
-
-const IAM_HUB_ITEMS: Array<{ key: IamHubKey; label: string; defaultSection: IamSection }> = [
-  { key: "foundation", label: "治理总览", defaultSection: "foundation" },
-  { key: "identity", label: "身份与账号", defaultSection: "user" },
-  { key: "access", label: "角色与统一授权", defaultSection: "role" },
-  { key: "security", label: "安全策略与资源目录", defaultSection: "login-policy" }
-];
-
-const IAM_HUB_SUBTABS: Record<Exclude<IamHubKey, "foundation">, IamSubTabOption[]> = {
-  identity: [
-    { key: "user", label: "账号目录" },
-    { key: "user-role", label: "批量分配角色" }
-  ],
-  access: [
-    { key: "role", label: "角色与功能授权" },
-    { key: "data-scope", label: "5D 数据边界" },
-    { key: "role-api", label: "接口直授矩阵" }
-  ],
-  security: [
-    { key: "login-policy", label: "登录与 MFA 策略" },
-    { key: "password-policy", label: "密码生命周期" },
-    { key: "menu", label: "应用菜单编排" },
-    { key: "api-resource", label: "API 资源注册表" }
-  ]
-};
-
 const activeHub = computed<IamHubKey>(() => {
   if (
     activeTab.value === "user" ||
@@ -288,39 +257,12 @@ const activeHub = computed<IamHubKey>(() => {
   return "foundation";
 });
 
-const activeHubSubTabs = computed<IamSubTabOption[]>(() => {
-  if (activeHub.value === "foundation") {
-    return [];
-  }
-  const candidates = IAM_HUB_SUBTABS[activeHub.value];
-  const accessible = candidates.filter(
-    (item) => normalizeIamSection(item.key, authStore.hasPermission) === item.key
-  );
-  return accessible.length ? accessible : candidates;
-});
-
 const isLegacyOrgRoute = computed(
   () =>
     activeTab.value === "department" ||
     activeTab.value === "position" ||
     activeTab.value === "employee"
 );
-
-function handleHubSelect(hubKey: string) {
-  const hub = IAM_HUB_ITEMS.find((item) => item.key === hubKey);
-  if (!hub) {
-    return;
-  }
-  if (hub.key === "foundation") {
-    activeTab.value = "foundation";
-    return;
-  }
-  const candidates = IAM_HUB_SUBTABS[hub.key];
-  const firstAccessible =
-    candidates.find((item) => normalizeIamSection(item.key, authStore.hasPermission) === item.key)
-      ?.key ?? hub.defaultSection;
-  activeTab.value = firstAccessible;
-}
 
 function goToOrganizationCenter() {
   const query = isLegacyOrgRoute.value ? { tab: activeTab.value } : undefined;
@@ -417,26 +359,33 @@ onMounted(async () => {
       >
         员工入职一表通
       </el-button>
+      <el-button
+        v-if="activeTab === 'user' && authStore.hasPermission('iam:user-role:query')"
+        @click="activeTab = 'user-role'"
+      >
+        批量分配角色
+      </el-button>
+      <el-button
+        v-else-if="activeTab === 'user-role'"
+        @click="activeTab = 'user'"
+      >
+        返回用户管理
+      </el-button>
+      <el-button
+        v-if="activeTab === 'role' && authStore.hasPermission('iam:role-api:query')"
+        @click="activeTab = 'role-api'"
+      >
+        接口直授矩阵
+      </el-button>
+      <el-button
+        v-else-if="activeTab === 'role-api'"
+        @click="activeTab = 'role'"
+      >
+        返回角色管理
+      </el-button>
       <el-button :icon="Cpu" @click="globalInspectorVisible = true">权限透视诊断器</el-button>
       <BaseRefreshButton :loading="loading" @click="refreshData" />
     </template>
-
-    <div class="iam-nav-inline-row">
-      <ModuleSectionNav
-        :model-value="activeHub"
-        :items="IAM_HUB_ITEMS"
-        @update:model-value="handleHubSelect"
-      />
-      <el-radio-group v-if="activeHubSubTabs.length" v-model="activeTab" size="small">
-        <el-radio-button
-          v-for="item in activeHubSubTabs"
-          :key="item.key"
-          :value="item.key"
-        >
-          {{ item.label }}
-        </el-radio-button>
-      </el-radio-group>
-    </div>
 
     <IamFoundationSection
       v-if="activeTab === 'foundation'"
@@ -669,14 +618,3 @@ onMounted(async () => {
     />
   </ControlSurface>
 </template>
-
-<style scoped lang="scss">
-.iam-nav-inline-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-</style>

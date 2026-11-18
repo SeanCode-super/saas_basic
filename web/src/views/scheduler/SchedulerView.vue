@@ -17,7 +17,6 @@ import type { SchedulerJobAlarmRow, SchedulerJobLogRow, SchedulerJobRow } from "
 import BaseCard from "@/components/base/BaseCard.vue";
 import ControlSurface from "@/components/platform/ControlSurface.vue";
 import BaseRefreshButton from "@/components/base/BaseRefreshButton.vue";
-import ModuleSectionNav from "@/components/platform/ModuleSectionNav.vue";
 import ModuleWorkbench from "@/components/platform/ModuleWorkbench.vue";
 import { useModuleSection } from "@/hooks/useModuleSection";
 import { useAuthStore } from "@/stores/modules/auth";
@@ -82,14 +81,13 @@ const sectionItems = [
   { key: "log", label: "日志治理", description: "定义日志保留、查询维度和审计关联。" }
 ];
 
-const { activeSection, updateSection } = useModuleSection(sectionItems, {
+const { activeSection } = useModuleSection(sectionItems, {
   mode: "path",
   basePath: "/scheduler",
   fallback: "overview"
 });
 
 const currentSection = computed(() => props.section || activeSection.value);
-const sectionLocked = computed(() => Boolean(props.section));
 const isOverviewSection = computed(() => currentSection.value === "overview");
 const activeSectionMeta = computed(
   () => sectionItems.find((item) => item.key === currentSection.value) ?? sectionItems[0]
@@ -370,13 +368,6 @@ onMounted(() => {
     </template>
 
     <div class="module-section-stack">
-      <ModuleSectionNav
-        v-if="!sectionLocked"
-        :model-value="currentSection"
-        :items="sectionItems"
-        @update:model-value="updateSection"
-      />
-
       <component
         :is="currentSectionComponent"
         :scheduler-policy="schedulerPolicy"

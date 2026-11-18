@@ -13,7 +13,6 @@ import {
 } from "@element-plus/icons-vue";
 import ControlSurface from "@/components/platform/ControlSurface.vue";
 import ExportDialog from "@/components/platform/ExportDialog.vue";
-import ModuleSectionNav from "@/components/platform/ModuleSectionNav.vue";
 import ModuleWorkbench from "@/components/platform/ModuleWorkbench.vue";
 import ProTable, { type ProTableColumn } from "@/components/pro/ProTable.vue";
 import type { DimensionAxisConfig } from "@/utils/dimension-slice";
@@ -46,36 +45,48 @@ const erpSectionItems: Array<{ key: ErpSectionKey; label: string; description: s
 const route = useRoute();
 const router = useRouter();
 
-function parseTabQuery(raw: unknown): ErpSectionKey {
-  const value = String(raw || "");
-  if (value === "products" || value === "purchase" || value === "records") {
-    return value;
-  }
+function parseErpTabToken(raw: unknown): ErpSectionKey | null {
+  const value = String(raw || "").trim().toLowerCase();
+  if (value === "product" || value === "products") return "products";
+  if (value === "purchase" || value === "purchases") return "purchase";
+  if (value === "record" || value === "records") return "records";
+  if (value === "inventory") return "inventory";
+  return null;
+}
+
+function resolveCurrentErpTab(): ErpSectionKey {
+  const paramTab = Array.isArray(route.params.tab) ? route.params.tab[0] : route.params.tab;
+  const fromParam = parseErpTabToken(paramTab);
+  if (fromParam) return fromParam;
+
+  const sectionParam = Array.isArray(route.params.section) ? route.params.section[0] : route.params.section;
+  const fromSection = parseErpTabToken(sectionParam);
+  if (fromSection) return fromSection;
+
+  const pathSeg = route.path.replace(/^\/erp\/?/, "").split("/")[0];
+  const fromPath = parseErpTabToken(pathSeg);
+  if (fromPath) return fromPath;
+
+  const fromQuery = parseErpTabToken(route.query.tab);
+  if (fromQuery) return fromQuery;
+
   return "inventory";
 }
 
-const activeTab = ref<ErpSectionKey>(parseTabQuery(route.query.tab));
+const activeTab = ref<ErpSectionKey>(resolveCurrentErpTab());
 const loading = ref(false);
 const erpExportVisible = ref(false);
 
 watch(
-  () => route.query.tab,
-  (val) => {
-    const parsed = parseTabQuery(val);
-    if (parsed !== activeTab.value) {
-      activeTab.value = parsed;
+  () => route.fullPath,
+  () => {
+    const resolved = resolveCurrentErpTab();
+    if (resolved !== activeTab.value) {
+      activeTab.value = resolved;
     }
-  }
+  },
+  { immediate: true }
 );
-
-function updateSection(nextKey: string) {
-  const normalized = parseTabQuery(nextKey);
-  activeTab.value = normalized;
-  void router.replace({
-    path: route.path,
-    query: { ...route.query, tab: normalized }
-  });
-}
 
 const activeSectionMeta = computed(
   () => erpSectionItems.find((item) => item.key === activeTab.value) ?? erpSectionItems[0]
@@ -381,6 +392,8 @@ async function handleStockIn(order: ErpPurchaseOrderRow) {
       :description="activeSectionMeta.description"
     >
       <template #actions>
+        <el-button v-if="activeTab !== 'records'" @click="router.push('/erp/records')">出入库流水台账</el-button>
+        <el-button v-else @click="router.push('/erp/inventory')">返回实时库存</el-button>
         <el-button :icon="Download" @click="erpExportVisible = true">安全导出</el-button>
         <el-button :icon="RefreshRight" :loading="loading" @click="loadAll">刷新数据</el-button>
         <el-button
@@ -402,12 +415,6 @@ async function handleStockIn(order: ErpPurchaseOrderRow) {
       </template>
 
       <div class="module-section-stack">
-        <ModuleSectionNav
-          :model-value="activeTab"
-          :items="erpSectionItems"
-          @update:model-value="updateSection"
-        />
-
         <ModuleWorkbench
           eyebrow="ERP"
           :title="activeSectionMeta.label"

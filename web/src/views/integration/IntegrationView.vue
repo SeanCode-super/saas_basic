@@ -6,7 +6,6 @@ import type { DatasourceRow } from "@/api/modules/integration";
 import BaseCard from "@/components/base/BaseCard.vue";
 import ControlSurface from "@/components/platform/ControlSurface.vue";
 import BaseRefreshButton from "@/components/base/BaseRefreshButton.vue";
-import ModuleSectionNav from "@/components/platform/ModuleSectionNav.vue";
 import RegistryImportDialog from "@/components/platform/RegistryImportDialog.vue";
 import ModuleWorkbench from "@/components/platform/ModuleWorkbench.vue";
 import type { ProTableColumn } from "@/components/pro/ProTable.vue";
@@ -82,14 +81,13 @@ const sectionItems = [
   { key: "pay", label: "统一支付", description: "聚合微信支付 Native 扫码、支付宝当面付与聚合收银台全景沙箱体验。" }
 ];
 
-const { activeSection, updateSection } = useModuleSection(sectionItems, {
+const { activeSection } = useModuleSection(sectionItems, {
   mode: "path",
   basePath: "/integration",
   fallback: "overview"
 });
 
 const currentSection = computed(() => props.section || activeSection.value);
-const sectionLocked = computed(() => Boolean(props.section));
 const isOverviewSection = computed(() => currentSection.value === "overview");
 const activeSectionMeta = computed(
   () => sectionItems.find((item) => item.key === currentSection.value) ?? sectionItems[0]
@@ -393,13 +391,6 @@ onMounted(loadData);
     </template>
 
     <div class="module-section-stack">
-      <ModuleSectionNav
-        v-if="!sectionLocked"
-        :model-value="currentSection"
-        :items="sectionItems"
-        @update:model-value="updateSection"
-      />
-
       <component
         :is="currentSectionComponent"
         :connection-policy="connectionPolicy"

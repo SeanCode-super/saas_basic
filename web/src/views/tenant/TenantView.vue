@@ -10,7 +10,6 @@ import type {
 } from "@/api/modules/tenant";
 import ControlSurface from "@/components/platform/ControlSurface.vue";
 import BaseRefreshButton from "@/components/base/BaseRefreshButton.vue";
-import ModuleSectionNav from "@/components/platform/ModuleSectionNav.vue";
 import RegistryImportDialog from "@/components/platform/RegistryImportDialog.vue";
 import type { ProTableColumn } from "@/components/pro/ProTable.vue";
 import { useDict } from "@/hooks/useDict";
@@ -104,7 +103,6 @@ const { activeSection, updateSection } = useModuleSection(sectionItems, {
 });
 
 const currentSection = computed(() => props.section || activeSection.value);
-const sectionLocked = computed(() => Boolean(props.section));
 const activeSectionMeta = computed(
   () => sectionItems.find((item) => item.key === currentSection.value) ?? sectionItems[0]
 );
@@ -317,13 +315,6 @@ onMounted(loadData);
     </template>
 
     <div class="module-section-stack">
-      <ModuleSectionNav
-        v-if="!sectionLocked"
-        :model-value="currentSection"
-        :items="sectionItems"
-        @update:model-value="updateSection"
-      />
-
       <component
         :is="currentSectionComponent"
         :runtime-policy="runtimePolicy"

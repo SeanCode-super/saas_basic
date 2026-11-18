@@ -4,7 +4,6 @@ import { ElMessage } from "element-plus";
 import BaseCard from "@/components/base/BaseCard.vue";
 import ControlSurface from "@/components/platform/ControlSurface.vue";
 import BaseRefreshButton from "@/components/base/BaseRefreshButton.vue";
-import ModuleSectionNav from "@/components/platform/ModuleSectionNav.vue";
 import ModuleWorkbench from "@/components/platform/ModuleWorkbench.vue";
 import { useModuleSection } from "@/hooks/useModuleSection";
 import AuditBlacklistSection from "./sections/AuditBlacklistSection.vue";
@@ -44,14 +43,13 @@ const sectionItems = [
   { key: "catalog", label: "高危目录", description: "定义必须被审计和预警的动作集合。" }
 ];
 
-const { activeSection, updateSection } = useModuleSection(sectionItems, {
+const { activeSection } = useModuleSection(sectionItems, {
   mode: "path",
   basePath: "/audit",
   fallback: "overview"
 });
 
 const currentSection = computed(() => props.section || activeSection.value);
-const sectionLocked = computed(() => Boolean(props.section));
 const isOverviewSection = computed(() => currentSection.value === "overview");
 const activeSectionMeta = computed(
   () => sectionItems.find((item) => item.key === currentSection.value) ?? sectionItems[0]
@@ -139,13 +137,6 @@ function savePolicy(message: string) {
     </template>
 
     <div class="module-section-stack">
-      <ModuleSectionNav
-        v-if="!sectionLocked"
-        :model-value="currentSection"
-        :items="sectionItems"
-        @update:model-value="updateSection"
-      />
-
       <component
         :is="currentSectionComponent"
         :audit-policy="auditPolicy"

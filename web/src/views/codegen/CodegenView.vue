@@ -3,7 +3,6 @@ import { computed, reactive } from "vue";
 import { ElMessage } from "element-plus";
 import ControlSurface from "@/components/platform/ControlSurface.vue";
 import BaseRefreshButton from "@/components/base/BaseRefreshButton.vue";
-import ModuleSectionNav from "@/components/platform/ModuleSectionNav.vue";
 import { useModuleSection } from "@/hooks/useModuleSection";
 import CodegenArtifactSection from "./sections/CodegenArtifactSection.vue";
 import CodegenGateSection from "./sections/CodegenGateSection.vue";
@@ -60,7 +59,6 @@ const { activeSection, updateSection } = useModuleSection(sectionItems, {
 });
 
 const currentSection = computed(() => props.section || activeSection.value);
-const sectionLocked = computed(() => Boolean(props.section));
 const activeSectionMeta = computed(
   () => sectionItems.find((item) => item.key === currentSection.value) ?? sectionItems[0]
 );
@@ -104,13 +102,6 @@ function savePolicy(message: string) {
     </template>
 
     <div class="module-section-stack">
-      <ModuleSectionNav
-        v-if="!sectionLocked"
-        :model-value="currentSection"
-        :items="sectionItems"
-        @update:model-value="updateSection"
-      />
-
       <component
         :is="currentSectionComponent"
         :template-policy="templatePolicy"
