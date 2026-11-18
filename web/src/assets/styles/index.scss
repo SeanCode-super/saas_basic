@@ -12,12 +12,12 @@ body {
 }
 
 html[data-surface="glass"] body {
-  background-color: #e4ecfb;
+  background-color: #dbeafe;
   background-image:
     radial-gradient(circle at 14% 16%, var(--sb-glass-orb-1, rgba(99, 102, 241, 0.28)), transparent 46%),
-    radial-gradient(circle at 86% 20%, var(--sb-glass-orb-2, rgba(14, 165, 233, 0.22)), transparent 44%),
-    radial-gradient(circle at 54% 88%, var(--sb-glass-orb-3, rgba(168, 85, 247, 0.20)), transparent 48%),
-    linear-gradient(135deg, rgba(238, 243, 255, 0.74) 0%, rgba(245, 248, 255, 0.58) 48%, rgba(244, 241, 255, 0.68) 100%),
+    radial-gradient(circle at 86% 20%, var(--sb-glass-orb-2, rgba(14, 165, 233, 0.24)), transparent 44%),
+    radial-gradient(circle at 54% 88%, var(--sb-glass-orb-3, rgba(168, 85, 247, 0.22)), transparent 48%),
+    linear-gradient(135deg, rgba(248, 250, 255, 0.16) 0%, rgba(240, 246, 255, 0.10) 50%, rgba(245, 243, 255, 0.16) 100%),
     url("/ios27-liquid-glass-bg.jpg");
   background-repeat: no-repeat;
   background-position: center center;

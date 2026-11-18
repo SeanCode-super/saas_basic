@@ -66,16 +66,13 @@ withDefaults(
   display: flex;
   align-items: center;
   gap: 10px;
-}
-
-:global(html[data-surface="glass"]) .control-surface__heading {
-  padding: 4px 14px 4px 6px;
+  padding: var(--sb-heading-capsule-padding, 0);
   border-radius: 9999px;
-  background: var(--sb-tier2-bg);
-  border: 1px solid var(--sb-border-subtle);
-  backdrop-filter: var(--sb-glass-blur-sm);
-  -webkit-backdrop-filter: var(--sb-glass-blur-sm);
-  box-shadow: var(--sb-shadow-xs);
+  background: var(--sb-heading-capsule-bg, transparent);
+  border: 1px solid var(--sb-heading-capsule-border, transparent);
+  backdrop-filter: var(--sb-heading-capsule-blur, none);
+  -webkit-backdrop-filter: var(--sb-heading-capsule-blur, none);
+  box-shadow: var(--sb-heading-capsule-shadow, none);
 }
 
 .control-surface__title {
@@ -94,7 +91,7 @@ withDefaults(
   align-items: center;
   padding: 2px 9px;
   border-radius: 9999px;
-  background: var(--sb-primary-color, #4f46e5);
+  background: var(--sb-pill-solid-bg, var(--sb-primary-color, #4f46e5));
   border: 1px solid transparent;
   color: #ffffff;
   font-size: 11px;
@@ -102,11 +99,6 @@ withDefaults(
   line-height: 1.35;
   white-space: nowrap;
   flex-shrink: 0;
-}
-
-:global(html.dark) .control-surface__badge {
-  background: var(--sb-cta-bg, #6366f1);
-  color: #ffffff;
 }
 
 .control-surface__divider {

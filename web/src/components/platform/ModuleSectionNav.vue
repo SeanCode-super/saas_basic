@@ -77,9 +77,9 @@ function update(value: string) {
   }
 
   &.is-active {
-    background: #ffffff;
+    background: var(--sb-segment-active-bg, #ffffff);
     border-color: var(--sb-border-subtle);
-    color: var(--sb-primary-color);
+    color: var(--sb-segment-active-text, var(--sb-primary-color));
     box-shadow: var(--sb-shadow-xs);
   }
 
@@ -87,11 +87,5 @@ function update(value: string) {
     font-size: 13px;
     font-weight: 600;
   }
-}
-
-:global(html.dark) .module-section-nav__item.is-active {
-  background: var(--sb-cta-bg);
-  color: #ffffff;
-  border-color: transparent;
 }
 </style>

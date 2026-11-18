@@ -51,6 +51,10 @@ const themeStore = useThemeStore();
 
 const t = (key: string) => translate(localeStore.locale, key);
 
+const activePresetColor = computed(
+  () => presetSwatches.find((item) => item.value === themeStore.preset)?.color ?? "#4f46e5"
+);
+
 const quickApps = computed(() => [
   { key: "screen", label: t("launchpad.dataScreen"), icon: DataBoard, tone: "blue", event: "open-data-screen" as const },
   { key: "download", label: t("launchpad.downloadCenter"), icon: Download, tone: "emerald", event: "open-download-center" as const },
@@ -130,6 +134,7 @@ function selectLayout(mode: LayoutMode) {
       >
         <el-icon class="launchpad-trigger-icon"><Grid /></el-icon>
         <span class="launchpad-trigger-label">{{ t("launchpad.hub") }}</span>
+        <span class="launchpad-theme-dot" :style="{ backgroundColor: activePresetColor }" />
       </button>
     </template>
 
@@ -344,6 +349,15 @@ function selectLayout(mode: LayoutMode) {
 
 .launchpad-trigger-icon {
   font-size: 14px;
+}
+
+.launchpad-theme-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 6px rgba(15, 23, 42, 0.25);
+  flex-shrink: 0;
 }
 
 .launchpad-body {

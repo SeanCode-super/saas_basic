@@ -346,7 +346,7 @@ async function handleToolbarCommand(command: string | number | Record<string, un
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .tags-view-container {
   height: 34px;
   width: 100%;
@@ -366,17 +366,6 @@ async function handleToolbarCommand(command: string | number | Record<string, un
   z-index: 10;
   user-select: none;
   box-sizing: border-box;
-}
-
-:global(html:not([data-surface="glass"])) .tags-view-container {
-  height: 34px;
-  border-radius: 0;
-  border: 0;
-  border-top: 1px solid var(--sb-border-subtle);
-  background: transparent;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  box-shadow: none;
 }
 
 .tags-view-scroll {
@@ -448,9 +437,9 @@ async function handleToolbarCommand(command: string | number | Record<string, un
   }
 
   &.is-active {
-    background: var(--sb-primary-color, #4f46e5);
+    background: var(--sb-pill-solid-bg, var(--sb-primary-color, #4f46e5));
     color: #ffffff;
-    border-color: var(--sb-primary-color, #4f46e5);
+    border-color: var(--sb-pill-solid-bg, var(--sb-primary-color, #4f46e5));
     box-shadow: 0 2px 8px var(--sb-primary-glow, rgba(79, 70, 229, 0.24));
     font-weight: 650;
 
@@ -468,12 +457,6 @@ async function handleToolbarCommand(command: string | number | Record<string, un
       }
     }
   }
-}
-
-:global(html.dark) .tags-view-item.is-active {
-  background: var(--sb-cta-bg, #6366f1);
-  border-color: var(--sb-cta-bg, #6366f1);
-  color: #ffffff;
 }
 
 .tag-dot {

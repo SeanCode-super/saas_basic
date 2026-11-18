@@ -1822,33 +1822,6 @@ onMounted(() => {
   }
 }
 
-:global(html.dark) .console-shell__rail.rail-theme--light {
-  --rail-bg: rgba(15, 23, 42, 0.88);
-  --rail-border: rgba(51, 65, 85, 0.85);
-  --rail-brand-bg: rgba(15, 23, 42, 0.94);
-  --rail-brand-border: rgba(51, 65, 85, 0.72);
-  --rail-text-cluster: #cbd5e1;
-  --rail-text-cluster-hover: #f8fafc;
-  --rail-text-cluster-active: #f8fafc;
-  --rail-text-app: #e2e8f0;
-  --rail-text-app-hover: #ffffff;
-  --rail-text-app-active: #93c5fd;
-  --rail-app-bg-hover: rgba(30, 41, 59, 0.85);
-  --rail-app-bg-active: rgba(37, 99, 235, 0.24);
-  --rail-expanded-bg: rgba(30, 41, 59, 0.82);
-  --rail-expanded-text: #f8fafc;
-  --rail-expanded-icon: #60a5fa;
-  --rail-icon-color: #60a5fa;
-  --rail-icon-active: #60a5fa;
-  --rail-indicator: #38bdf8;
-  --rail-arrow-color: #94a3b8;
-  --rail-tree-line: rgba(51, 65, 85, 0.90);
-  --rail-footer-bg: rgba(15, 23, 42, 0.92);
-  --rail-footer-border: rgba(51, 65, 85, 0.72);
-  --rail-btn-text: #e2e8f0;
-  --rail-btn-border: #334155;
-}
-
 .console-shell__brand {
   display: flex;
   align-items: center;
@@ -2589,78 +2562,6 @@ onMounted(() => {
   }
 }
 
-:global(html:not([data-surface="glass"])) .console-shell {
-  background: var(--sb-app-canvas, #f4f4f5);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  padding: 8px 10px 8px 8px;
-  gap: 8px;
-}
-
-:global(html:not([data-surface="glass"])) .console-shell.layout--top {
-  padding: 8px 10px;
-}
-
-:global(html:not([data-surface="glass"])) .console-shell__rail {
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  border-radius: 12px;
-}
-
-:global(html:not([data-surface="glass"])) .console-shell__rail.rail-theme--light {
-  --rail-bg: transparent;
-  --rail-border: transparent;
-  --rail-brand-bg: transparent;
-  --rail-brand-border: var(--sb-border-subtle);
-  --rail-footer-bg: transparent;
-  --rail-footer-border: var(--sb-border-subtle);
-  --rail-app-bg-hover: rgba(113, 113, 122, 0.08);
-  --rail-app-bg-active: var(--sb-stage-bg);
-  --rail-expanded-bg: rgba(113, 113, 122, 0.07);
-  --rail-text-app-active: var(--sb-primary-color);
-  --rail-icon-color: var(--sb-primary-color);
-  --rail-icon-active: var(--sb-primary-color);
-  --rail-indicator: var(--sb-primary-color);
-
-  border: 0 !important;
-  box-shadow: none !important;
-}
-
-:global(html:not([data-surface="glass"])) .console-shell__main {
-  background: var(--sb-stage-bg, #ffffff);
-  border: 1px solid var(--sb-border-subtle);
-  border-radius: 14px;
-  gap: 0;
-  box-shadow: 0 1px 3px rgba(9, 9, 11, 0.04);
-}
-
-:global(html:not([data-surface="glass"])) .console-shell__top-dock {
-  border-radius: 0;
-  border: 0;
-  border-bottom: 1px solid var(--sb-border-subtle);
-  background: transparent;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  box-shadow: none;
-}
-
-:global(html:not([data-surface="glass"])) .console-shell__topbar {
-  height: 50px;
-  flex: 0 0 50px;
-  border-radius: 0;
-  border: 0;
-  background: transparent;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  box-shadow: none;
-}
-
-:global(html:not([data-surface="glass"])) .console-shell__workspace {
-  --sb-workspace-x: 18px;
-
-  padding: 14px var(--sb-workspace-x) 24px;
-}
-
 .console-shell__top-dock {
   display: flex;
   flex-direction: column;
@@ -2675,13 +2576,6 @@ onMounted(() => {
     inset 0 0 0 1px rgba(255, 255, 255, 0.28),
     0 10px 26px -10px rgba(30, 41, 92, 0.10);
   overflow: hidden;
-}
-
-:global(html.dark[data-surface="glass"]) .console-shell__top-dock {
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.14),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
-    0 12px 28px -10px rgba(0, 0, 0, 0.48);
 }
 
 .console-shell__topbar {
@@ -4423,5 +4317,114 @@ onMounted(() => {
       }
     }
   }
+}
+
+/* ============================================================
+   壳层主题与双材质切换规则（非 scoped，避免被 Vue SFC 剥离后代选择器）
+   ============================================================ */
+html.dark .console-shell__rail.rail-theme--light {
+  --rail-bg: rgba(15, 23, 42, 0.88);
+  --rail-border: rgba(51, 65, 85, 0.85);
+  --rail-brand-bg: rgba(15, 23, 42, 0.94);
+  --rail-brand-border: rgba(51, 65, 85, 0.72);
+  --rail-text-cluster: #cbd5e1;
+  --rail-text-cluster-hover: #f8fafc;
+  --rail-text-cluster-active: #f8fafc;
+  --rail-text-app: #e2e8f0;
+  --rail-text-app-hover: #ffffff;
+  --rail-text-app-active: #93c5fd;
+  --rail-app-bg-hover: rgba(30, 41, 59, 0.85);
+  --rail-app-bg-active: rgba(37, 99, 235, 0.24);
+  --rail-expanded-bg: rgba(30, 41, 59, 0.82);
+  --rail-expanded-text: #f8fafc;
+  --rail-expanded-icon: #60a5fa;
+  --rail-icon-color: #60a5fa;
+  --rail-icon-active: #60a5fa;
+  --rail-indicator: #38bdf8;
+  --rail-arrow-color: #94a3b8;
+  --rail-tree-line: rgba(51, 65, 85, 0.90);
+  --rail-footer-bg: rgba(15, 23, 42, 0.92);
+  --rail-footer-border: rgba(51, 65, 85, 0.72);
+  --rail-btn-text: #e2e8f0;
+  --rail-btn-border: #334155;
+}
+
+html:not([data-surface="glass"]) .console-shell {
+  background: var(--sb-app-canvas, #f4f4f5);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  padding: 8px 10px 8px 8px;
+  gap: 8px;
+}
+
+html:not([data-surface="glass"]) .console-shell.layout--top {
+  padding: 8px 10px;
+}
+
+html:not([data-surface="glass"]) .console-shell__rail {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-radius: 12px;
+}
+
+html:not([data-surface="glass"]) .console-shell__rail.rail-theme--light {
+  --rail-bg: transparent;
+  --rail-border: transparent;
+  --rail-brand-bg: transparent;
+  --rail-brand-border: var(--sb-border-subtle);
+  --rail-footer-bg: transparent;
+  --rail-footer-border: var(--sb-border-subtle);
+  --rail-app-bg-hover: rgba(113, 113, 122, 0.08);
+  --rail-app-bg-active: var(--sb-stage-bg);
+  --rail-expanded-bg: rgba(113, 113, 122, 0.07);
+  --rail-text-app-active: var(--sb-primary-color);
+  --rail-icon-color: var(--sb-primary-color);
+  --rail-icon-active: var(--sb-primary-color);
+  --rail-indicator: var(--sb-primary-color);
+
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+html:not([data-surface="glass"]) .console-shell__main {
+  background: var(--sb-stage-bg, #ffffff);
+  border: 1px solid var(--sb-border-subtle);
+  border-radius: 14px;
+  gap: 0;
+  box-shadow: 0 1px 3px rgba(9, 9, 11, 0.04);
+}
+
+html:not([data-surface="glass"]) .console-shell__top-dock {
+  border-radius: 0;
+  border: 0;
+  border-bottom: 1px solid var(--sb-border-subtle);
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+
+html:not([data-surface="glass"]) .console-shell__topbar {
+  height: 50px;
+  flex: 0 0 50px;
+  border-radius: 0;
+  border: 0;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+
+html:not([data-surface="glass"]) .console-shell__workspace {
+  --sb-workspace-x: 18px;
+
+  padding: 14px var(--sb-workspace-x) 24px;
+}
+
+html.dark[data-surface="glass"] .console-shell__top-dock {
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.14),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 12px 28px -10px rgba(0, 0, 0, 0.48);
 }
 </style>

@@ -123,6 +123,14 @@
   --sb-badge-primary-text: #4338ca;
   --sb-control-bg: #ffffff;
   --sb-control-bg-hover: #f4f4f5;
+  --sb-pill-solid-bg: var(--sb-primary-color);
+  --sb-segment-active-bg: #ffffff;
+  --sb-segment-active-text: var(--sb-primary-color);
+  --sb-heading-capsule-bg: transparent;
+  --sb-heading-capsule-border: transparent;
+  --sb-heading-capsule-padding: 0;
+  --sb-heading-capsule-shadow: none;
+  --sb-heading-capsule-blur: none;
 
   /* 底座画布与表面层级 (Crisp Luminous Mist & Elevated Frosted Surfaces) */
   --sb-page-shell: transparent;
@@ -268,6 +276,9 @@ html.dark {
   --sb-badge-primary-text: #a5b4fc;
   --sb-control-bg: #18181f;
   --sb-control-bg-hover: #22222b;
+  --sb-pill-solid-bg: var(--sb-cta-bg);
+  --sb-segment-active-bg: var(--sb-cta-bg);
+  --sb-segment-active-text: #ffffff;
 
   --sb-surface-color: #18181f;
   --sb-surface-strong: #1e1e26;
@@ -456,6 +467,11 @@ html[data-surface="glass"] {
   --sb-tier3-bg: rgba(255, 255, 255, 0.90);
   --sb-control-bg: rgba(255, 255, 255, 0.78);
   --sb-control-bg-hover: rgba(255, 255, 255, 0.94);
+  --sb-heading-capsule-bg: rgba(255, 255, 255, 0.86);
+  --sb-heading-capsule-border: rgba(255, 255, 255, 0.92);
+  --sb-heading-capsule-padding: 4px 16px 4px 6px;
+  --sb-heading-capsule-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.96), 0 6px 18px -6px rgba(15, 23, 42, 0.14);
+  --sb-heading-capsule-blur: var(--sb-glass-blur-sm);
   --sb-border-subtle: rgba(255, 255, 255, 0.86);
   --sb-border-color: rgba(148, 163, 184, 0.44);
   --sb-badge-primary-bg: rgba(238, 242, 255, 0.92);
@@ -493,6 +509,9 @@ html.dark[data-surface="glass"] {
   --sb-tier3-bg: rgba(17, 21, 36, 0.92);
   --sb-control-bg: rgba(30, 38, 62, 0.74);
   --sb-control-bg-hover: rgba(40, 50, 80, 0.88);
+  --sb-heading-capsule-bg: rgba(19, 25, 44, 0.84);
+  --sb-heading-capsule-border: rgba(255, 255, 255, 0.18);
+  --sb-heading-capsule-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 8px 22px -6px rgba(0, 0, 0, 0.52);
   --sb-border-subtle: rgba(255, 255, 255, 0.15);
   --sb-border-color: rgba(255, 255, 255, 0.22);
   --sb-badge-primary-bg: rgba(79, 70, 229, 0.32);
