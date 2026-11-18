@@ -554,6 +554,7 @@ onMounted(async () => {
             <div class="party-col party-buyer">
               <div class="party-label">购<br>买<br>方</div>
               <div class="party-content">
+                <div class="line"><span>名&#x3000;&#x3000;&#x3000;&#x3000;称：</span><strong>{{ vatInvoiceData.buyer.name }}</strong></div>
                 <div class="line"><span>名&emsp;&emsp;&emsp;&emsp;称：</span><strong>{{ vatInvoiceData.buyer.name }}</strong></div>
                 <div class="line"><span>纳税人识别号：</span><strong>{{ vatInvoiceData.buyer.taxId }}</strong></div>
                 <div class="line"><span>地 址、电 话：</span><span>{{ vatInvoiceData.buyer.addrTel }}</span></div>
@@ -600,6 +601,8 @@ onMounted(async () => {
                 </tr>
                 <!-- 小计行 -->
                 <tr class="vat-subtotal-tr">
+
+                  <td colspan="5" class="text-center font-bold">合&#x3000;&#x3000;&#x3000;&#x3000;&#x3000;计</td>
                   <td colspan="5" class="text-center font-bold" style="letter-spacing: 1.5em; text-indent: 1.5em;">合计</td>
                   <td class="text-right font-bold font-mono">¥{{ totalVatGoodsAmount.toFixed(2) }}</td>
                   <td></td>
@@ -624,6 +627,8 @@ onMounted(async () => {
             <div class="party-col party-buyer">
               <div class="party-label">销<br>售<br>方</div>
               <div class="party-content">
+
+                <div class="line"><span>名&#x3000;&#x3000;&#x3000;&#x3000;称：</span><strong>{{ vatInvoiceData.seller.name }}</strong></div>
                 <div class="line"><span>名&emsp;&emsp;&emsp;&emsp;称：</span><strong>{{ vatInvoiceData.seller.name }}</strong></div>
                 <div class="line"><span>纳税人识别号：</span><strong>{{ vatInvoiceData.seller.taxId }}</strong></div>
                 <div class="line"><span>地 址、电 话：</span><span>{{ vatInvoiceData.seller.addrTel }}</span></div>
