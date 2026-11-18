@@ -367,6 +367,17 @@ async function handleToolbarCommand(command: string | number | Record<string, un
   box-sizing: border-box;
 }
 
+:global(html:not([data-surface="glass"])) .tags-view-container {
+  height: 38px;
+  border-radius: 0;
+  border: 0;
+  border-bottom: 1px solid var(--sb-border-subtle);
+  background: var(--sb-tier1-bg);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+
 .tags-view-scroll {
   flex: 1;
   min-width: 0;

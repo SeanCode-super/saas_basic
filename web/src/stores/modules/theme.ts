@@ -3,9 +3,13 @@ import { defineStore } from "pinia";
 
 export type ThemeMode = "light" | "dark" | "system";
 export type TableDensity = "comfortable" | "compact";
+export type ThemePreset = "obsidian" | "emerald" | "titanium" | "cobalt";
+export type SurfaceStyle = "matte" | "glass";
 
 const THEME_STORAGE_KEY = "sb-theme-mode";
 const DENSITY_STORAGE_KEY = "sb-table-density";
+const PRESET_STORAGE_KEY = "sb-theme-preset";
+const SURFACE_STORAGE_KEY = "sb-surface-style";
 
 function readInitialThemeMode(): ThemeMode {
   if (typeof window === "undefined") {
@@ -26,6 +30,25 @@ function readInitialTableDensity(): TableDensity {
   return stored === "compact" ? "compact" : "comfortable";
 }
 
+function readInitialPreset(): ThemePreset {
+  if (typeof window === "undefined") {
+    return "obsidian";
+  }
+  const stored = localStorage.getItem(PRESET_STORAGE_KEY);
+  if (stored === "obsidian" || stored === "emerald" || stored === "titanium" || stored === "cobalt") {
+    return stored;
+  }
+  return "obsidian";
+}
+
+function readInitialSurface(): SurfaceStyle {
+  if (typeof window === "undefined") {
+    return "matte";
+  }
+  const stored = localStorage.getItem(SURFACE_STORAGE_KEY);
+  return stored === "glass" ? "glass" : "matte";
+}
+
 function prefersSystemDark(): boolean {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
     return false;
@@ -36,6 +59,8 @@ function prefersSystemDark(): boolean {
 export const useThemeStore = defineStore("theme", () => {
   const mode = ref<ThemeMode>(readInitialThemeMode());
   const tableDensity = ref<TableDensity>(readInitialTableDensity());
+  const preset = ref<ThemePreset>(readInitialPreset());
+  const surface = ref<SurfaceStyle>(readInitialSurface());
   const systemDark = ref<boolean>(prefersSystemDark());
   let initialized = false;
 
@@ -46,6 +71,8 @@ export const useThemeStore = defineStore("theme", () => {
       return;
     }
     document.documentElement.dataset.density = tableDensity.value;
+    document.documentElement.dataset.preset = preset.value;
+    document.documentElement.dataset.surface = surface.value;
   }
 
   function applyDomTheme() {
@@ -89,14 +116,34 @@ export const useThemeStore = defineStore("theme", () => {
     applyDomDensity();
   }
 
+  function setPreset(next: ThemePreset) {
+    preset.value = next;
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(PRESET_STORAGE_KEY, next);
+    }
+    applyDomDensity();
+  }
+
+  function setSurface(next: SurfaceStyle) {
+    surface.value = next;
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(SURFACE_STORAGE_KEY, next);
+    }
+    applyDomDensity();
+  }
+
   initThemeListener();
 
   return {
     mode,
     tableDensity,
+    preset,
+    surface,
     isDark,
     setMode,
     setTableDensity,
+    setPreset,
+    setSurface,
     applyDomTheme
   };
 });

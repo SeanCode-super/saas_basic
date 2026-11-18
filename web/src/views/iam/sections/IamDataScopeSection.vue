@@ -324,11 +324,44 @@ const subjectValueOptions = computed(() => {
   }
 });
 
-const resourceOptions = computed(() =>
-  props.apiResources
-    .filter((item) => item.resourceCode.includes(":list"))
-    .map((item) => ({ label: `${item.resourceName} (${item.resourceCode})`, value: item.resourceCode, name: item.resourceName }))
-);
+const CANONICAL_DATA_SCOPE_RESOURCES = [
+  { name: "全局业务域通配 (所有表)", value: "*" },
+  { name: "CRM 客户档案主数据 (crm_customer)", value: "crm:customer" },
+  { name: "CRM 营销线索池 (crm_clue)", value: "crm:clue" },
+  { name: "CRM 商机与项目推进 (crm_business)", value: "crm:business" },
+  { name: "CRM 合同签约台账 (crm_contract)", value: "crm:contract" },
+  { name: "ERP 物料与商品档案 (erp_product)", value: "erp:product" },
+  { name: "ERP 采购履约订单 (erp_order)", value: "erp:order" },
+  { name: "工作流审批实例 (workflow_instance)", value: "workflow:instance" }
+];
+
+const resourceOptions = computed(() => {
+  const seen = new Set<string>();
+  const items: Array<{ label: string; value: string; name: string }> = [];
+
+  for (const canonical of CANONICAL_DATA_SCOPE_RESOURCES) {
+    seen.add(canonical.value);
+    items.push({
+      label: `${canonical.name} (${canonical.value})`,
+      value: canonical.value,
+      name: canonical.name
+    });
+  }
+
+  for (const item of props.apiResources) {
+    if (!item.resourceCode.includes(":list") || seen.has(item.resourceCode)) {
+      continue;
+    }
+    seen.add(item.resourceCode);
+    items.push({
+      label: `${item.resourceName} (${item.resourceCode})`,
+      value: item.resourceCode,
+      name: item.resourceName
+    });
+  }
+
+  return items;
+});
 
 const decoratedRules = computed(() =>
   props.dataPermissionRules.map((row) => ({
@@ -681,6 +714,17 @@ async function batchUpdateRules(rows: IamDataPermissionRuleRow[], status: "ENABL
 
 <template>
   <div class="data-scope-view">
+    <div class="data-scope-priority-bar">
+      <span class="priority-pill priority-pill--l1">L1 平台超管豁免</span>
+      <span class="priority-arrow">→</span>
+      <span class="priority-pill priority-pill--l2">L2 资源级 5D 规则覆盖</span>
+      <span class="priority-arrow">→</span>
+      <span class="priority-pill priority-pill--l3">L3 角色默认数据范围兜底</span>
+      <span class="priority-note">
+        规则匹配优先采用领域资源编码（如 crm:customer、erp:order、*），未命中精确规则时按角色基线裁决。
+      </span>
+    </div>
+
     <div class="data-scope-header">
       <div class="data-scope-header__nav">
         <el-radio-group v-model="activeScopeTab" size="default">
@@ -1251,5 +1295,52 @@ async function batchUpdateRules(rows: IamDataPermissionRuleRow[], status: "ENABL
   .form-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.data-scope-priority-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border-radius: 10px;
+  background: var(--sb-tier1-bg);
+  border: 1px solid var(--sb-border-subtle);
+  font-size: 12px;
+}
+
+.priority-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 9999px;
+  font-weight: 600;
+  border: 1px solid var(--sb-border-subtle);
+
+  &--l1 {
+    background: var(--sb-surface-soft);
+    color: var(--sb-text-primary);
+  }
+
+  &--l2 {
+    background: var(--sb-badge-primary-bg);
+    border-color: var(--sb-badge-primary-border);
+    color: var(--sb-badge-primary-text);
+  }
+
+  &--l3 {
+    background: var(--sb-tier2-bg);
+    color: var(--sb-text-secondary);
+  }
+}
+
+.priority-arrow {
+  color: var(--sb-text-muted);
+  font-weight: 600;
+}
+
+.priority-note {
+  color: var(--sb-text-muted);
+  margin-left: auto;
 }
 </style>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
+import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import {
   Check,
@@ -43,6 +44,7 @@ const props = defineProps<{
   savePolicy: (message: string) => void;
 }>();
 
+const router = useRouter();
 const transportLoading = ref(false);
 const transportSaving = ref(false);
 const testingRoundtrip = ref(false);
@@ -531,45 +533,63 @@ onMounted(() => {
       </div>
     </BaseCard>
 
-    <!-- 3. 账号与密码安全 -->
+    <!-- 3. 账号与密码安全（IAM 单源管控只读基线） -->
     <BaseCard tone="soft">
       <template #header>
         <div class="card-head">
           <div class="card-title-wrap">
             <span class="card-icon slate"><el-icon><Key /></el-icon></span>
             <h3 class="card-title">账号与密码基线</h3>
+            <el-tag size="small" effect="plain" type="info">IAM 单源管控</el-tag>
           </div>
-          <el-button type="primary" size="small" :icon="Check" @click="savePolicy('账号与密码安全策略已保存')">
-            保存基线
-          </el-button>
+          <div class="card-head-links">
+            <el-button
+              size="small"
+              plain
+              @click="void router.push('/iam/login-policy')"
+            >
+              前往登录与 MFA 策略
+            </el-button>
+            <el-button
+              type="primary"
+              size="small"
+              plain
+              @click="void router.push('/iam/password-policy')"
+            >
+              前往密码策略
+            </el-button>
+          </div>
         </div>
       </template>
 
-      <div class="account-grid">
-        <div class="account-inputs">
-          <div class="field-item">
-            <label>最短密码长度</label>
-            <el-input-number v-model="securityPolicy.minLength" :min="8" :max="32" size="small" />
-          </div>
-          <div class="field-item">
-            <label>历史密码记忆次数</label>
-            <el-input-number v-model="securityPolicy.passwordHistory" :min="1" :max="24" size="small" />
-          </div>
-          <div class="field-item">
-            <label>会话超时 (分钟)</label>
-            <el-input-number v-model="securityPolicy.sessionTimeoutMinutes" :min="15" :max="1440" size="small" />
-          </div>
-        </div>
+      <p class="iam-single-source-hint">
+        为消除系统设置与身份中心策略冲突，账号登录、MFA 多因子及密码生命周期统一在 IAM 安全策略中心编辑并下发生效，此处仅展示当前运行时基线摘要。
+      </p>
 
-        <div class="account-toggles">
-          <div class="toggle-item">
-            <span>强制密码包含特殊字符</span>
-            <el-switch v-model="securityPolicy.requireSpecial" size="small" />
-          </div>
-          <div class="toggle-item">
-            <span>管理员强制启用多因子认证 (MFA)</span>
-            <el-switch v-model="securityPolicy.forceMfa" size="small" />
-          </div>
+      <div class="account-summary-grid">
+        <div class="account-metric-tile">
+          <span class="tile-label">最短密码长度</span>
+          <strong class="tile-value">{{ securityPolicy.minLength }} 位</strong>
+        </div>
+        <div class="account-metric-tile">
+          <span class="tile-label">历史密码记忆</span>
+          <strong class="tile-value">{{ securityPolicy.passwordHistory }} 次</strong>
+        </div>
+        <div class="account-metric-tile">
+          <span class="tile-label">会话超时</span>
+          <strong class="tile-value">{{ securityPolicy.sessionTimeoutMinutes }} 分钟</strong>
+        </div>
+        <div class="account-metric-tile">
+          <span class="tile-label">特殊字符约束</span>
+          <el-tag size="small" :type="securityPolicy.requireSpecial ? 'success' : 'info'">
+            {{ securityPolicy.requireSpecial ? "已强制要求" : "未强制" }}
+          </el-tag>
+        </div>
+        <div class="account-metric-tile">
+          <span class="tile-label">管理员 MFA 校验</span>
+          <el-tag size="small" :type="securityPolicy.forceMfa ? 'success' : 'warning'">
+            {{ securityPolicy.forceMfa ? "强制启用" : "按策略可选" }}
+          </el-tag>
         </div>
       </div>
     </BaseCard>
@@ -1012,46 +1032,52 @@ onMounted(() => {
   }
 }
 
-.account-grid {
-  display: grid;
-  grid-template-columns: 1.4fr 1fr;
-  gap: 16px;
+.card-head-links {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-
-  @media (max-width: 900px) {
-    grid-template-columns: minmax(0, 1fr);
-  }
+  gap: 8px;
 }
 
-.account-inputs {
+.iam-single-source-hint {
+  margin: 0 0 14px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--sb-text-muted);
+}
+
+.account-summary-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
 
-  @media (max-width: 720px) {
-    grid-template-columns: minmax(0, 1fr);
+  @media (max-width: 960px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-.field-item {
+.account-metric-tile {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-
-  label {
-    font-size: 12px;
-    color: #475569;
-  }
-}
-
-.account-toggles {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 10px 14px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.90);
-  border: 1px solid #e2e8f0;
+  background: var(--sb-tier2-bg);
+  border: 1px solid var(--sb-border-subtle);
+
+  .tile-label {
+    font-size: 12px;
+    color: var(--sb-text-muted);
+  }
+
+  .tile-value {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--sb-text-primary);
+    font-family: var(--sb-font-mono);
+  }
 }
 
 .roundtrip-box {

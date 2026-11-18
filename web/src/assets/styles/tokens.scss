@@ -5,22 +5,32 @@
   --sb-font-mono: ui-monospace, "SFMono-Regular", "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
 
   /* ==========================================================================
-     天枢极核设计系统 (Tianshu Core Design System - TCDS v2.0)
-     色彩哲学：钛金冷灰基底 (严谨工业) + 科技钴蓝聚焦 (数字中枢) + 极光青微光 (高阶状态)
+     天枢极核设计系统 (Tianshu Core Design System - TCDS v4.0 Theme Studio)
+     默认主主题：曜石极光 (Obsidian Indigo) + Inset 无界一体画布
      ========================================================================== */
 
-  /* 核心主色阶 (Tianshu Polaris Cobalt) */
-  --sb-primary-color: #2563eb;
-  --sb-primary-hover: #1d4ed8;
-  --sb-primary-strong: #1e40af;
-  --sb-primary-weak: rgba(37, 99, 235, 0.08);
-  --sb-primary-border: rgba(37, 99, 235, 0.25);
-  --sb-primary-glow: rgba(37, 99, 235, 0.16);
+  /* 核心主色阶 (Obsidian Indigo Default) */
+  --sb-primary-color: #4f46e5;
+  --sb-primary-hover: #4338ca;
+  --sb-primary-strong: #3730a3;
+  --sb-primary-weak: rgba(79, 70, 229, 0.08);
+  --sb-primary-border: rgba(79, 70, 229, 0.24);
+  --sb-primary-glow: rgba(79, 70, 229, 0.16);
 
-  /* 辅色与极光青微光 (Aurora Cyan & Indigo) */
-  --sb-accent-color: #0284c7;
-  --sb-accent-weak: rgba(2, 132, 199, 0.08);
-  --sb-accent-border: rgba(2, 132, 199, 0.25);
+  /* 主行动 CTA 令牌 (Obsidian Ink in Light / Electric Indigo in Dark) */
+  --sb-cta-bg: #18181b;
+  --sb-cta-hover: #27272a;
+  --sb-cta-active: #09090b;
+  --sb-cta-text: #ffffff;
+
+  /* 一体化空间底座与主画布 */
+  --sb-app-canvas: #f4f4f5;
+  --sb-stage-bg: #ffffff;
+
+  /* 辅色与极光微光 */
+  --sb-accent-color: #6366f1;
+  --sb-accent-weak: rgba(99, 102, 241, 0.08);
+  --sb-accent-border: rgba(99, 102, 241, 0.25);
   --sb-cyan-accent: #0ea5e9;
 
   /* 状态指标色 (严格收敛，拒绝刺眼七彩) */
@@ -55,10 +65,10 @@
   --app-surface-subtle: rgba(248, 250, 252, 0.94);
   --app-border-soft: rgba(203, 213, 225, 0.78);
 
-  /* 精密发丝微边框 (Hairline Structural Borders) */
-  --sb-border-color: #cbd5e1;    /* 标准结构微边框 (Slate-300) */
-  --sb-border-subtle: #e2e8f0;   /* 浅层内容分割线 (Slate-200) */
-  --sb-border-strong: #94a3b8;   /* 悬浮/聚焦外沿增强线 */
+  /* 精密发丝微边框 (Zinc Hairline Structural Borders) */
+  --sb-border-color: #d4d4d8;    /* 标准结构微边框 (Zinc-300) */
+  --sb-border-subtle: #e4e4e7;   /* 浅层内容分割线 (Zinc-200) */
+  --sb-border-strong: #a1a1aa;   /* 悬浮/聚焦外沿增强线 */
 
   /* ==========================================================================
      iOS 27 / visionOS 高清晰柔雾玻璃系统 (High-Legibility Frosted Glass Tokens)
@@ -92,27 +102,27 @@
   --sb-glass-shadow-lg: 0 24px 56px -12px rgba(12, 34, 56, 0.12), 0 8px 24px -4px rgba(12, 34, 56, 0.06);
   --sb-glass-shadow-glow: 0 0 28px -2px rgba(37, 99, 235, 0.28);
 
-  /* 悬浮晶体圆角规范 (TCDS v3.0 严格同心圆角阶梯: 外容器 20px -> 次级栏 14px -> 内嵌表格 10px -> 控件 8px) */
-  --sb-radius-glass: 20px;
-  --sb-radius-glass-md: 14px;
-  --sb-radius-glass-sm: 10px;
+  /* TCDS v4.0 建筑感同心圆角阶梯 */
+  --sb-radius-glass: 14px;
+  --sb-radius-glass-md: 10px;
+  --sb-radius-glass-sm: 8px;
   --sb-radius-control: 8px;
   --sb-radius-glass-pill: 9999px;
 
-  /* TCDS v3.0 三级光学表面与控件语义令牌 */
-  --sb-tier1-bg: rgba(255, 255, 255, 0.88);
-  --sb-tier2-bg: rgba(255, 255, 255, 0.96);
-  --sb-tier2-header-bg: rgba(248, 250, 252, 0.98);
-  --sb-tier2-zebra-bg: rgba(248, 250, 252, 0.96);
-  --sb-tier2-hover-bg: rgba(239, 246, 255, 0.96);
+  /* TCDS v4.0 三级光学表面与控件语义令牌 */
+  --sb-tier1-bg: #fafafa;
+  --sb-tier2-bg: #ffffff;
+  --sb-tier2-header-bg: #fafafa;
+  --sb-tier2-zebra-bg: #fafafa;
+  --sb-tier2-hover-bg: rgba(79, 70, 229, 0.05);
   --sb-tier2-fixed-bg: #ffffff;
-  --sb-tier2-fixed-zebra-bg: #f8fafc;
-  --sb-tier3-bg: rgba(255, 255, 255, 0.97);
-  --sb-badge-primary-bg: rgba(37, 99, 235, 0.10);
-  --sb-badge-primary-border: rgba(37, 99, 235, 0.24);
-  --sb-badge-primary-text: #1d4ed8;
-  --sb-control-bg: rgba(255, 255, 255, 0.94);
-  --sb-control-bg-hover: #ffffff;
+  --sb-tier2-fixed-zebra-bg: #fafafa;
+  --sb-tier3-bg: rgba(255, 255, 255, 0.98);
+  --sb-badge-primary-bg: rgba(79, 70, 229, 0.09);
+  --sb-badge-primary-border: rgba(79, 70, 229, 0.24);
+  --sb-badge-primary-text: #4338ca;
+  --sb-control-bg: #ffffff;
+  --sb-control-bg-hover: #f4f4f5;
 
   /* 底座画布与表面层级 (Crisp Luminous Mist & Elevated Frosted Surfaces) */
   --sb-page-shell: transparent;
@@ -148,14 +158,14 @@
   --sb-radius-xl: 10px;
   --sb-content-max: 1680px;
 
-  /* Element Plus 全局组件设计系统覆写 */
-  --el-color-primary: #2563eb;
-  --el-color-primary-light-3: #60a5fa;
-  --el-color-primary-light-5: #93c5fd;
-  --el-color-primary-light-7: #bfdbfe;
-  --el-color-primary-light-8: #dbeafe;
-  --el-color-primary-light-9: #eff6ff;
-  --el-color-primary-dark-2: #1e40af;
+  /* Element Plus 全局组件设计系统覆写 (Obsidian Indigo Default) */
+  --el-color-primary: #4f46e5;
+  --el-color-primary-light-3: #818cf8;
+  --el-color-primary-light-5: #a5b4fc;
+  --el-color-primary-light-7: #c7d2fe;
+  --el-color-primary-light-8: #e0e7ff;
+  --el-color-primary-light-9: #eef2ff;
+  --el-color-primary-dark-2: #3730a3;
 
   --el-color-success: #059669;
   --el-color-warning: #d97706;
@@ -200,70 +210,223 @@
 
 html.dark {
   --sb-shell-main: transparent;
-  --sb-text-primary: #f8fafc;
-  --sb-text-secondary: #e2e8f0;
-  --sb-text-tertiary: #cbd5e1;
-  --sb-text-muted: #94a3b8;
-  --sb-text-disabled: #64748b;
+  --sb-app-canvas: #09090b;
+  --sb-stage-bg: #111115;
 
-  --app-text-primary: #f8fafc;
-  --app-text-secondary: #cbd5e1;
-  --app-text-muted: #94a3b8;
-  --app-surface-card: rgba(15, 23, 42, 0.90);
-  --app-surface-subtle: rgba(30, 41, 59, 0.78);
-  --app-border-soft: rgba(51, 65, 85, 0.82);
+  --sb-primary-color: #818cf8;
+  --sb-primary-hover: #6366f1;
+  --sb-primary-strong: #4f46e5;
+  --sb-primary-weak: rgba(99, 102, 241, 0.16);
+  --sb-primary-border: rgba(129, 140, 248, 0.34);
 
-  --sb-border-color: #334155;
-  --sb-border-subtle: #1e293b;
-  --sb-border-strong: #475569;
+  --sb-cta-bg: #6366f1;
+  --sb-cta-hover: #4f46e5;
+  --sb-cta-active: #4338ca;
+  --sb-cta-text: #ffffff;
 
-  --sb-glass-bg: rgba(15, 23, 42, 0.78);
-  --sb-glass-bg-hover: rgba(30, 41, 59, 0.88);
-  --sb-glass-bg-active: rgba(30, 41, 59, 0.96);
-  --sb-glass-bg-soft: rgba(15, 23, 42, 0.62);
-  --sb-glass-border: 1px solid rgba(255, 255, 255, 0.12);
-  --sb-glass-border-subtle: 1px solid rgba(255, 255, 255, 0.08);
+  --sb-text-primary: #fafafa;
+  --sb-text-secondary: #e4e4e7;
+  --sb-text-tertiary: #a1a1aa;
+  --sb-text-muted: #71717a;
+  --sb-text-disabled: #52525b;
+
+  --app-text-primary: #fafafa;
+  --app-text-secondary: #e4e4e7;
+  --app-text-muted: #a1a1aa;
+  --app-surface-card: #141419;
+  --app-surface-subtle: #18181f;
+  --app-border-soft: #27272a;
+
+  --sb-border-color: #27272a;
+  --sb-border-subtle: #202024;
+  --sb-border-strong: #3f3f46;
+
+  --sb-glass-bg: rgba(17, 17, 21, 0.84);
+  --sb-glass-bg-hover: rgba(24, 24, 30, 0.92);
+  --sb-glass-bg-active: rgba(30, 30, 38, 0.96);
+  --sb-glass-bg-soft: rgba(17, 17, 21, 0.68);
+  --sb-glass-border: 1px solid rgba(255, 255, 255, 0.10);
+  --sb-glass-border-subtle: 1px solid rgba(255, 255, 255, 0.06);
   --sb-glass-specular: var(--sb-glass-specular-dark);
 
-  --sb-tier1-bg: rgba(15, 23, 42, 0.80);
-  --sb-tier2-bg: rgba(15, 23, 42, 0.92);
-  --sb-tier2-header-bg: rgba(30, 41, 59, 0.94);
-  --sb-tier2-zebra-bg: rgba(19, 29, 49, 0.94);
-  --sb-tier2-hover-bg: rgba(37, 99, 235, 0.18);
-  --sb-tier2-fixed-bg: #0f172a;
-  --sb-tier2-fixed-zebra-bg: #131d31;
-  --sb-tier3-bg: rgba(15, 23, 42, 0.96);
+  --sb-tier1-bg: #15151a;
+  --sb-tier2-bg: #18181f;
+  --sb-tier2-header-bg: #1c1c24;
+  --sb-tier2-zebra-bg: #14141a;
+  --sb-tier2-hover-bg: rgba(99, 102, 241, 0.14);
+  --sb-tier2-fixed-bg: #18181f;
+  --sb-tier2-fixed-zebra-bg: #14141a;
+  --sb-tier3-bg: rgba(20, 20, 26, 0.97);
+  --sb-badge-primary-bg: rgba(99, 102, 241, 0.18);
+  --sb-badge-primary-border: rgba(129, 140, 248, 0.34);
+  --sb-badge-primary-text: #a5b4fc;
+  --sb-control-bg: #18181f;
+  --sb-control-bg-hover: #22222b;
+
+  --sb-surface-color: #18181f;
+  --sb-surface-strong: #1e1e26;
+  --sb-surface-soft: #15151b;
+  --sb-surface-contrast: #27272a;
+  --sb-panel-muted: #18181f;
+
+  --el-color-primary: #818cf8;
+  --el-color-primary-light-3: #6366f1;
+  --el-color-primary-light-5: #4f46e5;
+  --el-color-primary-light-7: #3730a3;
+  --el-color-primary-light-8: rgba(99, 102, 241, 0.22);
+  --el-color-primary-light-9: rgba(99, 102, 241, 0.12);
+  --el-color-primary-dark-2: #a5b4fc;
+
+  --el-bg-color: #111115;
+  --el-bg-color-overlay: #18181f;
+  --el-fill-color: #1f1f27;
+  --el-fill-color-light: rgba(39, 39, 42, 0.72);
+  --el-fill-color-lighter: rgba(39, 39, 42, 0.50);
+  --el-fill-color-blank: #18181f;
+
+  --el-text-color-primary: #fafafa;
+  --el-text-color-regular: #e4e4e7;
+  --el-text-color-secondary: #a1a1aa;
+  --el-border-color: #27272a;
+  --el-border-color-light: #202024;
+
+  --el-table-bg-color: #18181f;
+  --el-table-tr-bg-color: #18181f;
+  --el-table-header-bg-color: #1c1c24;
+  --el-table-header-text-color: #fafafa;
+  --el-table-text-color: #e4e4e7;
+  --el-table-border-color: #27272a;
+  --el-table-row-hover-bg-color: rgba(99, 102, 241, 0.14);
+  --el-table-current-row-bg-color: rgba(99, 102, 241, 0.22);
+}
+
+/* ==========================================================================
+   Theme Studio 官方配色预设 (Emerald / Titanium / Cobalt) + Glass 质感覆盖
+   ========================================================================== */
+html[data-preset="emerald"] {
+  --sb-app-canvas: #f2f4f1;
+  --sb-primary-color: #0f766e;
+  --sb-primary-hover: #115e59;
+  --sb-primary-strong: #134e4a;
+  --sb-primary-weak: rgba(15, 118, 110, 0.09);
+  --sb-primary-border: rgba(15, 118, 110, 0.26);
+  --sb-cta-bg: #0f766e;
+  --sb-cta-hover: #115e59;
+  --sb-cta-active: #134e4a;
+  --sb-tier2-hover-bg: rgba(15, 118, 110, 0.06);
+  --sb-badge-primary-bg: rgba(15, 118, 110, 0.10);
+  --sb-badge-primary-border: rgba(15, 118, 110, 0.25);
+  --sb-badge-primary-text: #0f766e;
+  --el-color-primary: #0f766e;
+  --el-color-primary-light-3: #14b8a6;
+  --el-color-primary-light-5: #5eead4;
+  --el-color-primary-light-7: #99f6e4;
+  --el-color-primary-light-8: #ccfbf1;
+  --el-color-primary-light-9: #f0fdfa;
+  --el-color-primary-dark-2: #134e4a;
+}
+
+html.dark[data-preset="emerald"] {
+  --sb-app-canvas: #07100e;
+  --sb-stage-bg: #0c1714;
+  --sb-primary-color: #2dd4bf;
+  --sb-primary-hover: #14b8a6;
+  --sb-cta-bg: #0d9488;
+  --sb-cta-hover: #0f766e;
+  --sb-badge-primary-bg: rgba(45, 212, 191, 0.16);
+  --sb-badge-primary-border: rgba(45, 212, 191, 0.34);
+  --sb-badge-primary-text: #5eead4;
+  --sb-tier2-hover-bg: rgba(20, 184, 166, 0.14);
+  --el-color-primary: #2dd4bf;
+}
+
+html[data-preset="titanium"] {
+  --sb-app-canvas: #f1f5f9;
+  --sb-primary-color: #b45309;
+  --sb-primary-hover: #92400e;
+  --sb-primary-strong: #78350f;
+  --sb-primary-weak: rgba(217, 119, 6, 0.10);
+  --sb-primary-border: rgba(217, 119, 6, 0.28);
+  --sb-cta-bg: #1e293b;
+  --sb-cta-hover: #334155;
+  --sb-cta-active: #0f172a;
+  --sb-radius-glass: 10px;
+  --sb-radius-glass-md: 8px;
+  --sb-radius-glass-sm: 6px;
+  --sb-radius-control: 6px;
+  --sb-tier2-hover-bg: rgba(217, 119, 6, 0.06);
+  --sb-badge-primary-bg: rgba(217, 119, 6, 0.12);
+  --sb-badge-primary-border: rgba(217, 119, 6, 0.30);
+  --sb-badge-primary-text: #b45309;
+  --el-color-primary: #d97706;
+  --el-color-primary-light-3: #f59e0b;
+  --el-color-primary-light-5: #fbbf24;
+  --el-color-primary-light-7: #fde68a;
+  --el-color-primary-light-8: #fef3c7;
+  --el-color-primary-light-9: #fffbeb;
+  --el-color-primary-dark-2: #92400e;
+}
+
+html.dark[data-preset="titanium"] {
+  --sb-app-canvas: #0b0f17;
+  --sb-stage-bg: #111827;
+  --sb-primary-color: #f59e0b;
+  --sb-primary-hover: #d97706;
+  --sb-cta-bg: #d97706;
+  --sb-cta-hover: #b45309;
+  --sb-badge-primary-bg: rgba(245, 158, 11, 0.18);
+  --sb-badge-primary-border: rgba(251, 191, 36, 0.34);
+  --sb-badge-primary-text: #fcd34d;
+  --sb-tier2-hover-bg: rgba(245, 158, 11, 0.14);
+  --el-color-primary: #f59e0b;
+}
+
+html[data-preset="cobalt"] {
+  --sb-app-canvas: #eff4fb;
+  --sb-primary-color: #2563eb;
+  --sb-primary-hover: #1d4ed8;
+  --sb-primary-strong: #1e40af;
+  --sb-primary-weak: rgba(37, 99, 235, 0.09);
+  --sb-primary-border: rgba(37, 99, 235, 0.25);
+  --sb-cta-bg: #2563eb;
+  --sb-cta-hover: #1d4ed8;
+  --sb-cta-active: #1e40af;
+  --sb-tier2-hover-bg: rgba(37, 99, 235, 0.06);
+  --sb-badge-primary-bg: rgba(37, 99, 235, 0.10);
+  --sb-badge-primary-border: rgba(37, 99, 235, 0.24);
+  --sb-badge-primary-text: #1d4ed8;
+  --el-color-primary: #2563eb;
+  --el-color-primary-light-3: #60a5fa;
+  --el-color-primary-light-5: #93c5fd;
+  --el-color-primary-light-7: #bfdbfe;
+  --el-color-primary-light-8: #dbeafe;
+  --el-color-primary-light-9: #eff6ff;
+  --el-color-primary-dark-2: #1e40af;
+}
+
+html.dark[data-preset="cobalt"] {
+  --sb-app-canvas: #020617;
+  --sb-stage-bg: #0b1222;
+  --sb-primary-color: #60a5fa;
+  --sb-cta-bg: #2563eb;
+  --sb-cta-hover: #1d4ed8;
   --sb-badge-primary-bg: rgba(59, 130, 246, 0.18);
   --sb-badge-primary-border: rgba(96, 165, 250, 0.34);
   --sb-badge-primary-text: #93c5fd;
-  --sb-control-bg: rgba(15, 23, 42, 0.86);
-  --sb-control-bg-hover: rgba(30, 41, 59, 0.95);
+  --el-color-primary: #60a5fa;
+}
 
-  --sb-surface-color: rgba(15, 23, 42, 0.85);
-  --sb-surface-strong: rgba(15, 23, 42, 0.94);
-  --sb-surface-soft: rgba(30, 41, 59, 0.72);
-  --sb-surface-contrast: #1e293b;
-  --sb-panel-muted: rgba(30, 41, 59, 0.65);
+html[data-surface="glass"] {
+  --sb-radius-glass: 20px;
+  --sb-radius-glass-md: 14px;
+  --sb-radius-glass-sm: 10px;
+  --sb-tier1-bg: rgba(255, 255, 255, 0.86);
+  --sb-tier2-bg: rgba(255, 255, 255, 0.94);
+  --sb-tier2-header-bg: rgba(248, 250, 252, 0.96);
+}
 
-  --el-bg-color: #0f172a;
-  --el-bg-color-overlay: #1e293b;
-  --el-fill-color: #1e293b;
-  --el-fill-color-light: rgba(30, 41, 59, 0.7);
-  --el-fill-color-lighter: rgba(30, 41, 59, 0.5);
-  --el-fill-color-blank: rgba(15, 23, 42, 0.82);
-
-  --el-text-color-primary: #f8fafc;
-  --el-text-color-regular: #e2e8f0;
-  --el-text-color-secondary: #94a3b8;
-  --el-border-color: #334155;
-  --el-border-color-light: #1e293b;
-
-  --el-table-bg-color: rgba(15, 23, 42, 0.92);
-  --el-table-tr-bg-color: rgba(15, 23, 42, 0.92);
-  --el-table-header-bg-color: rgba(30, 41, 59, 0.94);
-  --el-table-header-text-color: #f8fafc;
-  --el-table-text-color: #e2e8f0;
-  --el-table-border-color: rgba(51, 65, 85, 0.7);
-  --el-table-row-hover-bg-color: rgba(37, 99, 235, 0.16);
-  --el-table-current-row-bg-color: rgba(37, 99, 235, 0.24);
+html.dark[data-surface="glass"] {
+  --sb-tier1-bg: rgba(15, 23, 42, 0.80);
+  --sb-tier2-bg: rgba(15, 23, 42, 0.90);
+  --sb-tier2-header-bg: rgba(30, 41, 59, 0.92);
 }

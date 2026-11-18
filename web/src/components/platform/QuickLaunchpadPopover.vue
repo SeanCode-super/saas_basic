@@ -14,9 +14,21 @@ import {
 } from "@element-plus/icons-vue";
 import { translate, type AppLocale } from "@/locales/messages";
 import { useLocaleStore } from "@/stores/modules/locale";
-import { useThemeStore, type ThemeMode } from "@/stores/modules/theme";
+import {
+  useThemeStore,
+  type SurfaceStyle,
+  type ThemeMode,
+  type ThemePreset
+} from "@/stores/modules/theme";
 
 type LayoutMode = "mix" | "side" | "top";
+
+const presetSwatches: Array<{ value: ThemePreset; color: string; labelKey: string }> = [
+  { value: "obsidian", color: "#4f46e5", labelKey: "launchpad.presetObsidian" },
+  { value: "emerald", color: "#0f766e", labelKey: "launchpad.presetEmerald" },
+  { value: "titanium", color: "#d97706", labelKey: "launchpad.presetTitanium" },
+  { value: "cobalt", color: "#2563eb", labelKey: "launchpad.presetCobalt" }
+];
 
 defineProps<{
   layoutMode: LayoutMode;
@@ -84,6 +96,14 @@ function selectTheme(mode: ThemeMode) {
   themeStore.setMode(mode);
 }
 
+function selectPreset(preset: ThemePreset) {
+  themeStore.setPreset(preset);
+}
+
+function selectSurface(surface: SurfaceStyle) {
+  themeStore.setSurface(surface);
+}
+
 function selectLocale(locale: AppLocale) {
   emit("change-locale", locale);
 }
@@ -97,7 +117,7 @@ function selectLayout(mode: LayoutMode) {
   <el-popover
     v-model:visible="popoverVisible"
     placement="bottom-end"
-    :width="352"
+    :width="380"
     trigger="click"
     popper-class="launchpad-popover-panel"
   >
@@ -219,6 +239,51 @@ function selectLayout(mode: LayoutMode) {
               @click="selectLayout('side')"
             >
               {{ t("launchpad.layoutSide") }}
+            </button>
+          </div>
+        </div>
+
+        <div class="control-row">
+          <span class="control-label">
+            <el-icon><Operation /></el-icon>
+            {{ t("launchpad.preset") }}
+          </span>
+          <div class="segmented-group">
+            <button
+              v-for="item in presetSwatches"
+              :key="item.value"
+              type="button"
+              class="seg-btn seg-btn--swatch"
+              :class="{ 'is-active': themeStore.preset === item.value }"
+              @click="selectPreset(item.value)"
+            >
+              <span class="swatch-dot" :style="{ backgroundColor: item.color }" />
+              {{ t(item.labelKey) }}
+            </button>
+          </div>
+        </div>
+
+        <div class="control-row">
+          <span class="control-label">
+            <el-icon><Grid /></el-icon>
+            {{ t("launchpad.surface") }}
+          </span>
+          <div class="segmented-group">
+            <button
+              type="button"
+              class="seg-btn"
+              :class="{ 'is-active': themeStore.surface === 'matte' }"
+              @click="selectSurface('matte')"
+            >
+              {{ t("launchpad.surfaceMatte") }}
+            </button>
+            <button
+              type="button"
+              class="seg-btn"
+              :class="{ 'is-active': themeStore.surface === 'glass' }"
+              @click="selectSurface('glass')"
+            >
+              {{ t("launchpad.surfaceGlass") }}
             </button>
           </div>
         </div>
@@ -386,10 +451,24 @@ function selectLayout(mode: LayoutMode) {
   transition: all 140ms ease;
 
   &.is-active {
-    background: var(--sb-primary-color, #2563eb);
+    background: var(--sb-primary-color, #4f46e5);
     color: #ffffff;
     font-weight: 600;
-    box-shadow: 0 1px 3px rgba(37, 99, 235, 0.25);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.20);
   }
+}
+
+.seg-btn--swatch {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.swatch-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.6);
 }
 </style>

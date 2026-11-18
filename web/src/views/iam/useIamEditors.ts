@@ -234,7 +234,7 @@ export function useIamEditors(params: UseIamEditorsParams) {
   }
 
   function resetEmployeeForm() {
-    employeeForm.employeeNo = "";
+    employeeForm.employeeNo = `EMP-${String(params.employees.value.length + 1).padStart(4, "0")}`;
     employeeForm.employeeName = "";
     employeeForm.deptId = params.departments.value[0]?.id ?? 0;
     employeeForm.positionId = params.positions.value[0]?.id ?? 0;
@@ -244,7 +244,7 @@ export function useIamEditors(params: UseIamEditorsParams) {
     employeeForm.hireDate = "";
     employeeForm.employeeStatus = "ACTIVE";
     employeeForm.remark = "";
-    employeeForm.createAccount = false;
+    employeeForm.createAccount = true;
     employeeForm.accountUsername = "";
     employeeForm.accountPassword = "User@123456";
     employeeForm.accountRoleIds = [];

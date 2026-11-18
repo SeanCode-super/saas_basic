@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import ControlSurface from "@/components/platform/ControlSurface.vue";
+import ModuleSectionNav from "@/components/platform/ModuleSectionNav.vue";
 import BaseRefreshButton from "@/components/base/BaseRefreshButton.vue";
 import { useAuthStore } from "@/stores/modules/auth";
 import IamEditorDialogs from "./IamEditorDialogs.vue";
@@ -31,7 +32,7 @@ import type { IamSection } from "./iam-meta";
 import { useIamAssignments } from "./useIamAssignments";
 import { useIamCatalog } from "./useIamCatalog";
 import { useIamEditors } from "./useIamEditors";
-import { Cpu } from "@element-plus/icons-vue";
+import { Cpu, Plus } from "@element-plus/icons-vue";
 import IamPermissionInspector from "./components/IamPermissionInspector.vue";
 import IamAccountsSection from "./sections/IamAccountsSection.vue";
 import IamAssignmentSection from "./sections/IamAssignmentSection.vue";
@@ -231,6 +232,101 @@ const {
 const activeControlCopy = computed(() => resolveIamControlCopy(activeTab.value));
 const policyRows = [...IAM_POLICY_ROWS];
 
+type IamHubKey = "foundation" | "identity" | "access" | "security";
+
+interface IamSubTabOption {
+  key: IamSection;
+  label: string;
+}
+
+const IAM_HUB_ITEMS: Array<{ key: IamHubKey; label: string; defaultSection: IamSection }> = [
+  { key: "foundation", label: "治理总览", defaultSection: "foundation" },
+  { key: "identity", label: "身份与账号", defaultSection: "user" },
+  { key: "access", label: "角色与统一授权", defaultSection: "role" },
+  { key: "security", label: "安全策略与资源目录", defaultSection: "login-policy" }
+];
+
+const IAM_HUB_SUBTABS: Record<Exclude<IamHubKey, "foundation">, IamSubTabOption[]> = {
+  identity: [
+    { key: "user", label: "账号目录" },
+    { key: "user-role", label: "批量分配角色" }
+  ],
+  access: [
+    { key: "role", label: "角色与功能授权" },
+    { key: "data-scope", label: "5D 数据边界" },
+    { key: "role-api", label: "接口直授矩阵" }
+  ],
+  security: [
+    { key: "login-policy", label: "登录与 MFA 策略" },
+    { key: "password-policy", label: "密码生命周期" },
+    { key: "menu", label: "应用菜单编排" },
+    { key: "api-resource", label: "API 资源注册表" }
+  ]
+};
+
+const activeHub = computed<IamHubKey>(() => {
+  if (
+    activeTab.value === "user" ||
+    activeTab.value === "user-role" ||
+    activeTab.value === "department" ||
+    activeTab.value === "position" ||
+    activeTab.value === "employee"
+  ) {
+    return "identity";
+  }
+  if (activeTab.value === "role" || activeTab.value === "data-scope" || activeTab.value === "role-api") {
+    return "access";
+  }
+  if (
+    activeTab.value === "login-policy" ||
+    activeTab.value === "password-policy" ||
+    activeTab.value === "menu" ||
+    activeTab.value === "api-resource"
+  ) {
+    return "security";
+  }
+  return "foundation";
+});
+
+const activeHubSubTabs = computed<IamSubTabOption[]>(() => {
+  if (activeHub.value === "foundation") {
+    return [];
+  }
+  const candidates = IAM_HUB_SUBTABS[activeHub.value];
+  const accessible = candidates.filter(
+    (item) => normalizeIamSection(item.key, authStore.hasPermission) === item.key
+  );
+  return accessible.length ? accessible : candidates;
+});
+
+const isLegacyOrgRoute = computed(
+  () =>
+    activeTab.value === "department" ||
+    activeTab.value === "position" ||
+    activeTab.value === "employee"
+);
+
+function handleHubSelect(hubKey: string) {
+  const hub = IAM_HUB_ITEMS.find((item) => item.key === hubKey);
+  if (!hub) {
+    return;
+  }
+  if (hub.key === "foundation") {
+    activeTab.value = "foundation";
+    return;
+  }
+  const candidates = IAM_HUB_SUBTABS[hub.key];
+  const firstAccessible =
+    candidates.find((item) => normalizeIamSection(item.key, authStore.hasPermission) === item.key)
+      ?.key ?? hub.defaultSection;
+  activeTab.value = firstAccessible;
+}
+
+function goToOrganizationCenter() {
+  const query = isLegacyOrgRoute.value ? { tab: activeTab.value } : undefined;
+  void router.push({ path: "/organization", query });
+}
+
 async function refreshData() {
   await loadData({
     selectedUserId: selectedUserId.value,
@@ -305,9 +401,46 @@ onMounted(async () => {
     :description="activeControlCopy.description"
   >
     <template #actions>
+      <el-button
+        v-if="activeHub === 'identity'"
+        type="primary"
+        :icon="Plus"
+        @click="openEmployeeCreate()"
+      >
+        员工入职一表通
+      </el-button>
       <el-button :icon="Cpu" @click="globalInspectorVisible = true">权限透视诊断器</el-button>
       <BaseRefreshButton :loading="loading" @click="refreshData" />
     </template>
+
+    <div class="iam-hub-nav-stack">
+      <ModuleSectionNav
+        :model-value="activeHub"
+        :items="IAM_HUB_ITEMS"
+        @update:model-value="handleHubSelect"
+      />
+      <div v-if="activeHubSubTabs.length" class="iam-subnav-bar">
+        <span class="iam-subnav-bar__label">控制面视图</span>
+        <el-radio-group v-model="activeTab" size="small">
+          <el-radio-button
+            v-for="item in activeHubSubTabs"
+            :key="item.key"
+            :value="item.key"
+          >
+            {{ item.label }}
+          </el-radio-button>
+        </el-radio-group>
+      </div>
+      <div v-if="isLegacyOrgRoute" class="iam-org-redirect-banner">
+        <span>
+          组织树、岗位与员工档案主数据已收口至独立工作台「组织与成员中心」，当前视图仅为深度路由兼容入口。
+        </span>
+        <el-button type="primary" link @click="goToOrganizationCenter">
+          前往组织与成员中心 →
+        </el-button>
+      </div>
+    </div>
+
     <IamFoundationSection
       v-if="activeTab === 'foundation'"
       :overview="overview"
@@ -539,3 +672,43 @@ onMounted(async () => {
     />
   </ControlSurface>
 </template>
+
+<style scoped lang="scss">
+.iam-hub-nav-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.iam-subnav-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: var(--sb-tier1-bg);
+  border: 1px solid var(--sb-border-subtle);
+
+  &__label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--sb-text-muted);
+  }
+}
+
+.iam-org-redirect-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--sb-badge-primary-border);
+  background: var(--sb-badge-primary-bg);
+  color: var(--sb-badge-primary-text);
+  font-size: 12.5px;
+}
+</style>

@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
-import { ElMessage } from "element-plus";
 import { useRoute, useRouter } from "vue-router";
+import { ElMessage } from "element-plus";
 import {
-  User,
-  Lock,
   Key,
-  RefreshRight
+  Lock,
+  Moon,
+  RefreshRight,
+  Sunny,
+  User
 } from "@element-plus/icons-vue";
 import { fetchPortalEntry, type PortalEntry } from "@/api/modules/portal";
 import {
@@ -18,12 +20,12 @@ import {
   type TenantInviteResponse
 } from "@/api/modules/auth";
 import { useAuthStore } from "@/stores/modules/auth";
+import { useThemeStore, type ThemePreset } from "@/stores/modules/theme";
 import {
+  extractSubdomainTenant,
   rememberPortalContext,
-  resolvePortalContext,
-  extractSubdomainTenant
+  resolvePortalContext
 } from "@/utils/portal-context";
-import loginBg from "@/assets/ios27-liquid-glass-bg.jpg";
 import TianshuLogo from "@/components/brand/TianshuLogo.vue";
 
 const form = reactive({
@@ -72,28 +74,37 @@ const inviteForm = reactive({
 const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
+const themeStore = useThemeStore();
 
-const portalThemeStyle = computed(() => ({
-  "--portal-bg-color": portal.value?.backgroundColor || "#f8fafc",
-  "--portal-bg-image": portal.value?.backgroundImageUrl
-    ? `url(${portal.value.backgroundImageUrl})`
-    : `url(${loginBg})`,
-  "--portal-accent": resolveThemeColor(portal.value?.themeCode)
-}));
+const presetOptions: Array<{ value: ThemePreset; label: string; color: string }> = [
+  { value: "obsidian", label: "曜石极光", color: "#4f46e5" },
+  { value: "emerald", label: "松石森境", color: "#0f766e" },
+  { value: "titanium", label: "钛金琥珀", color: "#d97706" },
+  { value: "cobalt", label: "极光青蓝", color: "#2563eb" }
+];
 
 const captchaEnabled = computed(() => portal.value?.captcha.mode === "IMAGE");
 
-function resolveThemeColor(themeCode?: string) {
-  switch ((themeCode || "").toLowerCase()) {
-    case "emerald":
-      return "#10b981";
-    case "amber":
-      return "#f59e0b";
-    case "graphite":
-      return "#475569";
-    default:
-      return "#0284c7";
+const activePresetColor = computed(
+  () => presetOptions.find((item) => item.value === themeStore.preset)?.color ?? "#4f46e5"
+);
+
+function getAxiosErrorMessage(error: unknown, fallback: string): string {
+  if (error && typeof error === "object") {
+    const respMsg = (error as { response?: { data?: { message?: unknown } } }).response?.data?.message;
+    if (typeof respMsg === "string" && respMsg) return respMsg;
+    const msg = (error as { message?: unknown }).message;
+    if (typeof msg === "string" && msg) return msg;
   }
+  return fallback;
+}
+
+function getAxiosErrorCode(error: unknown): string | undefined {
+  if (error && typeof error === "object") {
+    const code = (error as { response?: { data?: { code?: unknown } } }).response?.data?.code;
+    return typeof code === "string" ? code : undefined;
+  }
+  return undefined;
 }
 
 async function refreshCaptcha() {
@@ -125,9 +136,10 @@ async function bootstrapPortal() {
       tenantCode: entry.tenantCode
     });
     const subdomain = extractSubdomainTenant();
-    const currentQuery: Record<string, any> = { ...route.query };
+    const currentQuery: Record<string, string | string[] | null | undefined> = {
+      ...(route.query as Record<string, string | string[] | null | undefined>)
+    };
     let needsUpdate = false;
-    // 只有在非二级子域名模式下，才把 tenantCode 同步至 query 参数
     if (!subdomain && entry.tenantCode && currentQuery.tenantCode !== entry.tenantCode) {
       currentQuery.tenantCode = entry.tenantCode;
       delete currentQuery.tenant;
@@ -144,11 +156,11 @@ async function bootstrapPortal() {
     if (needsUpdate) {
       await router.replace({
         path: route.path,
-        query: currentQuery
+        query: currentQuery as Record<string, string>
       });
     }
-  } catch (error: any) {
-    loginError.value = error?.response?.data?.message ?? "门户入口配置加载失败";
+  } catch (error: unknown) {
+    loginError.value = getAxiosErrorMessage(error, "门户入口配置加载失败");
     ElMessage.error(loginError.value);
   } finally {
     booting.value = false;
@@ -156,7 +168,11 @@ async function bootstrapPortal() {
 }
 
 function fillDemoAccount(type: "admin" | "user" = "admin") {
-  form.tenantCode = portal.value?.tenantCode || (route.query.tenantCode as string) || (route.query.tenant as string) || "platform";
+  form.tenantCode =
+    portal.value?.tenantCode ||
+    (route.query.tenantCode as string) ||
+    (route.query.tenant as string) ||
+    "platform";
   if (type === "user") {
     form.username = "user";
     form.password = "User@123456";
@@ -166,7 +182,7 @@ function fillDemoAccount(type: "admin" | "user" = "admin") {
     form.username = "admin";
     form.password = "Admin@123456";
     form.captchaCode = "";
-    ElMessage.success(`已填入管理员凭据 (admin，专属企业: ${portal.value?.clientName || form.tenantCode})`);
+    ElMessage.success(`已填入管理员凭证 (admin，专属企业: ${portal.value?.clientName || form.tenantCode})`);
   }
 }
 
@@ -209,10 +225,10 @@ async function handleLogin() {
       password: form.password.trim()
     });
     const redirect = typeof route.query.redirect === "string" ? route.query.redirect : "/";
-    router.push(redirect);
-  } catch (error: any) {
-    const errCode = error?.response?.data?.code;
-    const errMsg = error?.response?.data?.message ?? "登录失败，请检查账号、密码或验证码";
+    void router.push(redirect);
+  } catch (error: unknown) {
+    const errCode = getAxiosErrorCode(error);
+    const errMsg = getAxiosErrorMessage(error, "登录失败，请检查账号、密码或验证码");
     if (errCode === "AUTH_MFA_REQUIRED") {
       mfaRequired.value = true;
       loginError.value = errMsg;
@@ -234,7 +250,14 @@ async function handleSsoLogin(channel: string) {
   loading.value = true;
   loginError.value = "";
   try {
-    const channelName = channel === "WECOM" ? "企业微信" : channel === "DINGTALK" ? "钉钉" : channel === "FEISHU" ? "飞书" : "SAML/OIDC 身份联合";
+    const channelName =
+      channel === "WECOM"
+        ? "企业微信"
+        : channel === "DINGTALK"
+          ? "钉钉"
+          : channel === "FEISHU"
+            ? "飞书"
+            : "SAML/OIDC 身份联合";
     ElMessage.info(`正在通过【${channelName}】进行企业 SSO 单点登录...`);
     await authStore.loginWithSso({
       channel,
@@ -243,9 +266,9 @@ async function handleSsoLogin(channel: string) {
     });
     ElMessage.success(`${channelName} SSO 鉴权成功，正在进入工作台...`);
     const redirect = typeof route.query.redirect === "string" ? route.query.redirect : "/";
-    router.push(redirect);
-  } catch (err: any) {
-    loginError.value = err?.response?.data?.message || err?.message || "SSO 登录失败";
+    void router.push(redirect);
+  } catch (err: unknown) {
+    loginError.value = getAxiosErrorMessage(err, "SSO 登录失败");
     ElMessage.error(loginError.value);
   } finally {
     loading.value = false;
@@ -270,8 +293,8 @@ async function handleSendResetOtp() {
       resetSandboxHint.value = `沙箱模式已自动回填验证码: ${res.sandboxOtpCode}`;
     }
     ElMessage.success(`验证码已通过 ${res.deliveryChannel} 发送，${res.expireSeconds} 秒内有效`);
-  } catch (err: any) {
-    ElMessage.error(err?.response?.data?.message || "发送验证码失败");
+  } catch (err: unknown) {
+    ElMessage.error(getAxiosErrorMessage(err, "发送验证码失败"));
   } finally {
     resetSendingOtp.value = false;
   }
@@ -294,8 +317,8 @@ async function handleConfirmResetPassword() {
     form.username = resetForm.username.trim();
     form.password = "";
     resetDialogVisible.value = false;
-  } catch (err: any) {
-    ElMessage.error(err?.response?.data?.message || "重置密码失败");
+  } catch (err: unknown) {
+    ElMessage.error(getAxiosErrorMessage(err, "重置密码失败"));
   } finally {
     resetSubmitting.value = false;
   }
@@ -319,8 +342,8 @@ async function checkInviteToken() {
     invitePreview.value = preview;
     inviteForm.email = preview.invitedEmail || "";
     inviteDialogVisible.value = true;
-  } catch (err: any) {
-    ElMessage.warning(err?.response?.data?.message || "邀请链接已失效或已过期");
+  } catch (err: unknown) {
+    ElMessage.warning(getAxiosErrorMessage(err, "邀请链接已失效或已过期"));
   }
 }
 
@@ -343,11 +366,15 @@ async function handleAcceptInvite() {
     form.username = inviteForm.username.trim();
     form.password = "";
     inviteDialogVisible.value = false;
-  } catch (err: any) {
-    ElMessage.error(err?.response?.data?.message || "邀请入驻提交失败");
+  } catch (err: unknown) {
+    ElMessage.error(getAxiosErrorMessage(err, "邀请入驻提交失败"));
   } finally {
     inviteSubmitting.value = false;
   }
+}
+
+function toggleDarkMode() {
+  themeStore.setMode(themeStore.isDark ? "light" : "dark");
 }
 
 onMounted(() => {
@@ -357,219 +384,272 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="login-page" :style="portalThemeStyle">
-    <!-- Ambient ambient glow decorations -->
-    <div class="login-glow login-glow--top" aria-hidden="true" />
-    <div class="login-glow login-glow--bottom" aria-hidden="true" />
+  <div class="login-split" :style="{ '--portal-glow': activePresetColor }">
+    <!-- 左侧 46%：深邃曜石建筑品牌舱 -->
+    <aside class="login-split__brand">
+      <div class="brand-grid-bg" aria-hidden="true" />
+      <div class="brand-aura" aria-hidden="true" />
 
-    <!-- Top Navigation Header -->
-    <header class="login-page__header">
-      <div class="login-page__brand">
-        <TianshuLogo :size="32" />
-        <div class="login-page__brand-meta">
-          <strong>{{ portal?.portalTitle || "天枢企业协同管理平台" }}</strong>
-          <span class="login-page__brand-badge">企业标准版</span>
+      <div class="brand-top">
+        <div class="brand-identity">
+          <TianshuLogo :size="30" />
+          <div class="brand-identity__text">
+            <strong>{{ portal?.portalTitle || "天枢云基 Tianshu PaaS" }}</strong>
+            <span>Multi-Tenant Enterprise Cloud</span>
+          </div>
+        </div>
+
+        <div class="brand-theme-controls">
+          <div class="preset-dots" title="切换工作台预设主题">
+            <button
+              v-for="item in presetOptions"
+              :key="item.value"
+              type="button"
+              class="preset-dot-btn"
+              :class="{ 'is-active': themeStore.preset === item.value }"
+              :title="item.label"
+              @click="themeStore.setPreset(item.value)"
+            >
+              <span class="dot-core" :style="{ backgroundColor: item.color }" />
+            </button>
+          </div>
+          <button
+            type="button"
+            class="mode-toggle-btn"
+            :title="themeStore.isDark ? '切换为浅色画布' : '切换为暗夜画布'"
+            @click="toggleDarkMode"
+          >
+            <el-icon><component :is="themeStore.isDark ? Sunny : Moon" /></el-icon>
+          </button>
         </div>
       </div>
 
-      <div class="login-page__header-extras">
-        <span class="login-page__status-indicator">
-          <span class="status-dot" />
-          系统运行正常 · 数据安全受控
-        </span>
-        <span v-if="portal" class="login-page__terminal-tag">
-          {{ portal.terminal.terminalName }}
-        </span>
-      </div>
-    </header>
+      <div class="brand-hero">
+        <span class="hero-eyebrow">ENTERPRISE CONTROL PLANE · V2026</span>
+        <h1>统一治理的多租户<br />与 AI Native 数字底座</h1>
+        <p>
+          基于五轴行级数据隔离、全链路报文加密与标准化组织权限图谱，为集团与多业态 SaaS 业务提供零信任企业级运行环境。
+        </p>
 
-    <!-- Main Container: Centered Flagship Card -->
-    <main class="login-page__main">
-      <div class="login-page__container">
-        <!-- Glassmorphism Login Card -->
-        <section class="login-panel" aria-label="登录">
-          <header class="login-panel__header">
-            <div class="login-brand-capsule-wrap">
-              <div class="login-brand-capsule">
-                <div class="capsule-logo-badge">
-                  <TianshuLogo :size="18" />
-                </div>
-                <span class="capsule-brand-name">天枢云基</span>
-                <span class="capsule-sep" />
-                <span class="capsule-portal-name">{{ portal?.clientName || "平台统一门户" }}</span>
-              </div>
+        <div class="trust-pillars">
+          <div class="trust-card">
+            <span class="trust-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M12 2L4 6v6c0 5.5 3.4 9.7 8 11 4.6-1.3 8-5.5 8-11V6l-8-4z" />
+                <path d="M9 12l2 2 4-4" />
+              </svg>
+            </span>
+            <div>
+              <strong>5D 行级隔离 · JSqlParser AST</strong>
+              <span>支持租户、法人、部门树、岗位与 ABAC 属性表达式实时编译改写。</span>
             </div>
+          </div>
 
-            <h2 class="login-panel__title">欢迎登录</h2>
-          </header>
+          <div class="trust-card">
+            <span class="trust-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <rect x="4" y="10" width="16" height="10" rx="2" />
+                <path d="M8 10V7a4 4 0 118 0v3" />
+              </svg>
+            </span>
+            <div>
+              <strong>X25519 + AES-256-GCM 传输防御</strong>
+              <span>国密兼容非对称密钥协商与防重放校验，高敏凭证毫秒级全量密文流转。</span>
+            </div>
+          </div>
 
-          <el-skeleton :loading="booting" animated>
-            <template #template>
-              <el-skeleton-item variant="rect" style="height: 320px; border-radius: 8px" />
-            </template>
+          <div class="trust-card">
+            <span class="trust-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <circle cx="8" cy="8" r="3" />
+                <circle cx="17" cy="17" r="3" />
+                <path d="M10.5 10.5L14.5 14.5M17 7h-4M7 17h4" />
+              </svg>
+            </span>
+            <div>
+              <strong>OIDC PKCE + SCIM 2.0 联邦治理</strong>
+              <span>原生打通企业微信、钉钉、飞书与企业标准 IdP 单点登录与组织自动同步。</span>
+            </div>
+          </div>
+        </div>
+      </div>
 
-            <el-form label-position="top" @submit.prevent="handleLogin">
-              <el-alert
-                v-if="loginError"
-                class="login-page__error"
-                type="error"
-                :closable="false"
-                :title="loginError"
+      <footer class="brand-footer">
+        <span class="status-badge">
+          <span class="status-pulse" />
+          网关在线 · {{ portal?.terminal.terminalName || "Web 控制面" }}
+        </span>
+        <span class="copyright">
+          {{ portal?.filingInfo || "© 2026 Tianshu PaaS Foundation" }}
+        </span>
+      </footer>
+    </aside>
+
+    <!-- 右侧 54%：纯净高留白认证舱 -->
+    <main class="login-split__stage">
+      <div class="auth-card-wrap">
+        <header class="auth-header">
+          <div class="auth-portal-chip">
+            <span class="chip-dot" />
+            <span>{{ portal?.clientName || "平台统一控制门户" }}</span>
+            <code v-if="form.tenantCode">{{ form.tenantCode }}</code>
+          </div>
+          <h2>登录天枢工作台</h2>
+          <p>请使用企业账号密码或下方联邦身份渠道安全接入。</p>
+        </header>
+
+        <el-skeleton :loading="booting" animated>
+          <template #template>
+            <el-skeleton-item variant="rect" style="height: 320px; border-radius: 10px" />
+          </template>
+
+          <el-form label-position="top" @submit.prevent="handleLogin">
+            <el-alert
+              v-if="loginError"
+              class="auth-error-alert"
+              type="error"
+              :closable="false"
+              :title="loginError"
+            />
+
+            <el-form-item label="账号凭证">
+              <el-input
+                v-model="form.username"
+                size="large"
+                placeholder="用户名 / 手机号 / 企业邮箱"
+                autocomplete="username"
+                :prefix-icon="User"
+                @keyup.enter="handleLogin"
               />
+            </el-form-item>
 
-              <el-form-item label="账号凭证">
+            <el-form-item label="访问密码">
+              <template #label>
+                <div class="password-label-row">
+                  <span>访问密码</span>
+                  <el-button link type="primary" size="small" @click="openResetDialog">
+                    忘记密码？自助重置
+                  </el-button>
+                </div>
+              </template>
+              <el-input
+                v-model="form.password"
+                size="large"
+                type="password"
+                show-password
+                placeholder="请输入登录密码"
+                autocomplete="current-password"
+                :prefix-icon="Lock"
+                @keyup.enter="handleLogin"
+              />
+            </el-form-item>
+
+            <el-form-item v-if="captchaEnabled" label="安全验证码">
+              <div class="captcha-row">
                 <el-input
-                  v-model="form.username"
-                  placeholder="用户名 / 手机号 / 企业邮箱"
-                  autocomplete="username"
-                  :prefix-icon="User"
+                  v-model="form.captchaCode"
+                  size="large"
+                  placeholder="请输入图形验证码"
+                  :prefix-icon="Key"
                   @keyup.enter="handleLogin"
                 />
-              </el-form-item>
-
-              <el-form-item label="访问密码">
-                <el-input
-                  v-model="form.password"
-                  type="password"
-                  show-password
-                  placeholder="请输入登录密码"
-                  autocomplete="current-password"
-                  :prefix-icon="Lock"
-                  @keyup.enter="handleLogin"
-                />
-              </el-form-item>
-
-              <el-form-item v-if="captchaEnabled" label="安全验证码">
-                <div class="login-page__captcha">
-                  <el-input
-                    v-model="form.captchaCode"
-                    placeholder="请输入图形验证码"
-                    :prefix-icon="Key"
-                    @keyup.enter="handleLogin"
+                <button
+                  type="button"
+                  class="captcha-box"
+                  title="点击刷新验证码"
+                  @click="refreshCaptcha"
+                >
+                  <img
+                    v-if="captchaImageUrl"
+                    :src="captchaImageUrl"
+                    alt="安全验证码"
+                    class="captcha-img"
                   />
-                  <button
-                    type="button"
-                    class="login-page__captcha-code"
-                    title="点击刷新验证码"
-                    @click="refreshCaptcha"
-                  >
-                    <img
-                      v-if="captchaImageUrl"
-                      :src="captchaImageUrl"
-                      alt="安全验证码"
-                      class="captcha-svg-img"
-                    />
-                    <span v-else class="captcha-loading-text">刷新</span>
-                    <el-icon class="captcha-refresh-icon"><RefreshRight /></el-icon>
-                  </button>
-                </div>
-              </el-form-item>
-
-              <el-form-item v-if="mfaRequired" label="MFA 动态口令 / 恢复码">
-                <el-input
-                  v-model="form.totpCode"
-                  placeholder="请输入 Authenticator 6 位数字或备用恢复码"
-                  maxlength="16"
-                  :prefix-icon="Lock"
-                  @keyup.enter="handleLogin"
-                />
-              </el-form-item>
-
-              <el-button
-                type="primary"
-                native-type="submit"
-                class="login-page__submit"
-                :loading="loading"
-              >
-                {{ loading ? "正在安全验证..." : "登 录" }}
-              </el-button>
-
-              <div class="login-self-service-bar">
-                <el-button link type="primary" size="small" @click="openResetDialog">
-                  忘记密码？自助重置
-                </el-button>
+                  <span v-else class="captcha-fallback">刷新</span>
+                  <el-icon class="captcha-refresh"><RefreshRight /></el-icon>
+                </button>
               </div>
+            </el-form-item>
 
-              <div class="demo-acc-wrapper" style="margin-top: 14px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
-                <el-tag
-                  effect="plain"
-                  type="primary"
-                  style="cursor: pointer;"
-                  title="点击填入超管凭证"
-                  @click="fillDemoAccount('admin')"
-                >
-                  👑 超管: admin / Admin@123456
-                </el-tag>
-                <el-tag
-                  effect="plain"
-                  type="success"
-                  style="cursor: pointer;"
-                  title="点击填入测试凭证"
-                  @click="fillDemoAccount('user')"
-                >
-                  👤 普通用户: user / User@123456
-                </el-tag>
-              </div>
+            <el-form-item v-if="mfaRequired" label="MFA 动态口令 / 恢复码">
+              <el-input
+                v-model="form.totpCode"
+                size="large"
+                placeholder="请输入 6 位数字或备用恢复码"
+                maxlength="16"
+                :prefix-icon="Lock"
+                @keyup.enter="handleLogin"
+              />
+            </el-form-item>
 
-              <!-- 企业 SSO 快捷单点登录通道 -->
-              <div class="login-sso-section">
-                <div class="sso-divider-line" />
+            <el-button
+              type="primary"
+              size="large"
+              native-type="submit"
+              class="auth-submit-btn"
+              :loading="loading"
+            >
+              {{ loading ? "正在安全校验..." : "进入控制台" }}
+            </el-button>
+          </el-form>
 
-                <div class="sso-buttons">
-                  <button
-                    type="button"
-                    class="sso-btn sso-btn--wecom"
-                    title="企业微信扫码登录"
-                    @click="handleSsoLogin('WECOM')"
-                  >
-                    <span class="sso-icon">💬</span>
-                    <span class="sso-label">企业微信</span>
-                  </button>
+          <!-- 快速演示体验账户 -->
+          <div class="demo-section">
+            <span class="section-caption">快速体验账号（点击自动回填）</span>
+            <div class="demo-grid">
+              <button type="button" class="demo-tile" @click="fillDemoAccount('admin')">
+                <span class="demo-badge is-admin">ADMIN</span>
+                <span class="demo-meta">
+                  <strong>平台超级管理员</strong>
+                  <code>admin / Admin@123456</code>
+                </span>
+              </button>
+              <button type="button" class="demo-tile" @click="fillDemoAccount('user')">
+                <span class="demo-badge is-user">USER</span>
+                <span class="demo-meta">
+                  <strong>企业普通成员</strong>
+                  <code>user / User@123456</code>
+                </span>
+              </button>
+            </div>
+          </div>
 
-                  <button
-                    type="button"
-                    class="sso-btn sso-btn--dingtalk"
-                    title="钉钉快捷登录"
-                    @click="handleSsoLogin('DINGTALK')"
-                  >
-                    <span class="sso-icon">⚡</span>
-                    <span class="sso-label">钉钉</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    class="sso-btn sso-btn--feishu"
-                    title="飞书统一授权"
-                    @click="handleSsoLogin('FEISHU')"
-                  >
-                    <span class="sso-icon">🕊️</span>
-                    <span class="sso-label">飞书</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    class="sso-btn sso-btn--oidc"
-                    title="企业身份联邦 (SAML 2.0 / OIDC)"
-                    @click="handleSsoLogin('SAML_OIDC')"
-                  >
-                    <span class="sso-icon">🔑</span>
-                    <span class="sso-label">SAML/OIDC</span>
-                  </button>
-                </div>
-              </div>
-            </el-form>
-          </el-skeleton>
-        </section>
+          <!-- 企业 SSO 联邦通道 (纯矢量 SVG 图标) -->
+          <div class="sso-section">
+            <div class="sso-divider">
+              <span>或通过企业身份联邦快捷接入</span>
+            </div>
+            <div class="sso-grid">
+              <button type="button" class="sso-tile" @click="handleSsoLogin('WECOM')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M4 11c0-3.9 3.6-7 8-7s8 3.1 8 7-3.6 7-8 7c-1.2 0-2.4-.2-3.4-.7L4 19l1-3.3C4.4 14.3 4 12.7 4 11z" />
+                </svg>
+                <span>企业微信</span>
+              </button>
+              <button type="button" class="sso-tile" @click="handleSsoLogin('DINGTALK')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M13 3L5 14h6l-1 7 9-11h-6l0-7z" />
+                </svg>
+                <span>钉钉工作台</span>
+              </button>
+              <button type="button" class="sso-tile" @click="handleSsoLogin('FEISHU')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M4 17L19 5l-4 14-4.5-4.5L4 17z" />
+                </svg>
+                <span>飞书认证</span>
+              </button>
+              <button type="button" class="sso-tile" @click="handleSsoLogin('SAML_OIDC')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <circle cx="8" cy="12" r="3" />
+                  <path d="M11 12h9M17 12v3M20 12v2" />
+                </svg>
+                <span>OIDC / SAML</span>
+              </button>
+            </div>
+          </div>
+        </el-skeleton>
       </div>
     </main>
-
-    <!-- Bottom Footer -->
-    <footer class="login-page__footer">
-      <span v-if="portal?.filingInfo">{{ portal.filingInfo }}</span>
-      <span v-else>SaaS Basics Enterprise Platform</span>
-      <span class="footer-divider">·</span>
-      <span>© 2026 SaaS Basics Platform. All rights reserved.</span>
-    </footer>
 
     <!-- 自助找回密码对话框 -->
     <el-dialog v-model="resetDialogVisible" title="自助找回并重置密码" width="440px" append-to-body>
@@ -629,488 +709,527 @@ onMounted(() => {
 </template>
 
 <style scoped lang="scss">
-.login-page {
-  --portal-bg-color: #f8fafc;
-  --portal-bg-image: none;
-  --portal-accent: #0284c7;
+.login-split {
+  --portal-glow: #4f46e5;
 
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  width: 100vw;
-  height: 100vh;
-  height: 100dvh;
+  min-height: 100vh;
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(420px, 46%) minmax(0, 1fr);
+  background: var(--sb-stage-bg, #ffffff);
+  color: var(--sb-text-primary);
+}
+
+.login-split__brand {
+  position: relative;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  background:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(191, 219, 254, 0.40), transparent 75%),
-    var(--portal-bg-image) center center / cover no-repeat fixed,
-    var(--portal-bg-color);
+  padding: 28px 38px;
+  background: #0c0c10;
+  color: #fafafa;
   overflow: hidden;
-  color: #0f172a;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-/* Atmospheric ambient glows */
-.login-glow {
+.brand-grid-bg {
   position: absolute;
-  border-radius: 50%;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mask-image: radial-gradient(ellipse 80% 70% at 30% 35%, #000 30%, transparent 100%);
   pointer-events: none;
-  filter: blur(120px);
-  z-index: 0;
-  opacity: 0.55;
-
-  &--top {
-    top: -100px;
-    left: 8%;
-    width: 520px;
-    height: 520px;
-    background: radial-gradient(circle, rgb(14 165 233 / 0.22) 0%, transparent 70%);
-  }
-
-  &--bottom {
-    bottom: -120px;
-    right: 5%;
-    width: 600px;
-    height: 600px;
-    background: radial-gradient(circle, rgb(99 102 241 / 0.18) 0%, transparent 70%);
-  }
 }
 
-/* Header */
-.login-page__header {
-  height: 56px;
-  flex-shrink: 0;
+.brand-aura {
+  position: absolute;
+  top: -120px;
+  left: -80px;
+  width: 520px;
+  height: 520px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--portal-glow) 0%, transparent 68%);
+  opacity: 0.24;
+  filter: blur(70px);
+  pointer-events: none;
+  transition: background 240ms ease;
+}
+
+.brand-top {
   position: relative;
-  z-index: 10;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 0 32px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.90);
-  background: rgba(255, 255, 255, 0.68);
-  backdrop-filter: blur(28px) saturate(200%);
-  -webkit-backdrop-filter: blur(28px) saturate(200%);
-  box-shadow: 0 2px 16px rgba(15, 23, 42, 0.04);
-}
-
-.login-page__brand {
-  display: flex;
-  align-items: center;
   gap: 12px;
 }
 
-.login-page__brand-meta {
+.brand-identity {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
+}
+
+.brand-identity__text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 
   strong {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 700;
-    color: #0f172a;
-    letter-spacing: 0.3px;
+    color: #fafafa;
+    letter-spacing: -0.01em;
+  }
+
+  span {
+    font-size: 11px;
+    color: #a1a1aa;
   }
 }
 
-.login-page__brand-badge {
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 12px;
-  background: #e0f2fe;
-  border: 1px solid #bae6fd;
-  color: #0284c7;
-  font-weight: 600;
-}
-
-.login-page__header-extras {
+.brand-theme-controls {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 8px;
 }
 
-.login-page__status-indicator {
+.preset-dots {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: #475569;
-  background: rgb(241 245 249 / 0.85);
-  padding: 4px 12px;
-  border-radius: 20px;
-  border: 1px solid #e2e8f0;
+  gap: 4px;
+  padding: 4px 6px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
 
-  .status-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #10b981;
-    box-shadow: 0 0 6px #10b981;
-    animation: pulse-dot 2s infinite ease-in-out;
+.preset-dot-btn {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1.5px solid transparent;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+
+  &.is-active {
+    border-color: #ffffff;
   }
 }
 
-@keyframes pulse-dot {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(0.85); }
+.dot-core {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: block;
 }
 
-.login-page__terminal-tag {
-  padding: 3px 10px;
-  border-radius: 6px;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
-  color: #475569;
-  font-size: 12px;
-  font-weight: 500;
+.mode-toggle-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: #e4e4e7;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.14);
+  }
 }
 
-/* Main Container */
-.login-page__main {
-  flex: 1;
-  min-height: 0;
+.brand-hero {
   position: relative;
-  z-index: 10;
+  z-index: 2;
+  margin: auto 0;
+  padding: 24px 0;
+
+  h1 {
+    margin: 12px 0 0;
+    font-size: 32px;
+    line-height: 1.2;
+    font-weight: 750;
+    letter-spacing: -0.025em;
+    color: #fafafa;
+  }
+
+  > p {
+    margin: 12px 0 0;
+    max-width: 460px;
+    font-size: 14px;
+    line-height: 1.65;
+    color: #a1a1aa;
+  }
+}
+
+.hero-eyebrow {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #d4d4d8;
+  font-family: var(--sb-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.trust-pillars {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.trust-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 13px 15px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+
+  strong {
+    display: block;
+    font-size: 13px;
+    font-weight: 650;
+    color: #fafafa;
+  }
+
+  span {
+    display: block;
+    margin-top: 3px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: #a1a1aa;
+  }
+}
+
+.trust-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #a5b4fc;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  svg {
+    width: 17px;
+    height: 17px;
+  }
+}
+
+.brand-footer {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 12px;
+  color: #71717a;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #d4d4d8;
+}
+
+.status-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.65);
+}
+
+.login-split__stage {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px 24px;
+  padding: 32px;
+  background: var(--sb-stage-bg, #ffffff);
   overflow-y: auto;
 }
 
-.login-page__container {
+.auth-card-wrap {
   width: 100%;
-  max-width: 440px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  margin: auto;
+  max-width: 420px;
 }
 
-/* Flagship Login Card (VisionOS / iOS 27 Liquid Titanium Glass) */
-.login-panel {
-  width: 100%;
-  max-width: 440px;
-  padding: 30px 32px 24px;
-  border: 1px solid rgba(255, 255, 255, 0.95);
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.74);
-  backdrop-filter: blur(48px) saturate(220%) contrast(102%);
-  -webkit-backdrop-filter: blur(48px) saturate(220%) contrast(102%);
-  box-shadow:
-    inset 0 2px 3px 0 rgba(255, 255, 255, 1),
-    inset 0 -1px 2px 0 rgba(255, 255, 255, 0.5),
-    0 24px 50px -12px rgba(15, 23, 42, 0.12),
-    0 4px 16px -2px rgba(15, 23, 42, 0.04);
+.auth-header {
+  margin-bottom: 24px;
 
-  &__header {
-    margin-bottom: 20px;
-    text-align: center;
-  }
-
-  &__title {
-    margin: 8px 0 0;
-    font-size: 23px;
+  h2 {
+    margin: 12px 0 0;
+    font-size: 24px;
     font-weight: 750;
-    color: #0f172a;
     letter-spacing: -0.02em;
+    color: var(--sb-text-primary);
+  }
+
+  p {
+    margin: 6px 0 0;
+    font-size: 13.5px;
+    color: var(--sb-text-muted);
   }
 }
 
-.login-brand-capsule-wrap {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.login-brand-capsule {
+.auth-portal-chip {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 12px 4px 6px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.76);
-  border: 1px solid rgba(255, 255, 255, 0.95);
-  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05), inset 0 1px 0 rgba(255, 255, 255, 1);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-
-  .capsule-logo-badge {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(59, 130, 246, 0.04));
-    flex-shrink: 0;
-  }
-
-  .capsule-brand-name {
-    font-size: 13.5px;
-    font-weight: 700;
-    color: #0f172a;
-    letter-spacing: -0.01em;
-  }
-
-  .capsule-sep {
-    width: 1px;
-    height: 12px;
-    background: rgba(148, 163, 184, 0.45);
-    flex-shrink: 0;
-  }
-
-  .capsule-portal-name {
-    font-size: 12.5px;
-    font-weight: 600;
-    color: #2563eb;
-    letter-spacing: -0.01em;
-  }
-}
-
-/* Form Styles */
-.login-panel :deep(.el-form-item) {
-  margin-bottom: 14px;
-}
-
-.login-panel :deep(.el-form-item__label) {
-  margin-bottom: 4px;
-  color: #334155;
-  font-size: 13px;
+  gap: 7px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background: var(--sb-badge-primary-bg);
+  border: 1px solid var(--sb-badge-primary-border);
+  color: var(--sb-badge-primary-text);
+  font-size: 12px;
   font-weight: 600;
-  line-height: 1.3;
-}
 
-.login-panel :deep(.el-input__wrapper) {
-  min-height: 42px;
-  background: rgba(255, 255, 255, 0.78);
-  box-shadow: 0 0 0 1px rgba(203, 213, 225, 0.8) inset, inset 0 1px 2px rgba(15, 23, 42, 0.03);
-  border-radius: 12px;
-  backdrop-filter: blur(12px);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-
-  &:hover {
-    box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.9) inset;
-    background: rgba(255, 255, 255, 0.95);
-  }
-
-  &.is-focus {
-    background: #ffffff;
-    box-shadow: 0 0 0 2px #2563eb inset, 0 0 12px rgba(37, 99, 235, 0.2) !important;
+  code {
+    font-family: var(--sb-font-mono);
+    font-size: 11px;
+    opacity: 0.85;
   }
 }
 
-.login-panel :deep(.el-input__inner) {
-  color: #0f172a;
-  font-size: 14px;
-
-  &::placeholder {
-    color: #94a3b8;
-  }
+.chip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--sb-primary-color);
 }
 
-.login-panel :deep(.el-input__prefix-inner) {
-  color: #64748b;
-  font-size: 16px;
+.auth-error-alert {
+  margin-bottom: 16px;
 }
 
-.login-page__error {
-  margin-bottom: 14px;
+.password-label-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
-/* Captcha */
-.login-page__captcha {
+.captcha-row {
   width: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 128px;
   gap: 10px;
 }
 
-.login-page__captcha-code {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 2px;
+.captcha-box {
+  position: relative;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid var(--sb-border-color);
+  background: var(--sb-tier1-bg);
+  padding: 0;
   overflow: hidden;
-  border: 1px solid rgba(203, 213, 225, 0.9);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.92);
-  color: #2563eb;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 13px;
-  font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s ease;
-  user-select: none;
-
-  .captcha-svg-img {
-    width: 102px;
-    height: 36px;
-    display: block;
-    border-radius: 8px;
-  }
-
-  .captcha-loading-text {
-    font-size: 12px;
-    letter-spacing: 0;
-  }
-
-  &:hover {
-    border-color: #2563eb;
-    background: #eff6ff;
-    box-shadow: 0 2px 10px rgba(37, 99, 235, 0.18);
-
-    .captcha-refresh-icon {
-      transform: rotate(180deg);
-    }
-  }
-
-  .captcha-refresh-icon {
-    font-size: 13px;
-    color: #64748b;
-    transition: transform 0.3s ease;
-  }
-}
-
-/* Submit Button */
-.login-page__submit {
-  width: 100%;
-  height: 44px;
-  margin-top: 4px;
-  border-radius: 12px;
-  border: none;
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-  color: #fff;
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: 2px;
-  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.32), inset 0 1px 1px rgba(255, 255, 255, 0.35);
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-
-  &:hover {
-    background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
-    box-shadow: 0 8px 22px rgba(37, 99, 235, 0.42), inset 0 1px 1px rgba(255, 255, 255, 0.5);
-    transform: translateY(-1px);
-  }
-
-  &:active {
-    transform: translateY(1px);
-  }
-}
-
-/* SSO Login Section */
-.login-sso-section {
-  margin-top: 14px;
-}
-
-.sso-divider-line {
-  height: 1px;
-  background: rgba(226, 232, 240, 0.85);
-  margin-bottom: 12px;
-}
-
-.sso-buttons {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-}
-
-.sso-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 8px 4px;
-  border-radius: 10px;
-  border: 1px solid rgba(226, 232, 240, 0.85);
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(12px);
-  color: #334155;
+}
+
+.captcha-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.captcha-refresh {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
   font-size: 12px;
-  font-weight: 550;
+  color: var(--sb-text-muted);
+}
+
+.auth-submit-btn {
+  width: 100%;
+  height: 42px;
+  margin-top: 6px;
+  font-size: 14.5px;
+  font-weight: 600;
+}
+
+.demo-section {
+  margin-top: 22px;
+}
+
+.section-caption {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--sb-text-muted);
+}
+
+.demo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.demo-tile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  border: 1px solid var(--sb-border-subtle);
+  background: var(--sb-tier1-bg);
+  text-align: left;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: border-color 140ms ease, background 140ms ease;
 
   &:hover {
-    border-color: rgba(148, 163, 184, 0.6);
-    background: #fff;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+    border-color: var(--sb-primary-border);
+    background: var(--sb-badge-primary-bg);
+  }
+}
+
+.demo-badge {
+  padding: 3px 6px;
+  border-radius: 5px;
+  font-family: var(--sb-font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+
+  &.is-admin {
+    background: var(--sb-badge-primary-bg);
+    color: var(--sb-badge-primary-text);
   }
 
-  &--wecom:hover {
-    border-color: #22c55e;
-    color: #15803d;
+  &.is-user {
+    background: var(--sb-success-weak);
+    color: var(--sb-success-color);
+  }
+}
+
+.demo-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+
+  strong {
+    font-size: 12.5px;
+    color: var(--sb-text-primary);
   }
 
-  &--dingtalk:hover {
-    border-color: #3b82f6;
-    color: #1d4ed8;
-  }
-
-  &--feishu:hover {
-    border-color: #06b6d4;
-    color: #0e7490;
-  }
-
-  .sso-icon {
-    font-size: 14px;
-  }
-
-  .sso-label {
+  code {
+    font-family: var(--sb-font-mono);
     font-size: 11px;
+    color: var(--sb-text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
   }
 }
 
-/* Footer */
-.login-page__footer {
-  height: 38px;
-  flex-shrink: 0;
-  position: relative;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  color: #64748b;
-  font-size: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.85);
-  background: rgba(255, 255, 255, 0.65);
-  backdrop-filter: blur(24px) saturate(200%);
-  -webkit-backdrop-filter: blur(24px) saturate(200%);
-  box-sizing: border-box;
+.sso-section {
+  margin-top: 24px;
+}
 
-  .footer-divider {
-    color: #cbd5e1;
+.sso-divider {
+  position: relative;
+  text-align: center;
+  margin-bottom: 14px;
+
+  &::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 1px;
+    background: var(--sb-border-subtle);
+  }
+
+  span {
+    position: relative;
+    padding: 0 12px;
+    background: var(--sb-stage-bg, #ffffff);
+    font-size: 12px;
+    color: var(--sb-text-muted);
   }
 }
 
-/* Responsive */
-@media (max-width: 640px) {
-  .login-page__header {
-    padding: 0 16px;
+.sso-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.sso-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 6px;
+  border-radius: 10px;
+  border: 1px solid var(--sb-border-subtle);
+  background: var(--sb-control-bg);
+  color: var(--sb-text-secondary);
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
+
+  svg {
+    width: 17px;
+    height: 17px;
+    color: var(--sb-primary-color);
   }
 
-  .login-page__header-extras {
+  &:hover {
+    border-color: var(--sb-primary-border);
+    background: var(--sb-badge-primary-bg);
+    color: var(--sb-text-primary);
+  }
+}
+
+@media (max-width: 960px) {
+  .login-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .login-split__brand {
     display: none;
   }
 
-  .login-panel {
-    padding: 24px 20px 20px;
-    border-radius: 18px;
+  .login-split__stage {
+    padding: 24px 18px;
   }
-}
 
-.login-self-service-bar {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 8px;
+  .demo-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sso-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 </style>

@@ -466,6 +466,10 @@ const userInitial = computed(() =>
   (authStore.currentUser?.nickname || authStore.currentUser?.username || "U").trim().slice(0, 1).toUpperCase()
 );
 
+const isPlatformScope = computed(
+  () => !tenantStore.currentTenant?.code || tenantStore.currentTenant.code.toLowerCase() === "platform"
+);
+
 function go(item: MenuNavItem) {
   router.push({ path: item.path, query: item.query });
 }
@@ -1303,6 +1307,14 @@ onMounted(() => {
 
           <NotificationCenter />
 
+          <span
+            class="console-shell__scope-badge"
+            :class="isPlatformScope ? 'is-platform' : 'is-tenant'"
+            :title="isPlatformScope ? '平台级运营与资源统筹视角' : '当前企业租户独立工作空间'"
+          >
+            {{ isPlatformScope ? "平台运营总控" : "企业空间管理" }}
+          </span>
+
           <TenantSwitcher />
 
           <el-dropdown trigger="click">
@@ -1505,6 +1517,38 @@ onMounted(() => {
                 <el-radio-button value="light">浅色</el-radio-button>
                 <el-radio-button value="dark">深色</el-radio-button>
                 <el-radio-button value="system">自动</el-radio-button>
+              </el-radio-group>
+            </div>
+
+            <div class="layout-toggle-row">
+              <div class="toggle-meta">
+                <span class="toggle-title">品牌主题配色</span>
+                <span class="toggle-desc">支持曜石极光、松石森境、钛金琥珀与经典极光蓝</span>
+              </div>
+              <el-radio-group
+                :model-value="themeStore.preset"
+                size="small"
+                @update:model-value="(val) => themeStore.setPreset(val === 'emerald' || val === 'titanium' || val === 'cobalt' ? val : 'obsidian')"
+              >
+                <el-radio-button value="obsidian">曜石</el-radio-button>
+                <el-radio-button value="emerald">松石</el-radio-button>
+                <el-radio-button value="titanium">钛金</el-radio-button>
+                <el-radio-button value="cobalt">极光</el-radio-button>
+              </el-radio-group>
+            </div>
+
+            <div class="layout-toggle-row">
+              <div class="toggle-meta">
+                <span class="toggle-title">空间画布质感</span>
+                <span class="toggle-desc">默认推荐 Linear 级一体无界实底画布，可切换通透毛玻璃</span>
+              </div>
+              <el-radio-group
+                :model-value="themeStore.surface"
+                size="small"
+                @update:model-value="(val) => themeStore.setSurface(val === 'glass' ? 'glass' : 'matte')"
+              >
+                <el-radio-button value="matte">一体实底</el-radio-button>
+                <el-radio-button value="glass">流光玻璃</el-radio-button>
               </el-radio-group>
             </div>
 
@@ -2514,6 +2558,93 @@ onMounted(() => {
   flex-direction: column;
   overflow: hidden;
   gap: 10px;
+}
+
+.console-shell__scope-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  &.is-platform {
+    background: var(--sb-badge-primary-bg);
+    border: 1px solid var(--sb-badge-primary-border);
+    color: var(--sb-badge-primary-text);
+  }
+
+  &.is-tenant {
+    background: var(--sb-success-weak);
+    border: 1px solid var(--sb-success-border);
+    color: var(--sb-success-color);
+  }
+}
+
+:global(html:not([data-surface="glass"])) .console-shell {
+  background: var(--sb-app-canvas, #f4f4f5);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  padding: 8px 10px 8px 8px;
+  gap: 8px;
+}
+
+:global(html:not([data-surface="glass"])) .console-shell.layout--top {
+  padding: 8px 10px;
+}
+
+:global(html:not([data-surface="glass"])) .console-shell__rail {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-radius: 12px;
+}
+
+:global(html:not([data-surface="glass"])) .console-shell__rail.rail-theme--light {
+  --rail-bg: transparent;
+  --rail-border: transparent;
+  --rail-brand-bg: transparent;
+  --rail-brand-border: var(--sb-border-subtle);
+  --rail-footer-bg: transparent;
+  --rail-footer-border: var(--sb-border-subtle);
+  --rail-app-bg-hover: rgba(113, 113, 122, 0.08);
+  --rail-app-bg-active: var(--sb-stage-bg);
+  --rail-expanded-bg: rgba(113, 113, 122, 0.07);
+  --rail-text-app-active: var(--sb-primary-color);
+  --rail-icon-color: var(--sb-primary-color);
+  --rail-icon-active: var(--sb-primary-color);
+  --rail-indicator: var(--sb-primary-color);
+
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+:global(html:not([data-surface="glass"])) .console-shell__main {
+  background: var(--sb-stage-bg, #ffffff);
+  border: 1px solid var(--sb-border-subtle);
+  border-radius: 14px;
+  gap: 0;
+  box-shadow: 0 1px 3px rgba(9, 9, 11, 0.04);
+}
+
+:global(html:not([data-surface="glass"])) .console-shell__topbar {
+  height: 52px;
+  flex: 0 0 52px;
+  border-radius: 0;
+  border: 0;
+  border-bottom: 1px solid var(--sb-border-subtle);
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+
+:global(html:not([data-surface="glass"])) .console-shell__workspace {
+  --sb-workspace-x: 18px;
+
+  padding: 14px var(--sb-workspace-x) 24px;
 }
 
 .console-shell__topbar {

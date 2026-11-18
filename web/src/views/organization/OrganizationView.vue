@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted } from "vue";
-import { Plus, RefreshRight, Suitcase, User } from "@element-plus/icons-vue";
+import { Plus, Suitcase, User } from "@element-plus/icons-vue";
+import BaseRefreshButton from "@/components/base/BaseRefreshButton.vue";
+import ControlSurface from "@/components/platform/ControlSurface.vue";
+import ModuleWorkbench from "@/components/platform/ModuleWorkbench.vue";
 import { useAuthStore } from "@/stores/modules/auth";
 import { useIamCatalog } from "@/views/iam/useIamCatalog";
 import { useIamEditors } from "@/views/iam/useIamEditors";
@@ -56,7 +59,7 @@ const menuParentOptions = computed(() => [
 const editors = useIamEditors({
   loadData,
   getCurrentTenantId: () => currentTenantId.value,
-  roles: computed(() => []),
+  roles,
   menus,
   users,
   departments,
@@ -65,81 +68,65 @@ const editors = useIamEditors({
 });
 
 const companyCount = computed(() => departments.value.filter((d) => Number(d.parentId ?? 0) <= 0).length);
+const boundEmployeeCount = computed(
+  () => employees.value.filter((item) => Number(item.boundUserCount ?? 0) > 0).length
+);
+const accountBindRate = computed(() =>
+  employees.value.length > 0
+    ? `${Math.round((boundEmployeeCount.value / employees.value.length) * 100)}%`
+    : "0%"
+);
+
+const orgSummary = computed(() => [
+  { label: "顶级法人 / 根组织", value: companyCount.value },
+  { label: "部门组织单元", value: departments.value.length },
+  { label: "在册员工总数", value: employees.value.length },
+  { label: "账号已开通率", value: `${boundEmployeeCount.value}/${employees.value.length} (${accountBindRate.value})` }
+]);
 
 onMounted(() => {
-  loadData();
+  void loadData();
 });
 </script>
 
 <template>
-  <div class="organization-view">
-    <!-- 顶部工作台精简控制条 (40px) -->
-    <div class="org-toolbar-strip">
-      <div class="strip-left">
-        <span class="strip-title">组织与人员中心</span>
-        <div class="divider"></div>
-        <div class="metric-tags">
-          <div class="metric-tag">
-            <span class="label">法人主体</span>
-            <span class="value">{{ companyCount }}</span>
-          </div>
-          <div class="metric-tag">
-            <span class="label">部门单元</span>
-            <span class="value">{{ departments.length }}</span>
-          </div>
-          <div class="metric-tag">
-            <span class="label">在岗人员</span>
-            <span class="value">{{ employees.length }}</span>
-          </div>
-          <div class="metric-tag">
-            <span class="label">标准岗位</span>
-            <span class="value">{{ positions.length }}</span>
-          </div>
-        </div>
-      </div>
+  <ControlSurface
+    badge="组织主数据"
+    title="组织与成员中心"
+    description="集团法人主体、组织树、岗位体系与「员工入职一表通」（建档同步开通账号并授予角色）。"
+  >
+    <template #actions>
+      <BaseRefreshButton :loading="loading" @click="loadData()" />
+      <el-button
+        v-button-permission="{ code: 'iam_position:create', fallback: 'iam:user:write' }"
+        :icon="Suitcase"
+        @click="editors.openPositionCreate()"
+      >
+        新建岗位
+      </el-button>
+      <el-button
+        v-button-permission="{ code: 'iam_department:create', fallback: 'iam:user:write' }"
+        :icon="Plus"
+        @click="editors.openDepartmentCreate(0)"
+      >
+        新建根组织
+      </el-button>
+      <el-button
+        v-button-permission="{ code: 'iam_employee:create', fallback: 'iam:user:write' }"
+        type="primary"
+        :icon="User"
+        @click="editors.openEmployeeCreate()"
+      >
+        + 员工入职一表通
+      </el-button>
+    </template>
 
-      <div class="strip-right">
-        <el-button
-          size="small"
-          :icon="RefreshRight"
-          :loading="loading"
-          plain
-          @click="loadData()"
-        >
-          刷新
-        </el-button>
-        <el-button
-          v-button-permission="{ code: 'iam_position:create', fallback: 'iam:user:write' }"
-          size="small"
-          :icon="Suitcase"
-          plain
-          @click="editors.openPositionCreate()"
-        >
-          新建岗位
-        </el-button>
-        <el-button
-          v-button-permission="{ code: 'iam_department:create', fallback: 'iam:user:write' }"
-          size="small"
-          :icon="Plus"
-          plain
-          @click="editors.openDepartmentCreate(0)"
-        >
-          新建根部门
-        </el-button>
-        <el-button
-          v-button-permission="{ code: 'iam_employee:create', fallback: 'iam:user:write' }"
-          size="small"
-          type="primary"
-          :icon="User"
-          @click="editors.openEmployeeCreate()"
-        >
-          录入人员
-        </el-button>
-      </div>
-    </div>
-
-    <!-- 可视化架构工作台 -->
-    <section class="org-main-section">
+    <ModuleWorkbench
+      eyebrow="组织与成员中心"
+      title="组织架构与人岗编制总览"
+      description="统一维护公司、部门、岗位及人员账号绑定关系。"
+      :summary="orgSummary"
+    >
       <IamOrganizationSection
         mode="all"
         :department-columns="departmentColumns"
@@ -167,7 +154,7 @@ onMounted(() => {
         :batch-enable-employees="editors.batchEnableEmployees"
         :batch-disable-employees="editors.batchDisableEmployees"
       />
-    </section>
+    </ModuleWorkbench>
 
     <!-- 弹窗统一挂载 -->
     <IamEditorDialogs
@@ -212,88 +199,5 @@ onMounted(() => {
       :submit-login-policy="editors.submitLoginPolicy"
       :submit-password-policy="editors.submitPasswordPolicy"
     />
-  </div>
+  </ControlSurface>
 </template>
-
-<style scoped lang="scss">
-.organization-view {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 0;
-}
-
-.org-toolbar-strip {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 20px;
-  background: var(--sb-glass-bg, rgba(255, 255, 255, 0.90));
-  backdrop-filter: var(--sb-glass-blur);
-  -webkit-backdrop-filter: var(--sb-glass-blur);
-  border-radius: var(--sb-radius-glass-md, 18px);
-  border: 1px solid rgba(226, 232, 240, 0.92);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.98),
-    0 6px 20px -6px rgba(15, 23, 42, 0.05);
-
-  .strip-left {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    flex-wrap: wrap;
-  }
-
-  .strip-title {
-    font-size: 15px;
-    font-weight: 700;
-    color: #0f172a;
-  }
-
-  .divider {
-    width: 1px;
-    height: 14px;
-    background: rgba(203, 213, 225, 0.6);
-  }
-
-  .metric-tags {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .metric-tag {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 12px;
-    background: rgba(255, 255, 255, 0.90);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(226, 232, 240, 0.6);
-    border-radius: 8px;
-    font-size: 12px;
-
-    .label {
-      color: #475569;
-    }
-
-    .value {
-      font-weight: 700;
-      color: #0f172a;
-      font-variant-numeric: tabular-nums;
-    }
-  }
-
-  .strip-right {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-}
-
-.org-main-section {
-  width: 100%;
-}
-</style>

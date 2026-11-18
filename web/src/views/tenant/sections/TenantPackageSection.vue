@@ -15,6 +15,7 @@ import {
   User
 } from "@element-plus/icons-vue";
 import {
+  batchAuthorizeTenantApps,
   createTenantPackage,
   deleteTenantPackage,
   fetchTenantPackages,
@@ -24,9 +25,12 @@ import type {
   TenantPackageRow,
   TenantPackageSavePayload
 } from "@/api/modules/tenant";
+import { useAuthStore } from "@/stores/modules/auth";
 
+const authStore = useAuthStore();
 const loading = ref(false);
 const saving = ref(false);
+const authorizingId = ref<number | null>(null);
 const packages = ref<TenantPackageRow[]>([]);
 const searchKeyword = ref("");
 const dialogVisible = ref(false);
@@ -48,14 +52,67 @@ const form = reactive<TenantPackageSavePayload>({
 });
 
 const featureOptions = [
-  { label: "身份与组织基础 (IAM & Org)", value: "saas.iam.basic" },
-  { label: "审批工作流引擎 (Workflow)", value: "saas.workflow.basic" },
-  { label: "对象存储与文件中心 (File Center)", value: "saas.file.basic" },
-  { label: "动态任务调度引擎 (Scheduler)", value: "saas.scheduler.basic" },
-  { label: "安全合规与操作审计 (Audit Trail)", value: "saas.audit.basic" },
-  { label: "智能代码生成工程 (Codegen)", value: "saas.codegen.basic" },
-  { label: "集成中心与网关连接 (Integration)", value: "saas.integration.basic" }
+  { label: "统一身份与权限中心 (iam)", value: "iam" },
+  { label: "多租户与计量中心 (tenant)", value: "tenant" },
+  { label: "系统中心与企业 SSO (system)", value: "system" },
+  { label: "进销存 ERP 供应链 (erp)", value: "erp" },
+  { label: "客户关系管理 CRM (crm)", value: "crm" },
+  { label: "可视化审批工作流 (workflow)", value: "workflow" },
+  { label: "分布式文件存储中心 (file)", value: "file" },
+  { label: "开放集成与智能中心 (integration)", value: "integration" },
+  { label: "分布式任务调度中心 (scheduler)", value: "scheduler" },
+  { label: "低代码与代码生成中心 (codegen)", value: "codegen" },
+  { label: "合规审计与风控中心 (audit)", value: "audit" },
+  { label: "报表设计与套打中心 (report)", value: "report" }
 ];
+
+const FEATURE_LABEL_MAP: Record<string, string> = {
+  iam: "身份权限 (iam)",
+  tenant: "租户计量 (tenant)",
+  system: "系统中心 (system)",
+  organization: "身份权限 (iam)",
+  erp: "ERP 中台 (erp)",
+  crm: "CRM 中台 (crm)",
+  workflow: "工作流 (workflow)",
+  ai_center: "开放与 AI (integration)",
+  file: "文件中心 (file)",
+  integration: "集成与 AI (integration)",
+  scheduler: "任务调度 (scheduler)",
+  codegen: "代码生成 (codegen)",
+  audit: "审计中心 (audit)",
+  report: "报表套打 (report)",
+  report_print: "报表套打 (report)",
+  "saas.iam.basic": "身份权限 (iam)",
+  "saas.org.basic": "身份权限 (iam)",
+  "saas.workflow.basic": "工作流 (workflow)",
+  "saas.file.basic": "文件中心 (file)",
+  "saas.scheduler.basic": "任务调度 (scheduler)",
+  "saas.audit.basic": "审计中心 (audit)",
+  "saas.codegen.basic": "代码生成 (codegen)",
+  "saas.integration.basic": "集成中心 (integration)"
+};
+
+const LEGACY_APP_CODE_MAP: Record<string, string> = {
+  organization: "iam",
+  ai_center: "integration",
+  report_print: "report",
+  "saas.iam.basic": "iam",
+  "saas.org.basic": "iam",
+  "saas.workflow.basic": "workflow",
+  "saas.file.basic": "file",
+  "saas.scheduler.basic": "scheduler",
+  "saas.audit.basic": "audit",
+  "saas.codegen.basic": "codegen",
+  "saas.integration.basic": "integration"
+};
+
+function resolveErrorMessage(error: unknown, fallback: string): string {
+  if (typeof error === "object" && error !== null) {
+    const maybe = error as { response?: { data?: { message?: string } }; message?: string };
+    return maybe.response?.data?.message || maybe.message || fallback;
+  }
+  return fallback;
+}
 
 const selectedFeatures = computed<string[]>({
   get() {
@@ -95,8 +152,8 @@ async function loadPackages() {
   loading.value = true;
   try {
     packages.value = await fetchTenantPackages();
-  } catch (error: any) {
-    ElMessage.error(error?.response?.data?.message || "加载套餐配置失败");
+  } catch (error: unknown) {
+    ElMessage.error(resolveErrorMessage(error, "加载套餐配置失败"));
   } finally {
     loading.value = false;
   }
@@ -113,7 +170,7 @@ function openCreateDialog() {
   form.maxDeptCount = 20;
   form.maxStorageMb = 20480;
   form.maxApiPerMinute = 10000;
-  form.featureFlagsJson = JSON.stringify(["saas.iam.basic", "saas.org.basic"]);
+  form.featureFlagsJson = JSON.stringify(["iam", "workflow", "file"]);
   form.sortNo = (packages.value.length + 1) * 10;
   form.remark = "";
   dialogVisible.value = true;
@@ -130,7 +187,8 @@ function openEditDialog(pkg: TenantPackageRow) {
   form.maxDeptCount = pkg.maxDeptCount;
   form.maxStorageMb = pkg.maxStorageMb;
   form.maxApiPerMinute = pkg.maxApiPerMinute;
-  form.featureFlagsJson = pkg.featureFlagsJson || "[]";
+  const normalizedFlags = resolveCanonicalAppCodes(pkg.featureFlagsJson);
+  form.featureFlagsJson = JSON.stringify(normalizedFlags);
   form.sortNo = pkg.sortNo;
   form.remark = pkg.remark || "";
   dialogVisible.value = true;
@@ -152,10 +210,63 @@ async function handleSavePackage() {
     }
     dialogVisible.value = false;
     await loadPackages();
-  } catch (error: any) {
-    ElMessage.error(error?.response?.data?.message || "保存套餐失败");
+  } catch (error: unknown) {
+    ElMessage.error(resolveErrorMessage(error, "保存套餐失败"));
   } finally {
     saving.value = false;
+  }
+}
+
+function resolveCanonicalAppCodes(jsonStr?: string): string[] {
+  if (!jsonStr) return [];
+  const allowed = new Set(featureOptions.map((item) => item.value));
+  if (jsonStr.includes("*")) {
+    return featureOptions.map((item) => item.value);
+  }
+  try {
+    const raw = JSON.parse(jsonStr);
+    if (!Array.isArray(raw)) return [];
+    const normalized = raw
+      .map((entry) => {
+        const key = String(entry).trim();
+        return LEGACY_APP_CODE_MAP[key] || key;
+      })
+      .filter((key) => allowed.has(key));
+    return [...new Set(normalized)];
+  } catch {
+    return [];
+  }
+}
+
+async function handleSyncPackageApps(pkg: TenantPackageRow) {
+  const appCodes = resolveCanonicalAppCodes(pkg.featureFlagsJson);
+  if (!appCodes.length) {
+    ElMessage.warning(`套餐「${pkg.packageName}」尚未配置任何能力应用编码，请先编辑勾选。`);
+    return;
+  }
+  try {
+    await ElMessageBox.confirm(
+      `确定将套餐「${pkg.packageName}」包含的 ${appCodes.length} 项应用（${appCodes.join(", ")}）下发授权到当前租户空间吗？`,
+      "下发套餐应用授权",
+      { type: "info", confirmButtonText: "确认下发", cancelButtonText: "取消" }
+    );
+    authorizingId.value = pkg.id;
+    await batchAuthorizeTenantApps(
+      {
+        appCodes,
+        enabled: true,
+        remark: `按订阅套餐「${pkg.packageName} (${pkg.packageCode})」批量下发应用授权`
+      },
+      authStore.currentUser?.tenantId || undefined
+    );
+    ElMessage.success(`已为当前租户下发 ${appCodes.length} 项应用授权`);
+  } catch (error: unknown) {
+    if (error === "cancel" || error === "close") {
+      return;
+    }
+    ElMessage.error(resolveErrorMessage(error, "下发应用授权失败"));
+  } finally {
+    authorizingId.value = null;
   }
 }
 
@@ -188,9 +299,13 @@ function formatStorage(mb: number): string {
 function parseFeatures(jsonStr?: string): string[] {
   try {
     if (!jsonStr) return [];
-    if (jsonStr.includes("*")) return ["全部系统功能全量放行 (*)"];
+    if (jsonStr.includes("*")) return ["全部系统应用全量放行 (*)"];
     const list = JSON.parse(jsonStr);
-    return Array.isArray(list) ? list : [];
+    if (!Array.isArray(list)) return [];
+    return list.map((item) => {
+      const code = String(item);
+      return FEATURE_LABEL_MAP[code] ?? code;
+    });
   } catch {
     return [];
   }
@@ -316,6 +431,15 @@ onMounted(() => {
             <span>已订购 <strong>{{ pkg.activeTenantCount || 0 }}</strong> 家租户</span>
           </div>
           <div class="plan-actions">
+            <el-button
+              link
+              type="success"
+              :icon="Check"
+              :loading="authorizingId === pkg.id"
+              @click="handleSyncPackageApps(pkg)"
+            >
+              下发应用授权
+            </el-button>
             <el-button link type="primary" :icon="Edit" @click="openEditDialog(pkg)">编辑</el-button>
             <el-button
               link
@@ -455,14 +579,12 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 10px 20px;
-  background: rgba(255, 255, 255, 0.90);
-  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
-  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
-  border-radius: var(--sb-radius-glass-md, 18px);
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  box-shadow:
-    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
-    0 10px 25px -5px rgba(12, 34, 56, 0.05);
+  background: var(--sb-tier1-bg);
+  backdrop-filter: var(--sb-glass-blur-md);
+  -webkit-backdrop-filter: var(--sb-glass-blur-md);
+  border-radius: var(--sb-radius-glass-md, 14px);
+  border: 1px solid var(--sb-border-subtle);
+  box-shadow: var(--sb-shadow-xs);
 
   .strip-left {
     display: flex;
@@ -476,24 +598,24 @@ onMounted(() => {
     align-items: center;
     gap: 8px;
 
-    .icon-blue { color: #2563eb; }
-    .icon-green { color: #059669; }
-    .icon-purple { color: #7c3aed; }
-    .icon-amber { color: #d97706; }
+    .icon-blue { color: var(--sb-primary-color); }
+    .icon-green { color: #10b981; }
+    .icon-purple { color: #8b5cf6; }
+    .icon-amber { color: #f59e0b; }
 
     .label {
       font-size: 13px;
-      color: #475569;
+      color: var(--sb-text-muted);
     }
 
     .value {
       font-size: 13px;
       font-weight: 600;
-      color: #0f172a;
+      color: var(--sb-text-primary);
 
       &.tag-active {
-        color: #059669;
-        background: rgba(5, 150, 105, 0.12);
+        color: #10b981;
+        background: rgba(16, 185, 129, 0.14);
         padding: 2px 8px;
         border-radius: 4px;
         font-size: 12px;
@@ -504,7 +626,7 @@ onMounted(() => {
   .divider {
     width: 1px;
     height: 14px;
-    background: rgba(203, 213, 225, 0.6);
+    background: var(--sb-border-subtle);
   }
 }
 
@@ -512,15 +634,13 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: rgba(255, 255, 255, 0.90);
-  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
-  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
+  background: var(--sb-tier1-bg);
+  backdrop-filter: var(--sb-glass-blur-md);
+  -webkit-backdrop-filter: var(--sb-glass-blur-md);
   padding: 12px 20px;
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  border-radius: var(--sb-radius-glass-md, 18px);
-  box-shadow:
-    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
-    0 10px 25px -5px rgba(12, 34, 56, 0.05);
+  border: 1px solid var(--sb-border-subtle);
+  border-radius: var(--sb-radius-glass-md, 14px);
+  box-shadow: var(--sb-shadow-xs);
 
   .toolbar-left {
     display: flex;
@@ -535,28 +655,22 @@ onMounted(() => {
   gap: 20px;
 
   .plan-card {
-    background: rgba(255, 255, 255, 0.90);
-    backdrop-filter: blur(28px) saturate(210%) contrast(104%);
-    -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
-    border: 1px solid rgba(255, 255, 255, 0.88);
-    border-radius: var(--sb-radius-glass, 24px);
+    background: var(--sb-tier1-bg);
+    backdrop-filter: var(--sb-glass-blur-md);
+    -webkit-backdrop-filter: var(--sb-glass-blur-md);
+    border: 1px solid var(--sb-border-subtle);
+    border-radius: var(--sb-radius-glass, 16px);
     padding: 22px;
     display: flex;
     flex-direction: column;
-    box-shadow:
-      inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
-      inset 0 0 0 1px rgba(255, 255, 255, 0.35),
-      0 16px 40px -10px rgba(12, 34, 56, 0.08);
+    box-shadow: var(--sb-shadow-xs);
     transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
 
     &:hover {
-      transform: translateY(-3px);
-      background: rgba(255, 255, 255, 0.72);
-      box-shadow:
-        inset 0 1.5px 2px 0 #fff,
-        inset 0 0 0 1px rgba(255, 255, 255, 0.5),
-        0 24px 50px -12px rgba(12, 34, 56, 0.12);
-      border-color: rgba(255, 255, 255, 0.98);
+      transform: translateY(-2px);
+      background: var(--sb-tier2-bg);
+      box-shadow: var(--sb-shadow-sm);
+      border-color: var(--sb-primary-color);
     }
 
     &.is-supreme {
@@ -564,15 +678,15 @@ onMounted(() => {
     }
 
     &.is-enterprise {
-      border-top: 4px solid #2563eb;
+      border-top: 4px solid var(--sb-primary-color);
     }
 
     &.is-pro {
-      border-top: 4px solid #059669;
+      border-top: 4px solid #10b981;
     }
 
     &.is-basic {
-      border-top: 4px solid #64748b;
+      border-top: 4px solid var(--sb-text-muted);
     }
 
     .plan-card-header {
@@ -589,11 +703,11 @@ onMounted(() => {
         .plan-name {
           font-size: 17px;
           font-weight: 700;
-          color: #0f172a;
+          color: var(--sb-text-primary);
         }
 
         .plan-code-tag {
-          font-family: ui-monospace, monospace;
+          font-family: var(--sb-font-mono);
           font-size: 11px;
         }
       }
@@ -601,17 +715,15 @@ onMounted(() => {
 
     .plan-desc {
       font-size: 12px;
-      color: #475569;
+      color: var(--sb-text-muted);
       line-height: 1.5;
       min-height: 36px;
       margin-bottom: 16px;
     }
 
     .plan-specs-box {
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(226, 232, 240, 0.6);
+      background: var(--sb-tier2-bg);
+      border: 1px solid var(--sb-border-subtle);
       border-radius: 12px;
       padding: 12px 14px;
       display: flex;
@@ -626,16 +738,16 @@ onMounted(() => {
         font-size: 13px;
 
         .spec-label {
-          color: #475569;
+          color: var(--sb-text-muted);
           display: flex;
           align-items: center;
           gap: 6px;
         }
 
         .spec-val {
-          color: #1e293b;
+          color: var(--sb-text-primary);
           font-weight: 600;
-          font-family: ui-monospace, monospace;
+          font-family: var(--sb-font-mono);
         }
       }
     }
@@ -647,7 +759,7 @@ onMounted(() => {
       .features-label {
         font-size: 11px;
         font-weight: 600;
-        color: #475569;
+        color: var(--sb-text-muted);
         margin-bottom: 8px;
         text-transform: uppercase;
       }
@@ -659,41 +771,43 @@ onMounted(() => {
 
         .feature-tag {
           font-size: 11px;
-          background: rgba(37, 99, 235, 0.10);
-          color: #2563eb;
-          border-color: rgba(37, 99, 235, 0.25);
+          background: var(--sb-badge-primary-bg);
+          color: var(--sb-badge-primary-text);
+          border-color: var(--sb-badge-primary-border);
         }
 
         .no-feature {
           font-size: 12px;
-          color: #475569;
+          color: var(--sb-text-muted);
         }
       }
     }
 
     .plan-card-footer {
-      border-top: 1px solid rgba(226, 232, 240, 0.5);
+      border-top: 1px solid var(--sb-border-subtle);
       padding-top: 14px;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 8px;
 
       .subscriber-badge {
         display: flex;
         align-items: center;
         gap: 6px;
         font-size: 12px;
-        color: #475569;
+        color: var(--sb-text-muted);
 
         strong {
-          color: #0f172a;
+          color: var(--sb-text-primary);
           font-weight: 700;
         }
       }
 
       .plan-actions {
         display: flex;
-        gap: 8px;
+        flex-wrap: wrap;
+        gap: 6px;
       }
     }
   }
