@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +41,7 @@ public class FileStorageService {
         this(fileStorageMapperProvider, fileClientFactoryProvider, null);
     }
 
+    @Autowired
     public FileStorageService(ObjectProvider<FileStorageMapper> fileStorageMapperProvider,
                               ObjectProvider<FileClientFactory> fileClientFactoryProvider,
                               ObjectProvider<Environment> environmentProvider) {
