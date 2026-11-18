@@ -6,6 +6,7 @@ import {
   Calendar,
   Check,
   Close,
+  Delete,
   Document,
   Download,
   Lock,
@@ -32,6 +33,11 @@ import {
   createCrmContract,
   createCrmCustomer,
   createCrmReceivable,
+  deleteCrmBusiness,
+  deleteCrmClue,
+  deleteCrmContract,
+  deleteCrmCustomer,
+  deleteCrmReceivable,
   getCrmStatistics,
   listCrmBusinesses,
   listCrmClues,
@@ -493,6 +499,87 @@ async function handleApproveReceivable(row: CrmReceivableRow) {
   }
 }
 
+// 统一删除操作
+async function handleDeleteCustomer(row: CrmCustomerRow) {
+  try {
+    await ElMessageBox.confirm(`确定要删除客户档案【${row.name}】吗？删除后数据将移至系统回收站，可随时安全还原。`, "删除客户确认", {
+      confirmButtonText: "确定删除",
+      cancelButtonText: "取消",
+      type: "warning"
+    });
+    await deleteCrmCustomer(row.id);
+    ElMessage.success("客户档案已移入回收站");
+    loadCustomers();
+    loadStats();
+  } catch (err: any) {
+    if (err !== "cancel") ElMessage.error(err.message || "删除客户失败");
+  }
+}
+
+async function handleDeleteClue(row: CrmClueRow) {
+  try {
+    await ElMessageBox.confirm(`确定要删除销售线索【${row.name}】吗？删除后数据将移至系统回收站。`, "删除线索确认", {
+      confirmButtonText: "确定删除",
+      cancelButtonText: "取消",
+      type: "warning"
+    });
+    await deleteCrmClue(row.id);
+    ElMessage.success("销售线索已移入回收站");
+    loadClues();
+    loadStats();
+  } catch (err: any) {
+    if (err !== "cancel") ElMessage.error(err.message || "删除线索失败");
+  }
+}
+
+async function handleDeleteBusiness(row: CrmBusinessRow) {
+  try {
+    await ElMessageBox.confirm(`确定要删除商机【${row.name}】吗？删除后数据将移至系统回收站，可随时还原。`, "删除商机确认", {
+      confirmButtonText: "确定删除",
+      cancelButtonText: "取消",
+      type: "warning"
+    });
+    await deleteCrmBusiness(row.id);
+    ElMessage.success("商机已移入回收站");
+    loadBusinesses();
+    loadStats();
+  } catch (err: any) {
+    if (err !== "cancel") ElMessage.error(err.message || "删除商机失败");
+  }
+}
+
+async function handleDeleteContract(row: CrmContractRow) {
+  try {
+    await ElMessageBox.confirm(`确定要删除商务合同【${row.name}】吗？删除后数据将移至系统回收站。`, "删除合同确认", {
+      confirmButtonText: "确定删除",
+      cancelButtonText: "取消",
+      type: "warning"
+    });
+    await deleteCrmContract(row.id);
+    ElMessage.success("商务合同已移入回收站");
+    loadContracts();
+    loadStats();
+  } catch (err: any) {
+    if (err !== "cancel") ElMessage.error(err.message || "删除合同失败");
+  }
+}
+
+async function handleDeleteReceivable(row: CrmReceivableRow) {
+  try {
+    await ElMessageBox.confirm(`确定要删除回款单据【${row.receivableNo}】吗？删除后数据将移至系统回收站。`, "删除回款确认", {
+      confirmButtonText: "确定删除",
+      cancelButtonText: "取消",
+      type: "warning"
+    });
+    await deleteCrmReceivable(row.id);
+    ElMessage.success("回款单据已移入回收站");
+    loadReceivables();
+    loadStats();
+  } catch (err: any) {
+    if (err !== "cancel") ElMessage.error(err.message || "删除回款失败");
+  }
+}
+
 // 跟进记录抽屉
 const crmCopilotLoading = ref(false);
 const crmCopilotAdvice = ref<{
@@ -671,7 +758,7 @@ onMounted(() => {
               </template>
             </el-table-column>
             <el-table-column prop="lastContactTime" label="最后跟进时间" width="128" show-overflow-tooltip />
-            <el-table-column label="操作" width="280" align="center" fixed="right">
+            <el-table-column label="操作" width="320" align="center" fixed="right">
               <template #default="{ row }">
                 <el-button v-if="row.isPool === 1" link type="success" size="small" :icon="TrendCharts" @click="handleClaim(row)">抢单认领</el-button>
                 <template v-else>
@@ -681,6 +768,7 @@ onMounted(() => {
                   </el-button>
                   <el-button link type="danger" size="small" :icon="Share" @click="handleReturnToPool(row)">退回公海</el-button>
                 </template>
+                <el-button link type="danger" size="small" :icon="Delete" @click="handleDeleteCustomer(row)">删除</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -718,10 +806,11 @@ onMounted(() => {
             </el-table-column>
             <el-table-column prop="ownerUserName" label="跟进责任人" width="120" />
             <el-table-column prop="nextContactTime" label="预约下次跟进" width="160" />
-            <el-table-column label="操作" min-width="220">
+            <el-table-column label="操作" min-width="260">
               <template #default="{ row }">
                 <el-button link type="primary" size="small" :icon="Calendar" @click="openFollowUpDrawer('CLUE', row.id, row.name)">写跟进</el-button>
                 <el-button v-if="row.status !== 'CONVERTED'" link type="success" size="small" :icon="Check" @click="handleConvertClue(row)">一键转客户</el-button>
+                <el-button link type="danger" size="small" :icon="Delete" @click="handleDeleteClue(row)">删除</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -768,10 +857,11 @@ onMounted(() => {
               </template>
             </el-table-column>
             <el-table-column prop="dealDate" label="预计结单日" width="120" />
-            <el-table-column label="操作" min-width="195">
+            <el-table-column label="操作" min-width="240">
               <template #default="{ row }">
                 <el-button link type="primary" size="small" :icon="TrendCharts" @click="openStageDialog(row)">推进阶段</el-button>
                 <el-button link type="info" size="small" :icon="Calendar" @click="openFollowUpDrawer('BUSINESS', row.id, row.name)">跟进</el-button>
+                <el-button link type="danger" size="small" :icon="Delete" @click="handleDeleteBusiness(row)">删除</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -816,13 +906,14 @@ onMounted(() => {
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="操作" min-width="235">
+            <el-table-column label="操作" min-width="270">
               <template #default="{ row }">
                 <template v-if="row.status === 'APPROVING'">
                   <el-button link type="success" size="small" :icon="Check" @click="handleApproveContract(row, true)">通过</el-button>
                   <el-button link type="danger" size="small" :icon="Close" @click="handleApproveContract(row, false)">驳回</el-button>
                 </template>
                 <el-button link type="primary" size="small" :icon="Calendar" @click="openFollowUpDrawer('CONTRACT', row.id, row.name)">跟进</el-button>
+                <el-button link type="danger" size="small" :icon="Delete" @click="handleDeleteContract(row)">删除</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -865,10 +956,11 @@ onMounted(() => {
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="操作" min-width="150">
+            <el-table-column label="操作" min-width="190">
               <template #default="{ row }">
                 <el-button v-if="row.status === 'PENDING'" link type="success" size="small" :icon="Check" @click="handleApproveReceivable(row)">确认到账</el-button>
-                <span v-else style="color: #909399; font-size: 13px">已到账归档</span>
+                <span v-else style="color: #909399; font-size: 13px; margin-right: 8px">已到账归档</span>
+                <el-button link type="danger" size="small" :icon="Delete" @click="handleDeleteReceivable(row)">删除</el-button>
               </template>
             </el-table-column>
           </el-table>

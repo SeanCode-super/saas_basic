@@ -45,10 +45,10 @@ public class TrashService {
                 "crm_business", "crm", "客户关系 CRM", "商机阶段", "name", List.of()
         ));
         PRESET_METAS.put("crm_contract", new TableMeta(
-                "crm_contract", "crm", "客户关系 CRM", "商务合同", "title", List.of()
+                "crm_contract", "crm", "客户关系 CRM", "商务合同", "name", List.of()
         ));
         PRESET_METAS.put("crm_receivable", new TableMeta(
-                "crm_receivable", "crm", "客户关系 CRM", "财务回款", "receipt_no", List.of()
+                "crm_receivable", "crm", "客户关系 CRM", "财务回款", "receivable_no", List.of()
         ));
 
         // ERP 进销存

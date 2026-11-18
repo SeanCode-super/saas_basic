@@ -212,3 +212,29 @@ export async function addCrmFollowUpRecord(data: Partial<CrmFollowUpRecordRow>):
   return res.data;
 }
 
+export async function deleteCrmClue(id: number): Promise<ApiResponse<boolean>> {
+  const res = await http.delete<ApiResponse<boolean>>(`/crm/clues/${id}`);
+  return res.data;
+}
+
+export async function deleteCrmCustomer(id: number): Promise<ApiResponse<boolean>> {
+  const res = await http.delete<ApiResponse<boolean>>(`/crm/customers/${id}`);
+  return res.data;
+}
+
+export async function deleteCrmBusiness(id: number): Promise<ApiResponse<boolean>> {
+  const res = await http.delete<ApiResponse<boolean>>(`/crm/businesses/${id}`);
+  return res.data;
+}
+
+export async function deleteCrmContract(id: number): Promise<ApiResponse<boolean>> {
+  const res = await http.delete<ApiResponse<boolean>>(`/crm/contracts/${id}`);
+  return res.data;
+}
+
+export async function deleteCrmReceivable(id: number): Promise<ApiResponse<boolean>> {
+  const res = await http.delete<ApiResponse<boolean>>(`/crm/receivables/${id}`);
+  return res.data;
+}
+
+

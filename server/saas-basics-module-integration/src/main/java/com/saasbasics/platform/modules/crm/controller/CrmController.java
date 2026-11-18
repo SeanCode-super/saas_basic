@@ -46,6 +46,12 @@ public class CrmController {
         return ApiResponse.success(crmService.convertClueToCustomer(id));
     }
 
+    @DeleteMapping("/clues/{id}")
+    public ApiResponse<Boolean> deleteClue(@PathVariable Long id) {
+        crmService.deleteClue(id);
+        return ApiResponse.success(true);
+    }
+
     // 3. 客户档案与公海池
     @GetMapping("/customers")
     public ApiResponse<List<CrmCustomerResponse>> listCustomers(
@@ -79,6 +85,12 @@ public class CrmController {
         return ApiResponse.success(true);
     }
 
+    @DeleteMapping("/customers/{id}")
+    public ApiResponse<Boolean> deleteCustomer(@PathVariable Long id) {
+        crmService.deleteCustomer(id);
+        return ApiResponse.success(true);
+    }
+
     // 4. 销售商机漏斗
     @GetMapping("/businesses")
     public ApiResponse<List<CrmBusinessResponse>> listBusinesses(
@@ -107,6 +119,12 @@ public class CrmController {
         return ApiResponse.success(true);
     }
 
+    @DeleteMapping("/businesses/{id}")
+    public ApiResponse<Boolean> deleteBusiness(@PathVariable Long id) {
+        crmService.deleteBusiness(id);
+        return ApiResponse.success(true);
+    }
+
     // 5. 商务合同
     @GetMapping("/contracts")
     public ApiResponse<List<CrmContractResponse>> listContracts(
@@ -131,6 +149,12 @@ public class CrmController {
         return ApiResponse.success(true);
     }
 
+    @DeleteMapping("/contracts/{id}")
+    public ApiResponse<Boolean> deleteContract(@PathVariable Long id) {
+        crmService.deleteContract(id);
+        return ApiResponse.success(true);
+    }
+
     // 6. 财务回款
     @GetMapping("/receivables")
     public ApiResponse<List<CrmReceivableResponse>> listReceivables(
@@ -147,6 +171,12 @@ public class CrmController {
     @PostMapping("/receivables/{id}/approve")
     public ApiResponse<Boolean> approveReceivable(@PathVariable Long id) {
         crmService.approveReceivable(id);
+        return ApiResponse.success(true);
+    }
+
+    @DeleteMapping("/receivables/{id}")
+    public ApiResponse<Boolean> deleteReceivable(@PathVariable Long id) {
+        crmService.deleteReceivable(id);
         return ApiResponse.success(true);
     }
 

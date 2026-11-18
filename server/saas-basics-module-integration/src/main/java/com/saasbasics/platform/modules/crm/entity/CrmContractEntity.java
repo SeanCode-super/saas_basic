@@ -34,6 +34,7 @@ public class CrmContractEntity {
     private LocalDateTime updatedAt;
     private Long updatedBy;
     private Integer deleted;
+    private LocalDateTime deletedAt;
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -75,4 +76,6 @@ public class CrmContractEntity {
     public void setUpdatedBy(Long updatedBy) { this.updatedBy = updatedBy; }
     public Integer getDeleted() { return deleted; }
     public void setDeleted(Integer deleted) { this.deleted = deleted; }
+    public LocalDateTime getDeletedAt() { return deletedAt; }
+    public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }
 }

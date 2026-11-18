@@ -284,6 +284,19 @@ public class CrmService {
         );
     }
 
+    public void deleteClue(Long clueId) {
+        Long tenantId = getCurrentTenantId();
+        CrmClueEntity entity = clueMapper.selectById(clueId);
+        if (entity == null || (entity.getDeleted() != null && entity.getDeleted() == 1) || !tenantId.equals(entity.getTenantId())) {
+            throw new BizException("CLUE_NOT_FOUND", "指定的销售线索不存在或已被删除");
+        }
+        entity.setDeleted(1);
+        entity.setDeletedAt(LocalDateTime.now());
+        entity.setUpdatedAt(LocalDateTime.now());
+        entity.setUpdatedBy(getCurrentUserId());
+        clueMapper.updateById(entity);
+    }
+
     // ==================== 3. 客户与公海池管理 (Customer & Pool) ====================
     public List<CrmCustomerResponse> listCustomers(Integer isPool, String keyword, String level) {
         Long tenantId = getCurrentTenantId();
@@ -422,6 +435,19 @@ public class CrmService {
         customerMapper.updateById(customer);
     }
 
+    public void deleteCustomer(Long customerId) {
+        Long tenantId = getCurrentTenantId();
+        CrmCustomerEntity customer = customerMapper.selectById(customerId);
+        if (customer == null || (customer.getDeleted() != null && customer.getDeleted() == 1) || !tenantId.equals(customer.getTenantId())) {
+            throw new BizException("CUSTOMER_NOT_FOUND", "指定的客户档案不存在或已被删除");
+        }
+        customer.setDeleted(1);
+        customer.setDeletedAt(LocalDateTime.now());
+        customer.setUpdatedAt(LocalDateTime.now());
+        customer.setUpdatedBy(getCurrentUserId());
+        customerMapper.updateById(customer);
+    }
+
     // ==================== 4. 商机漏斗 (Business Opportunity) ====================
     public List<CrmBusinessResponse> listBusinesses(String stage, String keyword) {
         Long tenantId = getCurrentTenantId();
@@ -512,6 +538,19 @@ public class CrmService {
         addInternalFollowUp("BUSINESS", businessId, "商机推进至阶段: [" + stage + "], 预测赢率: " + business.getWinRate() + "%");
     }
 
+    public void deleteBusiness(Long businessId) {
+        Long tenantId = getCurrentTenantId();
+        CrmBusinessEntity entity = businessMapper.selectById(businessId);
+        if (entity == null || (entity.getDeleted() != null && entity.getDeleted() == 1) || !tenantId.equals(entity.getTenantId())) {
+            throw new BizException("BUSINESS_NOT_FOUND", "指定的销售商机不存在或已被删除");
+        }
+        entity.setDeleted(1);
+        entity.setDeletedAt(LocalDateTime.now());
+        entity.setUpdatedAt(LocalDateTime.now());
+        entity.setUpdatedBy(getCurrentUserId());
+        businessMapper.updateById(entity);
+    }
+
     // ==================== 5. 商务合同 (Contract) ====================
     public List<CrmContractResponse> listContracts(String status, String keyword) {
         Long tenantId = getCurrentTenantId();
@@ -593,6 +632,19 @@ public class CrmService {
         addInternalFollowUp("CONTRACT", contractId, "合同审批节点裁决: [" + (approve ? "审批通过并生效" : "驳回并终止") + "], 审批人: " + getCurrentUserName());
     }
 
+    public void deleteContract(Long contractId) {
+        Long tenantId = getCurrentTenantId();
+        CrmContractEntity entity = contractMapper.selectById(contractId);
+        if (entity == null || (entity.getDeleted() != null && entity.getDeleted() == 1) || !tenantId.equals(entity.getTenantId())) {
+            throw new BizException("CONTRACT_NOT_FOUND", "指定的商务合同不存在或已被删除");
+        }
+        entity.setDeleted(1);
+        entity.setDeletedAt(LocalDateTime.now());
+        entity.setUpdatedAt(LocalDateTime.now());
+        entity.setUpdatedBy(getCurrentUserId());
+        contractMapper.updateById(entity);
+    }
+
     // ==================== 6. 财务回款 (Receivable) ====================
     public List<CrmReceivableResponse> listReceivables(String status) {
         Long tenantId = getCurrentTenantId();
@@ -656,6 +708,19 @@ public class CrmService {
 
         entity.setStatus("APPROVED");
         entity.setUpdatedAt(LocalDateTime.now());
+        receivableMapper.updateById(entity);
+    }
+
+    public void deleteReceivable(Long receivableId) {
+        Long tenantId = getCurrentTenantId();
+        CrmReceivableEntity entity = receivableMapper.selectById(receivableId);
+        if (entity == null || (entity.getDeleted() != null && entity.getDeleted() == 1) || !tenantId.equals(entity.getTenantId())) {
+            throw new BizException("RECEIVABLE_NOT_FOUND", "指定的回款单据不存在或已被删除");
+        }
+        entity.setDeleted(1);
+        entity.setDeletedAt(LocalDateTime.now());
+        entity.setUpdatedAt(LocalDateTime.now());
+        entity.setUpdatedBy(getCurrentUserId());
         receivableMapper.updateById(entity);
     }
 
