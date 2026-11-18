@@ -132,6 +132,12 @@
         <polyline points="22 4 12 14.01 9 11.01" />
       </g>
 
+      <!-- 时间 / 时钟 -->
+      <g v-else-if="name === 'clock' || name === 'time'">
+        <circle cx="12" cy="12" r="10" />
+        <polyline points="12 6 12 12 16 14" />
+      </g>
+
       <!-- 密码锁 -->
       <g v-else-if="name === 'lock'">
         <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />

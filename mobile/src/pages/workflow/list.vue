@@ -71,25 +71,32 @@
 
         <text class="instance-title">{{ task.instanceTitle || task.title || '移动端通用流程审批申请' }}</text>
 
-        <view class="card-details">
-          <view class="detail-row">
-            <text class="detail-label">发起人员：</text>
-            <text class="detail-val">{{ task.initiatorName || 'admin' }}</text>
+        <!-- 全新轻盈赛博元数据流：呼吸感充盈，彻底替代内嵌方块 -->
+        <view class="card-meta-flow">
+          <view class="meta-item">
+            <view class="meta-avatar">
+              <text class="avatar-letter">{{ (task.initiatorName || '管').slice(0, 1) }}</text>
+            </view>
+            <text class="meta-label">发起人</text>
+            <text class="meta-val">{{ task.initiatorName || '平台管理员' }}</text>
           </view>
-          <view class="detail-row">
-            <text class="detail-label">流转时间：</text>
-            <text class="detail-val">{{ task.createdAt || '刚刚' }}</text>
-          </view>
-          <view v-if="task.comment" class="detail-row comment-row">
-            <text class="detail-label">办理意见：</text>
-            <text class="detail-val comment-val">{{ task.comment }}</text>
+          <view class="meta-sep" />
+          <view class="meta-item">
+            <AppIcon name="clock" :size="12" color="#64748b" />
+            <text class="meta-val meta-time">{{ task.createdAt || '刚刚' }}</text>
           </view>
         </view>
 
-        <!-- 仅待办卡片显示操作按钮组：未来感流光微玻极客胶囊 -->
+        <!-- 批注意见气泡 -->
+        <view v-if="task.comment" class="card-comment-bubble">
+          <text class="comment-icon">💬</text>
+          <text class="comment-text">{{ task.comment }}</text>
+        </view>
+
+        <!-- 悬浮指令流光栏：主次非对称黄金比例未来感胶囊 -->
         <view v-if="activeTab === 'pending'" class="card-actions" @click.stop>
           <button class="btn btn-reject" @click="openActionModal(task, 'REJECT')">
-            <AppIcon name="close" :size="12" color="#e11d48" :stroke-width="2.4" />
+            <AppIcon name="close" :size="12" color="#64748b" :stroke-width="2.4" />
             <text class="btn-label">驳回退回</text>
           </button>
           <button class="btn btn-agree" @click="openActionModal(task, 'AGREE')">
@@ -513,63 +520,108 @@ onMounted(() => {
 }
 
 .instance-title {
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 15.5px;
+  font-weight: 750;
   color: #0f172a;
-  line-height: 1.4;
-  margin-bottom: 12px;
+  line-height: 1.45;
+  margin-bottom: 16px;
 }
 
-.card-details {
-  background: rgba(255, 255, 255, 0.62);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.92);
-  border-radius: 14px;
-  padding: 12px 14px;
+/* 全新轻盈赛博元数据流：呼吸感充盈，彻底替代内嵌方块 */
+.card-meta-flow {
   display: flex;
-  flex-direction: column;
-  gap: 7px;
-  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.02);
+  align-items: center;
+  gap: 12px;
+  background: rgba(248, 250, 252, 0.65);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.90);
+  border-radius: 12px;
+  padding: 8px 12px;
+  margin-bottom: 14px;
 }
 
-.detail-row {
+.meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.meta-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+  color: #ffffff;
   display: flex;
-  font-size: 12px;
+  align-items: center;
+  justify-content: center;
 }
 
-.detail-label {
+.avatar-letter {
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.meta-label {
+  font-size: 11.5px;
   color: #64748b;
-  width: 70px;
   font-weight: 500;
 }
 
-.detail-val {
+.meta-val {
+  font-size: 12px;
   color: #1e293b;
-  flex: 1;
-  font-weight: 550;
-}
-
-.comment-row {
-  border-top: 1px dashed rgba(203, 213, 225, 0.8);
-  padding-top: 6px;
-  margin-top: 2px;
-}
-
-.comment-val {
-  color: #2563eb;
   font-weight: 600;
 }
 
+.meta-sep {
+  width: 1px;
+  height: 14px;
+  background: rgba(203, 213, 225, 0.7);
+}
+
+.meta-time {
+  color: #64748b;
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.card-comment-bubble {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  background: rgba(239, 246, 255, 0.7);
+  border: 1px solid rgba(191, 219, 254, 0.75);
+  border-radius: 10px;
+  padding: 6px 10px;
+  margin-bottom: 14px;
+}
+
+.comment-icon {
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.comment-text {
+  font-size: 12px;
+  color: #1d4ed8;
+  font-weight: 550;
+  line-height: 1.4;
+}
+
+/* 悬浮指令流光栏：主次非对称黄金比例未来感胶囊 */
 .card-actions {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-top: 14px;
+  padding-top: 14px;
+  margin-top: 4px;
+  border-top: 1px solid rgba(226, 232, 240, 0.70);
 }
 
 .btn {
-  flex: 1;
   height: 40px;
   line-height: 40px;
   border-radius: 9999px;
@@ -580,6 +632,7 @@ onMounted(() => {
   gap: 6px;
   box-sizing: border-box;
   transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  cursor: pointer;
 }
 
 .btn::after,
@@ -592,42 +645,45 @@ onMounted(() => {
   transform: scale(0.975);
 }
 
-/* 驳回退回：珠光雾面冷萃微玻，高质感珊瑚粉冷雾渐变 + 细腻微描边 */
+/* 驳回退回：38% 黄金辅助比例，高端雾面半透轻玻 + 悬停微霓虹，告别死板粉色大块 */
 .btn-reject {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 241, 242, 0.85) 100%);
-  color: #e11d48;
-  border: 1px solid rgba(254, 205, 211, 0.85);
+  flex: 0 0 38%;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.90) 100%);
+  color: #475569;
+  border: 1px solid rgba(226, 232, 240, 0.95);
   box-shadow:
-    inset 0 1px 1.5px 0 #ffffff,
-    inset 0 -1px 2px 0 rgba(225, 29, 72, 0.04),
-    0 4px 14px -2px rgba(225, 29, 72, 0.10);
+    inset 0 1px 1px 0 #ffffff,
+    0 2px 8px rgba(15, 23, 42, 0.04);
 }
 
 .btn-reject:active {
-  background: linear-gradient(135deg, rgba(254, 226, 226, 0.95) 0%, rgba(255, 241, 242, 0.90) 100%);
-  box-shadow: inset 0 1px 2px 0 rgba(225, 29, 72, 0.12);
+  background: linear-gradient(135deg, rgba(255, 241, 242, 0.95) 0%, rgba(254, 226, 226, 0.90) 100%);
+  color: #e11d48;
+  border-color: rgba(254, 205, 211, 0.90);
 }
 
-/* 同意核准：未来感极光深空流光微玻，青蓝霓光微动与晶透倒角 */
+/* 同意核准：62% 黄金主导比例，赛博流光量子极光，高对比度立体悬浮 */
 .btn-agree {
-  background: linear-gradient(135deg, #0284c7 0%, #2563eb 52%, #4f46e5 100%);
+  flex: 1;
+  background: linear-gradient(135deg, #06b6d4 0%, #2563eb 50%, #4f46e5 100%);
   color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.40);
+  border: 1px solid rgba(255, 255, 255, 0.45);
   box-shadow:
-    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.60),
-    inset 0 -1.5px 2px 0 rgba(15, 23, 42, 0.25),
-    0 8px 22px -3px rgba(37, 99, 235, 0.40);
+    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.65),
+    inset 0 -1.5px 2px 0 rgba(15, 23, 42, 0.22),
+    0 8px 24px -4px rgba(6, 182, 212, 0.42),
+    0 4px 12px -2px rgba(37, 99, 235, 0.35);
 }
 
 .btn-agree:active {
-  background: linear-gradient(135deg, #0369a1 0%, #1d4ed8 52%, #4338ca 100%);
+  background: linear-gradient(135deg, #0891b2 0%, #1d4ed8 50%, #4338ca 100%);
   box-shadow:
     inset 0 1px 2px 0 rgba(0, 0, 0, 0.25),
     0 4px 12px -2px rgba(37, 99, 235, 0.35);
 }
 
 .btn-label {
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 700;
   letter-spacing: 0.5px;
 }
