@@ -2,7 +2,10 @@ package com.saasbasics.platform.modules.system.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.saasbasics.platform.common.auth.AuthContext;
+import com.saasbasics.platform.common.auth.AuthPrincipal;
 import com.saasbasics.platform.common.exception.BizException;
+import com.saasbasics.platform.common.tenant.TenantAccessContext;
 import com.saasbasics.platform.common.tenant.TenantAccessContextHolder;
 import com.saasbasics.platform.modules.audit.service.AuditTrailService;
 import com.saasbasics.platform.modules.system.dto.DictItemResponse;
@@ -16,8 +19,10 @@ import com.saasbasics.platform.modules.system.entity.DictTypeEntity;
 import com.saasbasics.platform.modules.system.mapper.DictItemMapper;
 import com.saasbasics.platform.modules.system.mapper.DictTypeMapper;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
@@ -41,12 +46,23 @@ public class DictService {
     public List<DictTypeResponse> listTypes() {
         DictTypeMapper typeMapper = requiredTypeMapper();
         DictItemMapper itemMapper = requiredItemMapper();
+        Long tenantId = resolveCurrentTenantId();
 
         List<DictTypeEntity> types = typeMapper.selectList(new LambdaQueryWrapper<DictTypeEntity>()
+                .eq(DictTypeEntity::getTenantId, tenantId)
                 .eq(DictTypeEntity::getDeleted, 0)
                 .orderByAsc(DictTypeEntity::getDictCode));
 
+        if (types.isEmpty() && tenantId > 1L) {
+            seedDictionariesFromPlatform(typeMapper, itemMapper, tenantId);
+            types = typeMapper.selectList(new LambdaQueryWrapper<DictTypeEntity>()
+                    .eq(DictTypeEntity::getTenantId, tenantId)
+                    .eq(DictTypeEntity::getDeleted, 0)
+                    .orderByAsc(DictTypeEntity::getDictCode));
+        }
+
         List<DictItemEntity> items = itemMapper.selectList(new LambdaQueryWrapper<DictItemEntity>()
+                .eq(DictItemEntity::getTenantId, tenantId)
                 .eq(DictItemEntity::getDeleted, 0));
         Map<Long, Long> itemCountMap = items.stream()
                 .collect(Collectors.groupingBy(DictItemEntity::getDictTypeId, Collectors.counting()));
@@ -58,6 +74,7 @@ public class DictService {
 
     public DictTypeResponse createType(DictTypeSaveRequest request) {
         DictTypeEntity entity = new DictTypeEntity();
+        entity.setTenantId(resolveCurrentTenantId());
         apply(entity, request);
         requiredTypeMapper().insert(entity);
         DictTypeResponse response = getType(entity.getId());
@@ -84,7 +101,6 @@ public class DictService {
         if (entity == null || entity.getDeleted() != null && entity.getDeleted() == 1) {
             throw new BizException("DICT_TYPE_NOT_FOUND", "Dict type not found");
         }
-        entity.setTenantId(request.tenantId());
         entity.setStatus(request.status());
         mapper.updateById(entity);
         DictTypeResponse response = getType(id);
@@ -106,6 +122,7 @@ public class DictService {
     public DictItemResponse createItem(Long dictTypeId, DictItemSaveRequest request) {
         ensureTypeExists(dictTypeId);
         DictItemEntity entity = new DictItemEntity();
+        entity.setTenantId(resolveCurrentTenantId());
         apply(entity, dictTypeId, request);
         requiredItemMapper().insert(entity);
         DictItemResponse response = getItem(entity.getId());
@@ -133,7 +150,6 @@ public class DictService {
         if (entity == null || entity.getDeleted() != null && entity.getDeleted() == 1) {
             throw new BizException("DICT_ITEM_NOT_FOUND", "Dict item not found");
         }
-        entity.setTenantId(request.tenantId());
         entity.setStatus(request.status());
         mapper.updateById(entity);
         DictItemResponse response = getItem(id);
@@ -180,32 +196,52 @@ public class DictService {
     }
 
     public List<DictOptionResponse> listOptions(String dictCode) {
-        Long tenantId = TenantAccessContextHolder.requiredTenantId();
+        Long tenantId = resolveCurrentTenantId();
         DictTypeMapper typeMapper = requiredTypeMapper();
+        DictItemMapper itemMapper = requiredItemMapper();
+
         DictTypeEntity type = typeMapper.selectOne(new LambdaQueryWrapper<DictTypeEntity>()
                 .eq(DictTypeEntity::getDeleted, 0)
                 .eq(DictTypeEntity::getTenantId, tenantId)
                 .eq(DictTypeEntity::getDictCode, dictCode)
+                .eq(DictTypeEntity::getStatus, "ENABLED")
                 .last("LIMIT 1"));
-        if (type == null) {
-            type = typeMapper.selectOne(new LambdaQueryWrapper<DictTypeEntity>()
-                    .eq(DictTypeEntity::getDeleted, 0)
-                    .and(w -> w.eq(DictTypeEntity::getTenantId, 1L).or().eq(DictTypeEntity::getDictScope, "GLOBAL"))
-                    .eq(DictTypeEntity::getDictCode, dictCode)
-                    .last("LIMIT 1"));
-            if (type == null) {
-                return List.of();
-            }
-        }
 
-        Long targetTenantId = type.getTenantId();
-        return requiredItemMapper().selectList(new LambdaQueryWrapper<DictItemEntity>()
+        List<DictItemEntity> items;
+        if (type != null) {
+            items = itemMapper.selectList(new LambdaQueryWrapper<DictItemEntity>()
+                    .eq(DictItemEntity::getDeleted, 0)
+                    .eq(DictItemEntity::getTenantId, tenantId)
+                    .eq(DictItemEntity::getDictTypeId, type.getId())
+                    .eq(DictItemEntity::getStatus, "ENABLED")
+                    .orderByAsc(DictItemEntity::getSortNo, DictItemEntity::getId));
+        } else if (!Objects.equals(1L, tenantId)) {
+            try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openSystemBypass(
+                    TenantAccessContext.BypassOperation.TENANT_BOOTSTRAP,
+                    "Fallback read platform global dictionary options")) {
+                type = typeMapper.selectOne(new LambdaQueryWrapper<DictTypeEntity>()
+                        .eq(DictTypeEntity::getDeleted, 0)
+                        .and(w -> w.eq(DictTypeEntity::getTenantId, 1L).or().eq(DictTypeEntity::getDictScope, "GLOBAL"))
+                        .eq(DictTypeEntity::getDictCode, dictCode)
+                        .eq(DictTypeEntity::getStatus, "ENABLED")
+                        .orderByAsc(DictTypeEntity::getTenantId, DictTypeEntity::getId)
+                        .last("LIMIT 1"));
+                if (type == null) {
+                    return List.of();
+                }
+                Long fallbackTenantId = type.getTenantId();
+                items = itemMapper.selectList(new LambdaQueryWrapper<DictItemEntity>()
                         .eq(DictItemEntity::getDeleted, 0)
-                        .eq(DictItemEntity::getTenantId, targetTenantId)
+                        .eq(DictItemEntity::getTenantId, fallbackTenantId)
                         .eq(DictItemEntity::getDictTypeId, type.getId())
                         .eq(DictItemEntity::getStatus, "ENABLED")
-                        .orderByAsc(DictItemEntity::getSortNo, DictItemEntity::getId))
-                .stream()
+                        .orderByAsc(DictItemEntity::getSortNo, DictItemEntity::getId));
+            }
+        } else {
+            return List.of();
+        }
+
+        return items.stream()
                 .map(item -> new DictOptionResponse(
                         dictCode,
                         item.getItemLabel(),
@@ -215,6 +251,54 @@ public class DictService {
                         Boolean.TRUE.equals(item.getIsDefault())
                 ))
                 .toList();
+    }
+
+    @Transactional
+    protected void seedDictionariesFromPlatform(DictTypeMapper typeMapper, DictItemMapper itemMapper, Long tenantId) {
+        List<DictTypeEntity> sourceTypes;
+        List<DictItemEntity> sourceItems;
+        try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openSystemBypass(
+                TenantAccessContext.BypassOperation.TENANT_BOOTSTRAP, "Clone baseline dictionaries from platform")) {
+            sourceTypes = typeMapper.selectList(new LambdaQueryWrapper<DictTypeEntity>()
+                    .eq(DictTypeEntity::getTenantId, 1L)
+                    .eq(DictTypeEntity::getDeleted, 0));
+            sourceItems = itemMapper.selectList(new LambdaQueryWrapper<DictItemEntity>()
+                    .eq(DictItemEntity::getTenantId, 1L)
+                    .eq(DictItemEntity::getDeleted, 0));
+        }
+
+        Map<Long, List<DictItemEntity>> itemsByTypeId = sourceItems.stream()
+                .collect(Collectors.groupingBy(DictItemEntity::getDictTypeId, LinkedHashMap::new, Collectors.toList()));
+        for (DictTypeEntity src : sourceTypes) {
+            DictTypeEntity copyType = new DictTypeEntity();
+            copyType.setTenantId(tenantId);
+            copyType.setDictCode(src.getDictCode());
+            copyType.setDictName(src.getDictName());
+            copyType.setDictScope("TENANT");
+            copyType.setStatus(src.getStatus());
+            copyType.setCacheable(src.getCacheable());
+            copyType.setExtJson(src.getExtJson());
+            copyType.setRemark(src.getRemark());
+            typeMapper.insert(copyType);
+
+            List<DictItemEntity> srcItems = itemsByTypeId.getOrDefault(src.getId(), List.of());
+            for (DictItemEntity srcItem : srcItems) {
+                DictItemEntity copyItem = new DictItemEntity();
+                copyItem.setTenantId(tenantId);
+                copyItem.setDictTypeId(copyType.getId());
+                copyItem.setItemValue(srcItem.getItemValue());
+                copyItem.setItemLabel(srcItem.getItemLabel());
+                copyItem.setItemColor(srcItem.getItemColor());
+                copyItem.setItemTag(srcItem.getItemTag());
+                copyItem.setParentId(0L);
+                copyItem.setSortNo(srcItem.getSortNo());
+                copyItem.setStatus(srcItem.getStatus());
+                copyItem.setIsDefault(srcItem.getIsDefault());
+                copyItem.setExtJson(srcItem.getExtJson());
+                copyItem.setRemark(srcItem.getRemark());
+                itemMapper.insert(copyItem);
+            }
+        }
     }
 
     private DictTypeResponse getType(Long id) {
@@ -259,7 +343,9 @@ public class DictService {
     }
 
     private void apply(DictTypeEntity entity, DictTypeSaveRequest request) {
-        entity.setTenantId(request.tenantId());
+        if (entity.getTenantId() == null) {
+            entity.setTenantId(resolveCurrentTenantId());
+        }
         entity.setDictCode(request.dictCode());
         entity.setDictName(request.dictName());
         entity.setDictScope(request.dictScope());
@@ -270,7 +356,9 @@ public class DictService {
     }
 
     private void apply(DictItemEntity entity, Long dictTypeId, DictItemSaveRequest request) {
-        entity.setTenantId(request.tenantId());
+        if (entity.getTenantId() == null) {
+            entity.setTenantId(resolveCurrentTenantId());
+        }
         entity.setDictTypeId(dictTypeId);
         entity.setItemValue(request.itemValue());
         entity.setItemLabel(request.itemLabel());
@@ -282,6 +370,18 @@ public class DictService {
         entity.setIsDefault(request.defaultItem());
         entity.setExtJson(normalizeJson(request.extJson()));
         entity.setRemark(request.remark());
+    }
+
+    private Long resolveCurrentTenantId() {
+        TenantAccessContext ctx = TenantAccessContextHolder.current();
+        if (ctx != null && ctx.tenantId() != null && ctx.tenantId() > 0L) {
+            return ctx.tenantId();
+        }
+        AuthPrincipal principal = AuthContext.get();
+        if (principal != null && principal.tenantId() != null && principal.tenantId() > 0L) {
+            return principal.tenantId();
+        }
+        return 1L;
     }
 
     private DictTypeResponse toTypeResponse(DictTypeEntity entity, int itemCount) {

@@ -26,6 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import com.saasbasics.platform.common.tenant.TenantAccessContext;
@@ -284,11 +285,17 @@ public class MenuPermissionService {
                     .toList();
         }
 
-        // 2. 租户超级管理员 (Tenant >= 1L)：必须受该租户已获授权应用权限严格过滤！
+        boolean hasOwnTenantMenus = principal.tenantId() != null
+                && principal.tenantId() > 1L
+                && allTemplateMenus.stream()
+                        .anyMatch(menu -> principal.tenantId().equals(menu.tenantId())
+                                && "ENABLED".equalsIgnoreCase(menu.status()));
+
+        // 2. 租户超级管理员 (Tenant >= 1L)：必须受该租户已获授权应用权限严格过滤，且已初始化专属菜单的租户绝不混入平台自建动态菜单
         if (principal.isSuperAdmin()) {
             return allTemplateMenus
                     .stream()
-                    .filter(menu -> menu.tenantId() == null || Long.valueOf(0L).equals(menu.tenantId()) || Long.valueOf(1L).equals(menu.tenantId()) || principal.tenantId().equals(menu.tenantId()))
+                    .filter(menu -> matchesTenantMenuOwnership(principal.tenantId(), menu, hasOwnTenantMenus))
                     .filter(menu -> "ENABLED".equalsIgnoreCase(menu.status()))
                     .filter(menu -> isMenuAllowedForTenant(menu, effectiveFeatures))
                     .toList();
@@ -320,7 +327,7 @@ public class MenuPermissionService {
 
         List<MenuResponse> allMenus = allTemplateMenus
                 .stream()
-                .filter(menu -> menu.tenantId() == null || Long.valueOf(0L).equals(menu.tenantId()) || Long.valueOf(1L).equals(menu.tenantId()) || principal.tenantId().equals(menu.tenantId()))
+                .filter(menu -> matchesTenantMenuOwnership(principal.tenantId(), menu, hasOwnTenantMenus))
                 .filter(menu -> "ENABLED".equalsIgnoreCase(menu.status()))
                 .filter(menu -> menu.permissionCode() == null || principal.permissions().contains(menu.permissionCode()))
                 .filter(menu -> isMenuAllowedForTenant(menu, effectiveFeatures))
@@ -563,6 +570,22 @@ public class MenuPermissionService {
         if (!availableActionCodes.containsAll(actionCodes)) {
             throw new BizException("IAM_MENU_ACTION_INVALID", "所选页面动作不属于当前页面");
         }
+    }
+
+    private boolean matchesTenantMenuOwnership(Long principalTenantId, MenuResponse menu, boolean hasOwnTenantMenus) {
+        Long menuTenantId = menu.tenantId();
+        if (principalTenantId == null || principalTenantId <= 1L) {
+            return menuTenantId == null
+                    || Long.valueOf(0L).equals(menuTenantId)
+                    || Long.valueOf(1L).equals(menuTenantId)
+                    || Objects.equals(principalTenantId, menuTenantId);
+        }
+        if (hasOwnTenantMenus) {
+            return principalTenantId.equals(menuTenantId);
+        }
+        boolean isBaseline = menuTenantId == null || Long.valueOf(0L).equals(menuTenantId) || Long.valueOf(1L).equals(menuTenantId);
+        boolean isTenantDynamicMenu = menu.menuCode() != null && menu.menuCode().startsWith("dyn_");
+        return principalTenantId.equals(menuTenantId) || (isBaseline && !isTenantDynamicMenu);
     }
 
     private MenuPermissionMapper requiredMapper() {

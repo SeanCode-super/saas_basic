@@ -22,6 +22,9 @@ public class SystemConfigEntity extends BaseTenantEntity {
     @TableField("value_type")
     private String valueType;
 
+    @TableField("encrypted")
+    private Boolean encrypted;
+
     @TableField("status")
     private String status;
 
@@ -63,6 +66,14 @@ public class SystemConfigEntity extends BaseTenantEntity {
 
     public void setValueType(String valueType) {
         this.valueType = valueType;
+    }
+
+    public Boolean getEncrypted() {
+        return encrypted;
+    }
+
+    public void setEncrypted(Boolean encrypted) {
+        this.encrypted = encrypted;
     }
 
     public String getStatus() {

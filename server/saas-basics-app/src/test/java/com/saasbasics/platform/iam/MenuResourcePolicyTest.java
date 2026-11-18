@@ -1,5 +1,6 @@
 package com.saasbasics.platform.iam;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -148,6 +149,64 @@ class MenuResourcePolicyTest {
                 .extracting(exception -> ((BizException) exception).getCode())
                 .isEqualTo("IAM_MENU_NOT_FOUND");
         verify(mapper, never()).updateById(any(MenuEntity.class));
+    }
+
+    @Test
+    void tenantSuperAdminWithClonedMenusSeesOnlyOwnTenantMenus() {
+        MenuMapper menuMapper = mock(MenuMapper.class);
+        MenuPermissionMapper permissionMapper = mock(MenuPermissionMapper.class);
+        MenuResponse tenantMenu = new MenuResponse(
+                201L, 2L, 0L, "MENU", "crm_customers", "客户列表", null, null,
+                null, null, true, false, 10, "ENABLED", null, null
+        );
+        MenuResponse platformMenu = new MenuResponse(
+                101L, 1L, 0L, "MENU", "platform_ops", "平台运维", null, null,
+                null, null, true, false, 20, "ENABLED", null, null
+        );
+        MenuResponse platformDynMenu = new MenuResponse(
+                102L, 1L, 0L, "MENU", "dyn_form_1", "平台动态菜单", null, null,
+                null, null, true, false, 30, "ENABLED", null, null
+        );
+        when(menuMapper.selectMenuList()).thenReturn(List.of(tenantMenu, platformMenu, platformDynMenu));
+
+        MenuPermissionService service = permissionService(menuMapper, permissionMapper);
+        AuthPrincipal tenantSuperAdmin = new AuthPrincipal(
+                2L, 2L, "acme", 20L, "admin", "Acme Admin", "TENANT_ADMIN",
+                "ACTIVE", LocalDateTime.now().plusHours(1), List.of("*:*:*"), List.of(), List.of(2L), List.of()
+        );
+
+        List<MenuResponse> menus = service.listCurrentMenus(tenantSuperAdmin);
+
+        assertThat(menus)
+                .extracting(MenuResponse::menuCode)
+                .containsExactly("crm_customers");
+    }
+
+    @Test
+    void tenantSuperAdminWithoutClonedMenusFallsBackExcludingDynamicMenus() {
+        MenuMapper menuMapper = mock(MenuMapper.class);
+        MenuPermissionMapper permissionMapper = mock(MenuPermissionMapper.class);
+        MenuResponse platformMenu = new MenuResponse(
+                101L, 1L, 0L, "MENU", "crm_customers", "客户列表", null, null,
+                null, null, true, false, 10, "ENABLED", null, null
+        );
+        MenuResponse platformDynMenu = new MenuResponse(
+                102L, 1L, 0L, "MENU", "dyn_form_1", "平台动态菜单", null, null,
+                null, null, true, false, 20, "ENABLED", null, null
+        );
+        when(menuMapper.selectMenuList()).thenReturn(List.of(platformMenu, platformDynMenu));
+
+        MenuPermissionService service = permissionService(menuMapper, permissionMapper);
+        AuthPrincipal tenantSuperAdmin = new AuthPrincipal(
+                2L, 2L, "acme", 20L, "admin", "Acme Admin", "TENANT_ADMIN",
+                "ACTIVE", LocalDateTime.now().plusHours(1), List.of("*:*:*"), List.of(), List.of(2L), List.of()
+        );
+
+        List<MenuResponse> menus = service.listCurrentMenus(tenantSuperAdmin);
+
+        assertThat(menus)
+                .extracting(MenuResponse::menuCode)
+                .containsExactly("crm_customers");
     }
 
     private MenuPermissionService permissionService(MenuMapper menuMapper, MenuPermissionMapper permissionMapper) {

@@ -116,11 +116,11 @@ public class ErpService {
         entity.setDeleted(0);
         productMapper.insert(entity);
 
-        // 默认初始化在华东总仓的库存为 0
+        // 默认初始化在当前租户默认中心仓的库存为 0
         ErpInventoryEntity inv = new ErpInventoryEntity();
         inv.setTenantId(tenantId);
         inv.setProductId(entity.getId());
-        inv.setWarehouseId(1L);
+        inv.setWarehouseId(resolveTenantDefaultWarehouseId(tenantId));
         inv.setStockQuantity(0);
         inv.setLockedQuantity(0);
         inventoryMapper.insert(inv);
@@ -293,9 +293,16 @@ public class ErpService {
         order.setStatus("IN_STORAGE");
         purchaseOrderMapper.updateById(order);
 
-        // 默认将物料 1 (UPS) 增加 10 件入库
-        Long prodId = 1L;
-        Long whId = warehouseId != null ? warehouseId : 1L;
+        Long whId = warehouseId != null ? warehouseId : resolveTenantDefaultWarehouseId(tenantId);
+        List<ErpProductEntity> tenantProducts = productMapper.selectList(new LambdaQueryWrapper<ErpProductEntity>()
+                .eq(ErpProductEntity::getTenantId, tenantId)
+                .eq(ErpProductEntity::getDeleted, 0)
+                .orderByAsc(ErpProductEntity::getId)
+                .last("LIMIT 1"));
+        ErpProductEntity targetProd = tenantProducts.isEmpty() ? null : tenantProducts.get(0);
+        Long prodId = targetProd != null ? targetProd.getId() : 1L;
+        String prodName = targetProd != null ? targetProd.getProductName() : "高频工业级 UPS 50kVA 主机";
+
         ErpInventoryEntity inv = inventoryMapper.selectOne(new LambdaQueryWrapper<ErpInventoryEntity>()
                 .eq(ErpInventoryEntity::getTenantId, tenantId)
                 .eq(ErpInventoryEntity::getProductId, prodId)
@@ -309,6 +316,15 @@ public class ErpService {
             inv.setStockQuantity(after);
             inv.setUpdatedAt(LocalDateTime.now());
             inventoryMapper.updateById(inv);
+        } else if (targetProd != null) {
+            inv = new ErpInventoryEntity();
+            inv.setTenantId(tenantId);
+            inv.setProductId(prodId);
+            inv.setWarehouseId(whId);
+            inv.setStockQuantity(after);
+            inv.setLockedQuantity(0);
+            inv.setUpdatedAt(LocalDateTime.now());
+            inventoryMapper.insert(inv);
         }
 
         // 记录出入库台账流水
@@ -317,9 +333,9 @@ public class ErpService {
         record.setRecordNo("REC" + System.currentTimeMillis());
         record.setRecordType("PURCHASE_IN");
         record.setProductId(prodId);
-        record.setProductName("高频工业级 UPS 50kVA 主机");
+        record.setProductName(prodName);
         record.setWarehouseId(whId);
-        record.setWarehouseName(whId == 1L ? "华东一号中心立体总仓" : "华南保税智造配送仓");
+        record.setWarehouseName(resolveWarehouseName(tenantId, whId));
         record.setChangeQuantity(qtyChange);
         record.setBeforeQuantity(before);
         record.setAfterQuantity(after);
@@ -335,7 +351,7 @@ public class ErpService {
     public void adjustStock(Long productId, Long warehouseId, String type, int delta, String remark) {
         Long tenantId = getTenantId();
         String userName = getUserName();
-        Long whId = warehouseId != null ? warehouseId : 1L;
+        Long whId = warehouseId != null ? warehouseId : resolveTenantDefaultWarehouseId(tenantId);
 
         ErpProductEntity prod = productMapper.selectById(productId);
         if (prod == null || !prod.getTenantId().equals(tenantId) || prod.getDeleted() != 0) {
@@ -381,18 +397,7 @@ public class ErpService {
             inventoryMapper.insert(inv);
         }
 
-        String whName = whId == 1L ? "华东一号中心立体总仓" : (whId == 2L ? "华南保税智造配送仓" : "天枢测速专属实验仓");
-        try {
-            List<String> names = jdbcTemplate.query(
-                    "SELECT warehouse_name FROM erp_warehouse WHERE id = ? AND deleted = 0 LIMIT 1",
-                    (rs, rowNum) -> rs.getString("warehouse_name"),
-                    whId
-            );
-            if (!names.isEmpty() && names.get(0) != null) {
-                whName = names.get(0);
-            }
-        } catch (Exception ignored) {
-        }
+        String whName = resolveWarehouseName(tenantId, whId);
 
         ErpInventoryRecordEntity record = new ErpInventoryRecordEntity();
         record.setTenantId(tenantId);
@@ -411,6 +416,49 @@ public class ErpService {
         record.setDeptId(resolveCurrentDeptId());
         record.setCreatedAt(LocalDateTime.now());
         recordMapper.insert(record);
+    }
+
+    private Long resolveTenantDefaultWarehouseId(Long tenantId) {
+        try {
+            List<Long> ids = jdbcTemplate.query(
+                    "SELECT id FROM erp_warehouse WHERE tenant_id = ? AND status = 'ENABLED' AND deleted = 0 ORDER BY id ASC LIMIT 1",
+                    (rs, rowNum) -> rs.getLong("id"),
+                    tenantId
+            );
+            if (!ids.isEmpty() && ids.get(0) != null && ids.get(0) > 0L) {
+                return ids.get(0);
+            }
+            jdbcTemplate.update(
+                    "INSERT IGNORE INTO erp_warehouse (tenant_id, warehouse_code, warehouse_name, status, created_by, updated_by, deleted) VALUES (?, 'WH-DEFAULT', '默认中心总仓', 'ENABLED', ?, ?, 0)",
+                    tenantId, getUserId(), getUserId()
+            );
+            ids = jdbcTemplate.query(
+                    "SELECT id FROM erp_warehouse WHERE tenant_id = ? AND deleted = 0 ORDER BY id ASC LIMIT 1",
+                    (rs, rowNum) -> rs.getLong("id"),
+                    tenantId
+            );
+            if (!ids.isEmpty() && ids.get(0) != null && ids.get(0) > 0L) {
+                return ids.get(0);
+            }
+        } catch (Exception ignored) {
+            // 兼容单元测试无 JdbcTemplate 表结构场景
+        }
+        return 1L;
+    }
+
+    private String resolveWarehouseName(Long tenantId, Long whId) {
+        try {
+            List<String> names = jdbcTemplate.query(
+                    "SELECT warehouse_name FROM erp_warehouse WHERE id = ? AND tenant_id = ? AND deleted = 0 LIMIT 1",
+                    (rs, rowNum) -> rs.getString("warehouse_name"),
+                    whId, tenantId
+            );
+            if (!names.isEmpty() && names.get(0) != null) {
+                return names.get(0);
+            }
+        } catch (Exception ignored) {
+        }
+        return whId == 1L ? "华东一号中心立体总仓" : (whId == 2L ? "华南保税智造配送仓" : "默认中心总仓");
     }
 
     private Long resolveCurrentDeptId() {

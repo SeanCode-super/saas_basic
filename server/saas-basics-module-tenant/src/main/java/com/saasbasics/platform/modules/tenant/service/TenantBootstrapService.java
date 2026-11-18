@@ -55,11 +55,18 @@ public class TenantBootstrapService {
         assignAllApiResourcesToRole(tenantId, roleId);
         assignAllMenusToRole(tenantId, roleId);
         createDefaultDataPermissionRules(tenantId, roleId);
-        long userId = createAdminUser(tenantId, tenantCode, tenantName);
+        long employeeId = initializeDefaultOrgStructure(tenantId, tenantCode, tenantName);
+        long userId = createAdminUser(tenantId, tenantCode, tenantName, employeeId);
         bindUserRole(tenantId, userId, roleId);
         createPortalClientAndTerminal(tenantId, tenantCode, tenantName, loginPolicyId, passwordPolicyId);
         initializeTenantApps(tenantId, packageId);
         cloneDefaultProcessDefinitions(tenantId);
+        cloneDictionaries(tenantId);
+        cloneSystemConfigsAndI18n(tenantId);
+        cloneGovernanceBaselines(tenantId);
+        initializeFileStorageAndRoutes(tenantId);
+        initializeErpAndSchedulerBaselines(tenantId, tenantName);
+        cloneAiBaselines(tenantId);
         auditTrailService.record("tenant", "tenant_bootstrap", String.valueOf(tenantId), "BOOTSTRAP", tenantCode, "initialized", true);
     }
 
@@ -310,6 +317,7 @@ public class TenantBootstrapService {
                 FROM iam_menu
                 WHERE tenant_id = ?
                   AND deleted = 0
+                  AND menu_code NOT LIKE 'dyn\\_%'
                 """, tenantId, SOURCE_TENANT_ID);
 
         jdbcTemplate.update("""
@@ -351,9 +359,77 @@ public class TenantBootstrapService {
                        1, NOW(3), 1, NOW(3), 0, 0, 'tenant bootstrap'
                 FROM iam_menu target
                 WHERE target.tenant_id = ?
-                  AND target.menu_type <> 'BUTTON'
+                  AND target.menu_type NOT IN ('BUTTON', 'DIRECTORY')
                   AND target.deleted = 0
                 """, tenantId, roleId, tenantId);
+
+        jdbcTemplate.update("""
+                INSERT IGNORE INTO iam_role_menu (
+                  tenant_id, role_id, menu_id, created_by, created_at, updated_by, updated_at, deleted, version, remark
+                )
+                SELECT ?, ?, target.id, 1, NOW(3), 1, NOW(3), 0, 0, 'tenant bootstrap'
+                FROM iam_menu target
+                WHERE target.tenant_id = ?
+                  AND target.deleted = 0
+                """, tenantId, roleId, tenantId);
+    }
+
+    private long initializeDefaultOrgStructure(Long tenantId, String tenantCode, String tenantName) {
+        KeyHolder deptKeyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            PreparedStatement statement = connection.prepareStatement("""
+                    INSERT INTO iam_department (
+                      tenant_id, parent_id, dept_code, dept_name, dept_full_name, tree_path, leader_user_id, status,
+                      sort_no, created_by, created_at, updated_by, updated_at, deleted, version, remark
+                    ) VALUES (?, 0, ?, ?, ?, NULL, 0, 'ENABLED', 1, 1, ?, 1, ?, 0, 0, 'tenant bootstrap')
+                    """, Statement.RETURN_GENERATED_KEYS);
+            Timestamp now = Timestamp.valueOf(LocalDateTime.now());
+            statement.setLong(1, tenantId);
+            statement.setString(2, tenantCode + "_hq");
+            statement.setString(3, tenantName + "总部");
+            statement.setString(4, tenantName + "总部");
+            statement.setTimestamp(5, now);
+            statement.setTimestamp(6, now);
+            return statement;
+        }, deptKeyHolder);
+        long deptId = generatedId(deptKeyHolder, "TENANT_BOOTSTRAP_FAILED", "初始化默认部门失败");
+        jdbcTemplate.update("UPDATE iam_department SET tree_path = CONCAT('/', ?, '/') WHERE id = ?", deptId, deptId);
+
+        KeyHolder posKeyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            PreparedStatement statement = connection.prepareStatement("""
+                    INSERT INTO iam_position (
+                      tenant_id, position_code, position_name, position_level, status,
+                      sort_no, created_by, created_at, updated_by, updated_at, deleted, version, remark
+                    ) VALUES (?, ?, '系统管理员', 'M1', 'ENABLED', 1, 1, ?, 1, ?, 0, 0, 'tenant bootstrap')
+                    """, Statement.RETURN_GENERATED_KEYS);
+            Timestamp now = Timestamp.valueOf(LocalDateTime.now());
+            statement.setLong(1, tenantId);
+            statement.setString(2, tenantCode + "_admin_pos");
+            statement.setTimestamp(3, now);
+            statement.setTimestamp(4, now);
+            return statement;
+        }, posKeyHolder);
+        long positionId = generatedId(posKeyHolder, "TENANT_BOOTSTRAP_FAILED", "初始化默认岗位失败");
+
+        KeyHolder empKeyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            PreparedStatement statement = connection.prepareStatement("""
+                    INSERT INTO iam_employee (
+                      tenant_id, employee_no, employee_name, dept_id, position_id, employee_status,
+                      created_by, created_at, updated_by, updated_at, deleted, version, remark
+                    ) VALUES (?, 'EMP-0001', ?, ?, ?, 'ACTIVE', 1, ?, 1, ?, 0, 0, 'tenant bootstrap')
+                    """, Statement.RETURN_GENERATED_KEYS);
+            Timestamp now = Timestamp.valueOf(LocalDateTime.now());
+            statement.setLong(1, tenantId);
+            statement.setString(2, tenantName + "管理员");
+            statement.setLong(3, deptId);
+            statement.setLong(4, positionId);
+            statement.setTimestamp(5, now);
+            statement.setTimestamp(6, now);
+            return statement;
+        }, empKeyHolder);
+        return generatedId(empKeyHolder, "TENANT_BOOTSTRAP_FAILED", "初始化默认员工档案失败");
     }
 
     private void createDefaultDataPermissionRules(Long tenantId, Long roleId) {
@@ -380,7 +456,7 @@ public class TenantBootstrapService {
         }
     }
 
-    private long createAdminUser(Long tenantId, String tenantCode, String tenantName) {
+    private long createAdminUser(Long tenantId, String tenantCode, String tenantName, long employeeId) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             PreparedStatement statement = connection.prepareStatement("""
@@ -388,21 +464,306 @@ public class TenantBootstrapService {
                       tenant_id, public_id, user_code, username, nickname, employee_id, user_type, status, mobile, email,
                       last_login_at, last_login_ip, password_hash, password_changed_at, need_reset_password,
                       created_by, created_at, updated_by, updated_at, deleted, version, remark
-                    ) VALUES (?, ?, 'TENANT_ADMIN', 'admin', ?, 0, 'STAFF', 'ENABLED', NULL, ?,
+                    ) VALUES (?, ?, 'TENANT_ADMIN', 'admin', ?, ?, 'STAFF', 'ENABLED', NULL, ?,
                               NULL, NULL, ?, ?, 1, 1, ?, 1, ?, 0, 0, ?)
                     """, Statement.RETURN_GENERATED_KEYS);
             statement.setLong(1, tenantId);
             statement.setString(2, uuidGenerator.generate().toString());
             statement.setString(3, tenantName + "管理员");
-            statement.setString(4, "admin@" + tenantCode + ".local");
-            statement.setString(5, hash(DEFAULT_ADMIN_PASSWORD));
-            statement.setTimestamp(6, Timestamp.valueOf(LocalDateTime.now()));
+            statement.setLong(4, employeeId);
+            statement.setString(5, "admin@" + tenantCode + ".local");
+            statement.setString(6, hash(DEFAULT_ADMIN_PASSWORD));
             statement.setTimestamp(7, Timestamp.valueOf(LocalDateTime.now()));
             statement.setTimestamp(8, Timestamp.valueOf(LocalDateTime.now()));
-            statement.setString(9, "tenant bootstrap");
+            statement.setTimestamp(9, Timestamp.valueOf(LocalDateTime.now()));
+            statement.setString(10, "tenant bootstrap");
             return statement;
         }, keyHolder);
         return generatedId(keyHolder, "TENANT_BOOTSTRAP_FAILED", "初始化管理员用户失败");
+    }
+
+    private void cloneDictionaries(Long tenantId) {
+        jdbcTemplate.update("""
+                INSERT INTO sys_dict_type (
+                  tenant_id, dict_code, dict_name, dict_scope, status, cacheable, ext_json, remark,
+                  created_by, created_at, updated_by, updated_at, deleted, version
+                )
+                SELECT ?, s.dict_code, s.dict_name, 'TENANT', s.status, s.cacheable, s.ext_json, s.remark,
+                       1, NOW(3), 1, NOW(3), 0, 0
+                FROM sys_dict_type s
+                WHERE s.tenant_id = ? AND s.deleted = 0
+                  AND NOT EXISTS (
+                    SELECT 1 FROM sys_dict_type t
+                    WHERE t.tenant_id = ? AND t.dict_code = s.dict_code AND t.deleted = 0
+                  )
+                """, tenantId, SOURCE_TENANT_ID, tenantId);
+
+        jdbcTemplate.update("""
+                INSERT INTO sys_dict_item (
+                  tenant_id, dict_type_id, item_value, item_label, item_color, item_tag, parent_id, sort_no,
+                  status, is_default, ext_json, remark, created_by, created_at, updated_by, updated_at, deleted, version
+                )
+                SELECT ?, tgt_type.id, si.item_value, si.item_label, si.item_color, si.item_tag, 0, si.sort_no,
+                       si.status, si.is_default, si.ext_json, si.remark, 1, NOW(3), 1, NOW(3), 0, 0
+                FROM sys_dict_item si
+                INNER JOIN sys_dict_type src_type ON src_type.id = si.dict_type_id AND src_type.tenant_id = ? AND src_type.deleted = 0
+                INNER JOIN sys_dict_type tgt_type ON tgt_type.tenant_id = ? AND tgt_type.dict_code = src_type.dict_code AND tgt_type.deleted = 0
+                WHERE si.tenant_id = ? AND si.deleted = 0
+                  AND NOT EXISTS (
+                    SELECT 1 FROM sys_dict_item ti
+                    WHERE ti.tenant_id = ? AND ti.dict_type_id = tgt_type.id AND ti.item_value = si.item_value AND ti.deleted = 0
+                  )
+                """, tenantId, SOURCE_TENANT_ID, tenantId, SOURCE_TENANT_ID, tenantId);
+    }
+
+    private void cloneSystemConfigsAndI18n(Long tenantId) {
+        jdbcTemplate.update("""
+                INSERT INTO sys_config (
+                  tenant_id, config_group, config_key, config_name, config_value, value_type, encrypted, status, remark,
+                  created_by, created_at, updated_by, updated_at, deleted, version
+                )
+                SELECT ?, s.config_group, s.config_key, s.config_name, s.config_value, s.value_type, 0, s.status, s.remark,
+                       1, NOW(3), 1, NOW(3), 0, 0
+                FROM sys_config s
+                WHERE s.tenant_id = ? AND s.deleted = 0 AND s.encrypted = 0
+                  AND NOT EXISTS (
+                    SELECT 1 FROM sys_config t
+                    WHERE t.tenant_id = ? AND t.config_group = s.config_group AND t.config_key = s.config_key AND t.deleted = 0
+                  )
+                """, tenantId, SOURCE_TENANT_ID, tenantId);
+
+        jdbcTemplate.update("""
+                INSERT INTO sys_i18n_message (
+                  tenant_id, locale, message_group, message_key, message_value, remark,
+                  created_by, created_at, updated_by, updated_at, deleted, version
+                )
+                SELECT ?, s.locale, s.message_group, s.message_key, s.message_value, s.remark,
+                       1, NOW(3), 1, NOW(3), 0, 0
+                FROM sys_i18n_message s
+                WHERE s.tenant_id = ? AND s.deleted = 0
+                  AND NOT EXISTS (
+                    SELECT 1 FROM sys_i18n_message t
+                    WHERE t.tenant_id = ? AND t.locale = s.locale AND t.message_group = s.message_group
+                      AND t.message_key = s.message_key AND t.deleted = 0
+                  )
+                """, tenantId, SOURCE_TENANT_ID, tenantId);
+
+        jdbcTemplate.update("""
+                INSERT INTO iam_data_scope (
+                  tenant_id, scope_code, scope_name, scope_type, scope_rule_json, status, remark,
+                  created_by, created_at, updated_by, updated_at, deleted, version
+                )
+                SELECT ?, s.scope_code, s.scope_name, s.scope_type, s.scope_rule_json, s.status, s.remark,
+                       1, NOW(3), 1, NOW(3), 0, 0
+                FROM iam_data_scope s
+                WHERE s.tenant_id = ? AND s.deleted = 0
+                  AND NOT EXISTS (
+                    SELECT 1 FROM iam_data_scope t
+                    WHERE t.tenant_id = ? AND t.scope_code = s.scope_code AND t.deleted = 0
+                  )
+                """, tenantId, SOURCE_TENANT_ID, tenantId);
+    }
+
+    private void cloneGovernanceBaselines(Long tenantId) {
+        jdbcTemplate.update("""
+                INSERT INTO sys_sequence_rule (
+                  tenant_id, rule_code, rule_name, prefix, date_pattern, seq_length, step, current_value,
+                  reset_cycle, status, remark, created_by, created_at, updated_by, updated_at, deleted, version
+                )
+                SELECT ?, s.rule_code, s.rule_name, s.prefix, s.date_pattern, s.seq_length, s.step, 0,
+                       s.reset_cycle, s.status, s.remark, 1, NOW(3), 1, NOW(3), 0, 0
+                FROM sys_sequence_rule s
+                WHERE s.tenant_id = ? AND s.deleted = 0
+                  AND NOT EXISTS (
+                    SELECT 1 FROM sys_sequence_rule t
+                    WHERE t.tenant_id = ? AND t.rule_code = s.rule_code AND t.deleted = 0
+                  )
+                """, tenantId, SOURCE_TENANT_ID, tenantId);
+
+        jdbcTemplate.update("""
+                INSERT INTO sec_risk_rule (
+                  tenant_id, rule_code, rule_name, risk_type, rule_expr, action_json, status, remark,
+                  created_by, created_at, updated_by, updated_at, deleted, version
+                )
+                SELECT ?, s.rule_code, s.rule_name, s.risk_type, s.rule_expr, s.action_json, s.status, s.remark,
+                       1, NOW(3), 1, NOW(3), 0, 0
+                FROM sec_risk_rule s
+                WHERE s.tenant_id = ? AND s.deleted = 0
+                  AND NOT EXISTS (
+                    SELECT 1 FROM sec_risk_rule t
+                    WHERE t.tenant_id = ? AND t.rule_code = s.rule_code AND t.deleted = 0
+                  )
+                """, tenantId, SOURCE_TENANT_ID, tenantId);
+
+        jdbcTemplate.update("""
+                INSERT INTO system_notify_template (
+                  tenant_id, template_code, template_name, template_type, title_template, content_template, status, remark, deleted
+                )
+                SELECT ?, s.template_code, s.template_name, s.template_type, s.title_template, s.content_template, s.status, s.remark, 0
+                FROM system_notify_template s
+                WHERE s.tenant_id = ? AND s.deleted = 0
+                  AND NOT EXISTS (
+                    SELECT 1 FROM system_notify_template t
+                    WHERE t.tenant_id = ? AND t.template_code = s.template_code AND t.deleted = 0
+                  )
+                """, tenantId, SOURCE_TENANT_ID, tenantId);
+    }
+
+    private void initializeFileStorageAndRoutes(Long tenantId) {
+        jdbcTemplate.update("""
+                INSERT INTO file_storage (
+                  tenant_id, storage_code, storage_name, storage_type, endpoint, bucket_default, base_path,
+                  default_folder, path_pattern, max_file_mb, public_base_url, status, is_default, upload_mode,
+                  remark, created_by, updated_by, deleted
+                )
+                SELECT ?, 'local_default', '本地高可用文件存储', 'LOCAL', './data/storage', 'local-disk', './data/storage',
+                       'uploads', 't_{tenantId}/{folder}/{yyyy}/{MM}/{uuid}_{filename}', 100, '/api/file/raw-download',
+                       'ENABLED', 1, 'DIRECT_SERVER', '租户默认本地存储源', 1, 1, 0
+                FROM dual
+                WHERE NOT EXISTS (
+                  SELECT 1 FROM file_storage fs WHERE fs.tenant_id = ? AND fs.deleted = 0
+                )
+                """, tenantId, tenantId);
+
+        List<Long> storageIds = jdbcTemplate.query(
+                "SELECT id FROM file_storage WHERE tenant_id = ? AND deleted = 0 ORDER BY is_default DESC, id ASC LIMIT 1",
+                (rs, rowNum) -> rs.getLong("id"),
+                tenantId
+        );
+        if (!storageIds.isEmpty()) {
+            long storageId = storageIds.get(0);
+            jdbcTemplate.update("""
+                    INSERT INTO file_bucket (
+                      tenant_id, storage_id, bucket_code, bucket_name, bucket_type, bucket_path, status, remark,
+                      created_by, updated_by, deleted
+                    )
+                    SELECT ?, ?, 'default_bucket', '默认文件桶', 'PRIVATE', CONCAT('/t_', ?, '/default'),
+                           'ENABLED', '租户默认文件桶', 1, 1, 0
+                    FROM dual
+                    WHERE NOT EXISTS (
+                      SELECT 1 FROM file_bucket fb WHERE fb.tenant_id = ? AND fb.bucket_code = 'default_bucket' AND fb.deleted = 0
+                    )
+                    """, tenantId, storageId, tenantId, tenantId);
+        }
+
+        jdbcTemplate.update("""
+                INSERT INTO file_upload_route (
+                  tenant_id, storage_id, biz_type, route_name, upload_mode, target_dir, path_pattern,
+                  max_file_mb, allowed_exts, priority, status, remark, created_by, updated_by, deleted
+                )
+                SELECT ?, NULL, s.biz_type, s.route_name, s.upload_mode, s.target_dir,
+                       't_{tenantId}/{folder}/{yyyy}/{MM}/{uuid}_{filename}',
+                       s.max_file_mb, s.allowed_exts, s.priority, s.status, s.remark, 1, 1, 0
+                FROM file_upload_route s
+                WHERE s.tenant_id = ? AND s.deleted = 0
+                  AND NOT EXISTS (
+                    SELECT 1 FROM file_upload_route t WHERE t.tenant_id = ? AND t.biz_type = s.biz_type AND t.deleted = 0
+                  )
+                """, tenantId, SOURCE_TENANT_ID, tenantId);
+    }
+
+    private void initializeErpAndSchedulerBaselines(Long tenantId, String tenantName) {
+        jdbcTemplate.update("""
+                INSERT INTO erp_warehouse (
+                  tenant_id, warehouse_code, warehouse_name, status, created_by, updated_by, deleted
+                )
+                SELECT ?, 'WH-DEFAULT', ?, 'ENABLED', 1, 1, 0
+                FROM dual
+                WHERE NOT EXISTS (
+                  SELECT 1 FROM erp_warehouse w WHERE w.tenant_id = ? AND w.deleted = 0
+                )
+                """, tenantId, tenantName + "默认中心总仓", tenantId);
+
+        jdbcTemplate.update("""
+                INSERT INTO sched_executor (
+                  tenant_id, executor_code, executor_name, executor_type, address, status, heartbeat_at,
+                  remark, created_by, updated_by, deleted
+                )
+                SELECT ?, 'local-default', '本地执行器', 'LOCAL', '127.0.0.1', 'ENABLED', NOW(3),
+                       '租户默认本地任务执行器', 1, 1, 0
+                FROM dual
+                WHERE NOT EXISTS (
+                  SELECT 1 FROM sched_executor se WHERE se.tenant_id = ? AND se.executor_code = 'local-default' AND se.deleted = 0
+                )
+                """, tenantId, tenantId);
+    }
+
+    private void cloneAiBaselines(Long tenantId) {
+        jdbcTemplate.update("""
+                INSERT INTO ai_provider (
+                  tenant_id, provider_code, provider_name, provider_type, base_url, api_key,
+                  status, is_default, sort_no, remark, created_by, updated_by, deleted
+                )
+                SELECT ?, s.provider_code, s.provider_name, s.provider_type, s.base_url, '',
+                       s.status, s.is_default, s.sort_no, s.remark, 1, 1, 0
+                FROM ai_provider s
+                WHERE s.tenant_id = ? AND s.deleted = 0
+                  AND NOT EXISTS (
+                    SELECT 1 FROM ai_provider t WHERE t.tenant_id = ? AND t.provider_code = s.provider_code AND t.deleted = 0
+                  )
+                """, tenantId, SOURCE_TENANT_ID, tenantId);
+
+        jdbcTemplate.update("""
+                INSERT INTO ai_model_config (
+                  tenant_id, provider_id, model_id, model_name, category, context_window, max_tokens,
+                  temperature, is_default, status, sort_no, created_by, updated_by, deleted
+                )
+                SELECT ?, tgt_p.id, s.model_id, s.model_name, s.category, s.context_window, s.max_tokens,
+                       s.temperature, s.is_default, s.status, s.sort_no, 1, 1, 0
+                FROM ai_model_config s
+                INNER JOIN ai_provider src_p ON src_p.id = s.provider_id AND src_p.tenant_id = ? AND src_p.deleted = 0
+                INNER JOIN ai_provider tgt_p ON tgt_p.tenant_id = ? AND tgt_p.provider_code = src_p.provider_code AND tgt_p.deleted = 0
+                WHERE s.tenant_id = ? AND s.deleted = 0
+                  AND NOT EXISTS (
+                    SELECT 1 FROM ai_model_config t WHERE t.tenant_id = ? AND t.model_id = s.model_id AND t.deleted = 0
+                  )
+                """, tenantId, SOURCE_TENANT_ID, tenantId, SOURCE_TENANT_ID, tenantId);
+
+        jdbcTemplate.update("""
+                INSERT INTO ai_prompt (
+                  tenant_id, prompt_code, prompt_name, category, active_version, status, remark,
+                  created_by, updated_by, deleted
+                )
+                SELECT ?, s.prompt_code, s.prompt_name, s.category, s.active_version, s.status, s.remark, 1, 1, 0
+                FROM ai_prompt s
+                WHERE s.tenant_id = ? AND s.deleted = 0
+                  AND NOT EXISTS (
+                    SELECT 1 FROM ai_prompt t WHERE t.tenant_id = ? AND t.prompt_code = s.prompt_code AND t.deleted = 0
+                  )
+                """, tenantId, SOURCE_TENANT_ID, tenantId);
+
+        jdbcTemplate.update("""
+                INSERT INTO ai_prompt_version (
+                  tenant_id, prompt_id, version_no, system_prompt, user_template, variables_json,
+                  model_hint, changelog, is_published, remark, created_by, updated_by, deleted
+                )
+                SELECT ?, tgt_pr.id, s.version_no, s.system_prompt, s.user_template, s.variables_json,
+                       s.model_hint, s.changelog, s.is_published, s.remark, 1, 1, 0
+                FROM ai_prompt_version s
+                INNER JOIN ai_prompt src_pr ON src_pr.id = s.prompt_id AND src_pr.tenant_id = ? AND src_pr.deleted = 0
+                INNER JOIN ai_prompt tgt_pr ON tgt_pr.tenant_id = ? AND tgt_pr.prompt_code = src_pr.prompt_code AND tgt_pr.deleted = 0
+                WHERE s.tenant_id = ? AND s.deleted = 0
+                  AND NOT EXISTS (
+                    SELECT 1 FROM ai_prompt_version t
+                    WHERE t.tenant_id = ? AND t.prompt_id = tgt_pr.id AND t.version_no = s.version_no AND t.deleted = 0
+                  )
+                """, tenantId, SOURCE_TENANT_ID, tenantId, SOURCE_TENANT_ID, tenantId);
+
+        jdbcTemplate.update("""
+                INSERT INTO ai_tool (
+                  tenant_id, tool_code, tool_name, semantic_version, description, input_schema_json,
+                  output_schema_json, permission_code, risk_level, adapter_type, mcp_server_id,
+                  whitelisted, idempotent, timeout_ms, status, remark, created_by, updated_by, deleted
+                )
+                SELECT ?, s.tool_code, s.tool_name, s.semantic_version, s.description, s.input_schema_json,
+                       s.output_schema_json, s.permission_code, s.risk_level, s.adapter_type, NULL,
+                       s.whitelisted, s.idempotent, s.timeout_ms, s.status, s.remark, 1, 1, 0
+                FROM ai_tool s
+                WHERE s.tenant_id = ? AND s.deleted = 0
+                  AND NOT EXISTS (
+                    SELECT 1 FROM ai_tool t WHERE t.tenant_id = ? AND t.tool_code = s.tool_code AND t.deleted = 0
+                  )
+                """, tenantId, SOURCE_TENANT_ID, tenantId);
     }
 
     private void bindUserRole(Long tenantId, Long userId, Long roleId) {

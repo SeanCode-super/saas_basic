@@ -194,17 +194,41 @@ public class SequenceRuleService {
 
     private SequenceRuleEntity findByCodeOrThrow(SequenceRuleMapper mapper, String code) {
         Long tenantId = currentTenantId();
+        String trimmedCode = code != null ? code.trim() : "";
         SequenceRuleEntity entity = mapper.selectOne(
                 new LambdaQueryWrapper<SequenceRuleEntity>()
                         .eq(SequenceRuleEntity::getTenantId, tenantId)
-                        .eq(SequenceRuleEntity::getRuleCode, code.trim())
+                        .eq(SequenceRuleEntity::getRuleCode, trimmedCode)
                         .eq(SequenceRuleEntity::getDeleted, 0)
                         .last("LIMIT 1")
         );
+        if (entity == null && tenantId > 1L) {
+            entity = seedSingleRuleFromPlatform(mapper, tenantId, trimmedCode);
+        }
         if (entity == null) {
             throw new BizException("SEQUENCE_RULE_NOT_FOUND", "序列规则不存在: " + code);
         }
         return entity;
+    }
+
+    private SequenceRuleEntity seedSingleRuleFromPlatform(SequenceRuleMapper mapper, Long tenantId, String ruleCode) {
+        SequenceRuleEntity src;
+        try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openSystemBypass(
+                TenantAccessContext.BypassOperation.TENANT_BOOTSTRAP, "Fallback clone sequence rule from tenant 1")) {
+            src = mapper.selectOne(
+                    new LambdaQueryWrapper<SequenceRuleEntity>()
+                            .eq(SequenceRuleEntity::getTenantId, 1L)
+                            .eq(SequenceRuleEntity::getRuleCode, ruleCode)
+                            .eq(SequenceRuleEntity::getDeleted, 0)
+                            .last("LIMIT 1")
+            );
+        }
+        if (src == null) {
+            return null;
+        }
+        SequenceRuleEntity copy = copyFromPlatform(src, tenantId);
+        mapper.insert(copy);
+        return copy;
     }
 
     private void seedFromPlatform(SequenceRuleMapper mapper, Long tenantId) {
@@ -218,20 +242,24 @@ public class SequenceRuleService {
             );
         }
         for (SequenceRuleEntity src : defaults) {
-            SequenceRuleEntity copy = new SequenceRuleEntity();
-            copy.setTenantId(tenantId);
-            copy.setRuleCode(src.getRuleCode());
-            copy.setRuleName(src.getRuleName());
-            copy.setPrefix(src.getPrefix());
-            copy.setDatePattern(src.getDatePattern());
-            copy.setSeqLength(src.getSeqLength());
-            copy.setStep(src.getStep());
-            copy.setCurrentValue(0L);
-            copy.setResetCycle(src.getResetCycle());
-            copy.setStatus(src.getStatus());
-            copy.setRemark(src.getRemark());
-            mapper.insert(copy);
+            mapper.insert(copyFromPlatform(src, tenantId));
         }
+    }
+
+    private SequenceRuleEntity copyFromPlatform(SequenceRuleEntity src, Long tenantId) {
+        SequenceRuleEntity copy = new SequenceRuleEntity();
+        copy.setTenantId(tenantId);
+        copy.setRuleCode(src.getRuleCode());
+        copy.setRuleName(src.getRuleName());
+        copy.setPrefix(src.getPrefix());
+        copy.setDatePattern(src.getDatePattern());
+        copy.setSeqLength(src.getSeqLength());
+        copy.setStep(src.getStep());
+        copy.setCurrentValue(0L);
+        copy.setResetCycle(src.getResetCycle());
+        copy.setStatus(src.getStatus());
+        copy.setRemark(src.getRemark());
+        return copy;
     }
 
     private Long currentTenantId() {

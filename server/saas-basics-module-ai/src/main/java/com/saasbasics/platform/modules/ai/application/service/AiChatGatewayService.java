@@ -399,6 +399,9 @@ public class AiChatGatewayService implements AiGatewayFacade {
                     while (base.endsWith("/")) base = base.substring(0, base.length() - 1);
                     String url = base.endsWith("/chat/completions") ? base : (base + "/chat/completions");
                     String rawKey = credentialResolver.resolvePlainSecret(prov.getTenantId(), prov.getId(), prov.getApiKey());
+                    if ((rawKey == null || rawKey.isBlank()) && fallbackApiKey != null && !fallbackApiKey.isBlank()) {
+                        rawKey = credentialResolver.resolvePlainSecret(1L, null, fallbackApiKey);
+                    }
                     return new ResolvedEndpoint(url, rawKey, modelCfg.getModelId(),
                             prov.getProviderCode(), prov.getProviderType(), modelCfg.getMaxTokens());
                 }

@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.saasbasics.platform.common.auth.AuthContext;
 import com.saasbasics.platform.common.auth.AuthPrincipal;
 import com.saasbasics.platform.common.exception.BizException;
+import com.saasbasics.platform.common.tenant.TenantAccessContext;
+import com.saasbasics.platform.common.tenant.TenantAccessContextHolder;
 import com.saasbasics.platform.modules.ai.application.dto.AiPromptDTO;
 import com.saasbasics.platform.modules.ai.application.dto.AiPromptSaveRequest;
 import com.saasbasics.platform.modules.ai.application.dto.AiPromptVersionDTO;
@@ -185,20 +187,49 @@ public class AiPromptService {
         if (promptCode == null || promptCode.isBlank()) {
             return null;
         }
+        String code = promptCode.trim();
         AiPromptEntity prompt = promptMapper.selectOne(
                 new LambdaQueryWrapper<AiPromptEntity>()
-                        .eq(AiPromptEntity::getPromptCode, promptCode.trim())
+                        .eq(AiPromptEntity::getPromptCode, code)
+                        .eq(AiPromptEntity::getStatus, "ENABLED")
+                        .eq(AiPromptEntity::getDeleted, 0)
                         .last("LIMIT 1")
         );
-        if (prompt == null) {
+        if (prompt != null) {
+            return versionMapper.selectOne(
+                    new LambdaQueryWrapper<AiPromptVersionEntity>()
+                            .eq(AiPromptVersionEntity::getPromptId, prompt.getId())
+                            .eq(AiPromptVersionEntity::getVersionNo, prompt.getActiveVersion())
+                            .eq(AiPromptVersionEntity::getDeleted, 0)
+                            .last("LIMIT 1")
+            );
+        }
+        if (Objects.equals(1L, currentTenantId())) {
             return null;
         }
-        return versionMapper.selectOne(
-                new LambdaQueryWrapper<AiPromptVersionEntity>()
-                        .eq(AiPromptVersionEntity::getPromptId, prompt.getId())
-                        .eq(AiPromptVersionEntity::getVersionNo, prompt.getActiveVersion())
-                        .last("LIMIT 1")
-        );
+        try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openSystemBypass(
+                TenantAccessContext.BypassOperation.TENANT_BOOTSTRAP,
+                "Fallback read platform AI prompt")) {
+            AiPromptEntity platformPrompt = promptMapper.selectOne(
+                    new LambdaQueryWrapper<AiPromptEntity>()
+                            .eq(AiPromptEntity::getTenantId, 1L)
+                            .eq(AiPromptEntity::getPromptCode, code)
+                            .eq(AiPromptEntity::getStatus, "ENABLED")
+                            .eq(AiPromptEntity::getDeleted, 0)
+                            .last("LIMIT 1")
+            );
+            if (platformPrompt == null) {
+                return null;
+            }
+            return versionMapper.selectOne(
+                    new LambdaQueryWrapper<AiPromptVersionEntity>()
+                            .eq(AiPromptVersionEntity::getTenantId, 1L)
+                            .eq(AiPromptVersionEntity::getPromptId, platformPrompt.getId())
+                            .eq(AiPromptVersionEntity::getVersionNo, platformPrompt.getActiveVersion())
+                            .eq(AiPromptVersionEntity::getDeleted, 0)
+                            .last("LIMIT 1")
+            );
+        }
     }
 
     private AiPromptEntity requirePromptByCode(String code) {
