@@ -270,6 +270,7 @@ public class AiAppBuilderService {
         ddl.append("  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,\n");
         ddl.append("  `tenant_id` BIGINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '租户ID',\n");
         ddl.append("  `created_by` BIGINT UNSIGNED NOT NULL DEFAULT 0,\n");
+        ddl.append("  `dept_id` BIGINT UNSIGNED DEFAULT NULL COMMENT '归属部门ID',\n");
         ddl.append("  `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),\n");
         ddl.append("  `updated_by` BIGINT UNSIGNED NOT NULL DEFAULT 0,\n");
         ddl.append("  `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),\n");
@@ -280,6 +281,10 @@ public class AiAppBuilderService {
         for (DynamicFieldDto f : fields) {
             String col = f.fieldCode().trim().toLowerCase(Locale.ROOT);
             validateCode(col);
+            if ("tenant_id".equals(col) || "dept_id".equals(col) || "created_by".equals(col)
+                    || "updated_by".equals(col) || "deleted".equals(col) || "id".equals(col)) {
+                continue;
+            }
             String colType = sanitizeColumnType(f.columnType());
             String comment = f.fieldName() != null ? f.fieldName().replace("'", "") : col;
 
@@ -287,7 +292,8 @@ public class AiAppBuilderService {
                     .append(" DEFAULT NULL COMMENT '").append(comment).append("'");
         }
 
-        ddl.append(",\n  INDEX `idx_tenant_deleted` (`tenant_id`, `deleted`)\n");
+        ddl.append(",\n  INDEX `idx_tenant_deleted` (`tenant_id`, `deleted`),\n");
+        ddl.append("  INDEX `idx_tenant_dept` (`tenant_id`, `dept_id`)\n");
         ddl.append(") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI动态业务表';");
 
         jdbcTemplate.execute(ddl.toString());

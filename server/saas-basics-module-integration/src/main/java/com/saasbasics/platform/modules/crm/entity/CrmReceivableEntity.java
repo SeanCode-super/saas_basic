@@ -1,6 +1,8 @@
 package com.saasbasics.platform.modules.crm.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import java.math.BigDecimal;
@@ -22,6 +24,8 @@ public class CrmReceivableEntity {
     private LocalDate returnTime;
     private String payType;
     private String status;
+    @TableField(fill = FieldFill.INSERT)
+    private Long deptId;
     private String remark;
     private LocalDateTime createdAt;
     private Long createdBy;
@@ -51,6 +55,8 @@ public class CrmReceivableEntity {
     public void setPayType(String payType) { this.payType = payType; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+    public Long getDeptId() { return deptId; }
+    public void setDeptId(Long deptId) { this.deptId = deptId; }
     public String getRemark() { return remark; }
     public void setRemark(String remark) { this.remark = remark; }
     public LocalDateTime getCreatedAt() { return createdAt; }

@@ -1,7 +1,10 @@
 package com.saasbasics.platform.modules.system.controller;
 
 import com.saasbasics.platform.common.api.ApiResponse;
+import com.saasbasics.platform.common.auth.AuthContext;
+import com.saasbasics.platform.common.auth.AuthPrincipal;
 import com.saasbasics.platform.common.auth.RequirePermission;
+import com.saasbasics.platform.common.auth.RequirePlatformTenant;
 import com.saasbasics.platform.modules.system.infra.InfraMonitorService;
 import com.saasbasics.platform.modules.system.infra.InfraMonitorService.*;
 import org.springframework.web.bind.annotation.*;
@@ -31,33 +34,49 @@ public class InfraMonitorController {
     @GetMapping("/redis/keys")
     @RequirePermission("system:config:query")
     public ApiResponse<List<RedisKeyItem>> listRedisKeys(@RequestParam(required = false, defaultValue = "*") String pattern) {
-        return ApiResponse.success(infraMonitorService.listRedisKeys(pattern));
+        AuthPrincipal principal = AuthContext.get();
+        Long tenantId = (principal != null && principal.tenantId() != null) ? principal.tenantId() : 1L;
+        boolean platformTenant = principal == null || principal.isPlatformTenant();
+        return ApiResponse.success(infraMonitorService.listRedisKeys(tenantId, platformTenant, pattern));
     }
 
     @DeleteMapping("/redis/keys")
     @RequirePermission("system:config:write")
     public ApiResponse<Boolean> deleteRedisKey(@RequestParam String key) {
-        return ApiResponse.success(infraMonitorService.deleteRedisKey(key));
+        AuthPrincipal principal = AuthContext.get();
+        Long tenantId = (principal != null && principal.tenantId() != null) ? principal.tenantId() : 1L;
+        boolean platformTenant = principal == null || principal.isPlatformTenant();
+        return ApiResponse.success(infraMonitorService.deleteRedisKey(tenantId, platformTenant, key));
     }
 
     @PostMapping("/redis/cache/reload")
     @RequirePermission("system:config:write")
     public ApiResponse<Map<String, Object>> reloadSystemCaches() {
-        int clearedCount = systemCacheService.reloadAllSystemCaches();
+        AuthPrincipal principal = AuthContext.get();
+        Long tenantId = (principal != null && principal.tenantId() != null) ? principal.tenantId() : 1L;
+        boolean platformTenant = principal == null || principal.isPlatformTenant();
+        int clearedCount = platformTenant
+                ? systemCacheService.reloadAllSystemCaches()
+                : systemCacheService.reloadTenantCaches(tenantId);
         return ApiResponse.success(Map.of(
                 "success", true,
                 "clearedKeys", clearedCount,
-                "message", "系统 Redis 缓存已成功清理并触发重载，已与底层数据库强同步"
+                "scope", platformTenant ? "PLATFORM" : "TENANT:" + tenantId,
+                "message", platformTenant
+                        ? "平台全局 Redis 缓存已成功清理并触发重载，已与底层数据库强同步"
+                        : "当前租户命名空间（saas:t:" + tenantId + ":*）缓存已清理并重载"
         ));
     }
 
     @GetMapping("/slow-sql/report")
+    @RequirePlatformTenant
     @RequirePermission("system:config:query")
     public ApiResponse<SlowSqlReportResponse> getSlowSqlReport() {
         return ApiResponse.success(infraMonitorService.getSlowSqlReport());
     }
 
     @DeleteMapping("/slow-sql/clear")
+    @RequirePlatformTenant
     @RequirePermission("system:config:write")
     public ApiResponse<Void> clearSlowSql() {
         infraMonitorService.clearSlowSqlRecords();
@@ -65,6 +84,7 @@ public class InfraMonitorController {
     }
 
     @PutMapping("/slow-sql/threshold")
+    @RequirePlatformTenant
     @RequirePermission("system:config:write")
     public ApiResponse<Void> setSlowSqlThreshold(@RequestBody Map<String, Long> payload) {
         Long threshold = payload.get("thresholdMillis");

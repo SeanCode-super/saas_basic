@@ -195,7 +195,11 @@ public class PlatformFileStorageGatewayImpl implements PlatformFileStorageGatewa
         }
         String cleanKey = objectKey.replace('\\', '/').replaceAll("^/+", "");
         Long resolvedTenant = resolveTenantId(tenantId);
+        FilePathPolicyHelper.assertTenantKeyAccess(resolvedTenant, cleanKey);
         FileObjectEntity obj = fileObjectService.findByObjectKey(resolvedTenant, cleanKey);
+        if (obj == null && fileObjectService.isOwnedByAnotherTenant(resolvedTenant, cleanKey)) {
+            throw new BizException("FILE_CROSS_TENANT_FORBIDDEN", "禁止跨租户下载其他租户文件");
+        }
         FileStorageEntity storage = null;
         if (obj != null && obj.getStorageId() != null) {
             storage = fileStorageService.findActiveStorageById(resolvedTenant, obj.getStorageId());

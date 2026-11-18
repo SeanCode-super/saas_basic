@@ -2,6 +2,7 @@ package com.saasbasics.platform.modules.system.controller;
 
 import com.saasbasics.platform.common.api.ApiResponse;
 import com.saasbasics.platform.common.auth.RequirePermission;
+import com.saasbasics.platform.common.auth.RequirePlatformTenant;
 import com.saasbasics.platform.modules.system.dto.AlertGovernanceDtos.AlertEvaluationSummary;
 import com.saasbasics.platform.modules.system.dto.AlertGovernanceDtos.AlertEventResponse;
 import com.saasbasics.platform.modules.system.dto.AlertGovernanceDtos.AlertRuleResponse;
@@ -30,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
+@RequirePlatformTenant
 @RequestMapping("/api/infra/server-monitor")
 public class ServerMonitorController {
 

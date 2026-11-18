@@ -22,10 +22,16 @@ public class SystemCacheService {
     private static final Logger log = LoggerFactory.getLogger(SystemCacheService.class);
 
     public static final String KEY_PREFIX = "saas:";
-    public static final String KEY_DEPT_TREE = "saas:org:dept_tree:%d:%d";
-    public static final String KEY_USER_PERMS = "saas:iam:perms:%d:%d";
-    public static final String KEY_MENU_TREE = "saas:iam:menus:%d";
-    public static final String KEY_DATA_RULES = "saas:iam:data_rules:%d:%s";
+    public static final String KEY_TENANT_PREFIX_FORMAT = "saas:t:%d:";
+    public static final String KEY_DEPT_TREE = "saas:t:%d:org:dept_tree:%d";
+    public static final String KEY_USER_PERMS = "saas:t:%d:iam:perms:%d";
+    public static final String KEY_MENU_TREE = "saas:t:%d:iam:menus";
+    public static final String KEY_DATA_RULES = "saas:t:%d:iam:data_rules:%s";
+
+    public static String tenantKeyPrefix(Long tenantId) {
+        long safeTenantId = (tenantId != null && tenantId > 0L) ? tenantId : 1L;
+        return String.format(KEY_TENANT_PREFIX_FORMAT, safeTenantId);
+    }
 
     private static final long DEFAULT_TTL_SECONDS = 7200; // 2 小时
 
@@ -104,20 +110,32 @@ public class SystemCacheService {
      * @return 清理并刷新的缓存 Key 数量
      */
     public int reloadAllSystemCaches() {
+        return evictAndCount(KEY_PREFIX + "*", "管理员触发全局系统缓存重新加载");
+    }
+
+    /**
+     * 按租户命名空间精确清理当前租户的系统缓存（saas:t:{tenantId}:*），严禁误删其他租户缓存。
+     */
+    public int reloadTenantCaches(Long tenantId) {
+        String prefix = tenantKeyPrefix(tenantId);
+        return evictAndCount(prefix + "*", "租户管理员触发本租户命名空间缓存重载: prefix=" + prefix);
+    }
+
+    private int evictAndCount(String pattern, String logTitle) {
         RedisTemplate<String, Object> template = redisTemplateProvider.getIfAvailable();
         if (template == null) {
             return 0;
         }
         try {
-            Set<String> keys = template.keys(KEY_PREFIX + "*");
+            Set<String> keys = template.keys(pattern);
             if (keys != null && !keys.isEmpty()) {
                 Long deletedCount = template.delete(keys);
-                log.info("管理员触发全局系统缓存重新加载，已成功清理并失效旧缓存项: count={}", deletedCount);
+                log.info("{}: count={}", logTitle, deletedCount);
                 return deletedCount != null ? deletedCount.intValue() : keys.size();
             }
             return 0;
         } catch (Exception ex) {
-            log.error("Redis 全局缓存清理重载失败: {}", ex.getMessage());
+            log.error("Redis 缓存清理重载失败: pattern={}, error={}", pattern, ex.getMessage());
             return 0;
         }
     }

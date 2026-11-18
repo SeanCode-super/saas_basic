@@ -2,6 +2,7 @@ package com.saasbasics.platform.modules.system.controller;
 
 import com.saasbasics.platform.common.api.ApiResponse;
 import com.saasbasics.platform.common.auth.RequirePermission;
+import com.saasbasics.platform.common.auth.RequirePlatformTenant;
 import com.saasbasics.platform.outbox.PlatformOutboxService;
 import com.saasbasics.platform.outbox.PlatformOutboxService.OutboxEventRecordView;
 import java.util.List;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@RequirePlatformTenant
 @RequestMapping("/api/system/outbox")
 public class OutboxController {
 

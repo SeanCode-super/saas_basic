@@ -3,6 +3,7 @@ package com.saasbasics.platform.modules.erp.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.saasbasics.platform.common.auth.AuthContext;
 import com.saasbasics.platform.common.auth.AuthPrincipal;
+import com.saasbasics.platform.common.auth.CurrentDepartmentResolver;
 import com.saasbasics.platform.common.exception.BizException;
 import com.saasbasics.platform.modules.erp.dto.ErpInventoryResponse;
 import com.saasbasics.platform.modules.erp.dto.ErpProductResponse;
@@ -26,6 +27,8 @@ import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +41,7 @@ public class ErpService {
     private final ErpInventoryRecordMapper recordMapper;
     private final ErpPurchaseOrderMapper purchaseOrderMapper;
     private final JdbcTemplate jdbcTemplate;
+    private final ObjectProvider<CurrentDepartmentResolver> departmentResolverProvider;
 
     public ErpService(
             ErpProductMapper productMapper,
@@ -46,11 +50,24 @@ public class ErpService {
             ErpPurchaseOrderMapper purchaseOrderMapper,
             JdbcTemplate jdbcTemplate
     ) {
+        this(productMapper, inventoryMapper, recordMapper, purchaseOrderMapper, jdbcTemplate, null);
+    }
+
+    @Autowired
+    public ErpService(
+            ErpProductMapper productMapper,
+            ErpInventoryMapper inventoryMapper,
+            ErpInventoryRecordMapper recordMapper,
+            ErpPurchaseOrderMapper purchaseOrderMapper,
+            JdbcTemplate jdbcTemplate,
+            ObjectProvider<CurrentDepartmentResolver> departmentResolverProvider
+    ) {
         this.productMapper = productMapper;
         this.inventoryMapper = inventoryMapper;
         this.recordMapper = recordMapper;
         this.purchaseOrderMapper = purchaseOrderMapper;
         this.jdbcTemplate = jdbcTemplate;
+        this.departmentResolverProvider = departmentResolverProvider;
     }
 
     public List<ErpProductResponse> listProducts() {
@@ -93,6 +110,7 @@ public class ErpService {
         entity.setMinStock(req.minStock() != null ? req.minStock() : 10);
         entity.setStatus(req.status() != null ? req.status() : "ENABLED");
         entity.setRemark(req.remark());
+        entity.setDeptId(resolveCurrentDeptId());
         entity.setCreatedBy(userId);
         entity.setUpdatedBy(userId);
         entity.setDeleted(0);
@@ -241,6 +259,7 @@ public class ErpService {
         order.setTotalAmount(req.totalAmount() != null ? req.totalAmount() : new BigDecimal("48500.00"));
         order.setStatus("PENDING");
         order.setRemark(req.remark() != null ? req.remark() : "例行采购订单");
+        order.setDeptId(resolveCurrentDeptId());
         order.setCreatedBy(userId);
         order.setUpdatedBy(userId);
         order.setDeleted(0);
@@ -306,6 +325,8 @@ public class ErpService {
         record.setAfterQuantity(after);
         record.setOperatorName(userName);
         record.setRemark("采购单 " + order.getOrderNo() + " 核销入库");
+        record.setCreatedBy(getUserId());
+        record.setDeptId(resolveCurrentDeptId());
         record.setCreatedAt(LocalDateTime.now());
         recordMapper.insert(record);
     }
@@ -386,8 +407,17 @@ public class ErpService {
         record.setAfterQuantity(after);
         record.setOperatorName(userName);
         record.setRemark(remark != null && !remark.isBlank() ? remark : "智能仓储调拨盘点");
+        record.setCreatedBy(getUserId());
+        record.setDeptId(resolveCurrentDeptId());
         record.setCreatedAt(LocalDateTime.now());
         recordMapper.insert(record);
+    }
+
+    private Long resolveCurrentDeptId() {
+        CurrentDepartmentResolver resolver = departmentResolverProvider != null
+                ? departmentResolverProvider.getIfAvailable()
+                : null;
+        return resolver != null ? resolver.resolveDepartmentId(getTenantId(), getUserId()) : null;
     }
 
     private Long getTenantId() {

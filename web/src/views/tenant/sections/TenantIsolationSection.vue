@@ -217,6 +217,7 @@ async function runAstTest() {
           </el-form-item>
           <el-form-item label="财务账单与交易敏感数据隔离">
             <el-select v-model="isolationPolicy.financeIsolation" style="width: 100%">
+              <el-option label="共享 Schema (行级隔离 + 联合唯一防重)" value="SHARED_SCHEMA" />
               <el-option label="独立 Schema (隔离专属)" value="ISOLATED_SCHEMA" />
               <el-option label="独立物理数据库 (最高安全级)" value="DEDICATED_DATABASE" />
             </el-select>
@@ -252,10 +253,10 @@ async function runAstTest() {
               <el-icon><Operation /></el-icon>
             </div>
             <div class="tool-banner-info">
-              <strong>租户在线无缝迁移演练器</strong>
-              <p>支持从共享 Schema 一键演练割接到独立数据库，包含表结构校验、数据双写与零停机切换。</p>
+              <strong>租户隔离等级契约变更</strong>
+              <p>在线更新指定租户档案的隔离模式契约（共享 Schema / 独立等级标识）并同步多租户路由与平台审计上下文。</p>
             </div>
-            <el-button type="primary" plain @click="openMigrationSimulator">启动迁移演练</el-button>
+            <el-button type="primary" plain @click="openMigrationSimulator">变更隔离等级</el-button>
           </div>
 
           <div class="tool-banner">
@@ -273,16 +274,16 @@ async function runAstTest() {
         <div class="migration-manifesto">
           <h4>企业级多租户隔离交付标准:</h4>
           <ul>
-            <li>严格保证跨租户数据隔离防穿透 (0 越权事件)</li>
-            <li>升级迁移过程保障租户业务持续可用 (读写双写零停机)</li>
-            <li>迁移前后全量哈希校验与事务回滚保障</li>
+            <li>严格保证跨租户 SQL / 缓存 / 存储目录防穿透 (0 越权事件)</li>
+            <li>全业务链路贯通组织部门级 Data Scope 行级数据隔离控制</li>
+            <li>支持按租户档案在线变更隔离级别契约并留痕审计</li>
           </ul>
         </div>
       </BaseCard>
     </div>
 
     <!-- Migration Executor Panel -->
-    <WorkspacePanel v-model="simVisible" title="租户隔离级别变更与实时同步中心" width="640px">
+    <WorkspacePanel v-model="simVisible" title="租户隔离级别契约变更中心" width="640px">
       <el-form label-position="top">
         <el-row :gutter="12">
           <el-col :span="12">
@@ -336,7 +337,7 @@ async function runAstTest() {
       <template #footer>
         <el-button @click="simVisible = false">关闭</el-button>
         <el-button type="primary" :loading="simRunning" :icon="VideoPlay" @click="runMigration">
-          执行隔离模式升级
+          确认变更隔离模式
         </el-button>
       </template>
     </WorkspacePanel>

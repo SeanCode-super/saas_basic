@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -16,7 +17,7 @@ import java.util.stream.Collectors;
 public final class FilePathPolicyHelper {
 
     public static final String DEFAULT_FOLDER = "uploads";
-    public static final String DEFAULT_PATH_PATTERN = "{folder}/{yyyy}/{MM}/{uuid}_{filename}";
+    public static final String DEFAULT_PATH_PATTERN = "t_{tenantId}/{folder}/{yyyy}/{MM}/{uuid}_{filename}";
     public static final String DEFAULT_UPLOAD_MODE = "DIRECT_SERVER";
     public static final Set<String> VALID_UPLOAD_MODES = Set.of(
             "DIRECT_SERVER",
@@ -26,6 +27,8 @@ public final class FilePathPolicyHelper {
     );
 
     private static final Pattern UNSAFE_SEGMENT = Pattern.compile("[:*?\"<>|\\p{Cntrl}]");
+    private static final Pattern TENANT_PREFIX_PATTERN = Pattern.compile("^t_(\\d+)(?:/.*|$)");
+    private static final Pattern EXPORT_PREFIX_PATTERN = Pattern.compile("^exports/t(\\d+)(?:/.*|$)");
     private static final DateTimeFormatter YYYY = DateTimeFormatter.ofPattern("yyyy");
     private static final DateTimeFormatter MM = DateTimeFormatter.ofPattern("MM");
     private static final DateTimeFormatter DD = DateTimeFormatter.ofPattern("dd");
@@ -142,6 +145,33 @@ public final class FilePathPolicyHelper {
             throw new BizException("FILE_INVALID_PATH", "生成的对象路径非法");
         }
         return key;
+    }
+
+    /**
+     * 校验对象路径前缀是否越权指向了其他租户的隔离目录（t_{tenantId}/... 或 exports/t{tenantId}/...）。
+     */
+    public static void assertTenantKeyAccess(Long tenantId, String objectKey) {
+        if (objectKey == null || objectKey.isBlank()) {
+            return;
+        }
+        String cleanKey = objectKey.trim().replace('\\', '/').replaceAll("^/+", "");
+        long currentTenantId = (tenantId != null && tenantId > 0L) ? tenantId : 1L;
+        checkPrefixTenantMatch(TENANT_PREFIX_PATTERN.matcher(cleanKey), currentTenantId, "禁止跨租户访问其他租户空间的文件路径");
+        checkPrefixTenantMatch(EXPORT_PREFIX_PATTERN.matcher(cleanKey), currentTenantId, "禁止跨租户访问其他租户空间的导出文件");
+    }
+
+    private static void checkPrefixTenantMatch(Matcher matcher, long currentTenantId, String errorMsg) {
+        if (!matcher.matches()) {
+            return;
+        }
+        try {
+            long pathTenantId = Long.parseLong(matcher.group(1));
+            if (pathTenantId != currentTenantId) {
+                throw new BizException("FILE_CROSS_TENANT_FORBIDDEN", errorMsg);
+            }
+        } catch (NumberFormatException ex) {
+            throw new BizException("FILE_INVALID_PATH", "非法的租户文件目录前缀");
+        }
     }
 
     public static void validateUploadConstraints(long fileSize,

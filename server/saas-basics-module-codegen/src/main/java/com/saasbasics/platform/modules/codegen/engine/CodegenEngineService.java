@@ -825,6 +825,12 @@ public class CodegenEngineService {
                     colName, colType, isNull, autoInc, comment));
         }
 
+        if (cols.stream().noneMatch(c -> "tenant_id".equalsIgnoreCase(c.columnName()))) {
+            sb.append("  `tenant_id` bigint unsigned NOT NULL DEFAULT 1 COMMENT '租户ID',\n");
+        }
+        if (cols.stream().noneMatch(c -> "dept_id".equalsIgnoreCase(c.columnName()))) {
+            sb.append("  `dept_id` bigint unsigned DEFAULT NULL COMMENT '归属部门ID',\n");
+        }
         if (cols.stream().noneMatch(c -> "created_at".equalsIgnoreCase(c.columnName()))) {
             sb.append("  `created_by` bigint unsigned NOT NULL DEFAULT 0 COMMENT '创建人ID',\n");
             sb.append("  `created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',\n");

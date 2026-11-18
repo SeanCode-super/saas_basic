@@ -1,5 +1,7 @@
 package com.saasbasics.platform.modules.system.infra;
 
+import com.saasbasics.platform.cache.SystemCacheService;
+import com.saasbasics.platform.common.exception.BizException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -225,28 +227,70 @@ public class InfraMonitorService {
     }
 
     public List<RedisKeyItem> listRedisKeys(String pattern) {
-        String pat = (pattern != null && !pattern.isBlank()) ? pattern : "*";
-        List<String> keys = executeRedisCommand("KEYS " + pat + "\r\n");
+        return listRedisKeys(1L, true, pattern);
+    }
+
+    public List<RedisKeyItem> listRedisKeys(Long tenantId, boolean platformTenant, String pattern) {
+        String cleanPattern = sanitizeRedisToken(pattern);
+        String tenantPrefix = SystemCacheService.tenantKeyPrefix(tenantId);
+        String effectivePattern;
+        if (platformTenant) {
+            effectivePattern = cleanPattern.isEmpty() ? "*" : cleanPattern;
+        } else if (cleanPattern.isEmpty() || "*".equals(cleanPattern)) {
+            effectivePattern = tenantPrefix + "*";
+        } else if (cleanPattern.startsWith(tenantPrefix)) {
+            effectivePattern = cleanPattern;
+        } else {
+            String stripped = cleanPattern.replaceFirst("^[*]+", "");
+            effectivePattern = tenantPrefix + (stripped.isEmpty() ? "*" : "*" + stripped + (stripped.endsWith("*") ? "" : "*"));
+        }
+
+        List<String> keys = executeRedisCommand("KEYS " + effectivePattern + "\r\n");
         List<RedisKeyItem> result = new ArrayList<>();
         for (String k : keys) {
             if (k.isBlank() || k.startsWith("$") || k.startsWith("*")) continue;
+            if (!platformTenant && !k.startsWith(tenantPrefix)) continue;
             result.add(new RedisKeyItem(k, "string", 86400, "1 KB"));
             if (result.size() >= 50) break;
         }
         if (result.isEmpty()) {
-            // 提供一些默认缓存视图项
-            result.add(new RedisKeyItem("saas:dict:sys_user_status", "string", 3600, "512 B"));
-            result.add(new RedisKeyItem("saas:dict:contract_status_enum", "string", 3600, "1.2 KB"));
-            result.add(new RedisKeyItem("saas:auth:token:session:admin", "string", 7200, "2.4 KB"));
-            result.add(new RedisKeyItem("saas:tenant:config:master", "hash", 14400, "4.8 KB"));
+            // 提供当前作用域下的默认缓存视图项
+            if (platformTenant) {
+                result.add(new RedisKeyItem("saas:t:1:org:dept_tree:1", "string", 7200, "512 B"));
+                result.add(new RedisKeyItem("saas:t:1:iam:menus", "string", 7200, "1.2 KB"));
+                result.add(new RedisKeyItem("saas:t:1:tenant:features", "hash", 600, "2.4 KB"));
+            } else {
+                result.add(new RedisKeyItem(tenantPrefix + "iam:menus", "string", 7200, "1.2 KB"));
+                result.add(new RedisKeyItem(tenantPrefix + "tenant:features", "hash", 600, "1.8 KB"));
+            }
         }
         return result;
     }
 
     public boolean deleteRedisKey(String key) {
-        if (key == null || key.isBlank()) return false;
-        executeRedisCommand("DEL " + key + "\r\n");
+        return deleteRedisKey(1L, true, key);
+    }
+
+    public boolean deleteRedisKey(Long tenantId, boolean platformTenant, String key) {
+        String cleanKey = sanitizeRedisToken(key);
+        if (cleanKey.isEmpty()) {
+            return false;
+        }
+        if (!platformTenant) {
+            String tenantPrefix = SystemCacheService.tenantKeyPrefix(tenantId);
+            if (!cleanKey.startsWith(tenantPrefix)) {
+                throw new BizException("REDIS_NAMESPACE_FORBIDDEN", "禁止跨租户清理非本租户命名空间的缓存键");
+            }
+        }
+        executeRedisCommand("DEL " + cleanKey + "\r\n");
         return true;
+    }
+
+    private static String sanitizeRedisToken(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        return raw.replaceAll("[\\r\\n\\s\\p{Cntrl}]", "").trim();
     }
 
     private Map<String, String> fetchRedisInfoMap() {

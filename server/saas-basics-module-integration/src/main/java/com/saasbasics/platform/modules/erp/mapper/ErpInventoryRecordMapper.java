@@ -6,6 +6,6 @@ import com.saasbasics.platform.modules.erp.entity.ErpInventoryRecordEntity;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-@DataScope(resource = "erp:inventory-record", orgColumn = "", unitColumn = "", userColumn = "")
+@DataScope(resource = "erp:inventory-record", orgColumn = "", unitColumn = "dept_id", userColumn = "created_by")
 public interface ErpInventoryRecordMapper extends BaseMapper<ErpInventoryRecordEntity> {
 }

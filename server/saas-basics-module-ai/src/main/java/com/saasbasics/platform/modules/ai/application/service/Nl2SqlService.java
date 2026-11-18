@@ -709,7 +709,23 @@ public class Nl2SqlService {
     }
 
     private static String resolveUnitColumnForTable(String table) {
-        return "wf_process_instance".equals(table) ? "initiator_dept_id" : "";
+        if (table == null) {
+            return "";
+        }
+        String lower = table.toLowerCase(Locale.ROOT);
+        if ("wf_process_instance".equals(lower)) {
+            return "initiator_dept_id";
+        }
+        if (lower.startsWith("biz_")) {
+            return "dept_id";
+        }
+        return switch (lower) {
+            case "crm_customer", "crm_clue", "crm_business", "crm_contract",
+                 "crm_receivable", "crm_follow_up_record",
+                 "erp_product", "erp_purchase_order", "erp_sale_order",
+                 "erp_inventory_record", "iam_employee" -> "dept_id";
+            default -> "";
+        };
     }
 
     private static String resolveUserColumnForTable(String table) {
@@ -717,7 +733,7 @@ public class Nl2SqlService {
             case "crm_customer", "crm_clue", "crm_business" -> "owner_user_id";
             case "wf_process_instance" -> "initiator_id";
             case "wf_task" -> "assignee_id";
-            case "erp_inventory", "erp_inventory_record", "audit_operation_log" -> "";
+            case "erp_inventory", "audit_operation_log" -> "";
             case "iam_user" -> "id";
             default -> "created_by";
         };

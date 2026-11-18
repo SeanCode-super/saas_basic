@@ -1,6 +1,8 @@
 package com.saasbasics.platform.modules.crm.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import java.math.BigDecimal;
@@ -23,6 +25,8 @@ public class CrmBusinessEntity {
     private Integer winRate;
     private String lossReason;
     private Long ownerUserId;
+    @TableField(fill = FieldFill.INSERT)
+    private Long deptId;
     private String ownerUserName;
     private String remark;
     private LocalDateTime createdAt;
@@ -55,6 +59,8 @@ public class CrmBusinessEntity {
     public void setLossReason(String lossReason) { this.lossReason = lossReason; }
     public Long getOwnerUserId() { return ownerUserId; }
     public void setOwnerUserId(Long ownerUserId) { this.ownerUserId = ownerUserId; }
+    public Long getDeptId() { return deptId; }
+    public void setDeptId(Long deptId) { this.deptId = deptId; }
     public String getOwnerUserName() { return ownerUserName; }
     public void setOwnerUserName(String ownerUserName) { this.ownerUserName = ownerUserName; }
     public String getRemark() { return remark; }

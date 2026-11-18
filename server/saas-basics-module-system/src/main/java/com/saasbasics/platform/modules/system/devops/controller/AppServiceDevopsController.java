@@ -2,6 +2,7 @@ package com.saasbasics.platform.modules.system.devops.controller;
 
 import com.saasbasics.platform.common.api.ApiResponse;
 import com.saasbasics.platform.common.auth.RequirePermission;
+import com.saasbasics.platform.common.auth.RequirePlatformTenant;
 import com.saasbasics.platform.modules.system.devops.dto.AppArtifactDTO;
 import com.saasbasics.platform.modules.system.devops.dto.AppBuildRecordDTO;
 import com.saasbasics.platform.modules.system.devops.dto.AppBuildTriggerRequest;
@@ -28,6 +29,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.util.List;
 
 @RestController
+@RequirePlatformTenant
 @RequestMapping("/api/infra/devops")
 public class AppServiceDevopsController {
 

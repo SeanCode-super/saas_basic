@@ -1,6 +1,8 @@
 package com.saasbasics.platform.modules.crm.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import java.time.LocalDateTime;
@@ -20,6 +22,8 @@ public class CrmClueEntity {
     private String source;
     private String status;
     private Long ownerUserId;
+    @TableField(fill = FieldFill.INSERT)
+    private Long deptId;
     private String ownerUserName;
     private LocalDateTime nextContactTime;
     private Long convertedCustomerId;
@@ -52,6 +56,8 @@ public class CrmClueEntity {
     public void setStatus(String status) { this.status = status; }
     public Long getOwnerUserId() { return ownerUserId; }
     public void setOwnerUserId(Long ownerUserId) { this.ownerUserId = ownerUserId; }
+    public Long getDeptId() { return deptId; }
+    public void setDeptId(Long deptId) { this.deptId = deptId; }
     public String getOwnerUserName() { return ownerUserName; }
     public void setOwnerUserName(String ownerUserName) { this.ownerUserName = ownerUserName; }
     public LocalDateTime getNextContactTime() { return nextContactTime; }

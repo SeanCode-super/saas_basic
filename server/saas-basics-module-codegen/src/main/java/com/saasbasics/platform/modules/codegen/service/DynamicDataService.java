@@ -4,6 +4,10 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.saasbasics.platform.common.api.PageResponse;
 import com.saasbasics.platform.common.auth.AuthContext;
 import com.saasbasics.platform.common.auth.AuthPrincipal;
+import com.saasbasics.platform.common.auth.CurrentDepartmentResolver;
+import com.saasbasics.platform.common.auth.DataPermissionProvider;
+import com.saasbasics.platform.common.auth.DataPermissionSqlSpec;
+import com.saasbasics.platform.common.auth.SqlAstDataGuard;
 import com.saasbasics.platform.common.exception.BizException;
 import com.saasbasics.platform.modules.codegen.dto.DynamicDataPageRequest;
 import com.saasbasics.platform.modules.codegen.dto.DynamicFieldDto;
@@ -13,6 +17,7 @@ import com.saasbasics.platform.modules.codegen.entity.DynamicModelEntity;
 import com.saasbasics.platform.modules.codegen.mapper.DynamicFieldMapper;
 import com.saasbasics.platform.modules.codegen.mapper.DynamicModelMapper;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
@@ -23,6 +28,7 @@ import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -34,15 +40,31 @@ public class DynamicDataService {
     private final ObjectProvider<DynamicModelMapper> modelMapperProvider;
     private final ObjectProvider<DynamicFieldMapper> fieldMapperProvider;
     private final JdbcTemplate jdbcTemplate;
+    private final ObjectProvider<DataPermissionProvider> dataPermissionProvider;
+    private final ObjectProvider<CurrentDepartmentResolver> departmentResolverProvider;
+    private final Set<String> deptReadyTables = ConcurrentHashMap.newKeySet();
 
     public DynamicDataService(
             ObjectProvider<DynamicModelMapper> modelMapperProvider,
             ObjectProvider<DynamicFieldMapper> fieldMapperProvider,
             JdbcTemplate jdbcTemplate
     ) {
+        this(modelMapperProvider, fieldMapperProvider, jdbcTemplate, null, null);
+    }
+
+    @Autowired
+    public DynamicDataService(
+            ObjectProvider<DynamicModelMapper> modelMapperProvider,
+            ObjectProvider<DynamicFieldMapper> fieldMapperProvider,
+            JdbcTemplate jdbcTemplate,
+            ObjectProvider<DataPermissionProvider> dataPermissionProvider,
+            ObjectProvider<CurrentDepartmentResolver> departmentResolverProvider
+    ) {
         this.modelMapperProvider = modelMapperProvider;
         this.fieldMapperProvider = fieldMapperProvider;
         this.jdbcTemplate = jdbcTemplate;
+        this.dataPermissionProvider = dataPermissionProvider;
+        this.departmentResolverProvider = departmentResolverProvider;
     }
 
     public DynamicModelResponse getModelMeta(String modelCode) {
@@ -78,6 +100,7 @@ public class DynamicDataService {
 
         String tableName = model.getTableName();
         validateCode(tableName);
+        ensureDeptColumn(tableName);
 
         Set<String> allowedCols = fields.stream()
                 .map(DynamicFieldEntity::getFieldCode)
@@ -124,7 +147,7 @@ public class DynamicDataService {
         }
 
         // Count total
-        String countSql = "SELECT COUNT(1) FROM `" + tableName + "`" + whereSql;
+        String countSql = applyDynamicDataScope("SELECT COUNT(1) FROM `" + tableName + "`" + whereSql, modelCode, tableName);
         Long total = jdbcTemplate.queryForObject(countSql, Long.class, args.toArray());
         if (total == null || total == 0) {
             return new PageResponse<>(List.of(), 0);
@@ -135,14 +158,13 @@ public class DynamicDataService {
         int size = request.getSize();
         int offset = (page - 1) * size;
 
-        StringBuilder selectCols = new StringBuilder("id, tenant_id, created_by, created_at, updated_by, updated_at");
+        StringBuilder selectCols = new StringBuilder("id, tenant_id, dept_id, created_by, created_at, updated_by, updated_at");
         for (DynamicFieldEntity f : fields) {
             selectCols.append(", `").append(f.getFieldCode()).append("`");
         }
 
-        String dataSql = "SELECT " + selectCols + " FROM `" + tableName + "`"
-                + whereSql
-                + " ORDER BY id DESC LIMIT ? OFFSET ?";
+        String baseDataSql = "SELECT " + selectCols + " FROM `" + tableName + "`" + whereSql;
+        String dataSql = applyDynamicDataScope(baseDataSql, modelCode, tableName) + " ORDER BY id DESC LIMIT ? OFFSET ?";
 
         List<Object> queryArgs = new ArrayList<>(args);
         queryArgs.add(size);
@@ -157,11 +179,16 @@ public class DynamicDataService {
         DynamicModelEntity model = findModel(tenantId, modelCode);
         String tableName = model.getTableName();
         validateCode(tableName);
+        ensureDeptColumn(tableName);
 
-        String sql = "SELECT * FROM `" + tableName + "` WHERE id = ? AND tenant_id = ? AND deleted = 0";
+        String sql = applyDynamicDataScope(
+                "SELECT * FROM `" + tableName + "` WHERE id = ? AND tenant_id = ? AND deleted = 0",
+                modelCode,
+                tableName
+        );
         List<Map<String, Object>> list = jdbcTemplate.queryForList(sql, id, tenantId);
         if (list.isEmpty()) {
-            throw new BizException("RECORD_NOT_FOUND", "数据记录不存在或已删除");
+            throw new BizException("RECORD_NOT_FOUND", "数据记录不存在或无权访问");
         }
         return list.get(0);
     }
@@ -170,17 +197,19 @@ public class DynamicDataService {
     public Long createRecord(String modelCode, Map<String, Object> data) {
         Long tenantId = currentTenantId();
         Long userId = currentUserId();
+        Long deptId = resolveCurrentDeptId(tenantId, userId);
         DynamicModelEntity model = findModel(tenantId, modelCode);
         List<DynamicFieldEntity> fields = findFields(tenantId, model.getId());
 
         String tableName = model.getTableName();
         validateCode(tableName);
+        ensureDeptColumn(tableName);
 
         Map<String, DynamicFieldEntity> fieldMap = fields.stream()
                 .collect(Collectors.toMap(DynamicFieldEntity::getFieldCode, f -> f));
 
-        List<String> insertCols = new ArrayList<>(List.of("tenant_id", "created_by", "updated_by", "created_at", "updated_at", "deleted", "version"));
-        List<Object> insertVals = new ArrayList<>(List.of(tenantId, userId, userId, LocalDateTime.now(), LocalDateTime.now(), 0, 0));
+        List<String> insertCols = new ArrayList<>(List.of("tenant_id", "created_by", "dept_id", "updated_by", "created_at", "updated_at", "deleted", "version"));
+        List<Object> insertVals = new ArrayList<>(List.of(tenantId, userId, deptId, userId, LocalDateTime.now(), LocalDateTime.now(), 0, 0));
 
         for (Map.Entry<String, Object> entry : data.entrySet()) {
             String col = entry.getKey();
@@ -216,6 +245,8 @@ public class DynamicDataService {
 
         String tableName = model.getTableName();
         validateCode(tableName);
+        ensureDeptColumn(tableName);
+        assertRecordVisible(modelCode, tableName, id, tenantId);
 
         Map<String, DynamicFieldEntity> fieldMap = fields.stream()
                 .collect(Collectors.toMap(DynamicFieldEntity::getFieldCode, f -> f));
@@ -366,6 +397,8 @@ public class DynamicDataService {
         DynamicModelEntity model = findModel(tenantId, modelCode);
         String tableName = model.getTableName();
         validateCode(tableName);
+        ensureDeptColumn(tableName);
+        assertRecordVisible(modelCode, tableName, id, tenantId);
 
         String sql = "UPDATE `" + tableName + "` SET deleted = 1, deleted_at = ? WHERE id = ? AND tenant_id = ? AND deleted = 0";
         jdbcTemplate.update(sql, LocalDateTime.now(), id, tenantId);
@@ -378,16 +411,95 @@ public class DynamicDataService {
         DynamicModelEntity model = findModel(tenantId, modelCode);
         String tableName = model.getTableName();
         validateCode(tableName);
+        ensureDeptColumn(tableName);
 
         String placeholders = ids.stream().map(i -> "?").collect(Collectors.joining(","));
-        String sql = "UPDATE `" + tableName + "` SET deleted = 1, deleted_at = ? WHERE tenant_id = ? AND id IN (" + placeholders + ") AND deleted = 0";
+        String visibleQuery = applyDynamicDataScope(
+                "SELECT id FROM `" + tableName + "` WHERE tenant_id = ? AND deleted = 0 AND id IN (" + placeholders + ")",
+                modelCode,
+                tableName
+        );
+        List<Object> visArgs = new ArrayList<>();
+        visArgs.add(tenantId);
+        visArgs.addAll(ids);
+        List<Long> allowedIds = jdbcTemplate.queryForList(visibleQuery, Long.class, visArgs.toArray());
+        if (allowedIds.isEmpty()) {
+            throw new BizException("RECORD_NOT_FOUND", "待删除记录不存在或不在当前数据权限范围内");
+        }
+
+        String delPlaceholders = allowedIds.stream().map(i -> "?").collect(Collectors.joining(","));
+        String sql = "UPDATE `" + tableName + "` SET deleted = 1, deleted_at = ? WHERE tenant_id = ? AND id IN (" + delPlaceholders + ") AND deleted = 0";
 
         List<Object> args = new ArrayList<>();
         args.add(LocalDateTime.now());
         args.add(tenantId);
-        args.addAll(ids);
+        args.addAll(allowedIds);
 
         jdbcTemplate.update(sql, args.toArray());
+    }
+
+    private void assertRecordVisible(String modelCode, String tableName, Long id, Long tenantId) {
+        String checkSql = applyDynamicDataScope(
+                "SELECT id FROM `" + tableName + "` WHERE id = ? AND tenant_id = ? AND deleted = 0",
+                modelCode,
+                tableName
+        );
+        List<Long> found = jdbcTemplate.queryForList(checkSql, Long.class, id, tenantId);
+        if (found.isEmpty()) {
+            throw new BizException("RECORD_NOT_FOUND", "记录不存在或不在当前部门数据权限范围内");
+        }
+    }
+
+    private String applyDynamicDataScope(String sql, String modelCode, String tableName) {
+        DataPermissionProvider provider = dataPermissionProvider != null ? dataPermissionProvider.getIfAvailable() : null;
+        if (provider == null) {
+            return sql;
+        }
+        AuthPrincipal principal = AuthContext.get();
+        if (principal == null || principal.isSuperAdmin()) {
+            return sql;
+        }
+        DataPermissionSqlSpec spec = provider.resolveDataPermission("dynamic:" + modelCode);
+        if (spec == null || spec.isAllowAll()) {
+            return sql;
+        }
+        if (spec.isDenyAll()) {
+            throw new BizException("DATA_PERMISSION_DENIED", "当前账号暂无权访问该动态业务数据");
+        }
+        if (!spec.hasConstraints()) {
+            return sql;
+        }
+        return SqlAstDataGuard.rewriteSelectSql(sql, tbl ->
+                tableName.equalsIgnoreCase(tbl)
+                        ? new SqlAstDataGuard.TableScopeConfig(spec, "", "dept_id", "created_by")
+                        : null
+        );
+    }
+
+    private void ensureDeptColumn(String tableName) {
+        if (deptReadyTables.contains(tableName)) {
+            return;
+        }
+        try {
+            Integer exists = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(1) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? AND column_name = 'dept_id'",
+                    Integer.class,
+                    tableName
+            );
+            if (exists != null && exists == 0) {
+                jdbcTemplate.execute("ALTER TABLE `" + tableName + "` ADD COLUMN `dept_id` BIGINT UNSIGNED DEFAULT NULL COMMENT '归属部门ID' AFTER `created_by`, ADD INDEX `idx_tenant_dept` (`tenant_id`, `dept_id`)");
+            }
+            deptReadyTables.add(tableName);
+        } catch (Exception ignored) {
+            // 兼容单元测试中的 Mock JdbcTemplate 或非 MySQL 方言
+        }
+    }
+
+    private Long resolveCurrentDeptId(Long tenantId, Long userId) {
+        CurrentDepartmentResolver resolver = departmentResolverProvider != null
+                ? departmentResolverProvider.getIfAvailable()
+                : null;
+        return resolver != null ? resolver.resolveDepartmentId(tenantId, userId) : null;
     }
 
     private DynamicModelEntity findModel(Long tenantId, String modelCode) {

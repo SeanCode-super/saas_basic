@@ -92,6 +92,11 @@ public class TenantFeatureService implements TenantFeatureProvider {
         return false;
     }
 
+    private static String buildRedisKey(Long tenantId) {
+        long safeTenantId = (tenantId != null && tenantId > 0L) ? tenantId : 1L;
+        return "saas:t:" + safeTenantId + ":tenant:features";
+    }
+
     @Override
     public Set<String> getEffectiveFeatures(Long tenantId) {
         if (tenantId == null || tenantId <= 0L) {
@@ -100,7 +105,7 @@ public class TenantFeatureService implements TenantFeatureProvider {
 
         // 1. Try Redis cache
         StringRedisTemplate redis = redisTemplateProvider.getIfAvailable();
-        String redisKey = REDIS_KEY_PREFIX + tenantId;
+        String redisKey = buildRedisKey(tenantId);
         if (redis != null) {
             try {
                 String cachedJson = redis.opsForValue().get(redisKey);
@@ -145,7 +150,7 @@ public class TenantFeatureService implements TenantFeatureProvider {
         StringRedisTemplate redis = redisTemplateProvider.getIfAvailable();
         if (redis != null) {
             try {
-                redis.delete(REDIS_KEY_PREFIX + tenantId);
+                redis.delete(buildRedisKey(tenantId));
             } catch (Exception ex) {
                 log.warn("Failed to invalidate Redis cache for tenant {}: {}", tenantId, ex.getMessage());
             }

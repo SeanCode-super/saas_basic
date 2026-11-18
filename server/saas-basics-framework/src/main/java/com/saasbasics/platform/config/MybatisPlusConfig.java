@@ -8,6 +8,7 @@ import com.baomidou.mybatisplus.extension.plugins.inner.OptimisticLockerInnerInt
 import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.TenantLineInnerInterceptor;
 import com.saasbasics.platform.common.auth.AuthContext;
+import com.saasbasics.platform.common.auth.CurrentDepartmentResolver;
 import com.saasbasics.platform.common.exception.BizException;
 import com.saasbasics.platform.common.tenant.TenantAccessContext;
 import com.saasbasics.platform.common.tenant.TenantAccessContextHolder;
@@ -18,6 +19,7 @@ import java.util.Set;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.LongValue;
 import org.apache.ibatis.reflection.MetaObject;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -79,7 +81,7 @@ public class MybatisPlusConfig {
     }
 
     @Bean
-    public MetaObjectHandler auditMetaObjectHandler() {
+    public MetaObjectHandler auditMetaObjectHandler(ObjectProvider<CurrentDepartmentResolver> departmentResolverProvider) {
         return new MetaObjectHandler() {
             @Override
             public void insertFill(MetaObject metaObject) {
@@ -92,6 +94,30 @@ public class MybatisPlusConfig {
                 strictInsertFill(metaObject, "updatedAt", LocalDateTime.class, now);
                 strictInsertFill(metaObject, "deleted", Integer.class, 0);
                 strictInsertFill(metaObject, "version", Integer.class, 0);
+                fillDepartmentId(metaObject, actorId);
+            }
+
+            private void fillDepartmentId(MetaObject metaObject, Long actorId) {
+                if (!metaObject.hasSetter("deptId") || metaObject.getValue("deptId") != null || actorId <= 0L) {
+                    return;
+                }
+                if (metaObject.hasGetter("isPool") && Integer.valueOf(1).equals(metaObject.getValue("isPool"))) {
+                    return;
+                }
+                TenantAccessContext tenantContext = TenantAccessContextHolder.current();
+                if (tenantContext == null || tenantContext.tenantId() == null || tenantContext.tenantId() <= 0L) {
+                    return;
+                }
+                CurrentDepartmentResolver resolver = departmentResolverProvider != null
+                        ? departmentResolverProvider.getIfAvailable()
+                        : null;
+                if (resolver == null) {
+                    return;
+                }
+                Long deptId = resolver.resolveDepartmentId(tenantContext.tenantId(), actorId);
+                if (deptId != null && deptId > 0L) {
+                    strictInsertFill(metaObject, "deptId", Long.class, deptId);
+                }
             }
 
             @Override

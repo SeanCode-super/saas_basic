@@ -135,4 +135,21 @@ class FileUploadPathAndSourceGuardTest {
                 .isInstanceOf(BizException.class)
                 .satisfies(ex -> assertThat(((BizException) ex).getCode()).isEqualTo("FILE_INVALID_PATH"));
     }
+
+    @Test
+    void isolatesDefaultUploadKeysByTenantPrefixAndBlocksCrossTenantAccess() {
+        String keyForTenantTwo = FilePathPolicyHelper.resolveObjectKey(null, "uploads", "CONTRACT", 2L, "quote.pdf");
+        assertThat(keyForTenantTwo).startsWith("t_2/uploads/");
+
+        FilePathPolicyHelper.assertTenantKeyAccess(2L, keyForTenantTwo);
+        FilePathPolicyHelper.assertTenantKeyAccess(1L, "t_1/uploads/2026/11/a.pdf");
+
+        assertThatThrownBy(() -> FilePathPolicyHelper.assertTenantKeyAccess(2L, "t_1/uploads/2026/11/secret.pdf"))
+                .isInstanceOf(BizException.class)
+                .satisfies(ex -> assertThat(((BizException) ex).getCode()).isEqualTo("FILE_CROSS_TENANT_FORBIDDEN"));
+
+        assertThatThrownBy(() -> FilePathPolicyHelper.assertTenantKeyAccess(2L, "exports/t1/20261118/audit.csv"))
+                .isInstanceOf(BizException.class)
+                .satisfies(ex -> assertThat(((BizException) ex).getCode()).isEqualTo("FILE_CROSS_TENANT_FORBIDDEN"));
+    }
 }

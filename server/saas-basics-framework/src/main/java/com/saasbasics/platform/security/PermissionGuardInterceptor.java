@@ -3,6 +3,7 @@ package com.saasbasics.platform.security;
 import com.saasbasics.platform.common.auth.AuthContext;
 import com.saasbasics.platform.common.auth.AuthPrincipal;
 import com.saasbasics.platform.common.auth.RequirePermission;
+import com.saasbasics.platform.common.auth.RequirePlatformTenant;
 import com.saasbasics.platform.common.exception.BizException;
 import com.saasbasics.platform.common.security.SecurityBlacklistChecker;
 import jakarta.servlet.http.HttpServletRequest;
@@ -37,6 +38,28 @@ public class PermissionGuardInterceptor implements HandlerInterceptor {
                     currentPrincipal.username(),
                     resolveClientIp(request)
             );
+        }
+
+        RequirePlatformTenant requirePlatformTenant = AnnotatedElementUtils.findMergedAnnotation(
+                handlerMethod.getMethod(),
+                RequirePlatformTenant.class
+        );
+        if (requirePlatformTenant == null) {
+            requirePlatformTenant = AnnotatedElementUtils.findMergedAnnotation(
+                    handlerMethod.getBeanType(),
+                    RequirePlatformTenant.class
+            );
+        }
+        if (requirePlatformTenant != null) {
+            if (currentPrincipal == null) {
+                throw new BizException("AUTH_UNAUTHORIZED", "Authentication is required");
+            }
+            if (!currentPrincipal.isPlatformTenant()) {
+                throw new BizException(
+                        "PLATFORM_TENANT_REQUIRED",
+                        "仅平台运营总控空间有权访问该宿主机级基础设施接口"
+                );
+            }
         }
 
         RequirePermission requirePermission = AnnotatedElementUtils.findMergedAnnotation(

@@ -1,6 +1,8 @@
 package com.saasbasics.platform.modules.crm.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import java.math.BigDecimal;
@@ -23,6 +25,8 @@ public class CrmContractEntity {
     private LocalDate startTime;
     private LocalDate endTime;
     private String signerUserName;
+    @TableField(fill = FieldFill.INSERT)
+    private Long deptId;
     private String status;
     private String remark;
     private LocalDateTime createdAt;
@@ -55,6 +59,8 @@ public class CrmContractEntity {
     public void setEndTime(LocalDate endTime) { this.endTime = endTime; }
     public String getSignerUserName() { return signerUserName; }
     public void setSignerUserName(String signerUserName) { this.signerUserName = signerUserName; }
+    public Long getDeptId() { return deptId; }
+    public void setDeptId(Long deptId) { this.deptId = deptId; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
     public String getRemark() { return remark; }

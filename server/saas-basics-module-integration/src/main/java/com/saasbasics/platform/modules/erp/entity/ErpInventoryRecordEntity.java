@@ -1,6 +1,8 @@
 package com.saasbasics.platform.modules.erp.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import java.time.LocalDateTime;
@@ -22,6 +24,10 @@ public class ErpInventoryRecordEntity {
     private Integer afterQuantity;
     private String operatorName;
     private String remark;
+    @TableField(fill = FieldFill.INSERT)
+    private Long createdBy;
+    @TableField(fill = FieldFill.INSERT)
+    private Long deptId;
     private LocalDateTime createdAt;
 
     public Long getId() { return id; }
@@ -50,6 +56,10 @@ public class ErpInventoryRecordEntity {
     public void setOperatorName(String operatorName) { this.operatorName = operatorName; }
     public String getRemark() { return remark; }
     public void setRemark(String remark) { this.remark = remark; }
+    public Long getCreatedBy() { return createdBy; }
+    public void setCreatedBy(Long createdBy) { this.createdBy = createdBy; }
+    public Long getDeptId() { return deptId; }
+    public void setDeptId(Long deptId) { this.deptId = deptId; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

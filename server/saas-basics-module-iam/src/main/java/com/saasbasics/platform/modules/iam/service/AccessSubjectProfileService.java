@@ -1,6 +1,7 @@
 package com.saasbasics.platform.modules.iam.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.saasbasics.platform.common.auth.CurrentDepartmentResolver;
 import com.saasbasics.platform.common.exception.BizException;
 import com.saasbasics.platform.modules.iam.dto.AccessSubjectProfile;
 import com.saasbasics.platform.modules.iam.entity.DepartmentEntity;
@@ -20,7 +21,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 @Service
-public class AccessSubjectProfileService {
+public class AccessSubjectProfileService implements CurrentDepartmentResolver {
 
     private final ObjectProvider<UserMapper> userMapperProvider;
     private final ObjectProvider<EmployeeMapper> employeeMapperProvider;
@@ -92,6 +93,34 @@ public class AccessSubjectProfileService {
             return cache.getOrCompute(cacheKey, 7200, () -> computeDepartmentTree(tenantId, rootIds));
         }
         return computeDepartmentTree(tenantId, rootIds);
+    }
+
+    @Override
+    public Long resolveDepartmentId(Long tenantId, Long userId) {
+        if (tenantId == null || tenantId <= 0L || userId == null || userId <= 0L) {
+            return null;
+        }
+        try {
+            UserEntity user = findActiveUser(tenantId, userId);
+            if (user == null) {
+                return null;
+            }
+            Long employeeId = normalizeId(user.getEmployeeId());
+            if (employeeId == null) {
+                return null;
+            }
+            EmployeeMapper employeeMapper = employeeMapperProvider.getIfAvailable();
+            if (employeeMapper == null) {
+                return null;
+            }
+            EmployeeEntity employee = employeeMapper.selectById(employeeId);
+            if (employee == null || !tenantId.equals(employee.getTenantId()) || Integer.valueOf(1).equals(employee.getDeleted())) {
+                return null;
+            }
+            return normalizeId(employee.getDeptId());
+        } catch (Exception ex) {
+            return null;
+        }
     }
 
     public UserEntity findActiveUser(Long tenantId, Long userId) {

@@ -1,6 +1,8 @@
 package com.saasbasics.platform.modules.file.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.saasbasics.platform.common.tenant.TenantAccessContext;
+import com.saasbasics.platform.common.tenant.TenantAccessContextHolder;
 import com.saasbasics.platform.modules.file.dto.FileObjectResponse;
 import com.saasbasics.platform.modules.file.entity.FileObjectEntity;
 import com.saasbasics.platform.modules.file.mapper.FileObjectMapper;
@@ -39,6 +41,25 @@ public class FileObjectService {
             query.eq(FileObjectEntity::getTenantId, tenantId);
         }
         return mapper.selectOne(query);
+    }
+
+    /**
+     * 检查目标对象键是否属于其他未删除租户（防止通过共享本地存储目录越权枚举下载）。
+     */
+    public boolean isOwnedByAnotherTenant(Long tenantId, String objectKey) {
+        FileObjectMapper mapper = fileObjectMapperProvider.getIfAvailable();
+        if (mapper == null || tenantId == null || objectKey == null || objectKey.isBlank()) {
+            return false;
+        }
+        try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openSystemBypass(
+                TenantAccessContext.BypassOperation.SYSTEM_TASK_OR_ANNOTATION_IGNORE,
+                "Verify cross-tenant file object ownership")) {
+            Long otherCount = mapper.selectCount(new LambdaQueryWrapper<FileObjectEntity>()
+                    .eq(FileObjectEntity::getObjectKey, objectKey)
+                    .ne(FileObjectEntity::getTenantId, tenantId)
+                    .eq(FileObjectEntity::getDeleted, 0));
+            return otherCount != null && otherCount > 0L;
+        }
     }
 
     public FileObjectEntity recordUploadedFile(Long tenantId,

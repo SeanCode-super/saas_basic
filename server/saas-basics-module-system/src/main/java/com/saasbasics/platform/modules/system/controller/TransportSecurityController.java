@@ -2,6 +2,7 @@ package com.saasbasics.platform.modules.system.controller;
 
 import com.saasbasics.platform.common.api.ApiResponse;
 import com.saasbasics.platform.common.auth.RequirePermission;
+import com.saasbasics.platform.common.auth.RequirePlatformTenant;
 import com.saasbasics.platform.modules.system.dto.TransportSecurityDtos.TransportKeyActivateRequest;
 import com.saasbasics.platform.modules.system.dto.TransportSecurityDtos.TransportKeyConfigureRequest;
 import com.saasbasics.platform.modules.system.dto.TransportSecurityDtos.TransportPolicyUpdateRequest;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
  * 管理员传输加密控制台接口：实时查询运行遥测、热更新策略、配置/导入/轮换 X25519 密钥对及多维接口目录统计。
  */
 @RestController
+@RequirePlatformTenant
 @RequestMapping("/api/system/security/transport")
 public class TransportSecurityController {
 

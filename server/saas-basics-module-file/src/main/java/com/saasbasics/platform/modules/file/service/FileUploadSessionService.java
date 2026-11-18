@@ -101,6 +101,7 @@ public class FileUploadSessionService {
         String resolvedObjectKey;
         if (request.objectKey() != null && !request.objectKey().isBlank()) {
             resolvedObjectKey = FilePathPolicyHelper.sanitizeFolder(request.objectKey(), null);
+            FilePathPolicyHelper.assertTenantKeyAccess(request.tenantId(), resolvedObjectKey);
         } else {
             resolvedObjectKey = FilePathPolicyHelper.resolveObjectKey(pattern, targetDir, bizType, request.tenantId(), safeFilename);
         }
@@ -188,6 +189,7 @@ public class FileUploadSessionService {
         if (safeKey == null || safeKey.isBlank()) {
             throw new BizException("FILE_INVALID_PATH", "对象路径 objectKey 不能为空");
         }
+        FilePathPolicyHelper.assertTenantKeyAccess(tenantId, safeKey);
         FileClientFactory factory = fileClientFactoryProvider != null ? fileClientFactoryProvider.getIfAvailable() : null;
         if (factory == null) {
             throw new BizException("FILE_CLIENT_FACTORY_UNAVAILABLE", "存储客户端工厂未就绪");

@@ -6,6 +6,6 @@ import com.saasbasics.platform.modules.crm.entity.CrmReceivableEntity;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-@DataScope(resource = "crm:receivable", orgColumn = "", unitColumn = "", userColumn = "created_by")
+@DataScope(resource = "crm:receivable", orgColumn = "", unitColumn = "dept_id", userColumn = "created_by")
 public interface CrmReceivableMapper extends BaseMapper<CrmReceivableEntity> {
 }

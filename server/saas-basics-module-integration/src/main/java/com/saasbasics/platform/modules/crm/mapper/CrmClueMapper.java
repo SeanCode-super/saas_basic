@@ -6,6 +6,6 @@ import com.saasbasics.platform.modules.crm.entity.CrmClueEntity;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-@DataScope(resource = "crm:clue", orgColumn = "", unitColumn = "", userColumn = "owner_user_id")
+@DataScope(resource = "crm:clue", orgColumn = "", unitColumn = "dept_id", userColumn = "owner_user_id")
 public interface CrmClueMapper extends BaseMapper<CrmClueEntity> {
 }

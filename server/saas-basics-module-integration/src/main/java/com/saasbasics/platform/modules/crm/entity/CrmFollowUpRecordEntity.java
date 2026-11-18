@@ -1,6 +1,8 @@
 package com.saasbasics.platform.modules.crm.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import java.time.LocalDateTime;
@@ -17,6 +19,8 @@ public class CrmFollowUpRecordEntity {
     private String content;
     private LocalDateTime nextContactTime;
     private String contactUserName;
+    @TableField(fill = FieldFill.INSERT)
+    private Long deptId;
     private LocalDateTime createdAt;
     private Long createdBy;
     private LocalDateTime updatedAt;
@@ -39,6 +43,8 @@ public class CrmFollowUpRecordEntity {
     public void setNextContactTime(LocalDateTime nextContactTime) { this.nextContactTime = nextContactTime; }
     public String getContactUserName() { return contactUserName; }
     public void setContactUserName(String contactUserName) { this.contactUserName = contactUserName; }
+    public Long getDeptId() { return deptId; }
+    public void setDeptId(Long deptId) { this.deptId = deptId; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public Long getCreatedBy() { return createdBy; }

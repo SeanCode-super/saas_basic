@@ -47,4 +47,11 @@ public record AuthPrincipal(
                 || (roleIds != null && roleIds.contains(1L))
                 || (permissions != null && (permissions.contains("*") || permissions.contains("*:*:*")));
     }
+
+    /**
+     * 校验当前主体是否属于平台超级运营总控租户（tenant_id = 1 或 tenant_code = platform）。
+     */
+    public boolean isPlatformTenant() {
+        return Long.valueOf(1L).equals(tenantId) || "platform".equalsIgnoreCase(tenantCode);
+    }
 }

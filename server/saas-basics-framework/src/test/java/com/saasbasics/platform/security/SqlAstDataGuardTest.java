@@ -95,4 +95,25 @@ class SqlAstDataGuardTest {
                 t -> new SqlAstDataGuard.TableScopeConfig(spec, "", "", "owner_user_id")
         )).isInstanceOf(SecurityException.class);
     }
+
+    @Test
+    @DisplayName("CRM 客户表配置 unitColumn=dept_id 时按本部门及下级部门 ID 列表改写 SQL AST")
+    void rewritesCrmCustomerWithDepartmentUnitColumn() {
+        DataPermissionSqlSpec spec = new DataPermissionSqlSpec();
+        spec.setTenantId(2L);
+        DataPermissionSqlSpec.RuleClause deptAndChildren = new DataPermissionSqlSpec.RuleClause();
+        deptAndChildren.addDepartmentIds(List.of(10L, 11L));
+        spec.addAllowClause(deptAndChildren);
+
+        String original = "SELECT c.id, c.name FROM crm_customer c WHERE c.tenant_id = 2 AND c.is_pool = 0";
+        String rewritten = SqlAstDataGuard.rewriteSelectSql(original, table ->
+                "crm_customer".equals(table)
+                        ? new SqlAstDataGuard.TableScopeConfig(spec, "", "dept_id", "owner_user_id")
+                        : null
+        );
+
+        assertThat(rewritten)
+                .contains("c.dept_id IN (10, 11)")
+                .contains("c.tenant_id = 2");
+    }
 }

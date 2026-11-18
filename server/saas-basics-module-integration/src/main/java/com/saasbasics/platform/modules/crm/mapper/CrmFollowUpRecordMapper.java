@@ -6,6 +6,6 @@ import com.saasbasics.platform.modules.crm.entity.CrmFollowUpRecordEntity;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-@DataScope(resource = "crm:follow-up", orgColumn = "", unitColumn = "", userColumn = "created_by")
+@DataScope(resource = "crm:follow-up", orgColumn = "", unitColumn = "dept_id", userColumn = "created_by")
 public interface CrmFollowUpRecordMapper extends BaseMapper<CrmFollowUpRecordEntity> {
 }

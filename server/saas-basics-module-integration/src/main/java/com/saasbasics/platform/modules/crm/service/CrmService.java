@@ -1,25 +1,36 @@
 package com.saasbasics.platform.modules.crm.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.saasbasics.platform.common.auth.AuthContext;
 import com.saasbasics.platform.common.auth.AuthPrincipal;
+import com.saasbasics.platform.common.auth.CurrentDepartmentResolver;
+import com.saasbasics.platform.common.auth.DataPermissionContext;
+import com.saasbasics.platform.common.auth.DataScope;
 import com.saasbasics.platform.common.exception.BizException;
 import com.saasbasics.platform.modules.crm.dto.*;
 import com.saasbasics.platform.modules.crm.entity.*;
 import com.saasbasics.platform.modules.crm.mapper.*;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 @Service
 public class CrmService {
+
+    @DataScope(ignore = true)
+    private static final class PoolBypassMarker {}
+
+    private static final DataScope POOL_BYPASS_SCOPE = PoolBypassMarker.class.getAnnotation(DataScope.class);
 
     private final CrmClueMapper clueMapper;
     private final CrmCustomerMapper customerMapper;
@@ -27,6 +38,7 @@ public class CrmService {
     private final CrmContractMapper contractMapper;
     private final CrmReceivableMapper receivableMapper;
     private final CrmFollowUpRecordMapper followUpRecordMapper;
+    private final ObjectProvider<CurrentDepartmentResolver> departmentResolverProvider;
 
     public CrmService(
             CrmClueMapper clueMapper,
@@ -36,12 +48,26 @@ public class CrmService {
             CrmReceivableMapper receivableMapper,
             CrmFollowUpRecordMapper followUpRecordMapper
     ) {
+        this(clueMapper, customerMapper, businessMapper, contractMapper, receivableMapper, followUpRecordMapper, null);
+    }
+
+    @Autowired
+    public CrmService(
+            CrmClueMapper clueMapper,
+            CrmCustomerMapper customerMapper,
+            CrmBusinessMapper businessMapper,
+            CrmContractMapper contractMapper,
+            CrmReceivableMapper receivableMapper,
+            CrmFollowUpRecordMapper followUpRecordMapper,
+            ObjectProvider<CurrentDepartmentResolver> departmentResolverProvider
+    ) {
         this.clueMapper = clueMapper;
         this.customerMapper = customerMapper;
         this.businessMapper = businessMapper;
         this.contractMapper = contractMapper;
         this.receivableMapper = receivableMapper;
         this.followUpRecordMapper = followUpRecordMapper;
+        this.departmentResolverProvider = departmentResolverProvider;
     }
 
     private Long getCurrentTenantId() {
@@ -59,6 +85,23 @@ public class CrmService {
         return (principal != null && principal.username() != null) ? principal.username() : "超级管理员";
     }
 
+    private Long resolveCurrentDeptId() {
+        CurrentDepartmentResolver resolver = departmentResolverProvider != null
+                ? departmentResolverProvider.getIfAvailable()
+                : null;
+        return resolver != null ? resolver.resolveDepartmentId(getCurrentTenantId(), getCurrentUserId()) : null;
+    }
+
+    private <T> T withPoolScopeBypass(Supplier<T> action) {
+        DataScope previousScope = DataPermissionContext.getDataScope();
+        DataPermissionContext.setDataScope(POOL_BYPASS_SCOPE);
+        try {
+            return action.get();
+        } finally {
+            DataPermissionContext.setDataScope(previousScope);
+        }
+    }
+
     // ==================== 1. 核心看板与数据统计 ====================
     public CrmStatisticsResponse getStatistics() {
         Long tenantId = getCurrentTenantId();
@@ -67,10 +110,10 @@ public class CrmService {
                 .eq(CrmCustomerEntity::getTenantId, tenantId)
                 .eq(CrmCustomerEntity::getDeleted, 0));
 
-        Long poolCustomers = customerMapper.selectCount(new LambdaQueryWrapper<CrmCustomerEntity>()
+        Long poolCustomers = withPoolScopeBypass(() -> customerMapper.selectCount(new LambdaQueryWrapper<CrmCustomerEntity>()
                 .eq(CrmCustomerEntity::getTenantId, tenantId)
                 .eq(CrmCustomerEntity::getIsPool, 1)
-                .eq(CrmCustomerEntity::getDeleted, 0));
+                .eq(CrmCustomerEntity::getDeleted, 0)));
 
         Long totalClues = clueMapper.selectCount(new LambdaQueryWrapper<CrmClueEntity>()
                 .eq(CrmClueEntity::getTenantId, tenantId)
@@ -153,6 +196,7 @@ public class CrmService {
         entity.setSource(req.getSource() != null ? req.getSource() : "ONLINE");
         entity.setStatus(req.getStatus() != null ? req.getStatus() : "UNFOLLOWED");
         entity.setOwnerUserId(getCurrentUserId());
+        entity.setDeptId(resolveCurrentDeptId());
         entity.setOwnerUserName(getCurrentUserName());
         entity.setNextContactTime(req.getNextContactTime());
         entity.setRemark(req.getRemark());
@@ -198,6 +242,7 @@ public class CrmService {
         customer.setIsPool(0);
         customer.setLockStatus(0);
         customer.setOwnerUserId(getCurrentUserId());
+        customer.setDeptId(resolveCurrentDeptId());
         customer.setOwnerUserName(getCurrentUserName());
         customer.setLastContactTime(LocalDateTime.now());
         customer.setNextContactTime(clue.getNextContactTime());
@@ -259,7 +304,11 @@ public class CrmService {
                     .or().like(CrmCustomerEntity::getMobile, keyword));
         }
 
-        return customerMapper.selectList(wrapper).stream().map(c -> new CrmCustomerResponse(
+        List<CrmCustomerEntity> customerEntities = Integer.valueOf(1).equals(isPool)
+                ? withPoolScopeBypass(() -> customerMapper.selectList(wrapper))
+                : customerMapper.selectList(wrapper);
+
+        return customerEntities.stream().map(c -> new CrmCustomerResponse(
                 c.getId(), c.getCustomerCode(), c.getName(), c.getIndustry(), c.getLevel(),
                 c.getSource(), c.getMobile(), c.getTelephone(), c.getEmail(), c.getAddress(),
                 c.getDealStatus(), c.getIsPool(), c.getLockStatus(), c.getOwnerUserId(),
@@ -288,6 +337,7 @@ public class CrmService {
         entity.setIsPool(0);
         entity.setLockStatus(req.getLockStatus() != null ? req.getLockStatus() : 0);
         entity.setOwnerUserId(getCurrentUserId());
+        entity.setDeptId(resolveCurrentDeptId());
         entity.setOwnerUserName(getCurrentUserName());
         entity.setLastContactTime(LocalDateTime.now());
         entity.setNextContactTime(req.getNextContactTime());
@@ -313,20 +363,24 @@ public class CrmService {
     @Transactional
     public void claimCustomer(Long customerId) {
         Long tenantId = getCurrentTenantId();
-        CrmCustomerEntity customer = customerMapper.selectById(customerId);
-        if (customer == null || customer.getDeleted() == 1 || !tenantId.equals(customer.getTenantId())) {
-            throw new BizException("CUSTOMER_NOT_FOUND", "指定的客户档案不存在");
-        }
-        if (customer.getIsPool() == 0) {
-            throw new BizException("ALREADY_CLAIMED", "该客户已被其他销售人员领取");
-        }
+        withPoolScopeBypass(() -> {
+            CrmCustomerEntity customer = customerMapper.selectById(customerId);
+            if (customer == null || customer.getDeleted() == 1 || !tenantId.equals(customer.getTenantId())) {
+                throw new BizException("CUSTOMER_NOT_FOUND", "指定的客户档案不存在");
+            }
+            if (customer.getIsPool() == 0) {
+                throw new BizException("ALREADY_CLAIMED", "该客户已被其他销售人员领取");
+            }
 
-        customer.setIsPool(0);
-        customer.setOwnerUserId(getCurrentUserId());
-        customer.setOwnerUserName(getCurrentUserName());
-        customer.setLastContactTime(LocalDateTime.now());
-        customer.setUpdatedAt(LocalDateTime.now());
-        customerMapper.updateById(customer);
+            customer.setIsPool(0);
+            customer.setOwnerUserId(getCurrentUserId());
+            customer.setDeptId(resolveCurrentDeptId());
+            customer.setOwnerUserName(getCurrentUserName());
+            customer.setLastContactTime(LocalDateTime.now());
+            customer.setUpdatedAt(LocalDateTime.now());
+            customerMapper.updateById(customer);
+            return null;
+        });
 
         addInternalFollowUp("CUSTOMER", customerId, "销售员 [" + getCurrentUserName() + "] 从公海池成功抢单认领该客户");
     }
@@ -342,11 +396,16 @@ public class CrmService {
             throw new BizException("CUSTOMER_LOCKED", "该客户处于锁定保护状态，严禁退回公海");
         }
 
-        customer.setIsPool(1);
-        customer.setOwnerUserId(null);
-        customer.setOwnerUserName("公海池");
-        customer.setUpdatedAt(LocalDateTime.now());
-        customerMapper.updateById(customer);
+        LambdaUpdateWrapper<CrmCustomerEntity> clearPoolWrapper = new LambdaUpdateWrapper<CrmCustomerEntity>()
+                .eq(CrmCustomerEntity::getId, customerId)
+                .eq(CrmCustomerEntity::getTenantId, tenantId)
+                .set(CrmCustomerEntity::getIsPool, 1)
+                .set(CrmCustomerEntity::getOwnerUserId, null)
+                .set(CrmCustomerEntity::getDeptId, null)
+                .set(CrmCustomerEntity::getOwnerUserName, "公海池")
+                .set(CrmCustomerEntity::getUpdatedAt, LocalDateTime.now())
+                .set(CrmCustomerEntity::getUpdatedBy, getCurrentUserId());
+        customerMapper.update(null, clearPoolWrapper);
 
         addInternalFollowUp("CUSTOMER", customerId, "销售人员退回客户至公海池，开放全体销售认领");
     }
@@ -404,6 +463,7 @@ public class CrmService {
         entity.setWinRate(req.getWinRate() != null ? req.getWinRate() : 20);
         entity.setLossReason(req.getLossReason());
         entity.setOwnerUserId(getCurrentUserId());
+        entity.setDeptId(resolveCurrentDeptId());
         entity.setOwnerUserName(getCurrentUserName());
         entity.setRemark(req.getRemark());
         entity.setCreatedAt(LocalDateTime.now());
@@ -500,6 +560,7 @@ public class CrmService {
         entity.setEndTime(req.getEndTime());
         entity.setSignerUserName(req.getSignerUserName() != null ? req.getSignerUserName() : getCurrentUserName());
         entity.setStatus("APPROVING");
+        entity.setDeptId(resolveCurrentDeptId());
         entity.setRemark(req.getRemark());
         entity.setCreatedAt(LocalDateTime.now());
         entity.setCreatedBy(getCurrentUserId());
@@ -569,6 +630,7 @@ public class CrmService {
         entity.setReturnTime(req.getReturnTime());
         entity.setPayType(req.getPayType() != null ? req.getPayType() : "BANK_TRANSFER");
         entity.setStatus("PENDING");
+        entity.setDeptId(resolveCurrentDeptId());
         entity.setRemark(req.getRemark());
         entity.setCreatedAt(LocalDateTime.now());
         entity.setCreatedBy(getCurrentUserId());
@@ -626,6 +688,7 @@ public class CrmService {
         entity.setContent(req.getContent());
         entity.setNextContactTime(req.getNextContactTime());
         entity.setContactUserName(getCurrentUserName());
+        entity.setDeptId(resolveCurrentDeptId());
         entity.setCreatedAt(LocalDateTime.now());
         entity.setCreatedBy(getCurrentUserId());
         entity.setUpdatedAt(LocalDateTime.now());
@@ -661,6 +724,7 @@ public class CrmService {
         entity.setFollowType("OTHER");
         entity.setContent(content);
         entity.setContactUserName(getCurrentUserName());
+        entity.setDeptId(resolveCurrentDeptId());
         entity.setCreatedAt(LocalDateTime.now());
         entity.setCreatedBy(getCurrentUserId());
         entity.setUpdatedAt(LocalDateTime.now());
