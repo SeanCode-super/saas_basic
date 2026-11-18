@@ -7,12 +7,45 @@ export function apiGetCrmStatistics() {
   });
 }
 
-export function apiGetCustomers(params?: { inPool?: boolean; search?: string; status?: string }) {
+export function apiGetCustomers(params?: {
+  inPool?: boolean;
+  isPool?: number;
+  search?: string;
+  keyword?: string;
+  level?: string;
+  status?: string;
+}) {
+  const queryParams: Record<string, any> = {};
+  if (params) {
+    if (params.isPool !== undefined) {
+      queryParams.isPool = params.isPool;
+    } else if (params.inPool !== undefined) {
+      queryParams.isPool = params.inPool ? 1 : 0;
+    }
+    if (params.keyword !== undefined) {
+      queryParams.keyword = params.keyword;
+    } else if (params.search !== undefined) {
+      queryParams.keyword = params.search;
+    }
+    if (params.level) {
+      queryParams.level = params.level;
+    }
+    if (params.status) {
+      queryParams.status = params.status;
+    }
+  }
   return request<any[]>({
     url: "/api/crm/customers",
     method: "GET",
-    params,
+    params: queryParams,
     silent: true
+  });
+}
+
+export function apiDeleteCustomer(id: number) {
+  return request<boolean>({
+    url: `/api/crm/customers/${id}`,
+    method: "DELETE"
   });
 }
 
@@ -52,6 +85,13 @@ export function apiCreateClue(payload: any) {
     url: "/api/crm/clues",
     method: "POST",
     data: payload
+  });
+}
+
+export function apiDeleteClue(id: number) {
+  return request<boolean>({
+    url: `/api/crm/clues/${id}`,
+    method: "DELETE"
   });
 }
 

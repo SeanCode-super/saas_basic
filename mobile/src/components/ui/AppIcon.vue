@@ -11,11 +11,11 @@
       stroke-linejoin="round"
       class="svg-icon"
     >
-      <!-- 品牌 Logo 晶透核 -->
+      <!-- 品牌 Logo 天枢星轨与四芒星核 -->
       <g v-if="name === 'logo'">
-        <polygon points="12 2 2 8.5 12 15 22 8.5 12 2" stroke="currentColor" fill="none" />
-        <polyline points="2 15.5 12 22 22 15.5" />
-        <polyline points="2 12 12 18.5 22 12" />
+        <ellipse cx="12" cy="12" rx="8" ry="3.5" transform="rotate(-34 12 12)" stroke="currentColor" stroke-width="1.2" stroke-opacity="0.6" />
+        <path d="M12 4.5L13.8 10.2L19.5 12L13.8 13.8L12 19.5L10.2 13.8L4.5 12L10.2 10.2Z" fill="currentColor" fill-opacity="0.2" stroke="currentColor" stroke-width="1.4" />
+        <circle cx="12" cy="12" r="1.5" fill="currentColor" />
       </g>
 
       <!-- 审批 / 剪贴板 -->
@@ -95,9 +95,47 @@
         <path d="M3 21l3-1 2-5-4-4-1 3-1 3 1 4z" />
       </g>
 
+      <!-- 删除 / 回收站 -->
+      <g v-else-if="name === 'trash' || name === 'delete'">
+        <path d="M3 6h18" />
+        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+        <line x1="10" y1="11" x2="10" y2="17" />
+        <line x1="14" y1="11" x2="14" y2="17" />
+      </g>
+
       <!-- 安全基座 / 盾牌 -->
       <g v-else-if="name === 'shield' || name === 'security'">
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      </g>
+
+      <!-- 智盾安全核验通过 -->
+      <g v-else-if="name === 'shield-check'">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        <path d="m9 12 2 2 4-4" />
+      </g>
+
+      <!-- 对勾 / 校验通过 -->
+      <g v-else-if="name === 'check' || name === 'verify'">
+        <polyline points="20 6 9 17 4 12" />
+      </g>
+
+      <!-- 密码锁 -->
+      <g v-else-if="name === 'lock'">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+      </g>
+
+      <!-- 搜索 -->
+      <g v-else-if="name === 'search'">
+        <circle cx="11" cy="11" r="8" />
+        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+      </g>
+
+      <!-- 单人用户 -->
+      <g v-else-if="name === 'user'">
+        <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
       </g>
 
       <!-- 引擎架构 / CPU -->

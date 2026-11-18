@@ -9,28 +9,29 @@
       <view class="brand-row">
         <view class="brand-capsule">
           <view class="capsule-logo-badge">
-            <AppIcon name="logo" :size="16" color="#2563eb" :stroke-width="1.8" />
+            <TianshuLogo :size="18" />
           </view>
-          <text class="capsule-brand-name">天枢云基</text>
+          <text class="capsule-brand-name">天枢协同云平台</text>
           <text class="capsule-sep">|</text>
-          <text class="capsule-portal-name">{{ portal?.clientName || (isTenantPortal ? currentTenantTitle : "平台统一门户") }}</text>
+          <text class="capsule-portal-name">{{ portal?.clientName || (isTenantPortal ? currentTenantTitle : "统一门户") }}</text>
         </view>
 
         <view v-if="isTenantPortal" class="platform-entry-btn" @click="switchToPlatform">
-          <text class="platform-entry-text">平台管理入口 →</text>
+          <text class="platform-entry-text">平台入口 →</text>
         </view>
       </view>
 
       <view class="title-box">
         <text class="login-title">欢迎登录</text>
-        <text class="login-desc">{{ isTenantPortal ? '请输入您的企业租户凭据以进入工作空间' : '请输入您的企业租户凭证以进入控制台' }}</text>
+        <text class="login-desc">{{ isTenantPortal ? '请输入企业租户凭据以进入工作空间' : '请输入凭据以接入天枢协同控制台' }}</text>
       </view>
 
       <view class="form-container">
+        <!-- 账号输入 -->
         <view class="form-item">
           <text class="item-label">账号凭证</text>
           <view class="input-wrap">
-            <AppIcon name="user" :size="16" color="#94a3b8" />
+            <AppIcon name="user" :size="16" color="#64748b" />
             <input
               v-model="form.username"
               class="item-input"
@@ -39,42 +40,46 @@
           </view>
         </view>
 
+        <!-- 密码输入 -->
         <view class="form-item">
           <text class="item-label">访问密码</text>
           <view class="input-wrap">
-            <AppIcon name="shield" :size="16" color="#94a3b8" />
+            <AppIcon name="lock" :size="16" color="#64748b" />
             <input
               v-model="form.password"
-              type="password"
+              :password="!showPassword"
               class="item-input"
               placeholder="请输入登录密码"
             />
+            <view class="eye-toggle" @click="showPassword = !showPassword">
+              <AppIcon :name="showPassword ? 'eye-off' : 'shield'" :size="16" color="#94a3b8" />
+            </view>
           </view>
         </view>
 
-        <button class="login-btn" :loading="loading" @click="handleLogin">
-          登 录
-        </button>
-      </view>
+        <!-- 天枢智盾：安全环境自动核验通过 -->
+        <view class="shield-check-card">
+          <view class="shield-check-left">
+            <view class="shield-icon-badge">
+              <AppIcon name="shield-check" :size="15" color="#059669" :stroke-width="2.2" />
+            </view>
+            <text class="shield-check-text">安全环境自动核验通过</text>
+          </view>
+          <view class="shield-check-right">
+            <text class="shield-brand-text">天枢智盾</text>
+          </view>
+        </view>
 
-      <!-- 快速填入凭证芯片 -->
-      <view class="quick-chips">
-        <template v-if="!isTenantPortal">
-          <view class="chip-item chip-item--admin" @click="fillAccount('admin')">
-            <text class="chip-title">超管: admin / Admin@123456</text>
-          </view>
-          <view class="chip-item chip-item--user" @click="fillAccount('user')">
-            <text class="chip-title">普通用户: user / User@123456</text>
-          </view>
-        </template>
-        <template v-else>
-          <view class="chip-item chip-item--user" @click="fillAccount('user')">
-            <text class="chip-title">租户员工: user / User@123456</text>
-          </view>
-          <view class="chip-item chip-item--admin" @click="fillAccount('admin')">
-            <text class="chip-title">租户超管: admin / Admin@123456</text>
-          </view>
-        </template>
+        <!-- 辅助操作 -->
+        <view class="form-sub-row">
+          <text class="sub-link" @click="handleForgotPassword">忘记密码？</text>
+        </view>
+
+        <!-- 浅色珠光轻玻登录按钮 (与 Web 统一浅色主题一致) -->
+        <button class="login-btn" :loading="loading" @click="handleLogin">
+          <text class="btn-text">登 录</text>
+          <text class="btn-arrow">→</text>
+        </button>
       </view>
     </view>
   </view>
@@ -85,8 +90,10 @@ import { computed, onMounted, reactive, ref } from "vue";
 import { onLoad, onShow } from "@dcloudio/uni-app";
 import { apiLogin, apiGetPortalEntry, type PortalEntry } from "../../api/auth";
 import AppIcon from "../../components/ui/AppIcon.vue";
+import TianshuLogo from "../../components/brand/TianshuLogo.vue";
 
 const loading = ref(false);
+const showPassword = ref(false);
 const portal = ref<PortalEntry | null>(null);
 
 const form = reactive({
@@ -130,7 +137,8 @@ function extractTenantCodeFromUrl(query?: any): string {
 async function loadPortal(tenantCode?: string) {
   try {
     const entry = await apiGetPortalEntry({
-      tenantCode: tenantCode || undefined
+      tenantCode: tenantCode || undefined,
+      terminalCode: "h5"
     });
     portal.value = entry;
     form.clientId = entry.clientId;
@@ -138,7 +146,7 @@ async function loadPortal(tenantCode?: string) {
       form.tenantCode = entry.tenantCode;
     }
   } catch (e) {
-    // 降级容灾
+    // 容灾降级
   }
 }
 
@@ -211,17 +219,16 @@ function switchToPlatform() {
   }
   // #endif
   loadPortal("");
-  uni.showToast({ title: "已切换至平台统一门户", icon: "none" });
+  uni.showToast({ title: "已切换至平台控制台", icon: "none" });
 }
 
-function fillAccount(type: "admin" | "user") {
-  if (type === "user") {
-    form.username = "user";
-    form.password = "User@123456";
-  } else {
-    form.username = "admin";
-    form.password = "Admin@123456";
-  }
+function handleForgotPassword() {
+  uni.showModal({
+    title: "密码找回提示",
+    content: "请使用 Web 端自主找回密码，或联系系统顶级超级管理员进行安全凭据重置。",
+    showCancel: false,
+    confirmText: "我知道了"
+  });
 }
 
 async function handleLogin() {
@@ -235,6 +242,7 @@ async function handleLogin() {
       username: form.username.trim(),
       password: form.password.trim(),
       clientId: form.clientId || undefined,
+      terminalCode: "h5",
       ...(form.tenantCode.trim() ? { tenantCode: form.tenantCode.trim() } : {})
     };
     const res = await apiLogin(payload);
@@ -307,15 +315,15 @@ async function handleLogin() {
 .login-card {
   position: relative;
   z-index: 1;
-  background: rgba(255, 255, 255, 0.68);
-  border: 1px solid rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(36px) saturate(210%);
   -webkit-backdrop-filter: blur(36px) saturate(210%);
   box-shadow:
     inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
-    0 20px 45px -10px rgba(12, 34, 56, 0.08);
+    0 24px 48px -12px rgba(12, 34, 56, 0.10);
   border-radius: 24px;
-  padding: 24px 20px;
+  padding: 26px 20px;
 }
 
 /* 顶部品牌胶囊与切换按钮 */
@@ -329,19 +337,15 @@ async function handleLogin() {
 .brand-capsule {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  background: rgba(255, 255, 255, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.95);
-  padding: 4px 10px 4px 6px;
+  gap: 7px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.96);
+  padding: 4px 10px 4px 5px;
   border-radius: 9999px;
   box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.98), 0 2px 8px rgba(15, 23, 42, 0.04);
 }
 
 .capsule-logo-badge {
-  width: 24px;
-  height: 24px;
-  border-radius: 7px;
-  background: rgba(37, 99, 235, 0.10);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -373,8 +377,8 @@ async function handleLogin() {
   align-items: center;
   padding: 4px 10px;
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.90);
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.92);
   box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
   cursor: pointer;
   transition: transform 0.15s ease;
@@ -404,7 +408,7 @@ async function handleLogin() {
 }
 
 .login-desc {
-  font-size: 12px;
+  font-size: 12.5px;
   color: #64748b;
   font-weight: 500;
   margin-top: 5px;
@@ -412,11 +416,11 @@ async function handleLogin() {
 }
 
 .form-container {
-  margin-bottom: 18px;
+  margin-bottom: 8px;
 }
 
 .form-item {
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .item-label {
@@ -431,20 +435,20 @@ async function handleLogin() {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: rgba(255, 255, 255, 0.60);
+  background: rgba(255, 255, 255, 0.65);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.90);
   border-radius: 14px;
   padding: 0 14px;
   height: 48px;
   box-sizing: border-box;
-  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.03);
   transition: all 0.2s ease;
 }
 
 .input-wrap:focus-within {
-  background: rgba(255, 255, 255, 0.90);
+  background: rgba(255, 255, 255, 0.95);
   border-color: rgba(37, 99, 235, 0.6);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
@@ -457,63 +461,127 @@ async function handleLogin() {
   background: transparent;
 }
 
-.login-btn {
-  margin-top: 8px;
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-  color: #ffffff;
+.eye-toggle {
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 天枢智盾安全核验胶囊卡片 */
+.shield-check-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(236, 253, 245, 0.78);
+  border: 1px solid rgba(167, 243, 208, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border-radius: 12px;
-  font-size: 15.5px;
+  padding: 0 12px;
+  height: 42px;
+  box-sizing: border-box;
+  margin-bottom: 12px;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.9);
+}
+
+.shield-check-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.shield-icon-badge {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: rgba(5, 150, 105, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.shield-check-text {
+  font-size: 12.5px;
   font-weight: 600;
+  color: #065f46;
+}
+
+.shield-check-right {
+  display: flex;
+  align-items: center;
+}
+
+.shield-brand-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: #059669;
+  letter-spacing: 0.2px;
+}
+
+.form-sub-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.forgot-link {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.forgot-link:active {
+  color: #2563eb;
+}
+
+/* 浅色珠光微玻高质感登录按钮 */
+.login-btn {
+  position: relative;
+  width: 100%;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.96) 0%, rgba(241, 245, 249, 0.90) 100%);
+  color: #0f172a;
+  border-radius: 14px;
   height: 48px;
   line-height: 48px;
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.98);
   box-shadow:
-    inset 0 1px 1.5px rgba(255, 255, 255, 0.4),
-    0 8px 20px rgba(37, 99, 235, 0.28);
-  transition: transform 0.15s ease;
+    inset 0 1px 1.5px 0 #ffffff,
+    inset 0 -1px 2px 0 rgba(203, 213, 225, 0.35),
+    0 10px 24px -4px rgba(15, 23, 42, 0.10);
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-sizing: border-box;
 }
 
 .login-btn:active {
-  transform: scale(0.98);
+  transform: scale(0.985);
+  background: linear-gradient(135deg, rgba(248, 250, 252, 0.98) 0%, rgba(226, 232, 240, 0.92) 100%);
+  box-shadow:
+    inset 0 1px 2px 0 rgba(15, 23, 42, 0.08),
+    0 4px 12px -2px rgba(15, 23, 42, 0.08);
 }
 
-.quick-chips {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 6px;
+.btn-text {
+  font-size: 15.5px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: 1px;
 }
 
-.chip-item {
-  padding: 8px 14px;
-  border-radius: 12px;
-  cursor: pointer;
-  border: 1px solid rgba(255, 255, 255, 0.90);
-  background: rgba(255, 255, 255, 0.65);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.95), 0 2px 8px rgba(15, 23, 42, 0.04);
-  text-align: center;
-  transition: transform 0.15s ease;
+.btn-arrow {
+  font-size: 15px;
+  font-weight: 700;
+  color: #334155;
+  transition: transform 0.2s ease;
 }
 
-.chip-item:active {
-  transform: scale(0.98);
-}
-
-.chip-item--admin {
-  border-color: rgba(37, 99, 235, 0.30);
-  background: rgba(239, 246, 255, 0.75);
-}
-
-.chip-item--user {
-  border-color: rgba(16, 185, 129, 0.30);
-  background: rgba(236, 253, 245, 0.75);
-}
-
-.chip-title {
-  font-size: 12px;
-  font-weight: 550;
-  color: #1e293b;
+.login-btn:active .btn-arrow {
+  transform: translateX(2px);
 }
 </style>

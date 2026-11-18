@@ -103,6 +103,9 @@
             <button class="action-btn is-claim" @click="handleClaim(item)">
               立即认领抢单
             </button>
+            <button class="action-btn is-delete" @click="handleDelete(item)">
+              删除
+            </button>
           </template>
           <template v-else>
             <button class="action-btn is-follow" @click="goFollowUp(item)">
@@ -110,6 +113,9 @@
             </button>
             <button class="action-btn is-return" @click="handleReturn(item)">
               退回公海
+            </button>
+            <button class="action-btn is-delete" @click="handleDelete(item)">
+              删除
             </button>
           </template>
         </view>
@@ -175,6 +181,10 @@
             <AppIcon name="edit" :size="16" color="#0284c7" />
             <text>录入外勤拜访记录</text>
           </button>
+          <button class="sheet-btn btn-delete" @click="handleDelete(selectedCustomer)">
+            <AppIcon name="trash" :size="16" color="#ef4444" />
+            <text>移入回收站 (删除客户)</text>
+          </button>
         </view>
       </view>
     </AppModal>
@@ -220,7 +230,8 @@ import {
   apiGetCustomers,
   apiClaimCustomer,
   apiReturnCustomerToPool,
-  apiCreateCustomer
+  apiCreateCustomer,
+  apiDeleteCustomer
 } from "../../api/crm";
 
 const activeTab = ref<"all" | "mine" | "pool">("all");
@@ -265,7 +276,10 @@ async function loadData(isRefresh = false) {
     loading.value = true;
   }
   try {
-    const list = await apiGetCustomers();
+    const list = await apiGetCustomers({
+      isPool: activeTab.value === "all" ? undefined : (activeTab.value === "pool" ? 1 : 0),
+      keyword: keyword.value.trim() || undefined
+    });
     customers.value = (Array.isArray(list) ? list : []).map((c: any) => ({
       ...c,
       inPool: c.inPool ?? (c.isPool === 1),
@@ -295,15 +309,17 @@ onPullDownRefresh(() => {
 
 function switchTab(tab: "all" | "mine" | "pool") {
   activeTab.value = tab;
+  loadData(true);
 }
 
 function filterCustomers() {
-  // filteredList reactive auto computes
+  loadData(true);
 }
 
 function resetFilter() {
   keyword.value = "";
   activeTab.value = "all";
+  loadData(true);
 }
 
 function openCustomerDetail(cust: any) {
@@ -363,6 +379,30 @@ function handleReturn(item: any) {
           item.inPool = true;
           item.ownerName = null;
           uni.showToast({ title: "已退回公海", icon: "none" });
+        }
+      }
+    }
+  });
+}
+
+function handleDelete(item: any) {
+  if (!item?.id) return;
+  uni.showModal({
+    title: "删除确认",
+    content: `确定要删除客户【${item.name}】吗？删除后将移入系统回收站，可由管理员统一恢复。`,
+    confirmColor: "#ef4444",
+    confirmText: "确认删除",
+    success: async (res) => {
+      if (res.confirm) {
+        try {
+          await apiDeleteCustomer(item.id);
+          uni.showToast({ title: "已移入系统回收站", icon: "success" });
+          if (detailModalVisible.value) {
+            detailModalVisible.value = false;
+          }
+          loadData(true);
+        } catch (err: any) {
+          uni.showToast({ title: err?.message || "删除失败", icon: "none" });
         }
       }
     }
@@ -635,6 +675,18 @@ onMounted(() => {
   color: #64748b;
 }
 
+.is-delete {
+  flex: 0 0 54px;
+  background: rgba(254, 242, 242, 0.85);
+  border: 1px solid rgba(254, 202, 202, 0.9);
+  color: #ef4444;
+  font-size: 12px;
+}
+
+.is-delete:active {
+  background: rgba(254, 226, 226, 0.95);
+}
+
 .float-btn {
   position: fixed;
   right: 20px;
@@ -782,6 +834,12 @@ onMounted(() => {
   background: #f1f5f9;
   color: #0284c7;
   border: 1px solid #e2e8f0;
+}
+
+.btn-delete {
+  background: rgba(254, 242, 242, 0.88);
+  color: #ef4444;
+  border: 1px solid rgba(254, 202, 202, 0.95);
 }
 
 /* 表单样式 */
