@@ -70,6 +70,36 @@ export default defineConfig({
         target: env.VITE_API_PROXY_TARGET ?? "http://127.0.0.1:8080",
         changeOrigin: true,
         xfwd: true
+      },
+      "/open": {
+        target: env.VITE_API_PROXY_TARGET ?? "http://127.0.0.1:8080",
+        changeOrigin: true,
+        xfwd: true
+      },
+      "/scim": {
+        target: env.VITE_API_PROXY_TARGET ?? "http://127.0.0.1:8080",
+        changeOrigin: true,
+        xfwd: true
+      },
+      "/doc.html": {
+        target: env.VITE_API_PROXY_TARGET ?? "http://127.0.0.1:8080",
+        changeOrigin: true
+      },
+      "/v3/api-docs": {
+        target: env.VITE_API_PROXY_TARGET ?? "http://127.0.0.1:8080",
+        changeOrigin: true
+      },
+      "/api-docs": {
+        target: env.VITE_API_PROXY_TARGET ?? "http://127.0.0.1:8080",
+        changeOrigin: true
+      },
+      "/swagger-ui": {
+        target: env.VITE_API_PROXY_TARGET ?? "http://127.0.0.1:8080",
+        changeOrigin: true
+      },
+      "/webjars": {
+        target: env.VITE_API_PROXY_TARGET ?? "http://127.0.0.1:8080",
+        changeOrigin: true
       }
     }
   }

@@ -146,7 +146,7 @@ const allCommands: CommandItem[] = [
     title: "Knife4j 在线 API 接口文档",
     subtitle: "SpringDoc OpenAPI 3 交互式接口调试台",
     icon: Document,
-    action: () => window.open("http://localhost:8080/doc.html", "_blank")
+    action: () => window.open("/doc.html", "_blank")
   },
   {
     id: "app-crm",

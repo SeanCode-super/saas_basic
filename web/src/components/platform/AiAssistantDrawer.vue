@@ -3,6 +3,7 @@ import { ref, reactive, nextTick, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import {
+  Close,
   Delete,
   DocumentCopy,
   Loading,
@@ -12,6 +13,8 @@ import {
   Setting
 } from "@element-plus/icons-vue";
 import { fetchPublicAiModels } from "@/api/modules/ai";
+import { useAuthStore } from "@/stores/modules/auth";
+import { renderSafeMarkdown } from "@/utils/safe-markdown";
 
 interface ChatMessageItem {
   id: string;
@@ -31,11 +34,13 @@ interface ModelOption {
 }
 
 const router = useRouter();
+const authStore = useAuthStore();
 const visible = ref(false);
 const loading = ref(false);
 const selectedModel = ref("deepseek-chat");
 const inputPrompt = ref("");
 const chatScrollRef = ref<HTMLElement | null>(null);
+let streamAbortController: AbortController | null = null;
 
 const models = ref<ModelOption[]>([
   { id: "deepseek-chat", name: "DeepSeek-V3 (通用旗舰)", vendor: "DeepSeek", hasApiKey: false },
@@ -133,6 +138,13 @@ function copyContent(text: string) {
   ElMessage.success("已复制到剪贴板");
 }
 
+function stopGeneration() {
+  if (streamAbortController) {
+    streamAbortController.abort();
+    streamAbortController = null;
+  }
+}
+
 async function handleSend() {
   const content = inputPrompt.value.trim();
   if (!content || loading.value) return;
@@ -158,14 +170,25 @@ async function handleSend() {
   });
   messages.value.push(assistantMsg);
 
+  streamAbortController = new AbortController();
+
   try {
-    const token = localStorage.getItem("sb_access_token") || "";
+    const token = authStore.token || localStorage.getItem("sb-access-token") || "";
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json"
+    };
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    const tenantCode = authStore.currentUser?.tenantCode;
+    if (tenantCode) {
+      headers["X-Tenant-Code"] = tenantCode;
+    }
+
     const response = await fetch("/api/ai/chat/stream", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: token ? `Bearer ${token}` : ""
-      },
+      headers,
+      signal: streamAbortController.signal,
       body: JSON.stringify({
         model: selectedModel.value,
         messages: messages.value.filter((m) => m.role !== "system").map((m) => ({ role: m.role, content: m.content })),
@@ -177,10 +200,8 @@ async function handleSend() {
       // Fallback to non-streaming chat
       const fallbackRes = await fetch("/api/ai/chat", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: token ? `Bearer ${token}` : ""
-        },
+        headers,
+        signal: streamAbortController.signal,
         body: JSON.stringify({
           model: selectedModel.value,
           messages: [{ role: "user", content }]
@@ -219,8 +240,13 @@ async function handleSend() {
       }
     }
   } catch (err: any) {
-    assistantMsg.content += `\n\n[请求异常: ${err?.message || "网络中断"}]`;
+    if (err?.name === "AbortError") {
+      assistantMsg.content += assistantMsg.content ? "\n\n[已手动停止生成]" : "[已手动停止生成]";
+    } else {
+      assistantMsg.content += `\n\n[请求异常: ${err?.message || "网络中断"}]`;
+    }
   } finally {
+    streamAbortController = null;
     loading.value = false;
     scrollToBottom();
   }
@@ -326,7 +352,7 @@ defineExpose({
                 @click="copyContent(msg.content)"
               />
             </div>
-            <div class="bubble-text markdown-render" v-html="msg.content.replace(/\n/g, '<br/>')" />
+            <div class="bubble-text markdown-render" v-html="renderSafeMarkdown(msg.content)" />
           </div>
         </div>
 
@@ -349,14 +375,26 @@ defineExpose({
           />
           <div class="input-actions">
             <span class="token-tip">Shift+Enter 换行</span>
-            <el-button
-              type="primary"
-              :icon="Position"
-              :loading="loading"
-              @click="handleSend"
-            >
-              发送提问
-            </el-button>
+            <div class="input-btn-group">
+              <el-button
+                v-if="loading"
+                type="danger"
+                plain
+                size="small"
+                :icon="Close"
+                @click="stopGeneration"
+              >
+                停止生成
+              </el-button>
+              <el-button
+                type="primary"
+                :icon="Position"
+                :loading="loading"
+                @click="handleSend"
+              >
+                发送提问
+              </el-button>
+            </div>
           </div>
         </div>
       </div>
@@ -595,6 +633,60 @@ defineExpose({
   align-items: center;
   justify-content: space-between;
   margin-top: 8px;
+}
+
+.input-btn-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.markdown-render :deep(.md-heading) {
+  margin: 6px 0 4px;
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.markdown-render :deep(.md-paragraph) {
+  margin: 2px 0;
+}
+
+.markdown-render :deep(.md-list) {
+  margin: 4px 0;
+  padding-left: 18px;
+}
+
+.markdown-render :deep(.md-spacer) {
+  height: 6px;
+}
+
+.markdown-render :deep(.md-inline-code) {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(15, 23, 42, 0.08);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+}
+
+.markdown-render :deep(.md-code-block) {
+  position: relative;
+  margin: 6px 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-x: auto;
+}
+
+.markdown-render :deep(.md-code-lang) {
+  display: inline-block;
+  margin-bottom: 4px;
+  font-size: 10px;
+  text-transform: uppercase;
+  color: #38bdf8;
 }
 
 .token-tip {

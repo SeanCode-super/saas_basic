@@ -219,6 +219,46 @@ public class PlatformTelemetryService {
         }
     }
 
+    /**
+     * Emits an OpenTelemetry GenAI semantic conventions span and records token/latency metrics.
+     */
+    public void recordGenAiSpan(
+            String providerCode,
+            String modelId,
+            Long tenantId,
+            int inputTokens,
+            int outputTokens,
+            long durationMs,
+            Throwable error
+    ) {
+        String provider = providerCode != null && !providerCode.isBlank() ? providerCode : "openai-compatible";
+        String model = modelId != null && !modelId.isBlank() ? modelId : "unknown";
+        Instant endTime = Instant.now();
+        Instant startTime = endTime.minusMillis(Math.max(1L, durationMs));
+
+        Span genAiSpan = tracer.spanBuilder("chat " + model)
+                .setSpanKind(SpanKind.CLIENT)
+                .setStartTimestamp(startTime)
+                .setAttribute("gen_ai.system", provider)
+                .setAttribute("gen_ai.operation.name", "chat")
+                .setAttribute("gen_ai.request.model", model)
+                .setAttribute("gen_ai.usage.input_tokens", (long) Math.max(0, inputTokens))
+                .setAttribute("gen_ai.usage.output_tokens", (long) Math.max(0, outputTokens))
+                .startSpan();
+        if (tenantId != null) {
+            genAiSpan.setAttribute("tenant.id", tenantId);
+        }
+        if (error != null) {
+            genAiSpan.setStatus(StatusCode.ERROR, error.getMessage());
+            genAiSpan.recordException(error);
+        } else {
+            genAiSpan.setStatus(StatusCode.OK);
+        }
+        genAiSpan.end(endTime);
+
+        recordAiUsage(provider, model, error != null ? "FAILED" : "SUCCEEDED", inputTokens, outputTokens, durationMs);
+    }
+
     public void recordAiUsage(String providerCode, String modelId, String status, int promptTokens, int completionTokens, long latencyMs) {
         aiRequestsTotal.incrementAndGet();
         aiPromptTokensTotal.addAndGet(Math.max(0, promptTokens));

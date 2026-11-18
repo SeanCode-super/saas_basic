@@ -2,6 +2,7 @@ package com.saasbasics.platform.modules.codegen.controller;
 
 import com.saasbasics.platform.common.api.ApiResponse;
 import com.saasbasics.platform.common.api.PageResponse;
+import com.saasbasics.platform.common.auth.RequirePermission;
 import com.saasbasics.platform.modules.codegen.dto.DynamicDataPageRequest;
 import com.saasbasics.platform.modules.codegen.dto.DynamicModelResponse;
 import com.saasbasics.platform.modules.codegen.service.DynamicDataService;
@@ -12,6 +13,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/dynamic/{modelCode}")
+@RequirePermission("codegen:project:query")
 public class DynamicDataController {
 
     private final DynamicDataService dynamicDataService;
@@ -42,6 +44,7 @@ public class DynamicDataController {
     }
 
     @PostMapping
+    @RequirePermission("codegen:project:write")
     public ApiResponse<Long> createRecord(
             @PathVariable("modelCode") String modelCode,
             @RequestBody Map<String, Object> data
@@ -50,6 +53,7 @@ public class DynamicDataController {
     }
 
     @PutMapping
+    @RequirePermission("codegen:project:write")
     public ApiResponse<Void> updateRecordWithoutPathId(
             @PathVariable("modelCode") String modelCode,
             @RequestBody Map<String, Object> data
@@ -64,6 +68,7 @@ public class DynamicDataController {
     }
 
     @PutMapping("/{id}")
+    @RequirePermission("codegen:project:write")
     public ApiResponse<Void> updateRecord(
             @PathVariable("modelCode") String modelCode,
             @PathVariable("id") Long id,
@@ -74,6 +79,7 @@ public class DynamicDataController {
     }
 
     @DeleteMapping("/{id}")
+    @RequirePermission("codegen:project:write")
     public ApiResponse<Void> deleteRecord(
             @PathVariable("modelCode") String modelCode,
             @PathVariable("id") Long id
@@ -83,6 +89,7 @@ public class DynamicDataController {
     }
 
     @PostMapping("/batch-delete")
+    @RequirePermission("codegen:project:write")
     public ApiResponse<Void> batchDelete(
             @PathVariable("modelCode") String modelCode,
             @RequestBody List<Long> ids
@@ -92,11 +99,13 @@ public class DynamicDataController {
     }
 
     @PostMapping("/seed-mock")
+    @RequirePermission("codegen:project:write")
     public ApiResponse<Integer> seedMock(@PathVariable("modelCode") String modelCode) {
         return ApiResponse.success(dynamicDataService.seedMockRecords(modelCode));
     }
 
     @PostMapping("/batch-import")
+    @RequirePermission("codegen:project:write")
     public ApiResponse<Integer> batchImport(
             @PathVariable("modelCode") String modelCode,
             @RequestBody List<Map<String, Object>> records

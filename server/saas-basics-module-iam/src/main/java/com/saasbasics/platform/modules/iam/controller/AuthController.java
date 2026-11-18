@@ -97,9 +97,12 @@ public class AuthController {
     }
 
     @GetMapping("/sso/authorize-url")
-    public ApiResponse<Map<String, String>> getSsoAuthorizeUrl(@RequestParam(required = false, defaultValue = "WECOM") String channel,
-                                                               @RequestParam(required = false) String redirectUri) {
-        return ApiResponse.success(authService.getSsoAuthorizeUrl(channel, redirectUri));
+    public ApiResponse<Map<String, String>> getSsoAuthorizeUrl(
+            @RequestParam(required = false, defaultValue = "WECOM") String channel,
+            @RequestParam(required = false) String redirectUri,
+            @RequestParam(required = false) String codeChallenge,
+            @RequestParam(required = false) String codeChallengeMethod) {
+        return ApiResponse.success(authService.getSsoAuthorizeUrl(channel, redirectUri, codeChallenge, codeChallengeMethod));
     }
 
     @PostMapping("/sso/callback")

@@ -3,9 +3,12 @@ import { computed, onMounted, onUnmounted, ref } from "vue";
 import { ElNotification } from "element-plus";
 import zhCn from "element-plus/es/locale/lang/zh-cn";
 import en from "element-plus/es/locale/lang/en";
+import GlobalErrorBoundary from "@/components/base/GlobalErrorBoundary.vue";
 import { useLocaleStore } from "@/stores/modules/locale";
+import { useThemeStore } from "@/stores/modules/theme";
 
 const localeStore = useLocaleStore();
+useThemeStore();
 const currentLocale = computed(() => (localeStore.locale === "en-US" ? en : zhCn));
 
 const isOffline = ref(!navigator.onLine);
@@ -47,7 +50,9 @@ onUnmounted(() => {
       <span class="offline-dot" />
       <span>网络链路已断开，正在尝试重连天枢云中枢...</span>
     </div>
-    <router-view />
+    <GlobalErrorBoundary>
+      <router-view />
+    </GlobalErrorBoundary>
   </el-config-provider>
 </template>
 

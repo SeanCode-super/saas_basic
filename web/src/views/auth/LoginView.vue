@@ -9,7 +9,14 @@ import {
   RefreshRight
 } from "@element-plus/icons-vue";
 import { fetchPortalEntry, type PortalEntry } from "@/api/modules/portal";
-import { fetchAuthCaptcha } from "@/api/modules/auth";
+import {
+  acceptTenantInvite,
+  confirmPasswordReset,
+  fetchAuthCaptcha,
+  fetchTenantInvitePreview,
+  sendPasswordResetCode,
+  type TenantInviteResponse
+} from "@/api/modules/auth";
 import { useAuthStore } from "@/stores/modules/auth";
 import {
   rememberPortalContext,
@@ -35,6 +42,32 @@ const captchaId = ref("");
 const captchaImageUrl = ref("");
 const mfaRequired = ref(false);
 const loginError = ref("");
+
+// 自助找回密码 (OTP) 状态
+const resetDialogVisible = ref(false);
+const resetSendingOtp = ref(false);
+const resetSubmitting = ref(false);
+const resetSandboxHint = ref("");
+const resetForm = reactive({
+  username: "",
+  tenantCode: "",
+  contact: "",
+  otpCode: "",
+  newPassword: ""
+});
+
+// 租户成员邀请链接入驻 (?inviteToken=...)
+const inviteDialogVisible = ref(false);
+const inviteSubmitting = ref(false);
+const invitePreview = ref<TenantInviteResponse | null>(null);
+const inviteTokenValue = ref("");
+const inviteForm = reactive({
+  username: "",
+  nickname: "",
+  email: "",
+  mobile: "",
+  password: ""
+});
 
 const router = useRouter();
 const route = useRoute();
@@ -219,8 +252,107 @@ async function handleSsoLogin(channel: string) {
   }
 }
 
+async function handleSendResetOtp() {
+  if (!resetForm.username.trim() || !resetForm.contact.trim()) {
+    ElMessage.warning("请先填写用户名和绑定邮箱或手机号");
+    return;
+  }
+  resetSendingOtp.value = true;
+  resetSandboxHint.value = "";
+  try {
+    const res = await sendPasswordResetCode({
+      username: resetForm.username.trim(),
+      tenantCode: resetForm.tenantCode.trim() || form.tenantCode.trim() || undefined,
+      contact: resetForm.contact.trim()
+    });
+    if (res.sandboxOtpCode) {
+      resetForm.otpCode = res.sandboxOtpCode;
+      resetSandboxHint.value = `沙箱模式已自动回填验证码: ${res.sandboxOtpCode}`;
+    }
+    ElMessage.success(`验证码已通过 ${res.deliveryChannel} 发送，${res.expireSeconds} 秒内有效`);
+  } catch (err: any) {
+    ElMessage.error(err?.response?.data?.message || "发送验证码失败");
+  } finally {
+    resetSendingOtp.value = false;
+  }
+}
+
+async function handleConfirmResetPassword() {
+  if (!resetForm.username.trim() || !resetForm.otpCode.trim() || !resetForm.newPassword.trim()) {
+    ElMessage.warning("请填写完整用户名、验证码与新密码");
+    return;
+  }
+  resetSubmitting.value = true;
+  try {
+    await confirmPasswordReset({
+      username: resetForm.username.trim(),
+      tenantCode: resetForm.tenantCode.trim() || form.tenantCode.trim() || undefined,
+      otpCode: resetForm.otpCode.trim(),
+      newPassword: resetForm.newPassword
+    });
+    ElMessage.success("密码已重置成功，请使用新密码登录");
+    form.username = resetForm.username.trim();
+    form.password = "";
+    resetDialogVisible.value = false;
+  } catch (err: any) {
+    ElMessage.error(err?.response?.data?.message || "重置密码失败");
+  } finally {
+    resetSubmitting.value = false;
+  }
+}
+
+function openResetDialog() {
+  resetForm.username = form.username.trim();
+  resetForm.tenantCode = form.tenantCode.trim();
+  resetForm.otpCode = "";
+  resetForm.newPassword = "";
+  resetSandboxHint.value = "";
+  resetDialogVisible.value = true;
+}
+
+async function checkInviteToken() {
+  const rawToken = typeof route.query.inviteToken === "string" ? route.query.inviteToken.trim() : "";
+  if (!rawToken) return;
+  try {
+    const preview = await fetchTenantInvitePreview(rawToken);
+    inviteTokenValue.value = rawToken;
+    invitePreview.value = preview;
+    inviteForm.email = preview.invitedEmail || "";
+    inviteDialogVisible.value = true;
+  } catch (err: any) {
+    ElMessage.warning(err?.response?.data?.message || "邀请链接已失效或已过期");
+  }
+}
+
+async function handleAcceptInvite() {
+  if (!inviteForm.username.trim() || !inviteForm.nickname.trim() || !inviteForm.password) {
+    ElMessage.warning("请填写完整的账号名、显示姓名与登录密码");
+    return;
+  }
+  inviteSubmitting.value = true;
+  try {
+    const accepted = await acceptTenantInvite(inviteTokenValue.value, {
+      username: inviteForm.username.trim(),
+      nickname: inviteForm.nickname.trim(),
+      password: inviteForm.password,
+      email: inviteForm.email.trim() || undefined,
+      mobile: inviteForm.mobile.trim() || undefined
+    });
+    ElMessage.success(`已成功加入「${accepted.tenantName}」，请立即登录`);
+    form.tenantCode = accepted.tenantCode;
+    form.username = inviteForm.username.trim();
+    form.password = "";
+    inviteDialogVisible.value = false;
+  } catch (err: any) {
+    ElMessage.error(err?.response?.data?.message || "邀请入驻提交失败");
+  } finally {
+    inviteSubmitting.value = false;
+  }
+}
+
 onMounted(() => {
   void bootstrapPortal();
+  void checkInviteToken();
 });
 </script>
 
@@ -352,6 +484,12 @@ onMounted(() => {
                 {{ loading ? "正在安全验证..." : "登 录" }}
               </el-button>
 
+              <div class="login-self-service-bar">
+                <el-button link type="primary" size="small" @click="openResetDialog">
+                  忘记密码？自助重置
+                </el-button>
+              </div>
+
               <div class="demo-acc-wrapper" style="margin-top: 14px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
                 <el-tag
                   effect="plain"
@@ -432,6 +570,61 @@ onMounted(() => {
       <span class="footer-divider">·</span>
       <span>© 2026 SaaS Basics Platform. All rights reserved.</span>
     </footer>
+
+    <!-- 自助找回密码对话框 -->
+    <el-dialog v-model="resetDialogVisible" title="自助找回并重置密码" width="440px" append-to-body>
+      <el-form label-position="top">
+        <el-form-item label="用户名">
+          <el-input v-model="resetForm.username" placeholder="请输入待重置的账号用户名" />
+        </el-form-item>
+        <el-form-item label="绑定邮箱或手机号">
+          <div style="display: flex; gap: 8px; width: 100%">
+            <el-input v-model="resetForm.contact" placeholder="输入绑定邮箱或手机号" />
+            <el-button :loading="resetSendingOtp" @click="handleSendResetOtp">发送验证码</el-button>
+          </div>
+        </el-form-item>
+        <el-alert v-if="resetSandboxHint" type="info" :closable="false" :title="resetSandboxHint" style="margin-bottom: 12px" />
+        <el-form-item label="6 位数字验证码">
+          <el-input v-model="resetForm.otpCode" maxlength="6" placeholder="请输入 6 位 OTP 验证码" />
+        </el-form-item>
+        <el-form-item label="设置新密码">
+          <el-input v-model="resetForm.newPassword" type="password" show-password placeholder="至少 8 位且符合安全基线" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="resetDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="resetSubmitting" @click="handleConfirmResetPassword">确认重置密码</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 租户成员邀请链接入驻对话框 -->
+    <el-dialog v-model="inviteDialogVisible" title="受邀加入企业租户" width="460px" append-to-body>
+      <el-alert
+        v-if="invitePreview"
+        type="success"
+        :closable="false"
+        :title="`邀请空间：${invitePreview.tenantName} (${invitePreview.tenantCode})`"
+        style="margin-bottom: 14px"
+      />
+      <el-form label-position="top">
+        <el-form-item label="登录账号">
+          <el-input v-model="inviteForm.username" placeholder="设置英文/数字登录账号名" />
+        </el-form-item>
+        <el-form-item label="显示姓名">
+          <el-input v-model="inviteForm.nickname" placeholder="请输入您的真实姓名或昵称" />
+        </el-form-item>
+        <el-form-item label="联系邮箱 (可选)">
+          <el-input v-model="inviteForm.email" placeholder="name@company.com" />
+        </el-form-item>
+        <el-form-item label="设置初始密码">
+          <el-input v-model="inviteForm.password" type="password" show-password placeholder="请输入登录密码" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="inviteDialogVisible = false">稍后注册</el-button>
+        <el-button type="primary" :loading="inviteSubmitting" @click="handleAcceptInvite">完成激活入驻</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -913,5 +1106,11 @@ onMounted(() => {
     padding: 24px 20px 20px;
     border-radius: 18px;
   }
+}
+
+.login-self-service-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
 }
 </style>

@@ -15,7 +15,7 @@
   <img src="https://img.shields.io/badge/uni--app-Vue%203-blueviolet.svg" alt="uni-app">
   <img src="https://img.shields.io/badge/TypeScript-5.x-blue.svg" alt="TypeScript">
   <img src="https://img.shields.io/badge/Vite-6.x-purple.svg" alt="Vite">
-  <img src="https://img.shields.io/badge/Flyway-V1--V74-teal.svg" alt="Flyway V1-V74">
+  <img src="https://img.shields.io/badge/Flyway-V1--V75-teal.svg" alt="Flyway V1-V75">
   <img src="https://img.shields.io/badge/MySQL-8.3%2B-blue.svg" alt="MySQL">
   <img src="https://img.shields.io/badge/Redis-7.2%2B-red.svg" alt="Redis">
   <img src="https://img.shields.io/badge/License-Apache%202.0-orange.svg" alt="License">
@@ -37,33 +37,33 @@
 │   ├─ PC 端控制台 (Vue 3 + TS + Vite)  : iOS 27 / visionOS 流光毛玻璃拟态界面规范        │
 │   ├─ 跨端移动工作台 (uni-app / Vue 3) : 悬浮灵动岛毛玻璃 TabBar · H5 / 微信小程序 / App │
 │   ├─ 泛域名与多租户路由网关           : *.tianshu.cloud 子域名抽取 · X-Tenant-Code 注入 │
-│   └─ 开放互联中枢                     : Open API 网关 (AppKey/HMAC) · SAML 2.0 / OIDC  │
+│   └─ 开放互联中枢                     : Open API 签名网关 (HMAC/重放防护) · OIDC PKCE · SCIM 2.0│
 ├────────────────────────────────────────────────────────────────────────────────────────┤
 │ 【业务中台套件】                                                                        │
 │   ├─ 流程审批中心 (Flowable 7.x)      : BPMN 2.0 工业级流程引擎 · 串并行会签 · 驳回转办 │
 │   ├─ 客户中心 (CRM)                   : 线索跟进 · 商机漏斗 · 客户公海 · 合同回款       │
 │   ├─ 进销存 (ERP)                     : 商品物料 · 采购订单 · 出入库流水 · 动态库存预警 │
-│   ├─ 统一支付结算 (Pay Center)        : 微信/支付宝网关 · 聚合收银 · 账单交易流水       │
-│   └─ 可视化决策驾驶舱                 : 企业数据大屏 · 报表打印中心 · 审计合规大屏      │
+│   ├─ 统一支付结算 (Pay Center)        : 微信/支付宝网关 · 聚合收银 · 本地 SVG 二维码   │
+│   └─ 可视化决策驾驶舱                 : 实时遥测大屏 · 报表打印中心 · 审计合规大屏      │
 ├────────────────────────────────────────────────────────────────────────────────────────┤
 │ 【核心中台能力】                                                                        │
 │   ├─ 多租户核心 (Multi-Tenant)        : 共享库表行级强隔离 (MyBatis-Plus) · 多物理库扩展│
 │   │                                   : 租户独立门户入口识别 · 空间配额 · 套餐生命周期  │
 │   ├─ 组织与身份 (Enterprise IAM)      : 集团-企业-部门-岗位-员工 五级架构 · RBAC三位一体│
-│   │                                   : 行级数据范围 (Data Scope) · 权限毫秒级透视诊断器│
+│   │                                   : 行级数据范围 · 自助 OTP 密码重置 · 邀请链接入驻 │
 │   ├─ 分布式高可用调度 (Scheduler)     : Quartz 集群 · 执行管线监控 · 毫秒级熔断告警     │
-│   ├─ 分布式文件资产中心 (File Center) : MinIO / 阿里云 OSS / 腾讯 COS / 华为 OBS / S3   │
-│   │                                   : 断点续传 · 分片秒传 · 生命周期归档 · 审计销毁   │
-│   ├─ 低代码代码生成 (Codegen)         : MySQL 表结构逆向 · 前后端一体化模版 · 质量门禁  │
-│   └─ 消息中枢与事件总线 (Integration) : 短信邮件企微网关 · 连接池探针 · Webhook 死信补偿│
+│   ├─ 分布式文件资产中心 (File Center) : AWS SigV4 真实签名对象存储 (MinIO/OSS/COS/OBS/S3)│
+│   │                                   : 预签名直传/下载 · 业务目录路由 · 缺源前置拦截   │
+│   ├─ 低代码代码生成 (Codegen)         : MySQL 表结构逆向 · 租户隔离物理表 (biz_dyn_t*) │
+│   └─ 消息中枢与事件总线 (Integration) : SMTP/短信持久化台账 · CloudEvents 1.0 Webhook重放│
 ├────────────────────────────────────────────────────────────────────────────────────────┤
 │ 【系统底座与高可用支撑】                                                                │
 │   ├─ 服务编排与发布中台 (DevOps Center): 进程树/Docker双模纳管 · 本地CI构建 · 制品回滚   │
 │   │                                   : SSE 实时流式终端 · 智能滚屏吸底 · 端口冲突探针  │
-│   ├─ 安全治理与会话强退               : 全局 Access/Refresh Token · 多端在线强退 · 脱敏 │
-│   ├─ 数据库版本自动化演进             : Flyway 10.x 增量迁移规范 (V1 ~ V74 持续受控)    │
-│   ├─ 全链路安全与数字身份             : X25519+AES-GCM 传输加密 · TOTP MFA · 个人工作台│
-│   ├─ AI 智能中枢与导出打印            : NL2SQL · 混合 RAG · 智能体 · 微调 · 异步导出打印 │
+│   ├─ 安全治理与会话强退               : 全局 Access/Refresh Token · RFC 9457 错误响应   │
+│   ├─ 数据库版本自动化演进             : Flyway 10.x 增量迁移规范 (V1 ~ V75 持续受控)    │
+│   ├─ 全链路安全与数字身份             : X25519+AES-GCM 传输加密 · TOTP MFA · 空间快捷中枢│
+│   ├─ AI 智能中枢与可观测              : 双向 MCP Server · OTel GenAI Span · NL2SQL/RAG  │
 │   └─ 基础设施运行时监控               : Actuator 探活 · 慢 SQL 智能诊断 · Redis 键空间  │
 └────────────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -261,7 +261,7 @@ saas_basics/
 
 ### 2. 数据库配置
 1. 创建数据库 `saas_basics`，字符集推荐使用 `utf8mb4`，排序规则 `utf8mb4_unicode_ci`。
-2. 后端集成 **Flyway** 自动版本迁移，启动时会自动按序扫描并执行 `V1` 至 `V74` 全量脚本，无需手动导入 SQL。
+2. 后端集成 **Flyway** 自动版本迁移，启动时会自动按序扫描并执行 `V1` 至 `V75` 全量脚本，无需手动导入 SQL。
 
 ### 3. 后端服务启动 (Backend)
 ```bash
@@ -342,7 +342,7 @@ docker compose -f docker-compose.prod.yml up -d
 | **卷 02. 核心生产端实机视觉呈现** | [`docs/manuals/02_核心生产端实机视觉呈现_UI_Showcase.md`](./docs/manuals/02_核心生产端实机视觉呈现_UI_Showcase.md) | PC 流光毛玻璃驾驶舱与移动端悬浮灵动岛实机高清图解 |
 | **卷 03. Docker Compose 一键生产编排部署** | [`docs/manuals/03_Docker_Compose_一键生产编排部署.md`](./docs/manuals/03_Docker_Compose_一键生产编排部署.md) | 包含生产 compose 文件详解、健康检查、日志轮转与备份 |
 | **卷 04. 生产级 Nginx 泛域名网关与 SSL 配置** | [`docs/manuals/04_生产级_Nginx_泛域名网关与_SSL_配置.md`](./docs/manuals/04_生产级_Nginx_泛域名网关与_SSL_配置.md) | 泛域名 SSL 通配符终结、子域名提取注入 `X-Tenant-Code`、跨域防刷 |
-| **卷 05. 数据库生命周期与 Flyway 自动化迁移** | [`docs/manuals/05_数据库生命周期与_Flyway_自动化迁移.md`](./docs/manuals/05_数据库生命周期与_Flyway_自动化迁移.md) | Flyway 10.x 迁移准绳、V1~V74 全量核心版本线与防篡改策略 |
+| **卷 05. 数据库生命周期与 Flyway 自动化迁移** | [`docs/manuals/05_数据库生命周期与_Flyway_自动化迁移.md`](./docs/manuals/05_数据库生命周期与_Flyway_自动化迁移.md) | Flyway 10.x 迁移准绳、V1~V75 全量核心版本线与防篡改策略 |
 | **卷 06. 跨端工作台生产构建 (PC/H5/小程序)** | [`docs/manuals/06_跨端工作台生产构建_PC_H5_微信小程序.md`](./docs/manuals/06_跨端工作台生产构建_PC_H5_微信小程序.md) | Vue 3 PC 控制台与 uni-app 跨端工作台全平台打包与发布规范 |
 | **卷 07. 生产安全基线 SecOps 与高可用运维保障**| [`docs/manuals/07_生产安全基线_SecOps_与高可用运维保障.md`](./docs/manuals/07_生产安全基线_SecOps_与高可用运维保障.md) | 凭证隔离、网络安全域、数据库冷备份脚本与异常应急预案 |
 | **卷 08. 组织架构与企业级 IAM 权限配置指南** | [`docs/manuals/08_组织架构与企业级_IAM_权限配置指南.md`](./docs/manuals/08_组织架构与企业级_IAM_权限配置指南.md) | 集团-企业-部门-岗位-员工五级实体架构，菜单/按钮/行级数据范围 |

@@ -497,12 +497,30 @@ public class AuthService {
     }
 
     public java.util.Map<String, String> getSsoAuthorizeUrl(String channel, String redirectUri) {
+        return getSsoAuthorizeUrl(channel, redirectUri, null, null);
+    }
+
+    public java.util.Map<String, String> getSsoAuthorizeUrl(
+            String channel,
+            String redirectUri,
+            String codeChallenge,
+            String codeChallengeMethod) {
         String ch = (channel != null && !channel.isBlank()) ? channel.toUpperCase() : "WECOM";
         String callback = (redirectUri != null && !redirectUri.isBlank())
                 ? redirectUri
                 : "http://localhost:9527/login?ssoCallback=true";
+        String normalizedChallenge = (codeChallenge != null && !codeChallenge.isBlank()) ? codeChallenge.trim() : null;
+        String normalizedMethod = (codeChallengeMethod != null && !codeChallengeMethod.isBlank())
+                ? codeChallengeMethod.trim().toUpperCase()
+                : "S256";
+        if (normalizedChallenge != null && !"S256".equals(normalizedMethod)) {
+            throw new BizException("SSO_PKCE_UNSUPPORTED_METHOD", "仅支持 PKCE S256 挑战算法");
+        }
         String state = UUID.randomUUID().toString().replace("-", "");
-        storeSsoState(state, ch + "|" + callback);
+        String stateMeta = normalizedChallenge != null
+                ? ch + "|" + callback + "|pkce:" + normalizedChallenge
+                : ch + "|" + callback;
+        storeSsoState(state, stateMeta);
 
         IamSsoConfigEntity tenantSso = findEnabledSsoConfig(1L, ch);
         if (tenantSso != null && tenantSso.getRedirectUri() != null && !tenantSso.getRedirectUri().isBlank() && redirectUri == null) {
@@ -511,25 +529,42 @@ public class AuthService {
         String appId = (tenantSso != null && tenantSso.getAppId() != null && !tenantSso.getAppId().isBlank())
                 ? tenantSso.getAppId()
                 : null;
+        String pkceQuery = normalizedChallenge != null
+                ? "&code_challenge=" + URLEncoder.encode(normalizedChallenge, StandardCharsets.UTF_8)
+                        + "&code_challenge_method=S256"
+                : "";
 
         String authorizeUrl;
         if ("WECOM".equals(ch)) {
             authorizeUrl = "https://open.work.weixin.qq.com/wwopen/sso/qrConnect?appid="
                     + URLEncoder.encode(appId != null ? appId : "ww_saas_demo_corp", StandardCharsets.UTF_8)
-                    + "&agentid=1000002&redirect_uri=" + URLEncoder.encode(callback, StandardCharsets.UTF_8) + "&state=" + state;
+                    + "&agentid=1000002&redirect_uri=" + URLEncoder.encode(callback, StandardCharsets.UTF_8)
+                    + "&state=" + state + pkceQuery;
         } else if ("DINGTALK".equals(ch)) {
             authorizeUrl = "https://login.dingtalk.com/oauth2/auth?client_id="
                     + URLEncoder.encode(appId != null ? appId : "ding_saas_demo_app", StandardCharsets.UTF_8)
-                    + "&response_type=code&scope=openid&prompt=consent&redirect_uri=" + URLEncoder.encode(callback, StandardCharsets.UTF_8) + "&state=" + state;
+                    + "&response_type=code&scope=openid&prompt=consent&redirect_uri=" + URLEncoder.encode(callback, StandardCharsets.UTF_8)
+                    + "&state=" + state + pkceQuery;
         } else if ("FEISHU".equals(ch)) {
             authorizeUrl = "https://passport.feishu.cn/suite/pas/oauth/authorize?app_id="
                     + URLEncoder.encode(appId != null ? appId : "cli_saas_demo_feishu", StandardCharsets.UTF_8)
-                    + "&redirect_uri=" + URLEncoder.encode(callback, StandardCharsets.UTF_8) + "&state=" + state;
+                    + "&redirect_uri=" + URLEncoder.encode(callback, StandardCharsets.UTF_8)
+                    + "&state=" + state + pkceQuery;
         } else {
-            if (isStrictSsoMode() && appId == null) {
-                throw new BizException("SSO_NOT_CONFIGURED", "生产环境尚未配置外部 OIDC 身份提供商参数");
+            String customAuthorizeEndpoint = resolveOidcAuthorizeEndpoint(tenantSso);
+            if (customAuthorizeEndpoint != null && appId != null) {
+                authorizeUrl = customAuthorizeEndpoint
+                        + (customAuthorizeEndpoint.contains("?") ? "&" : "?")
+                        + "client_id=" + URLEncoder.encode(appId, StandardCharsets.UTF_8)
+                        + "&response_type=code&scope=openid%20profile%20email"
+                        + "&redirect_uri=" + URLEncoder.encode(callback, StandardCharsets.UTF_8)
+                        + "&state=" + state + pkceQuery;
+            } else {
+                if (isStrictSsoMode() && appId == null) {
+                    throw new BizException("SSO_NOT_CONFIGURED", "生产环境尚未配置外部 OIDC 身份提供商参数");
+                }
+                authorizeUrl = callback + "&code=mock_code_" + state + "&channel=" + ch + "&state=" + state + pkceQuery;
             }
-            authorizeUrl = callback + "&code=mock_code_" + state + "&channel=" + ch + "&state=" + state;
         }
 
         return java.util.Map.of("channel", ch, "authorizeUrl", authorizeUrl, "state", state);
@@ -544,10 +579,13 @@ public class AuthService {
         if (request.code() != null && request.code().startsWith("mock_code_") && strictSso) {
             throw new BizException("SSO_SANDBOX_DISABLED", "生产环境已禁用模拟 SSO 授权码直登，请接入真实企业 IdP");
         }
+        String stateMeta = null;
         if ((request.state() != null && !request.state().isBlank()) || strictSso) {
-            if (!consumeSsoState(request.state())) {
+            stateMeta = consumeSsoState(request.state());
+            if (stateMeta == null) {
                 throw new BizException("SSO_STATE_INVALID", "SSO 会话 state 校验失败或已过期，请重新发起单点登录");
             }
+            verifyPkceIfBound(stateMeta, request.codeVerifier());
         }
 
         String tenantCode = (request.tenantCode() != null && !request.tenantCode().isBlank())
@@ -566,7 +604,7 @@ public class AuthService {
         try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openTenant(
                 tenant.getId(), tenant.getTenantCode(), null)) {
             UserMapper userMapper = requiredUserMapper();
-            UserEntity user = resolveUserFromExternalIdp(tenant, ch, request.code(), userMapper);
+            UserEntity user = resolveUserFromExternalIdp(tenant, ch, request.code(), request.codeVerifier(), userMapper);
             if (user == null) {
                 if (strictSso) {
                     throw new BizException("SSO_USER_UNMAPPED", "未能匹配对应外部企业身份用户，请确认已配置 OIDC 端点与账号映射");
@@ -677,16 +715,16 @@ public class AuthService {
         localSsoStateStore.put(state, meta + "|" + (System.currentTimeMillis() + 300_000L));
     }
 
-    private boolean consumeSsoState(String state) {
+    private String consumeSsoState(String state) {
         if (state == null || state.isBlank()) {
-            return false;
+            return null;
         }
         StringRedisTemplate redis = redisTemplateProvider != null ? redisTemplateProvider.getIfAvailable() : null;
         if (redis != null) {
             try {
                 String val = redis.opsForValue().getAndDelete("saas:auth:sso:state:" + state.trim());
                 if (val != null) {
-                    return true;
+                    return val;
                 }
             } catch (Exception ignored) {
                 // Fallback
@@ -694,11 +732,60 @@ public class AuthService {
         }
         String local = localSsoStateStore.remove(state.trim());
         if (local == null) {
-            return false;
+            return null;
         }
         int lastBar = local.lastIndexOf('|');
         long exp = lastBar > 0 ? Long.parseLong(local.substring(lastBar + 1)) : 0L;
-        return exp >= System.currentTimeMillis();
+        if (exp < System.currentTimeMillis()) {
+            return null;
+        }
+        return lastBar > 0 ? local.substring(0, lastBar) : local;
+    }
+
+    static void verifyPkceIfBound(String stateMeta, String codeVerifier) {
+        if (stateMeta == null) {
+            return;
+        }
+        int idx = stateMeta.indexOf("|pkce:");
+        if (idx < 0) {
+            return;
+        }
+        String expectedChallenge = stateMeta.substring(idx + 6).trim();
+        if (expectedChallenge.isEmpty()) {
+            return;
+        }
+        if (codeVerifier == null || codeVerifier.isBlank()) {
+            throw new BizException("SSO_PKCE_INVALID", "OIDC PKCE code_verifier 不能为空");
+        }
+        try {
+            byte[] sha = MessageDigest.getInstance("SHA-256")
+                    .digest(codeVerifier.trim().getBytes(StandardCharsets.US_ASCII));
+            String actualChallenge = Base64.getUrlEncoder().withoutPadding().encodeToString(sha);
+            if (!MessageDigest.isEqual(
+                    expectedChallenge.getBytes(StandardCharsets.US_ASCII),
+                    actualChallenge.getBytes(StandardCharsets.US_ASCII))) {
+                throw new BizException("SSO_PKCE_INVALID", "OIDC PKCE code_verifier 校验不匹配");
+            }
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("SHA-256 unavailable", ex);
+        }
+    }
+
+    private String resolveOidcAuthorizeEndpoint(IamSsoConfigEntity tenantSso) {
+        if (tenantSso == null || tenantSso.getConfigJson() == null || tenantSso.getConfigJson().isBlank()) {
+            return null;
+        }
+        ObjectMapper om = objectMapperProvider != null ? objectMapperProvider.getIfAvailable() : null;
+        if (om == null) {
+            return null;
+        }
+        try {
+            JsonNode root = om.readTree(tenantSso.getConfigJson());
+            String endpoint = root.path("authorizationEndpoint").asText("");
+            return endpoint.isBlank() ? null : endpoint.trim();
+        } catch (Exception ex) {
+            return null;
+        }
     }
 
     private IamSsoConfigEntity findEnabledSsoConfig(Long tenantId, String idpType) {
@@ -714,7 +801,12 @@ public class AuthService {
                 .last("LIMIT 1"));
     }
 
-    private UserEntity resolveUserFromExternalIdp(TenantEntity tenant, String ch, String code, UserMapper userMapper) {
+    private UserEntity resolveUserFromExternalIdp(
+            TenantEntity tenant,
+            String ch,
+            String code,
+            String codeVerifier,
+            UserMapper userMapper) {
         IamSsoConfigEntity cfg = findEnabledSsoConfig(tenant.getId(), ch);
         ObjectMapper om = objectMapperProvider != null ? objectMapperProvider.getIfAvailable() : null;
         if (cfg == null || om == null || cfg.getConfigJson() == null || code == null || code.startsWith("mock_code_")) {
@@ -724,47 +816,62 @@ public class AuthService {
             JsonNode root = om.readTree(cfg.getConfigJson());
             String tokenEndpoint = root.path("tokenEndpoint").asText("");
             String userInfoEndpoint = root.path("userInfoEndpoint").asText("");
-            if (tokenEndpoint.isBlank() || userInfoEndpoint.isBlank()) {
+            if (tokenEndpoint.isBlank()) {
                 return null;
             }
             CredentialVaultService vault = credentialVaultProvider != null ? credentialVaultProvider.getIfAvailable() : null;
             String secret = (vault != null && cfg.getAppSecret() != null) ? vault.decrypt(cfg.getAppSecret()) : cfg.getAppSecret();
             HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
-            String formBody = "grant_type=authorization_code"
-                    + "&code=" + URLEncoder.encode(code, StandardCharsets.UTF_8)
-                    + "&client_id=" + URLEncoder.encode(cfg.getAppId() != null ? cfg.getAppId() : "", StandardCharsets.UTF_8)
-                    + "&client_secret=" + URLEncoder.encode(secret != null ? secret : "", StandardCharsets.UTF_8)
-                    + "&redirect_uri=" + URLEncoder.encode(cfg.getRedirectUri() != null ? cfg.getRedirectUri() : "", StandardCharsets.UTF_8);
+            StringBuilder formBody = new StringBuilder("grant_type=authorization_code")
+                    .append("&code=").append(URLEncoder.encode(code, StandardCharsets.UTF_8))
+                    .append("&client_id=").append(URLEncoder.encode(cfg.getAppId() != null ? cfg.getAppId() : "", StandardCharsets.UTF_8))
+                    .append("&client_secret=").append(URLEncoder.encode(secret != null ? secret : "", StandardCharsets.UTF_8))
+                    .append("&redirect_uri=").append(URLEncoder.encode(cfg.getRedirectUri() != null ? cfg.getRedirectUri() : "", StandardCharsets.UTF_8));
+            if (codeVerifier != null && !codeVerifier.isBlank()) {
+                formBody.append("&code_verifier=").append(URLEncoder.encode(codeVerifier.trim(), StandardCharsets.UTF_8));
+            }
 
-            boolean allowPrivate = environment == null || !environment.matchesProfiles("prod");
+            boolean allowPrivate = environment == null || !environment.acceptsProfiles(Profiles.of("prod"));
             URI validatedTokenUri = SsrfProtectionValidator.validateOutboundUri(tokenEndpoint, allowPrivate);
-            URI validatedUserInfoUri = SsrfProtectionValidator.validateOutboundUri(userInfoEndpoint, allowPrivate);
 
             HttpRequest tokenReq = HttpRequest.newBuilder()
                     .uri(validatedTokenUri)
                     .timeout(Duration.ofSeconds(5))
                     .header("Content-Type", "application/x-www-form-urlencoded")
-                    .POST(HttpRequest.BodyPublishers.ofString(formBody))
+                    .POST(HttpRequest.BodyPublishers.ofString(formBody.toString()))
                     .build();
             HttpResponse<String> tokenResp = client.send(tokenReq, HttpResponse.BodyHandlers.ofString());
             if (tokenResp.statusCode() < 200 || tokenResp.statusCode() >= 300) {
                 throw new BizException("SSO_TOKEN_EXCHANGE_FAILED", "第三方 SSO Token 交换失败: HTTP " + tokenResp.statusCode());
             }
-            String accessToken = om.readTree(tokenResp.body()).path("access_token").asText("");
-            if (accessToken.isBlank()) {
-                throw new BizException("SSO_TOKEN_INVALID", "第三方 SSO 未返回有效 access_token");
+            JsonNode tokenJson = om.readTree(tokenResp.body());
+            String accessToken = tokenJson.path("access_token").asText("");
+            String idToken = tokenJson.path("id_token").asText("");
+            if (accessToken.isBlank() && idToken.isBlank()) {
+                throw new BizException("SSO_TOKEN_INVALID", "第三方 SSO 未返回有效 access_token 或 id_token");
             }
-            HttpRequest userReq = HttpRequest.newBuilder()
-                    .uri(validatedUserInfoUri)
-                    .timeout(Duration.ofSeconds(5))
-                    .header("Authorization", "Bearer " + accessToken)
-                    .GET()
-                    .build();
-            HttpResponse<String> userResp = client.send(userReq, HttpResponse.BodyHandlers.ofString());
-            if (userResp.statusCode() < 200 || userResp.statusCode() >= 300) {
-                throw new BizException("SSO_USERINFO_FAILED", "拉取第三方用户信息失败: HTTP " + userResp.statusCode());
+
+            JsonNode userNode = null;
+            if (!userInfoEndpoint.isBlank() && !accessToken.isBlank()) {
+                URI validatedUserInfoUri = SsrfProtectionValidator.validateOutboundUri(userInfoEndpoint, allowPrivate);
+                HttpRequest userReq = HttpRequest.newBuilder()
+                        .uri(validatedUserInfoUri)
+                        .timeout(Duration.ofSeconds(5))
+                        .header("Authorization", "Bearer " + accessToken)
+                        .GET()
+                        .build();
+                HttpResponse<String> userResp = client.send(userReq, HttpResponse.BodyHandlers.ofString());
+                if (userResp.statusCode() < 200 || userResp.statusCode() >= 300) {
+                    throw new BizException("SSO_USERINFO_FAILED", "拉取第三方用户信息失败: HTTP " + userResp.statusCode());
+                }
+                userNode = om.readTree(userResp.body());
+            } else if (!idToken.isBlank()) {
+                userNode = parseJwtPayloadClaims(om, idToken);
             }
-            JsonNode userNode = om.readTree(userResp.body());
+
+            if (userNode == null) {
+                return null;
+            }
             String username = firstNonBlankNode(userNode, "preferred_username", "username", "sub", "email");
             if (username == null) {
                 return null;
@@ -787,6 +894,22 @@ public class AuthService {
         } catch (Exception ex) {
             throw new BizException("SSO_EXCHANGE_ERROR", "外部单点登录认证交互异常: " + ex.getMessage());
         }
+    }
+
+    private JsonNode parseJwtPayloadClaims(ObjectMapper om, String idToken) throws Exception {
+        String[] parts = idToken.trim().split("\\.");
+        if (parts.length < 2) {
+            throw new BizException("SSO_ID_TOKEN_INVALID", "OIDC id_token 格式非法");
+        }
+        String payloadJson = new String(Base64.getUrlDecoder().decode(parts[1]), StandardCharsets.UTF_8);
+        JsonNode claims = om.readTree(payloadJson);
+        if (claims.has("exp") && claims.path("exp").asLong(0L) > 0L) {
+            long expEpochSec = claims.path("exp").asLong();
+            if (expEpochSec < java.time.Instant.now().getEpochSecond()) {
+                throw new BizException("SSO_ID_TOKEN_EXPIRED", "OIDC id_token 已过期");
+            }
+        }
+        return claims;
     }
 
     private String firstNonBlankNode(JsonNode node, String... keys) {

@@ -96,3 +96,44 @@ export interface OnlineSession {
   status: string;
   isCurrent: boolean;
 }
+
+export interface PasswordResetSendCodePayload {
+  username: string;
+  tenantCode?: string;
+  contact: string;
+}
+
+export interface PasswordResetSendCodeResponse {
+  accepted: boolean;
+  expireSeconds: number;
+  deliveryChannel: string;
+  sandboxOtpCode?: string | null;
+}
+
+export interface PasswordResetConfirmPayload {
+  username: string;
+  tenantCode?: string;
+  otpCode: string;
+  newPassword: string;
+}
+
+export interface TenantInviteResponse {
+  id: number;
+  inviteToken: string;
+  invitePath: string;
+  tenantCode: string;
+  tenantName: string;
+  invitedEmail?: string | null;
+  maxUses: number;
+  usedCount: number;
+  status: string;
+  expireAt: string;
+}
+
+export interface TenantInviteAcceptPayload {
+  username: string;
+  nickname: string;
+  password: string;
+  email?: string;
+  mobile?: string;
+}

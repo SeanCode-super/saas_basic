@@ -4,16 +4,16 @@ services:
     container_name: saas-mysql
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD environment variable is required}
-      MYSQL_DATABASE: saas_basics
-      MYSQL_USER: saas
-      MYSQL_PASSWORD: saas
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-${DB_PASSWORD:?DB_PASSWORD environment variable is required}}
+      MYSQL_DATABASE: ${DB_NAME:-saas_basics}
+      MYSQL_USER: ${DB_USERNAME:-saas_app}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD environment variable is required}
     ports:
-      - "${SAAS_MYSQL_PORT:-3306}:3306"
+      - "127.0.0.1:${SAAS_MYSQL_PORT:-3306}:3306"
     volumes:
       - saas-mysql-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot"]
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$$MYSQL_USER -p$$MYSQL_PASSWORD --silent"]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -26,7 +26,7 @@ services:
     container_name: saas-redis
     restart: always
     ports:
-      - "${SAAS_REDIS_PORT:-6379}:6379"
+      - "127.0.0.1:${SAAS_REDIS_PORT:-6379}:6379"
     volumes:
       - saas-redis-data:/data
     healthcheck:

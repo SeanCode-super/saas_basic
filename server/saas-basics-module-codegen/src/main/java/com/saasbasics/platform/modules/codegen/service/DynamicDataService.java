@@ -403,7 +403,15 @@ public class DynamicDataService {
         if (entity == null) {
             throw new BizException("MODEL_NOT_FOUND", "应用模型【" + modelCode + "】不存在或尚未发布");
         }
+        assertSafeDynamicTable(entity.getTableName());
         return entity;
+    }
+
+    private void assertSafeDynamicTable(String tableName) {
+        validateCode(tableName);
+        if (tableName == null || !tableName.startsWith("biz_dyn_")) {
+            throw new BizException("UNSAFE_DYNAMIC_TABLE", "非法动态业务表前缀: " + tableName);
+        }
     }
 
     private List<DynamicFieldEntity> findFields(Long tenantId, Long modelId) {

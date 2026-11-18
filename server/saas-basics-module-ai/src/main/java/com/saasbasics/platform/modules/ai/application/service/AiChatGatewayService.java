@@ -16,17 +16,19 @@ import com.saasbasics.platform.modules.ai.infrastructure.persistence.entity.AiPr
 import com.saasbasics.platform.modules.ai.infrastructure.persistence.entity.AiProviderEntity;
 import com.saasbasics.platform.modules.ai.infrastructure.persistence.mapper.AiModelConfigMapper;
 import com.saasbasics.platform.modules.ai.infrastructure.persistence.mapper.AiProviderMapper;
+import com.saasbasics.platform.telemetry.PlatformTelemetryService;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -47,6 +49,7 @@ public class AiChatGatewayService implements AiGatewayFacade {
     private final AiMeteringQuotaService meteringQuotaService;
     private final AiRunOrchestratorService runOrchestratorService;
     private final AiPromptService promptService;
+    private final ObjectProvider<PlatformTelemetryService> telemetryServiceProvider;
 
     @Value("${saas.ai.api-key:}")
     private String fallbackApiKey;
@@ -63,6 +66,21 @@ public class AiChatGatewayService implements AiGatewayFacade {
             AiRunOrchestratorService runOrchestratorService,
             AiPromptService promptService
     ) {
+        this(providerMapper, modelConfigMapper, chatProviders, credentialResolver,
+                meteringQuotaService, runOrchestratorService, promptService, null);
+    }
+
+    @Autowired
+    public AiChatGatewayService(
+            AiProviderMapper providerMapper,
+            AiModelConfigMapper modelConfigMapper,
+            List<ChatModelProvider> chatProviders,
+            CredentialResolver credentialResolver,
+            AiMeteringQuotaService meteringQuotaService,
+            AiRunOrchestratorService runOrchestratorService,
+            AiPromptService promptService,
+            ObjectProvider<PlatformTelemetryService> telemetryServiceProvider
+    ) {
         this.providerMapper = providerMapper;
         this.modelConfigMapper = modelConfigMapper;
         this.chatProviders = chatProviders != null ? chatProviders : List.of();
@@ -70,6 +88,7 @@ public class AiChatGatewayService implements AiGatewayFacade {
         this.meteringQuotaService = meteringQuotaService;
         this.runOrchestratorService = runOrchestratorService;
         this.promptService = promptService;
+        this.telemetryServiceProvider = telemetryServiceProvider;
     }
 
     public List<Map<String, Object>> getModels() {
@@ -170,6 +189,11 @@ public class AiChatGatewayService implements AiGatewayFacade {
                         remoteResp.usage().promptTokens(), remoteResp.usage().completionTokens(),
                         remoteResp.latencyMs(), null
                 );
+                emitGenAiTelemetry(
+                        endpoint.providerCode, modelId, tenantId,
+                        remoteResp.usage().promptTokens(), remoteResp.usage().completionTokens(),
+                        remoteResp.latencyMs(), null
+                );
                 return new AiChatResponse(
                         runNo,
                         modelId,
@@ -193,6 +217,7 @@ public class AiChatGatewayService implements AiGatewayFacade {
                 tenantId, userId, username, providerCode, modelId, request.getPromptCode(),
                 lastPrompt, reply, promptTokens, completionTokens, costMs, null
         );
+        emitGenAiTelemetry(providerCode, modelId, tenantId, promptTokens, completionTokens, costMs, null);
 
         return new AiChatResponse(runNo, modelId, reply, promptTokens, completionTokens, costMs);
     }
@@ -256,10 +281,15 @@ public class AiChatGatewayService implements AiGatewayFacade {
                             () -> {
                                 if (!failed[0]) {
                                     int cTok = compTokens.get() > 0 ? compTokens.get() : Math.max(8, fullBuffer.length() / 2);
+                                    long streamLatencyMs = System.currentTimeMillis() - start;
                                     runOrchestratorService.recordCompletedChatRun(
                                             tenantId, userId, username, endpoint.providerCode, modelId,
                                             request.getPromptCode(), lastPrompt, fullBuffer.toString(),
-                                            promptTokens.get(), cTok, System.currentTimeMillis() - start, null
+                                            promptTokens.get(), cTok, streamLatencyMs, null
+                                    );
+                                    emitGenAiTelemetry(
+                                            endpoint.providerCode, modelId, tenantId,
+                                            promptTokens.get(), cTok, streamLatencyMs, null
                                     );
                                     emitter.complete();
                                 }
@@ -307,12 +337,30 @@ public class AiChatGatewayService implements AiGatewayFacade {
         }
         int pTok = Math.max(8, lastPrompt.length() / 2);
         int cTok = Math.max(16, fullReply.length() / 2);
+        long simLatencyMs = Math.max(1L, System.currentTimeMillis() - start);
         runOrchestratorService.recordCompletedChatRun(
                 tenantId, userId, username, "demo-local", modelId, request.getPromptCode(),
-                lastPrompt, fullReply, pTok, cTok, Math.max(1L, System.currentTimeMillis() - start), null
+                lastPrompt, fullReply, pTok, cTok, simLatencyMs, null
         );
+        emitGenAiTelemetry("demo-local", modelId, tenantId, pTok, cTok, simLatencyMs, null);
         emitter.send(SseEmitter.event().data(Map.of("done", true, "finishReason", "stop")));
         emitter.complete();
+    }
+
+    private void emitGenAiTelemetry(
+            String providerCode,
+            String modelId,
+            Long tenantId,
+            int inputTokens,
+            int outputTokens,
+            long durationMs,
+            Throwable error
+    ) {
+        PlatformTelemetryService telemetry = telemetryServiceProvider != null
+                ? telemetryServiceProvider.getIfAvailable() : null;
+        if (telemetry != null) {
+            telemetry.recordGenAiSpan(providerCode, modelId, tenantId, inputTokens, outputTokens, durationMs, error);
+        }
     }
 
     private List<ChatMessageData> buildMessages(AiChatRequest request) {

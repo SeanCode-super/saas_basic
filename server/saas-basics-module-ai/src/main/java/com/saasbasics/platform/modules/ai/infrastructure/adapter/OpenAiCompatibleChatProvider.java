@@ -2,6 +2,7 @@ package com.saasbasics.platform.modules.ai.infrastructure.adapter;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.saasbasics.platform.common.security.SsrfProtectionValidator;
 import com.saasbasics.platform.modules.ai.domain.AiDomainException;
 import com.saasbasics.platform.modules.ai.domain.ChatMessageData;
 import com.saasbasics.platform.modules.ai.domain.ChatModelProvider;
@@ -27,6 +28,8 @@ import java.util.UUID;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -36,9 +39,16 @@ public class OpenAiCompatibleChatProvider implements ChatModelProvider {
 
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
+    private final Environment environment;
 
     public OpenAiCompatibleChatProvider(ObjectMapper objectMapper) {
+        this(objectMapper, null);
+    }
+
+    @Autowired
+    public OpenAiCompatibleChatProvider(ObjectMapper objectMapper, Environment environment) {
         this.objectMapper = objectMapper;
+        this.environment = environment;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
@@ -56,12 +66,15 @@ public class OpenAiCompatibleChatProvider implements ChatModelProvider {
     public ChatProviderResult chat(ChatProviderCommand command) {
         long start = System.currentTimeMillis();
         try {
+            boolean allowPrivate = environment == null || !environment.matchesProfiles("prod");
+            URI endpointUri = SsrfProtectionValidator.validateOutboundUri(command.endpointUrl(), allowPrivate);
+
             Map<String, Object> reqBody = buildPayload(command, false);
             String jsonPayload = objectMapper.writeValueAsString(reqBody);
             int timeoutSec = command.timeoutSeconds() > 0 ? command.timeoutSeconds() : 30;
 
             HttpRequest.Builder builder = HttpRequest.newBuilder()
-                    .uri(URI.create(command.endpointUrl()))
+                    .uri(endpointUri)
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
                     .timeout(Duration.ofSeconds(timeoutSec));
@@ -101,12 +114,15 @@ public class OpenAiCompatibleChatProvider implements ChatModelProvider {
             Consumer<ProviderErrorCategory> onError
     ) {
         try {
+            boolean allowPrivate = environment == null || !environment.matchesProfiles("prod");
+            URI endpointUri = SsrfProtectionValidator.validateOutboundUri(command.endpointUrl(), allowPrivate);
+
             Map<String, Object> reqBody = buildPayload(command, true);
             String jsonPayload = objectMapper.writeValueAsString(reqBody);
             int timeoutSec = command.timeoutSeconds() > 0 ? command.timeoutSeconds() : 60;
 
             HttpRequest.Builder builder = HttpRequest.newBuilder()
-                    .uri(URI.create(command.endpointUrl()))
+                    .uri(endpointUri)
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
                     .timeout(Duration.ofSeconds(timeoutSec));

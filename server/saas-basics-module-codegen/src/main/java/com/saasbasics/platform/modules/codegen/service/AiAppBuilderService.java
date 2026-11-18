@@ -114,7 +114,8 @@ public class AiAppBuilderService {
             throw new BizException("MODEL_EXISTS", "应用模型编码【" + modelCode + "】已存在，请换一个英文标识");
         }
 
-        String tableName = "biz_dyn_" + modelCode;
+        String rawTableName = "biz_dyn_t" + tenantId + "_" + modelCode;
+        String tableName = rawTableName.length() > 64 ? rawTableName.substring(0, 64) : rawTableName;
         validateCode(tableName);
 
         // 2. Physical DDL Execution: Create table in MySQL

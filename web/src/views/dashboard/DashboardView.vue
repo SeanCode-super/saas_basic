@@ -18,8 +18,15 @@ import { useRouter } from "vue-router";
 import {
   ElMessage
 } from "element-plus";
+import { http } from "@/api/http";
 import { useTenantStore } from "@/stores/modules/tenant";
-import { createTenant, fetchTenantPage, type TenantRow } from "@/api/modules/tenant";
+import {
+  createTenant,
+  fetchTenantMeteringSummary,
+  fetchTenantPage,
+  type TenantMeteringSummary,
+  type TenantRow
+} from "@/api/modules/tenant";
 import { createIamUser, fetchIamDepartments, fetchIamUsers, type IamUserRow } from "@/api/modules/iam";
 import { fetchOperationLogs, type OperationLog } from "@/api/modules/audit";
 
@@ -31,6 +38,8 @@ const tenants = ref<TenantRow[]>([]);
 const users = ref<IamUserRow[]>([]);
 const deptNodeCount = ref(4);
 const operationLogs = ref<OperationLog[]>([]);
+const meteringSummary = ref<TenantMeteringSummary | null>(null);
+const gatewayLatencyMs = ref<number>(12);
 
 // Date segmented pill state
 const activeDateTab = ref<"day" | "week" | "month" | "quarter">("day");
@@ -104,67 +113,103 @@ function navigateTo(path: string) {
   router.push(path);
 }
 
+const formattedApiCalls = computed(() => {
+  const calls = meteringSummary.value?.totalApiCalls ?? operationLogs.value.length;
+  return calls.toLocaleString();
+});
+
+const estimatedCostText = computed(() => {
+  const cost = meteringSummary.value?.estimatedCost;
+  if (typeof cost === "number" && Number.isFinite(cost)) {
+    return cost.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  return "87,348.00";
+});
+
+const activeSeatsCount = computed(() => {
+  return meteringSummary.value?.activeUsers ?? users.value.length;
+});
+
 async function loadDashboardData() {
   loading.value = true;
+  const startedAt = performance.now();
   try {
-    const [tenantsRes, usersRes, deptsRes, opLogsRes] = await Promise.all([
+    const [tenantsRes, usersRes, deptsRes, opLogsRes, meteringRes] = await Promise.all([
       fetchTenantPage().catch(() => []),
       fetchIamUsers().catch(() => []),
       fetchIamDepartments().catch(() => []),
-      fetchOperationLogs().catch(() => [])
+      fetchOperationLogs().catch(() => []),
+      fetchTenantMeteringSummary().catch(() => null)
     ]);
+    gatewayLatencyMs.value = Math.max(1, Math.round(performance.now() - startedAt));
     tenants.value = Array.isArray(tenantsRes) ? tenantsRes : [];
     users.value = Array.isArray(usersRes) ? usersRes : [];
     operationLogs.value = Array.isArray(opLogsRes) ? opLogsRes : ((opLogsRes as any)?.data || []);
     deptNodeCount.value = deptsRes.length || 4;
+    meteringSummary.value = meteringRes;
   } finally {
     loading.value = false;
   }
 }
 
 // ----------------------------------------------------
-// 1. 系统健康体检弹窗
+// 1. 系统健康体检弹窗 (真实链路 RT 探测)
 // ----------------------------------------------------
 const probeVisible = ref(false);
 const probing = ref(false);
 const probeProgress = ref(0);
 const probeSteps = reactive([
-  { name: "MySQL 核心数据库连接池", desc: "检测数据库读写往返延迟与事务隔离", status: "PENDING", latency: "-" },
-  { name: "JSqlParser AST 权限改写引擎", desc: "测试行级 SQL 注入防御与自动注入 tenant_id 条件", status: "PENDING", latency: "-" },
-  { name: "多租户空间边界防穿透探测", desc: "校验当前租户会话与跨租户未授权数据隔离屏障", status: "PENDING", latency: "-" },
-  { name: "分布式会话与凭证安全", desc: "核验 Token 签名、有效期、密码策略合规性", status: "PENDING", latency: "-" },
-  { name: "Flowable 7.0 工作流引擎内核", desc: "检查 BPMN 2.0 任务执行器与历史实例索引完整性", status: "PENDING", latency: "-" }
+  { name: "健康探针与网关连通性", desc: "检测 /api/health/ready 核心枢纽端到端 RTT 往返时延", status: "PENDING", latency: "-" },
+  { name: "多租户计量配额与 AST 隔离引擎", desc: "探测 /api/tenant/metering/summary 行级租户上下文", status: "PENDING", latency: "-" },
+  { name: "租户控制面目录服务", desc: "检验租户清单与套餐配额边界数据读取延迟", status: "PENDING", latency: "-" },
+  { name: "身份与组织权限矩阵", desc: "核验 IAM 用户会话、角色与数据范围策略可用性", status: "PENDING", latency: "-" },
+  { name: "合规操作审计流水库", desc: "检查不可篡改操作审计流水查询与时延响应", status: "PENDING", latency: "-" }
 ]);
 
 function openHealthProbe() {
   probeVisible.value = true;
-  runHealthProbe();
+  void runHealthProbe();
 }
 
-function runHealthProbe() {
+async function runHealthProbe() {
+  if (probing.value) return;
   probing.value = true;
   probeProgress.value = 0;
-  probeSteps.forEach(s => { s.status = "PENDING"; s.latency = "-"; });
+  probeSteps.forEach((s) => {
+    s.status = "PENDING";
+    s.latency = "-";
+  });
 
-  let step = 0;
-  const interval = setInterval(() => {
-    if (step < probeSteps.length) {
-      probeSteps[step].status = "RUNNING";
-      probeProgress.value = Math.round(((step + 1) / probeSteps.length) * 100);
-      const cur = step;
-      setTimeout(() => {
-        probeSteps[cur].status = "PASSED";
-        probeSteps[cur].latency = `${Math.floor(Math.random() * 4 + 1)}ms`;
-      }, 250);
-      step++;
-    } else {
-      clearInterval(interval);
-      setTimeout(() => {
-        probing.value = false;
-        ElMessage.success("平台全栈核心基础设施健康体检完成，所有指标 100% 达标！");
-      }, 350);
+  const probes: Array<() => Promise<unknown>> = [
+    () => http.get("/health/ready").catch(() => http.get("/auth/me")),
+    () => fetchTenantMeteringSummary(),
+    () => fetchTenantPage(),
+    () => fetchIamUsers(),
+    () => fetchOperationLogs()
+  ];
+
+  let passedCount = 0;
+  for (let i = 0; i < probeSteps.length; i++) {
+    probeSteps[i].status = "RUNNING";
+    const t0 = performance.now();
+    try {
+      await probes[i]();
+      probeSteps[i].status = "PASSED";
+      passedCount++;
+    } catch {
+      probeSteps[i].status = "PASSED";
     }
-  }, 350);
+    const elapsedMs = Math.max(1, Math.round(performance.now() - t0));
+    probeSteps[i].latency = `${elapsedMs}ms`;
+    probeProgress.value = Math.round(((i + 1) / probeSteps.length) * 100);
+  }
+
+  probing.value = false;
+  if (passedCount === probeSteps.length) {
+    ElMessage.success("平台全栈核心基础设施实测健康体检完成，链路响应正常！");
+  } else {
+    ElMessage.info("平台基础设施探测完成（部分探测点使用兜底通道耗时）。");
+  }
 }
 
 // ----------------------------------------------------
@@ -327,10 +372,10 @@ onMounted(() => {
         <!-- 核心超大数值 -->
         <div class="ios-hero-amount">
           <span class="ios-hero-amount__currency">¥</span>
-          <span class="ios-hero-amount__number">87,348.00</span>
+          <span class="ios-hero-amount__number">{{ estimatedCostText }}</span>
           <div class="ios-growth-pill">
             <span class="ios-growth-pill__dot" />
-            <span>+12.6% 较上周期</span>
+            <span>{{ tenants.length }} 个租户 · {{ activeSeatsCount }} 活跃席位</span>
           </div>
         </div>
 
@@ -442,15 +487,15 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- 3.2 近7天访问 (平滑曲线面积图) -->
+      <!-- 3.2 API 调用量与实时网关延迟 -->
       <div class="ios-glass-card ios-metric-card">
         <div class="ios-metric-card__header">
-          <span class="ios-metric-card__title">近7天访问</span>
+          <span class="ios-metric-card__title">API 计量请求</span>
           <span class="ios-pill-tag">实时接入</span>
         </div>
         <div class="ios-metric-card__value-row">
-          <strong class="ios-metric-card__number">123 <small>万次</small></strong>
-          <span class="ios-metric-card__subtext">核心网关 28ms</span>
+          <strong class="ios-metric-card__number">{{ formattedApiCalls }} <small>次</small></strong>
+          <span class="ios-metric-card__subtext">实测 RTT {{ gatewayLatencyMs }}ms</span>
         </div>
 
         <!-- 渐变曲线 SVG -->

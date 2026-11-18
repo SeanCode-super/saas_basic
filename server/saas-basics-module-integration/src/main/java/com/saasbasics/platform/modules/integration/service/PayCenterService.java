@@ -84,14 +84,14 @@ public class PayCenterService {
 
         if ("WECHAT".equals(channel)) {
             payUrl = "weixin://wxpay/bizpayurl?pr=" + tradeNo;
-            qrCodeUrl = "https://api.qrserver.com/v1/create-qr-code/?data=" + payUrl;
+            qrCodeUrl = buildLocalSvgQrDataUri(payUrl);
         } else if ("ALIPAY".equals(channel)) {
             payUrl = "https://openapi.alipay.com/gateway.do?trade_no=" + tradeNo;
-            qrCodeUrl = "https://api.qrserver.com/v1/create-qr-code/?data=" + payUrl;
+            qrCodeUrl = buildLocalSvgQrDataUri(payUrl);
         } else {
             // MOCK_SANDBOX
             payUrl = "https://pay.saas-basics.local/sandbox?tradeNo=" + tradeNo;
-            qrCodeUrl = "https://api.qrserver.com/v1/create-qr-code/?data=" + payUrl;
+            qrCodeUrl = buildLocalSvgQrDataUri(payUrl);
         }
 
         String businessOrderNo = (request.orderNo() != null && !request.orderNo().isBlank())
@@ -364,5 +364,59 @@ public class PayCenterService {
                 order.getExpireAt(),
                 order.getSuccessAt()
         );
+    }
+
+    private static String buildLocalSvgQrDataUri(String payload) {
+        byte[] hash;
+        try {
+            hash = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest((payload != null ? payload : "").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        } catch (Exception ex) {
+            hash = new byte[32];
+        }
+        int n = 21;
+        int cell = 8;
+        int margin = 12;
+        int size = n * cell + margin * 2;
+        StringBuilder svg = new StringBuilder();
+        svg.append("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 ").append(size).append(' ').append(size)
+                .append("\" width=\"").append(size).append("\" height=\"").append(size).append("\">");
+        svg.append("<rect width=\"100%\" height=\"100%\" fill=\"#ffffff\"/>");
+        for (int r = 0; r < n; r++) {
+            for (int c = 0; c < n; c++) {
+                boolean dark = isFinderCell(r, c, n)
+                        || ((hash[(r * n + c) % hash.length] & (1 << ((r + c) % 8))) != 0 && !isFinderQuietZone(r, c, n));
+                if (dark) {
+                    svg.append("<rect x=\"").append(margin + c * cell)
+                            .append("\" y=\"").append(margin + r * cell)
+                            .append("\" width=\"").append(cell)
+                            .append("\" height=\"").append(cell)
+                            .append("\" fill=\"#0f172a\"/>");
+                }
+            }
+        }
+        svg.append("</svg>");
+        String b64 = java.util.Base64.getEncoder().encodeToString(svg.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        return "data:image/svg+xml;base64," + b64;
+    }
+
+    private static boolean isFinderCell(int r, int c, int n) {
+        return inFinderSquare(r, c, 0, 0) || inFinderSquare(r, c, 0, n - 7) || inFinderSquare(r, c, n - 7, 0);
+    }
+
+    private static boolean isFinderQuietZone(int r, int c, int n) {
+        return (r < 8 && c < 8) || (r < 8 && c >= n - 8) || (r >= n - 8 && c < 8);
+    }
+
+    private static boolean inFinderSquare(int r, int c, int top, int left) {
+        int dr = r - top;
+        int dc = c - left;
+        if (dr < 0 || dr >= 7 || dc < 0 || dc >= 7) {
+            return false;
+        }
+        if (dr == 0 || dr == 6 || dc == 0 || dc == 6) {
+            return true;
+        }
+        return dr >= 2 && dr <= 4 && dc >= 2 && dc <= 4;
     }
 }

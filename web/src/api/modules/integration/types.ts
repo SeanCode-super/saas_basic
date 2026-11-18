@@ -149,3 +149,41 @@ export interface OpenAppSavePayload {
   allowedPermissions?: string;
   remark?: string;
 }
+
+export interface WebhookSubscriptionRow {
+  id: number;
+  publicId: string;
+  subscriptionName: string;
+  targetUrl: string;
+  eventTypes: string;
+  maskedSecret: string;
+  rawSecretOnce?: string | null;
+  status: string;
+  timeoutMs: number;
+  maxRetries: number;
+  createdAt: string;
+}
+
+export interface WebhookSubscriptionSavePayload {
+  subscriptionName: string;
+  targetUrl: string;
+  eventTypes?: string;
+  secret?: string;
+  timeoutMs?: number;
+  maxRetries?: number;
+}
+
+export interface WebhookDeliveryRow {
+  id: number;
+  eventId: string;
+  subscriptionId: number;
+  eventType: string;
+  targetUrl: string;
+  httpStatus: number;
+  responseExcerpt?: string;
+  status: "SUCCESS" | "FAILED" | "DEAD_LETTER";
+  retryCount: number;
+  durationMs: number;
+  deliveredAt: string;
+  createdAt: string;
+}

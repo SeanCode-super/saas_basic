@@ -1,16 +1,22 @@
 package com.saasbasics.platform.modules.integration.message;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.saasbasics.platform.common.auth.AuthContext;
+import com.saasbasics.platform.common.auth.AuthPrincipal;
+import com.saasbasics.platform.modules.integration.entity.MessageDeliveryLogEntity;
+import com.saasbasics.platform.modules.integration.mapper.MessageDeliveryLogMapper;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 /**
  * 多渠道统一消息网关服务。
- * 集中管理短信 (阿里云/腾讯云/Mock) 与邮件 (SMTP) 的派发、审计和通道探活。
+ * 集中管理短信 (阿里云/腾讯云/Mock)、邮件 (SMTP) 与群机器人的派发、持久化审计台账与通道探活。
  */
 @Service
 public class MessageGatewayService {
@@ -22,15 +28,28 @@ public class MessageGatewayService {
     private final MailClient mailClient;
     private final EnterpriseBotClient enterpriseBotClient;
     private final SmsRateLimiter smsRateLimiter;
+    private final ObjectProvider<MessageDeliveryLogMapper> deliveryLogMapperProvider;
     private final Deque<MessageLogItem> logQueue = new ConcurrentLinkedDeque<>();
 
     public MessageGatewayService(SmsClientFactory smsClientFactory, MailClient mailClient, EnterpriseBotClient enterpriseBotClient, SmsRateLimiter smsRateLimiter) {
+        this(smsClientFactory, mailClient, enterpriseBotClient, smsRateLimiter, null);
+    }
+
+    @Autowired
+    public MessageGatewayService(
+            SmsClientFactory smsClientFactory,
+            MailClient mailClient,
+            EnterpriseBotClient enterpriseBotClient,
+            SmsRateLimiter smsRateLimiter,
+            ObjectProvider<MessageDeliveryLogMapper> deliveryLogMapperProvider
+    ) {
         this.smsClientFactory = smsClientFactory;
         this.mailClient = mailClient;
         this.enterpriseBotClient = enterpriseBotClient;
         this.smsRateLimiter = smsRateLimiter;
+        this.deliveryLogMapperProvider = deliveryLogMapperProvider;
 
-        // 初始化几条演示审计台账
+        // 初始化内存兜底审计台账（仅当无持久化连接时生效）
         initSampleLogs();
     }
 
@@ -130,18 +149,86 @@ public class MessageGatewayService {
     }
 
     public List<MessageLogItem> getLogs() {
+        MessageDeliveryLogMapper mapper = deliveryLogMapperProvider != null ? deliveryLogMapperProvider.getIfAvailable() : null;
+        if (mapper != null) {
+            try {
+                List<MessageDeliveryLogEntity> rows = mapper.selectList(new LambdaQueryWrapper<MessageDeliveryLogEntity>()
+                        .eq(MessageDeliveryLogEntity::getTenantId, currentTenantId())
+                        .orderByDesc(MessageDeliveryLogEntity::getId)
+                        .last("LIMIT 100"));
+                if (!rows.isEmpty()) {
+                    return rows.stream().map(e -> new MessageLogItem(
+                            e.getMessageUid(),
+                            e.getChannelType(),
+                            e.getRecipient(),
+                            e.getProviderCode(),
+                            e.getSubject(),
+                            e.getContentSummary(),
+                            e.getStatus(),
+                            e.getProviderMessageId(),
+                            e.getErrorMessage(),
+                            e.getCostMs() != null ? e.getCostMs() : 0L,
+                            e.getCreatedAt()
+                    )).toList();
+                }
+            } catch (Exception ex) {
+                log.debug("[MessageGateway] 读取持久化台账回退内存日志: {}", ex.getMessage());
+            }
+        }
         return new ArrayList<>(logQueue);
     }
 
     public void clearLogs() {
+        MessageDeliveryLogMapper mapper = deliveryLogMapperProvider != null ? deliveryLogMapperProvider.getIfAvailable() : null;
+        if (mapper != null) {
+            try {
+                mapper.delete(new LambdaQueryWrapper<MessageDeliveryLogEntity>()
+                        .eq(MessageDeliveryLogEntity::getTenantId, currentTenantId()));
+            } catch (Exception ex) {
+                log.debug("[MessageGateway] 清理持久化台账跳过: {}", ex.getMessage());
+            }
+        }
         logQueue.clear();
     }
 
     private void recordLog(MessageLogItem item) {
+        MessageDeliveryLogMapper mapper = deliveryLogMapperProvider != null ? deliveryLogMapperProvider.getIfAvailable() : null;
+        if (mapper != null) {
+            try {
+                MessageDeliveryLogEntity entity = new MessageDeliveryLogEntity();
+                entity.setMessageUid(item.id());
+                entity.setTenantId(currentTenantId());
+                entity.setChannelType(item.type());
+                entity.setProviderCode(item.channel() != null ? item.channel() : "DEFAULT");
+                entity.setRecipient(item.target() != null ? item.target() : "");
+                entity.setSubject(truncate(item.title(), 250));
+                entity.setContentSummary(truncate(item.content(), 500));
+                entity.setStatus(item.status());
+                entity.setProviderMessageId(truncate(item.messageId(), 120));
+                entity.setErrorMessage(truncate(item.responseMsg(), 500));
+                entity.setCostMs(item.costMillis());
+                entity.setCreatedAt(item.sentAt() != null ? item.sentAt() : LocalDateTime.now());
+                mapper.insert(entity);
+            } catch (Exception ex) {
+                log.debug("[MessageGateway] 持久化消息审计失败，保留内存记录: {}", ex.getMessage());
+            }
+        }
         logQueue.addFirst(item);
         while (logQueue.size() > MAX_LOG_SIZE) {
             logQueue.pollLast();
         }
+    }
+
+    private static Long currentTenantId() {
+        AuthPrincipal p = AuthContext.get();
+        return p != null && p.tenantId() != null ? p.tenantId() : 1L;
+    }
+
+    private static String truncate(String val, int maxLen) {
+        if (val == null || val.length() <= maxLen) {
+            return val;
+        }
+        return val.substring(0, maxLen);
     }
 
     private void initSampleLogs() {

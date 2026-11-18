@@ -7,7 +7,12 @@ import type {
   CaptchaChallenge,
   MfaSetupResponse,
   MfaStatusResponse,
-  OnlineSession
+  OnlineSession,
+  PasswordResetConfirmPayload,
+  PasswordResetSendCodePayload,
+  PasswordResetSendCodeResponse,
+  TenantInviteAcceptPayload,
+  TenantInviteResponse
 } from "./types";
 
 export async function fetchAuthCaptcha(): Promise<CaptchaChallenge> {
@@ -77,6 +82,25 @@ export async function selectAuthContext(assignmentPublicId: string): Promise<Aut
 
 export async function clearAuthContext(): Promise<AuthCurrentUser> {
   const response = await http.delete<ApiResponse<AuthCurrentUser>>("/auth/context");
+  return response.data.data;
+}
+
+export async function sendPasswordResetCode(payload: PasswordResetSendCodePayload): Promise<PasswordResetSendCodeResponse> {
+  const response = await http.post<ApiResponse<PasswordResetSendCodeResponse>>("/auth/password-reset/send-code", payload);
+  return response.data.data;
+}
+
+export async function confirmPasswordReset(payload: PasswordResetConfirmPayload): Promise<void> {
+  await http.post<ApiResponse<null>>("/auth/password-reset/confirm", payload);
+}
+
+export async function fetchTenantInvitePreview(token: string): Promise<TenantInviteResponse> {
+  const response = await http.get<ApiResponse<TenantInviteResponse>>(`/auth/invites/${encodeURIComponent(token)}`);
+  return response.data.data;
+}
+
+export async function acceptTenantInvite(token: string, payload: TenantInviteAcceptPayload): Promise<TenantInviteResponse> {
+  const response = await http.post<ApiResponse<TenantInviteResponse>>(`/auth/invites/${encodeURIComponent(token)}/accept`, payload);
   return response.data.data;
 }
 

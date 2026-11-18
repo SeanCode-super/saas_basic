@@ -11,8 +11,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Set;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -25,24 +27,39 @@ public class AuthContextFilter extends OncePerRequestFilter {
             "/api/auth/captcha",
             "/api/auth/refresh-token",
             "/api/auth/sso",
+            "/api/auth/password-reset/",
+            "/api/auth/invites/",
             "/api/portal/entry",
             "/api/pay/notify",
             "/api/security/transport/policy",
             "/api/health/ready",
             "/api/ws",
-            "/actuator",
+            "/open/api/",
+            "/scim/v2/",
+            "/actuator/health",
+            "/actuator/info",
+            "/error"
+    );
+
+    private static final Set<String> NON_PROD_DOC_PREFIXES = Set.of(
             "/api-docs",
             "/swagger-ui",
             "/swagger-ui.html",
             "/doc.html",
-            "/webjars",
-            "/error"
+            "/webjars"
     );
 
     private final AuthService authService;
+    private final Environment environment;
 
     public AuthContextFilter(AuthService authService) {
+        this(authService, null);
+    }
+
+    @Autowired
+    public AuthContextFilter(AuthService authService, Environment environment) {
         this.authService = authService;
+        this.environment = environment;
     }
 
     @Override
@@ -82,6 +99,14 @@ public class AuthContextFilter extends OncePerRequestFilter {
         for (String prefix : PUBLIC_PREFIXES) {
             if (path.startsWith(prefix)) {
                 return true;
+            }
+        }
+        boolean isProd = environment != null && environment.matchesProfiles("prod");
+        if (!isProd) {
+            for (String prefix : NON_PROD_DOC_PREFIXES) {
+                if (path.startsWith(prefix)) {
+                    return true;
+                }
             }
         }
         return false;

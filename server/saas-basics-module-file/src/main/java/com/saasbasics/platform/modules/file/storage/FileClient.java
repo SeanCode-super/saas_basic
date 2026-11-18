@@ -38,4 +38,18 @@ public interface FileClient {
      * @return 完整 URL
      */
     String getPublicUrl(String path);
+
+    /**
+     * 生成客户端直传预签名 URL (PUT)
+     */
+    default String generatePresignedUploadUrl(String path, int expireSeconds) {
+        return getPublicUrl(path);
+    }
+
+    /**
+     * 生成受控访问下载预签名 URL (GET)
+     */
+    default String generatePresignedDownloadUrl(String path, int expireSeconds) {
+        return getPublicUrl(path);
+    }
 }

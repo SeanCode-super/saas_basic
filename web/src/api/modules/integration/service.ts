@@ -14,7 +14,10 @@ import type {
   PayOrderRow,
   MessageLogItem,
   OpenAppRow,
-  OpenAppSavePayload
+  OpenAppSavePayload,
+  WebhookDeliveryRow,
+  WebhookSubscriptionRow,
+  WebhookSubscriptionSavePayload
 } from "./types";
 
 export async function fetchDatasources(): Promise<DatasourceRow[]> {
@@ -104,5 +107,38 @@ export async function mockPaySuccess(orderNo: string): Promise<PayOrderRow> {
 
 export async function refundPayOrder(orderNo: string): Promise<PayOrderRow> {
   const response = await http.post<ApiResponse<PayOrderRow>>(`/pay/refund/${orderNo}`);
+  return response.data.data;
+}
+
+// ==================== CloudEvents 1.0 出站 Webhook 中心 ====================
+
+export async function fetchWebhookSubscriptions(): Promise<WebhookSubscriptionRow[]> {
+  const response = await http.get<ApiResponse<WebhookSubscriptionRow[]>>("/integration/webhooks/subscriptions");
+  return response.data.data;
+}
+
+export async function createWebhookSubscription(payload: WebhookSubscriptionSavePayload): Promise<WebhookSubscriptionRow> {
+  const response = await http.post<ApiResponse<WebhookSubscriptionRow>>("/integration/webhooks/subscriptions", payload);
+  return response.data.data;
+}
+
+export async function deleteWebhookSubscription(id: number): Promise<void> {
+  await http.delete(`/integration/webhooks/subscriptions/${id}`);
+}
+
+export async function fetchWebhookDeliveries(): Promise<WebhookDeliveryRow[]> {
+  const response = await http.get<ApiResponse<WebhookDeliveryRow[]>>("/integration/webhooks/deliveries");
+  return response.data.data;
+}
+
+export async function sendTestWebhook(id: number, eventType?: string): Promise<WebhookDeliveryRow> {
+  const response = await http.post<ApiResponse<WebhookDeliveryRow>>(`/integration/webhooks/test/${id}`, null, {
+    params: eventType ? { eventType } : {}
+  });
+  return response.data.data;
+}
+
+export async function replayWebhookDelivery(logId: number): Promise<WebhookDeliveryRow> {
+  const response = await http.post<ApiResponse<WebhookDeliveryRow>>(`/integration/webhooks/deliveries/${logId}/replay`);
   return response.data.data;
 }

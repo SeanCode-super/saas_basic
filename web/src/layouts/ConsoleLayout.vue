@@ -8,16 +8,11 @@ import {
   Expand,
   Fold,
   Grid,
-  Menu,
   Monitor,
-  Operation,
   RefreshRight,
   Search,
   Setting,
   Cpu,
-  DataBoard,
-  Document,
-  Download,
   SwitchButton,
   User,
   Switch as SwitchIcon,
@@ -28,6 +23,7 @@ import { ElMessage } from "element-plus";
 import { useRoute, useRouter } from "vue-router";
 import NavigationAtlas from "@/components/platform/NavigationAtlas.vue";
 import NotificationCenter from "@/components/platform/NotificationCenter.vue";
+import QuickLaunchpadPopover from "@/components/platform/QuickLaunchpadPopover.vue";
 import AiAssistantDrawer from "@/components/platform/AiAssistantDrawer.vue";
 import CommandPaletteDialog from "@/components/platform/CommandPaletteDialog.vue";
 import TagsView from "@/components/platform/TagsView.vue";
@@ -267,7 +263,11 @@ function openDataScreen() {
 }
 
 function openApiDocs() {
-  window.open("http://localhost:8080/doc.html", "_blank");
+  window.open("/doc.html", "_blank");
+}
+
+function openWebhookCenter() {
+  void router.push("/integration/callback");
 }
 
 function openServerMonitor() {
@@ -524,11 +524,6 @@ const layoutModeOptions = [
     desc: "菜单导航完全横向置顶展开，隐藏侧边栏，最大化工作区空间"
   }
 ];
-
-const layoutModeText = computed(() => {
-  const match = layoutModeOptions.find((opt) => opt.key === layoutMode.value);
-  return match?.title || "混合双导航模式";
-});
 
 function setLayoutMode(mode: LayoutMode, silent = false) {
   layoutMode.value = mode;
@@ -1249,61 +1244,6 @@ onMounted(() => {
         <div class="console-shell__topbar-actions">
           <div id="console-context-actions" class="console-shell__context-actions" />
 
-          <!-- 导航布局快捷切换下拉 -->
-          <el-dropdown trigger="click" @command="(cmd: LayoutMode) => setLayoutMode(cmd)">
-            <button class="console-shell__icon-btn" :title="`当前布局: ${layoutModeText} (点击切换)`">
-              <el-icon class="console-shell__icon-svg">
-                <Menu v-if="layoutMode === 'mix'" />
-                <Grid v-else-if="layoutMode === 'side'" />
-                <Monitor v-else />
-              </el-icon>
-            </button>
-            <template #dropdown>
-              <el-dropdown-menu class="console-shell__layout-quick-menu">
-                <div class="layout-quick-menu__title">
-                  <el-icon><Operation /></el-icon>
-                  <span>导航布局模式</span>
-                </div>
-                <el-dropdown-item command="mix" :class="{ 'is-selected': layoutMode === 'mix' }">
-                  <div class="quick-layout-item">
-                    <el-icon><Menu /></el-icon>
-                    <span class="quick-layout-label">顶层主域置顶模式 (Top Bar)</span>
-                    <el-icon v-if="layoutMode === 'mix'" class="check-icon"><Check /></el-icon>
-                  </div>
-                </el-dropdown-item>
-                <el-dropdown-item command="side" :class="{ 'is-selected': layoutMode === 'side' }">
-                  <div class="quick-layout-item">
-                    <el-icon><Grid /></el-icon>
-                    <span class="quick-layout-label">左侧多级折叠树模式 (Sidebar Tree)</span>
-                    <el-icon v-if="layoutMode === 'side'" class="check-icon"><Check /></el-icon>
-                  </div>
-                </el-dropdown-item>
-                <el-dropdown-item command="top" :class="{ 'is-selected': layoutMode === 'top' }">
-                  <div class="quick-layout-item">
-                    <el-icon><Monitor /></el-icon>
-                    <span class="quick-layout-label">全顶部横向模式 (Full Top)</span>
-                    <el-icon v-if="layoutMode === 'top'" class="check-icon"><Check /></el-icon>
-                  </div>
-                </el-dropdown-item>
-                <el-dropdown-item divided @click="settingsDrawerVisible = true">
-                  <div class="quick-layout-item">
-                    <el-icon><Setting /></el-icon>
-                    <span class="quick-layout-label">更多布局与偏好设置...</span>
-                  </div>
-                </el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
-
-          <!-- 系统偏好与布局配置抽屉按钮 -->
-          <el-tooltip content="系统布局与偏好设置" placement="bottom">
-            <button class="console-shell__icon-btn" aria-label="系统布局与偏好设置" @click="settingsDrawerVisible = true">
-              <el-icon class="console-shell__icon-svg">
-                <Setting />
-              </el-icon>
-            </button>
-          </el-tooltip>
-
           <div class="console-shell__quick-jump" @click="commandPaletteVisible = true">
             <el-autocomplete
               popper-class="console-shell__quick-popper"
@@ -1327,33 +1267,18 @@ onMounted(() => {
             <span class="sla-text">运行正常</span>
           </div>
 
-          <!-- 数字大屏驾驶舱快捷按钮 -->
-          <el-tooltip content="企业级数字大屏驾驶舱" placement="bottom">
-            <button class="console-shell__icon-btn" aria-label="数字驾驶舱" @click="openDataScreen">
-              <el-icon class="console-shell__icon-svg"><DataBoard /></el-icon>
-            </button>
-          </el-tooltip>
-
-          <!-- Knife4j 在线接口文档快捷按钮 -->
-          <el-tooltip content="Knife4j 在线接口文档" placement="bottom">
-            <button class="console-shell__icon-btn" aria-label="接口文档" @click="openApiDocs">
-              <el-icon class="console-shell__icon-svg"><Document /></el-icon>
-            </button>
-          </el-tooltip>
-
-          <!-- 数据导出与下载中心快捷按钮 -->
-          <el-tooltip content="数据导出与下载中心 (同步/异步导出文件及定时报表)" placement="bottom">
-            <button class="console-shell__icon-btn" aria-label="下载中心" @click="openDownloadCenter">
-              <el-icon class="console-shell__icon-svg"><Download /></el-icon>
-            </button>
-          </el-tooltip>
-
-          <!-- 服务与应用监控快捷按钮 -->
-          <el-tooltip content="服务与应用监控 (CPU/JVM/连接池/死锁)" placement="bottom">
-            <button class="console-shell__icon-btn" aria-label="服务监控" @click="openServerMonitor">
-              <el-icon class="console-shell__icon-svg"><Monitor /></el-icon>
-            </button>
-          </el-tooltip>
+          <!-- 快捷中枢与主题/语言/布局聚合面板 -->
+          <QuickLaunchpadPopover
+            :layout-mode="layoutMode"
+            @open-data-screen="openDataScreen"
+            @open-download-center="openDownloadCenter"
+            @open-server-monitor="openServerMonitor"
+            @open-webhook-center="openWebhookCenter"
+            @open-api-docs="openApiDocs"
+            @open-settings="settingsDrawerVisible = true"
+            @change-layout="setLayoutMode"
+            @change-locale="handleLocaleChange"
+          />
 
           <el-tooltip content="AI 大模型智能助手 (DeepSeek / GPT-4o)" placement="bottom">
             <button
@@ -1370,15 +1295,6 @@ onMounted(() => {
           <NotificationCenter />
 
           <TenantSwitcher />
-
-          <el-select
-            class="console-shell__locale"
-            :model-value="localeStore.locale"
-            @change="handleLocaleChange"
-          >
-            <el-option label="中文" value="zh-CN" />
-            <el-option label="EN" value="en-US" />
-          </el-select>
 
           <el-dropdown trigger="click">
             <button class="console-shell__user-trigger" aria-label="用户菜单">

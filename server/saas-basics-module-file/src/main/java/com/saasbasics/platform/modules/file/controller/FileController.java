@@ -29,6 +29,7 @@ import com.saasbasics.platform.modules.file.service.FileUploadRouteService;
 import com.saasbasics.platform.modules.file.service.FileUploadSessionService;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Map;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -209,5 +210,18 @@ public class FileController {
     public ApiResponse<FileObjectResponse> completeUploadSession(@PathVariable Long id,
                                                                  @Valid @RequestBody FileUploadSessionCompleteRequest request) {
         return ApiResponse.success(fileUploadSessionService.completeSession(id, request));
+    }
+
+    @GetMapping("/presigned-url")
+    @RequirePermission("file:object:query")
+    public ApiResponse<Map<String, Object>> presignedUrl(
+            @RequestParam(required = false) Long storageId,
+            @RequestParam String objectKey,
+            @RequestParam(defaultValue = "PUT") String method,
+            @RequestParam(defaultValue = "900") int expireSeconds) {
+        AuthPrincipal principal = AuthContext.get();
+        Long tenantId = principal != null && principal.tenantId() != null ? principal.tenantId() : 1L;
+        return ApiResponse.success(fileUploadSessionService.generatePresignedUrl(
+                tenantId, storageId, objectKey, method, expireSeconds));
     }
 }

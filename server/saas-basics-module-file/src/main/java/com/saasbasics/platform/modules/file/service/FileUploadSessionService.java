@@ -13,11 +13,15 @@ import com.saasbasics.platform.modules.file.entity.FileUploadRouteEntity;
 import com.saasbasics.platform.modules.file.entity.FileUploadSessionEntity;
 import com.saasbasics.platform.modules.file.mapper.FileObjectMapper;
 import com.saasbasics.platform.modules.file.mapper.FileUploadSessionMapper;
+import com.saasbasics.platform.modules.file.storage.FileClient;
+import com.saasbasics.platform.modules.file.storage.FileClientFactory;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -28,17 +32,30 @@ public class FileUploadSessionService {
     private final FileAccessLogService fileAccessLogService;
     private final FileStorageService fileStorageService;
     private final FileUploadRouteService fileUploadRouteService;
+    private final ObjectProvider<FileClientFactory> fileClientFactoryProvider;
 
     public FileUploadSessionService(ObjectProvider<FileUploadSessionMapper> sessionMapperProvider,
                                     ObjectProvider<FileObjectMapper> fileObjectMapperProvider,
                                     FileAccessLogService fileAccessLogService,
                                     FileStorageService fileStorageService,
                                     FileUploadRouteService fileUploadRouteService) {
+        this(sessionMapperProvider, fileObjectMapperProvider, fileAccessLogService,
+                fileStorageService, fileUploadRouteService, null);
+    }
+
+    @Autowired
+    public FileUploadSessionService(ObjectProvider<FileUploadSessionMapper> sessionMapperProvider,
+                                    ObjectProvider<FileObjectMapper> fileObjectMapperProvider,
+                                    FileAccessLogService fileAccessLogService,
+                                    FileStorageService fileStorageService,
+                                    FileUploadRouteService fileUploadRouteService,
+                                    ObjectProvider<FileClientFactory> fileClientFactoryProvider) {
         this.sessionMapperProvider = sessionMapperProvider;
         this.fileObjectMapperProvider = fileObjectMapperProvider;
         this.fileAccessLogService = fileAccessLogService;
         this.fileStorageService = fileStorageService;
         this.fileUploadRouteService = fileUploadRouteService;
+        this.fileClientFactoryProvider = fileClientFactoryProvider;
     }
 
     public List<FileUploadSessionResponse> listSessions() {
@@ -159,6 +176,36 @@ public class FileUploadSessionService {
                 .filter(item -> item.id().equals(object.getId()))
                 .findFirst()
                 .orElseThrow(() -> new BizException("FILE_OBJECT_NOT_FOUND", "File object not found"));
+    }
+
+    public Map<String, Object> generatePresignedUrl(Long tenantId, Long storageId, String objectKey, String method, int expireSeconds) {
+        FileStorageEntity activeStorage = resolveStorage(tenantId, storageId, null);
+        if (activeStorage == null) {
+            throw new BizException("FILE_STORAGE_SOURCE_NOT_CONFIGURED",
+                    "当前尚未配置或启用可用的文件存储源，无法签发预签名直传地址");
+        }
+        String safeKey = FilePathPolicyHelper.sanitizeFolder(objectKey, null);
+        if (safeKey == null || safeKey.isBlank()) {
+            throw new BizException("FILE_INVALID_PATH", "对象路径 objectKey 不能为空");
+        }
+        FileClientFactory factory = fileClientFactoryProvider != null ? fileClientFactoryProvider.getIfAvailable() : null;
+        if (factory == null) {
+            throw new BizException("FILE_CLIENT_FACTORY_UNAVAILABLE", "存储客户端工厂未就绪");
+        }
+        FileClient client = factory.getClient(activeStorage);
+        String normalizedMethod = "GET".equalsIgnoreCase(method) ? "GET" : "PUT";
+        int safeExpires = Math.min(Math.max(expireSeconds, 60), 86400);
+        String url = "GET".equals(normalizedMethod)
+                ? client.generatePresignedDownloadUrl(safeKey, safeExpires)
+                : client.generatePresignedUploadUrl(safeKey, safeExpires);
+        return Map.of(
+                "storageId", activeStorage.getId(),
+                "storageType", activeStorage.getStorageType(),
+                "objectKey", safeKey,
+                "method", normalizedMethod,
+                "expireSeconds", safeExpires,
+                "url", url
+        );
     }
 
     private FileStorageEntity resolveStorage(Long tenantId, Long requestedStorageId, FileUploadRouteEntity route) {

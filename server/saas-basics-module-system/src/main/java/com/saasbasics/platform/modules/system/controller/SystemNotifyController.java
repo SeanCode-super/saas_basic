@@ -72,9 +72,12 @@ public class SystemNotifyController {
     public ApiResponse<NotifyMessageResponse> sendTestMessage(@RequestBody(required = false) NotifySendRequest request) {
         AuthPrincipal principal = AuthContext.get();
         Long tenantId = principal != null ? principal.tenantId() : 1L;
-        Long targetUserId = (request != null && request.targetUserId() != null)
+        Long currentUserId = principal != null && principal.userId() != null ? principal.userId() : 1L;
+        boolean canTargetOthers = principal != null && (principal.isSuperAdmin()
+                || (principal.permissions() != null && principal.permissions().contains("system:config:write")));
+        Long targetUserId = (canTargetOthers && request != null && request.targetUserId() != null)
                 ? request.targetUserId()
-                : (principal != null ? principal.userId() : 1L);
+                : currentUserId;
 
         String category = (request != null && request.category() != null) ? request.category() : "NOTICE";
         String title = (request != null && request.title() != null) ? request.title() : "系统实时推送测试";

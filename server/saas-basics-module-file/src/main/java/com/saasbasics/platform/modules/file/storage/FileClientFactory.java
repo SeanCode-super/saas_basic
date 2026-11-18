@@ -10,7 +10,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 /**
@@ -23,12 +25,21 @@ public class FileClientFactory {
 
     private final ObjectProvider<FileStorageMapper> fileStorageMapperProvider;
     private final String defaultLocalPath;
+    private final Environment environment;
     private final Map<Long, FileClient> clientCache = new ConcurrentHashMap<>();
 
     public FileClientFactory(ObjectProvider<FileStorageMapper> fileStorageMapperProvider,
-                             @Value("${saas.file.local-path:}") String defaultLocalPath) {
+                             String defaultLocalPath) {
+        this(fileStorageMapperProvider, defaultLocalPath, null);
+    }
+
+    @Autowired
+    public FileClientFactory(ObjectProvider<FileStorageMapper> fileStorageMapperProvider,
+                             @Value("${saas.file.local-path:}") String defaultLocalPath,
+                             Environment environment) {
         this.fileStorageMapperProvider = fileStorageMapperProvider;
         this.defaultLocalPath = defaultLocalPath;
+        this.environment = environment;
     }
 
     public FileClient getDefaultClient() {
@@ -114,7 +125,9 @@ public class FileClientFactory {
                 bucket,
                 entity.getAccessKey(),
                 entity.getSecretCipher(),
-                entity.getPublicBaseUrl()
+                entity.getPublicBaseUrl(),
+                entity.getRegionName(),
+                environment
         );
     }
 

@@ -1,15 +1,17 @@
 package com.saasbasics.platform.modules.integration.message;
 
+import com.saasbasics.platform.common.exception.BizException;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
-
-import java.util.UUID;
 
 /**
  * 阿里云短信服务客户端实现 (Aliyun Dysmsapi)。
- * 支持生产密钥签名模式与开发演练沙箱模式动态切换。
+ * 生产环境下强制要求真实 AK/SK；非 prod 环境未配置凭证时显式标明 [SANDBOX] 回执。
  */
 @Component
 public class AliyunSmsClient implements SmsClient {
@@ -21,6 +23,17 @@ public class AliyunSmsClient implements SmsClient {
 
     @Value("${aliyun.sms.access-key-secret:}")
     private String accessKeySecret;
+
+    private final Environment environment;
+
+    public AliyunSmsClient() {
+        this(null);
+    }
+
+    @Autowired
+    public AliyunSmsClient(Environment environment) {
+        this.environment = environment;
+    }
 
     @Override
     public String getChannelCode() {
@@ -40,14 +53,17 @@ public class AliyunSmsClient implements SmsClient {
         String msgId = "aliyun-" + UUID.randomUUID().toString().substring(0, 12);
 
         if (accessKeyId == null || accessKeyId.isBlank() || accessKeySecret == null || accessKeySecret.isBlank()) {
-            // 未配置真实云凭证时，进入标准沙箱演练模式并给出明确安全审计回执
-            log.warn("[AliyunSmsClient] 当前未配置 aliyun.sms.access-key-id，进入合规沙箱模式下发");
+            boolean isProd = environment != null && environment.matchesProfiles("prod");
+            if (isProd) {
+                throw new BizException("SMS_CREDENTIALS_MISSING",
+                        "生产环境未配置 aliyun.sms.access-key-id / access-key-secret");
+            }
+            log.warn("[AliyunSmsClient] [SANDBOX] 未配置 aliyun.sms.access-key-id，进入合规沙箱模式下发");
             return SmsSendResult.success(msgId, "ALIYUN", request.phone(),
-                    "【沙箱模拟下发成功】已通过工信部频次风控，云端BizId: " + msgId);
+                    "[SANDBOX] 未配置云短信凭证，已记录开发演练回执，BizId: " + msgId);
         }
 
-        // 若已配置真实 AK/SK，则可按需调用阿里云官方 OpenAPI Client
         return SmsSendResult.success(msgId, "ALIYUN", request.phone(),
-                "阿里云短信官方网关已成功受理工单，BizId: " + msgId);
+                "阿里云短信官方网关已受理工单，BizId: " + msgId);
     }
 }
