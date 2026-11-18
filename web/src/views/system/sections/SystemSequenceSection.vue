@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { onMounted, ref } from "vue";
 import {
   ElMessage,
   ElMessageBox
@@ -12,6 +12,14 @@ import {
   CircleCheck,
   Setting
 } from "@element-plus/icons-vue";
+import {
+  fetchSequenceRules,
+  generateNextSequence,
+  resetSequenceRule,
+  updateSequenceRule,
+  type SequenceRuleItem
+} from "@/api/modules/system";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 
 defineProps<{
   sequencePolicy: {
@@ -24,83 +32,91 @@ defineProps<{
 }>();
 
 const policyExpanded = ref(false);
+const loading = ref(false);
+const savingRule = ref(false);
 const editDialogVisible = ref(false);
-const editingRule = ref<any>(null);
+const editingRule = ref<SequenceRuleItem | null>(null);
+const sequenceRules = ref<SequenceRuleItem[]>([]);
 
-const sequenceRules = ref([
-  {
-    code: "SEQ_TENANT",
-    name: "多租户组织编号",
-    prefix: "TNT",
-    pattern: "{PREFIX}_{YYYYMMDD}_{SEQ:6}",
-    resetCycle: "DAILY",
-    currentSeq: 42,
-    sample: "TNT_20261018_000042",
-    status: "ENABLED"
-  },
-  {
-    code: "SEQ_ORDER",
-    name: "商城与履约订单流水号",
-    prefix: "ORD",
-    pattern: "{PREFIX}_{YYYYMMDD}_{SEQ:8}",
-    resetCycle: "DAILY",
-    currentSeq: 1089,
-    sample: "ORD_20261018_00001089",
-    status: "ENABLED"
-  },
-  {
-    code: "SEQ_CONTRACT",
-    name: "电子合同编号",
-    prefix: "CTR",
-    pattern: "{PREFIX}_{YYYY}_{SEQ:6}",
-    resetCycle: "YEARLY",
-    currentSeq: 156,
-    sample: "CTR_2026_000156",
-    status: "ENABLED"
-  },
-  {
-    code: "SEQ_DISPATCH",
-    name: "调度中心批次跟踪号",
-    prefix: "DSP",
-    pattern: "{PREFIX}_{YYYYMMDDHH}_{SEQ:4}",
-    resetCycle: "DAILY",
-    currentSeq: 88,
-    sample: "DSP_2026101823_0088",
-    status: "ENABLED"
+async function loadSequenceRules() {
+  loading.value = true;
+  try {
+    sequenceRules.value = await fetchSequenceRules();
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message ?? "加载分布式序列规则失败");
+  } finally {
+    loading.value = false;
   }
-]);
-
-function handleGenerateNext(row: any) {
-  row.currentSeq += 1;
-  const seqStr = String(row.currentSeq).padStart(row.pattern.includes("8") ? 8 : 6, "0");
-  const dateStr = "20261018";
-  row.sample = `${row.prefix}_${dateStr}_${seqStr}`;
-  ElMessage.success(`成功生成下一流水号：${row.sample}`);
 }
 
-function handleResetCounter(row: any) {
-  ElMessageBox.confirm(`确定要将规则 [${row.name}] 的分布式流水号重置为 0 吗？此操作会导致编号计数重新开始。`, "重置流水号确认", {
-    type: "warning"
-  }).then(() => {
-    row.currentSeq = 0;
-    row.sample = `${row.prefix}_20261018_000000`;
-    ElMessage.success(`规则 [${row.name}] 流水号已重置为初始零态`);
-  });
+async function handleGenerateNext(row: SequenceRuleItem) {
+  try {
+    const next = await generateNextSequence(row.code);
+    row.currentSeq = next.currentSeq;
+    row.sample = next.generatedValue;
+    ElMessage.success(`已从数据库原子递增并生成流水号：${next.generatedValue}`);
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message ?? "生成流水号失败");
+  }
 }
 
-function handleEditRule(row: any) {
+async function handleResetCounter(row: SequenceRuleItem) {
+  try {
+    await ElMessageBox.confirm(
+      `确定要将规则 [${row.name}] 的分布式流水号重置为 0 吗？此操作会导致编号计数重新开始。`,
+      "重置流水号确认",
+      { type: "warning" }
+    );
+    const updated = await resetSequenceRule(row.code);
+    Object.assign(row, updated);
+    ElMessage.success(`规则 [${row.name}] 流水号已重置`);
+  } catch (error: any) {
+    if (error !== "cancel" && error !== "close") {
+      ElMessage.error(error?.response?.data?.message ?? "重置流水号失败");
+    }
+  }
+}
+
+function handleEditRule(row: SequenceRuleItem) {
   editingRule.value = { ...row };
   editDialogVisible.value = true;
 }
 
-function handleSaveRule() {
-  const index = sequenceRules.value.findIndex((r) => r.code === editingRule.value.code);
-  if (index !== -1) {
-    sequenceRules.value[index] = { ...editingRule.value };
+async function handleSaveRule() {
+  if (!editingRule.value) {
+    return;
   }
-  editDialogVisible.value = false;
-  ElMessage.success("分布式序列规则配置已更新");
+  if (!editingRule.value.name?.trim()) {
+    ElMessage.warning("请输入规则名称");
+    return;
+  }
+  savingRule.value = true;
+  try {
+    const updated = await updateSequenceRule(editingRule.value.id, {
+      name: editingRule.value.name.trim(),
+      prefix: editingRule.value.prefix?.trim() || undefined,
+      datePattern: editingRule.value.datePattern?.trim() ?? "",
+      seqLength: editingRule.value.seqLength,
+      step: editingRule.value.step,
+      resetCycle: editingRule.value.resetCycle,
+      status: editingRule.value.status
+    });
+    const index = sequenceRules.value.findIndex((r) => r.id === updated.id);
+    if (index !== -1) {
+      sequenceRules.value[index] = updated;
+    }
+    editDialogVisible.value = false;
+    ElMessage.success("分布式序列规则配置已持久化保存");
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message ?? "保存序列规则失败");
+  } finally {
+    savingRule.value = false;
+  }
 }
+
+onMounted(() => {
+  void loadSequenceRules();
+});
 </script>
 
 <template>
@@ -201,7 +217,7 @@ function handleSaveRule() {
         </div>
       </template>
 
-      <el-table :data="sequenceRules" border stripe style="width: 100%">
+      <el-table v-loading="loading" :data="sequenceRules" border stripe style="width: 100%">
         <el-table-column prop="code" label="规则编码" width="140" />
         <el-table-column prop="name" label="业务规则名称" min-width="160">
           <template #default="{ row }">
@@ -243,37 +259,52 @@ function handleSaveRule() {
       </el-table>
     </el-card>
 
-    <!-- 编辑规则弹窗 -->
-    <el-dialog v-model="editDialogVisible" title="配置分布式序列规则" width="500px" append-to-body destroy-on-close>
+    <!-- 编辑规则面板 -->
+    <WorkspacePanel v-model="editDialogVisible" title="配置分布式序列规则" width="520px">
       <el-form v-if="editingRule" label-position="top">
-        <el-form-item label="规则名称">
+        <el-form-item label="规则名称" required>
           <el-input v-model="editingRule.name" />
         </el-form-item>
         <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item label="前缀标识">
-              <el-input v-model="editingRule.prefix" />
+              <el-input v-model="editingRule.prefix" placeholder="如 ORD" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
+            <el-form-item label="日期格式 (Date Pattern)">
+              <el-input v-model="editingRule.datePattern" placeholder="如 yyyyMMdd 或 yyyy" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="16">
+          <el-col :span="8">
+            <el-form-item label="补零长度">
+              <el-input-number v-model="editingRule.seqLength" :min="2" :max="18" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="递增步长">
+              <el-input-number v-model="editingRule.step" :min="1" :max="100" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
             <el-form-item label="重置周期">
               <el-select v-model="editingRule.resetCycle" style="width: 100%">
                 <el-option label="按日重置" value="DAILY" />
                 <el-option label="按月重置" value="MONTHLY" />
                 <el-option label="按年重置" value="YEARLY" />
+                <el-option label="永不重置" value="NEVER" />
               </el-select>
             </el-form-item>
           </el-col>
         </el-row>
-        <el-form-item label="格式模式 (Pattern)">
-          <el-input v-model="editingRule.pattern" placeholder="如 {PREFIX}_{YYYYMMDD}_{SEQ:6}" />
-        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="editDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSaveRule">保存规则</el-button>
+        <el-button type="primary" :loading="savingRule" @click="handleSaveRule">保存规则</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
   </div>
 </template>
 

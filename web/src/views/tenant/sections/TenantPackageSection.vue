@@ -26,6 +26,7 @@ import type {
   TenantPackageSavePayload
 } from "@/api/modules/tenant";
 import { useAuthStore } from "@/stores/modules/auth";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 
 const authStore = useAuthStore();
 const loading = ref(false);
@@ -455,12 +456,11 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Create / Edit Package Dialog -->
-    <el-dialog
+    <!-- Create / Edit Package Workspace Panel -->
+    <WorkspacePanel
       v-model="dialogVisible"
       :title="isEditing ? `编辑套餐「${form.packageName}」` : '新建 SaaS 订阅套餐'"
-      width="640px"
-      :close-on-click-modal="false"
+      width="680px"
     >
       <el-form :model="form" label-position="top">
         <el-row :gutter="16">
@@ -563,7 +563,7 @@ onMounted(() => {
           确认保存套餐
         </el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
   </div>
 </template>
 

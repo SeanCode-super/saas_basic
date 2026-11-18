@@ -25,6 +25,7 @@ import type {
 } from "@/api/modules/iam";
 import BaseCard from "@/components/base/BaseCard.vue";
 import BaseStatusTag from "@/components/base/BaseStatusTag.vue";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 import type { ProTableColumn } from "@/components/pro/ProTable.vue";
 
 const props = withDefaults(
@@ -707,12 +708,11 @@ onMounted(() => {
       </main>
     </div>
 
-    <!-- ================= ADD MEMBERS MODAL ================= -->
-    <el-dialog
+    <!-- ================= ADD MEMBERS WORKSPACE PANEL ================= -->
+    <WorkspacePanel
       v-model="addMembersDialogVisible"
       :title="`为角色「${currentSelectedRole?.roleName}」批量添加成员`"
-      width="640px"
-      :close-on-click-modal="false"
+      width="680px"
     >
       <div class="add-members-modal-body">
         <div class="modal-filters-row">
@@ -783,14 +783,13 @@ onMounted(() => {
           确认添加授权 ({{ selectedNewUserIds.length }})
         </el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
 
-    <!-- ================= EDIT USER ROLES MODAL ================= -->
-    <el-dialog
+    <!-- ================= EDIT USER ROLES WORKSPACE PANEL ================= -->
+    <WorkspacePanel
       v-model="editUserRolesDialogVisible"
       :title="`调整用户「${currentSelectedUser?.nickname}」的分配角色`"
       width="560px"
-      :close-on-click-modal="false"
     >
       <div class="edit-roles-modal-body">
         <p class="edit-roles-hint">请勾选需要授予此用户的业务角色，支持多角色组合：</p>
@@ -818,7 +817,7 @@ onMounted(() => {
           保存角色分配
         </el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
   </div>
 </template>
 

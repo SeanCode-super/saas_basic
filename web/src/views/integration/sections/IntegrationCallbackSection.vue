@@ -13,6 +13,7 @@ import {
   Warning
 } from "@element-plus/icons-vue";
 import BaseCard from "@/components/base/BaseCard.vue";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 import {
   createWebhookSubscription,
   deleteWebhookSubscription,
@@ -337,8 +338,8 @@ onMounted(() => {
       </el-table>
     </el-card>
 
-    <!-- Create Subscription Dialog -->
-    <el-dialog v-model="createDialogVisible" title="新建 CloudEvents 1.0 Webhook 订阅" width="480px">
+    <!-- Create Subscription WorkspacePanel -->
+    <WorkspacePanel v-model="createDialogVisible" title="新建 CloudEvents 1.0 Webhook 订阅" width="540px">
       <el-form label-position="top">
         <el-form-item label="订阅名称">
           <el-input v-model="subForm.subscriptionName" placeholder="例如：ERP 客户同步事件订阅" />
@@ -362,7 +363,7 @@ onMounted(() => {
         <el-button @click="createDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="creating" @click="handleCreateSubscription">保存订阅</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
   </div>
 </template>
 

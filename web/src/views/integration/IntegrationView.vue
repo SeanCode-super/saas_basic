@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
-import { createDatasource, fetchDatasources } from "@/api/modules/integration";
+import { createDatasource, fetchDatasources, probeAllDatasources, probeDatasource } from "@/api/modules/integration";
 import type { DatasourceRow } from "@/api/modules/integration";
 import BaseCard from "@/components/base/BaseCard.vue";
 import ControlSurface from "@/components/platform/ControlSurface.vue";
 import BaseRefreshButton from "@/components/base/BaseRefreshButton.vue";
 import RegistryImportDialog from "@/components/platform/RegistryImportDialog.vue";
 import ModuleWorkbench from "@/components/platform/ModuleWorkbench.vue";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 import type { ProTableColumn } from "@/components/pro/ProTable.vue";
 import { useAuthStore } from "@/stores/modules/auth";
 import { useModuleSection } from "@/hooks/useModuleSection";
+import { loadGovernancePolicy, saveGovernancePolicy } from "@/utils/governance-policy";
 import { formatJsonManifest, parseJsonManifest } from "@/utils/manifest-import";
 import IntegrationCallbackSection from "./sections/IntegrationCallbackSection.vue";
 import IntegrationConnectionSection from "./sections/IntegrationConnectionSection.vue";
@@ -84,7 +86,7 @@ const sectionItems = [
 const { activeSection } = useModuleSection(sectionItems, {
   mode: "path",
   basePath: "/integration",
-  fallback: "overview"
+  fallback: "registry"
 });
 
 const currentSection = computed(() => props.section || activeSection.value);
@@ -134,7 +136,8 @@ const columns: ProTableColumn[] = [
   { prop: "host", label: "主机", minWidth: 160 },
   { prop: "databaseName", label: "数据库", minWidth: 160 },
   { prop: "testStatus", label: "测试状态", minWidth: 110, slot: "testStatus" },
-  { prop: "status", label: "状态", minWidth: 100, slot: "status" }
+  { prop: "status", label: "状态", minWidth: 100, slot: "status" },
+  { prop: "actions", label: "连通探测", minWidth: 130, slot: "actions" }
 ];
 
 const schema = computed(() => [
@@ -195,7 +198,12 @@ const currentSectionComponent = computed(
 async function loadData() {
   loading.value = true;
   try {
-    rows.value = await fetchDatasources();
+    const [nextRows] = await Promise.all([
+      fetchDatasources(),
+      loadGovernancePolicy("INTEGRATION", "integration.connection_policy", connectionPolicy),
+      loadGovernancePolicy("INTEGRATION", "integration.webhook_policy", webhookPolicy)
+    ]);
+    rows.value = nextRows;
   } finally {
     loading.value = false;
   }
@@ -317,8 +325,44 @@ async function handleImport() {
   }
 }
 
-function savePolicy(message: string) {
-  ElMessage.success(message);
+async function handleProbeRow(row: DatasourceRow) {
+  try {
+    const res = await probeDatasource(row.id);
+    if (res.testStatus === "PASSED") {
+      ElMessage.success(`${row.name} 连通正常（RTT ${res.latencyMs}ms）：${res.message}`);
+    } else {
+      ElMessage.warning(`${row.name} 连通失败（${res.latencyMs}ms）：${res.message}`);
+    }
+    await loadData();
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message ?? "数据源连通性探测失败");
+  }
+}
+
+async function handleProbeAll() {
+  loading.value = true;
+  try {
+    const results = await probeAllDatasources();
+    const passed = results.filter((item) => item.testStatus === "PASSED").length;
+    ElMessage.success(`全量探测完成：共 ${results.length} 个数据源，通过 ${passed} 个`);
+    await loadData();
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message ?? "批量连通性探测失败");
+    loading.value = false;
+  }
+}
+
+async function savePolicy(message: string) {
+  const tenantId = authStore.currentUser?.tenantId ?? 1;
+  try {
+    await Promise.all([
+      saveGovernancePolicy("INTEGRATION", "integration.connection_policy", "集成连接安全策略", connectionPolicy, tenantId),
+      saveGovernancePolicy("INTEGRATION", "integration.webhook_policy", "集成回调投递策略", webhookPolicy, tenantId)
+    ]);
+    ElMessage.success(message);
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message ?? "保存集成治理策略失败");
+  }
 }
 
 onMounted(loadData);
@@ -404,6 +448,8 @@ onMounted(loadData);
         :load-data="loadData"
         :open-create-dialog="openCreateDialog"
         :open-import-dialog="openImportDialog"
+        :handle-probe-row="handleProbeRow"
+        :handle-probe-all="handleProbeAll"
         :save-policy="savePolicy"
       />
     </div>
@@ -432,11 +478,13 @@ onMounted(loadData);
       :load-data="loadData"
       :open-create-dialog="openCreateDialog"
       :open-import-dialog="openImportDialog"
+      :handle-probe-row="handleProbeRow"
+      :handle-probe-all="handleProbeAll"
       :save-policy="savePolicy"
     />
   </ControlSurface>
 
-  <el-dialog v-model="createVisible" title="新增数据源" width="560px">
+  <WorkspacePanel v-model="createVisible" title="新增数据源" width="600px">
     <el-form label-position="top">
       <el-form-item label="数据源编码" required>
         <el-input v-model="form.code" placeholder="如 ds_order_mysql" />
@@ -485,7 +533,7 @@ onMounted(loadData);
       <el-button @click="createVisible = false">取消</el-button>
       <el-button type="primary" :loading="submitting" @click="handleCreate">确认新增</el-button>
     </template>
-  </el-dialog>
+  </WorkspacePanel>
 
   <RegistryImportDialog
     v-model:visible="importVisible"

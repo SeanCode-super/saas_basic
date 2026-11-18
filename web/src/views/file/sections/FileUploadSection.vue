@@ -14,6 +14,7 @@ import {
 import { resolveAuthorizedFileUrl } from "@/api/modules/file";
 import type { FileObjectRow, FileUploadRouteRow, FileUploadSessionRow, StorageAvailability } from "@/api/modules/file";
 import { useAuthStore } from "@/stores/modules/auth";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 
 const props = defineProps<{
   uploadPolicy: {
@@ -335,8 +336,8 @@ function handleDownload(row: FileObjectRow) {
       </div>
     </el-card>
 
-    <!-- 创建上传会话弹窗 -->
-    <el-dialog v-model="createSessionDialogVisible" title="创建文件上传会话" width="600px" destroy-on-close>
+    <!-- 创建上传会话工作区面板 -->
+    <WorkspacePanel v-model="createSessionDialogVisible" title="创建文件上传会话" width="640px" destroy-on-close>
       <el-form label-position="top">
         <el-row :gutter="16">
           <el-col :span="12">
@@ -385,10 +386,10 @@ function handleDownload(row: FileObjectRow) {
         <el-button @click="createSessionDialogVisible = false">取消</el-button>
         <el-button type="primary" @click="handleConfirmCreateSession">确认创建上传会话</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
 
-    <!-- 预览弹窗 -->
-    <el-dialog v-model="previewVisible" :title="previewItem?.fileName || '文件预览'" width="580px" destroy-on-close>
+    <!-- 预览面板 -->
+    <WorkspacePanel v-model="previewVisible" :title="previewItem?.fileName || '文件预览'" width="640px" destroy-on-close>
       <div style="text-align: center; padding: 16px">
         <img
           v-if="previewItem && isImageObject(previewItem)"
@@ -405,7 +406,7 @@ function handleDownload(row: FileObjectRow) {
       <template #footer>
         <el-button @click="previewVisible = false">关闭</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
   </div>
 </template>
 

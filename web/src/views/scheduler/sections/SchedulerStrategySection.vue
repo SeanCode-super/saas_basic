@@ -11,6 +11,7 @@ import {
 import ProTable from "@/components/pro/ProTable.vue";
 import type { ProTableColumn } from "@/components/pro/ProTable.vue";
 import BaseStatusTag from "@/components/base/BaseStatusTag.vue";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 
 const props = defineProps<{
   schedulerPolicy: {
@@ -154,12 +155,10 @@ async function handleSavePolicy() {
     </ProTable>
 
     <!-- Dialog 1: Execution Policy Modal -->
-    <el-dialog
+    <WorkspacePanel
       v-model="policyDialogVisible"
       title="配置调度全局执行策略"
       width="540px"
-      append-to-body
-      destroy-on-close
     >
       <el-form label-position="top">
         <el-form-item label="最大自动补偿重试次数">
@@ -192,15 +191,13 @@ async function handleSavePolicy() {
         <el-button @click="policyDialogVisible = false">取消</el-button>
         <el-button type="primary" @click="handleSavePolicy">保存策略</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
 
     <!-- Dialog 2: Job Create / Edit Modal -->
-    <el-dialog
+    <WorkspacePanel
       v-model="jobDialogVisible"
       :title="isEditingJob ? '编辑调度任务' : '新建调度任务'"
       width="600px"
-      append-to-body
-      destroy-on-close
     >
       <el-form label-position="top">
         <div class="form-row-2">
@@ -245,7 +242,7 @@ async function handleSavePolicy() {
         <el-button @click="jobDialogVisible = false">取消</el-button>
         <el-button type="primary" @click="handleSaveJob">保存任务</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
   </div>
 </template>
 

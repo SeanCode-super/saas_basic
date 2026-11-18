@@ -14,6 +14,7 @@ import {
 import ControlSurface from "@/components/platform/ControlSurface.vue";
 import ExportDialog from "@/components/platform/ExportDialog.vue";
 import ModuleWorkbench from "@/components/platform/ModuleWorkbench.vue";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 import ProTable, { type ProTableColumn } from "@/components/pro/ProTable.vue";
 import type { DimensionAxisConfig } from "@/utils/dimension-slice";
 import {
@@ -546,8 +547,8 @@ async function handleStockIn(order: ErpPurchaseOrderRow) {
       </div>
     </ControlSurface>
 
-    <!-- 新建物料 Dialog -->
-    <el-dialog v-model="productDialogVisible" title="录入物料商品档案" width="560px">
+    <!-- 新建物料 WorkspacePanel -->
+    <WorkspacePanel v-model="productDialogVisible" title="录入物料商品档案" width="600px">
       <el-form label-position="top">
         <el-row :gutter="12">
           <el-col :span="12">
@@ -601,10 +602,10 @@ async function handleStockIn(order: ErpPurchaseOrderRow) {
         <el-button @click="productDialogVisible = false">取消</el-button>
         <el-button type="primary" @click="handleSaveProduct">确认录入</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
 
-    <!-- 新建采购订单 Dialog -->
-    <el-dialog v-model="purchaseDialogVisible" title="创建供应链采购订单" width="500px">
+    <!-- 新建采购订单 WorkspacePanel -->
+    <WorkspacePanel v-model="purchaseDialogVisible" title="创建供应链采购订单" width="540px">
       <el-form label-position="top">
         <el-form-item label="供货单位" required>
           <el-input v-model="purchaseForm.supplierName" />
@@ -620,7 +621,7 @@ async function handleStockIn(order: ErpPurchaseOrderRow) {
         <el-button @click="purchaseDialogVisible = false">取消</el-button>
         <el-button type="primary" @click="handleSavePurchase">确认创建</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
 
     <ExportDialog
       v-model:visible="erpExportVisible"

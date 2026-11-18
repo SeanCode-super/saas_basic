@@ -487,3 +487,17 @@ export interface SecurityBaselineSavePayload {
   lockMinutes?: number;
 }
 
+export interface DataPermissionSqlPreviewRequest {
+  sql: string;
+  resourceCode?: string;
+  tenantId?: number;
+}
+
+export interface DataPermissionSqlPreviewResponse {
+  originalSql: string;
+  rewrittenSql: string;
+  scopeType: string;
+  tenantId: number;
+  elapsedMicros: number;
+}
+

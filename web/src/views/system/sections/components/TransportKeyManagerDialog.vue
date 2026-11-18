@@ -10,6 +10,7 @@ import {
 } from "@/api/modules/system";
 import type { RetainedKeySummary, TransportSecurityOverview } from "@/api/modules/system";
 import { generateX25519KeyPairHex } from "@/utils/transport-crypto";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 
 const props = defineProps<{
   visible: boolean;
@@ -197,7 +198,7 @@ async function handleActivateRetained(row: RetainedKeySummary) {
 </script>
 
 <template>
-  <el-dialog v-model="dialogVisible" title="传输密钥治理与自定义配置 (X25519 + Vault)" width="min(780px, 94vw)" destroy-on-close>
+  <WorkspacePanel v-model="dialogVisible" title="传输密钥治理与自定义配置 (X25519 + Vault)" size="wide" destroy-on-close>
     <div v-if="activeKey" class="key-dialog-body">
       <!-- 1. 当前活跃密钥摘要 -->
       <div class="active-key-card">
@@ -360,7 +361,7 @@ async function handleActivateRetained(row: RetainedKeySummary) {
     <template #footer>
       <el-button @click="dialogVisible = false">关闭</el-button>
     </template>
-  </el-dialog>
+  </WorkspacePanel>
 </template>
 
 <style scoped lang="scss">

@@ -4,6 +4,7 @@ import { Plus, Timer, Box, Delete, Finished } from "@element-plus/icons-vue";
 import ProTable from "@/components/pro/ProTable.vue";
 import type { ProTableColumn } from "@/components/pro/ProTable.vue";
 import BaseStatusTag from "@/components/base/BaseStatusTag.vue";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 
 const props = defineProps<{
   loading?: boolean;
@@ -163,12 +164,11 @@ function formatScope(scope: any) {
       </ProTable>
     </el-card>
 
-    <!-- Dialog: Clean Modal for Create / Edit -->
-    <el-dialog
+    <!-- Workspace Panel for Create / Edit -->
+    <WorkspacePanel
       v-model="dialogVisible"
       :title="isEditing ? '编辑生命周期策略' : '新建生命周期策略'"
-      width="640px"
-      append-to-body
+      width="680px"
       destroy-on-close
     >
       <el-form label-position="top" class="lifecycle-dialog-form">
@@ -229,7 +229,7 @@ function formatScope(scope: any) {
         <el-button @click="dialogVisible = false">取消</el-button>
         <el-button type="primary" @click="handleSave">保存策略</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
   </div>
 </template>
 

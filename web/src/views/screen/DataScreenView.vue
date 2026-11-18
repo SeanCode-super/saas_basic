@@ -1,17 +1,62 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
+import { useRouter } from "vue-router";
+import { ArrowLeft, FullScreen } from "@element-plus/icons-vue";
 import {
-  useRouter
-} from "vue-router";
+  fetchTenantBills,
+  fetchTenantMeteringSummary,
+  fetchTenantPage,
+  fetchTenantQuotas,
+  type TenantBillRow,
+  type TenantMeteringSummary,
+  type TenantRow
+} from "@/api/modules/tenant";
 import {
-  ArrowLeft,
-  FullScreen
-} from "@element-plus/icons-vue";
+  fetchAuditOverview,
+  fetchLoginLogs,
+  fetchOperationLogs,
+  type AuditOverview
+} from "@/api/modules/audit";
+import { listCrmContracts, type CrmContractRow } from "@/api/modules/crm";
+import { fetchWorkflowInstances, type ProcessInstanceRow } from "@/api/modules/workflow";
+import {
+  fetchAiModels,
+  fetchAiRuns,
+  fetchAiTenantQuota,
+  type AiModelConfigRow,
+  type AiRunRow,
+  type AiTenantQuotaRow
+} from "@/api/modules/ai";
+import {
+  fetchDatasources,
+  fetchMessageLogs,
+  fetchPayOrders,
+  type DatasourceRow
+} from "@/api/modules/integration";
+import { fetchJvmInfo, fetchRedisInfo, type JvmInfoData, type RedisInfoData } from "@/api/modules/system";
 
 const router = useRouter();
 const currentTime = ref("");
-let timer: any = null;
+let clockTimer: ReturnType<typeof setInterval> | null = null;
+let dataTimer: ReturnType<typeof setInterval> | null = null;
 const isFullscreen = ref(false);
+
+const tenants = ref<TenantRow[]>([]);
+const tenantRanks = ref<Array<{ id: number; name: string; percent: number }>>([]);
+const metering = ref<TenantMeteringSummary | null>(null);
+const bills = ref<TenantBillRow[]>([]);
+const contracts = ref<CrmContractRow[]>([]);
+const auditOverview = ref<AuditOverview | null>(null);
+const workflows = ref<ProcessInstanceRow[]>([]);
+const aiModels = ref<AiModelConfigRow[]>([]);
+const aiRuns = ref<AiRunRow[]>([]);
+const aiQuota = ref<AiTenantQuotaRow | null>(null);
+const datasources = ref<DatasourceRow[]>([]);
+const messageLogCount = ref(0);
+const payOrderCount = ref(0);
+const jvmInfo = ref<JvmInfoData | null>(null);
+const redisInfo = ref<RedisInfoData | null>(null);
+const recentLogs = ref<Array<{ time: string; tenant: string; action: string; status: string }>>([]);
 
 function updateTime() {
   const now = new Date();
@@ -26,45 +71,178 @@ function updateTime() {
 
 function toggleFullscreen() {
   if (!document.fullscreenElement) {
-    document.documentElement.requestFullscreen();
+    void document.documentElement.requestFullscreen();
     isFullscreen.value = true;
-  } else {
-    if (document.exitFullscreen) {
-      document.exitFullscreen();
-      isFullscreen.value = false;
-    }
+  } else if (document.exitFullscreen) {
+    void document.exitFullscreen();
+    isFullscreen.value = false;
   }
 }
 
 function goBack() {
-  router.push("/dashboard");
+  void router.push("/dashboard");
 }
 
-// 统计核心数据
-const stats = ref({
-  totalGmv: "¥ 18,492,600",
-  activeTenants: 128,
-  throughputToday: "1,294,820",
-  workflowCount: 384,
-  uptimeDays: 246
+function formatTimeShort(ts?: string) {
+  if (!ts) return "--:--:--";
+  const match = ts.match(/\d{2}:\d{2}:\d{2}/);
+  return match ? match[0] : ts.slice(0, 8);
+}
+
+async function loadScreenData() {
+  const [
+    nextTenants,
+    nextMetering,
+    nextBills,
+    nextContracts,
+    nextAudit,
+    nextOpLogs,
+    nextLoginLogs,
+    nextWorkflows,
+    nextAiModels,
+    nextAiRuns,
+    nextAiQuota,
+    nextDatasources,
+    nextMessages,
+    nextPayOrders,
+    nextJvm,
+    nextRedis
+  ] = await Promise.all([
+    fetchTenantPage().catch(() => [] as TenantRow[]),
+    fetchTenantMeteringSummary().catch(() => null),
+    fetchTenantBills().catch(() => [] as TenantBillRow[]),
+    listCrmContracts().then((r) => r.data ?? []).catch(() => [] as CrmContractRow[]),
+    fetchAuditOverview().catch(() => null),
+    fetchOperationLogs().catch(() => []),
+    fetchLoginLogs().catch(() => []),
+    fetchWorkflowInstances().catch(() => [] as ProcessInstanceRow[]),
+    fetchAiModels().catch(() => [] as AiModelConfigRow[]),
+    fetchAiRuns().catch(() => [] as AiRunRow[]),
+    fetchAiTenantQuota().catch(() => null),
+    fetchDatasources().catch(() => [] as DatasourceRow[]),
+    fetchMessageLogs().catch(() => []),
+    fetchPayOrders().catch(() => []),
+    fetchJvmInfo().catch(() => null),
+    fetchRedisInfo().catch(() => null)
+  ]);
+
+  tenants.value = nextTenants;
+  metering.value = nextMetering;
+  bills.value = nextBills;
+  contracts.value = nextContracts;
+  auditOverview.value = nextAudit;
+  workflows.value = nextWorkflows;
+  aiModels.value = nextAiModels;
+  aiRuns.value = nextAiRuns;
+  aiQuota.value = nextAiQuota;
+  datasources.value = nextDatasources;
+  messageLogCount.value = nextMessages.length;
+  payOrderCount.value = nextPayOrders.length;
+  jvmInfo.value = nextJvm;
+  redisInfo.value = nextRedis;
+
+  // Fetch real quota saturation for top 5 tenants
+  const quotaOverviews = await Promise.all(
+    nextTenants.slice(0, 5).map((t) => fetchTenantQuotas(t.id).catch(() => null))
+  );
+  tenantRanks.value = nextTenants
+    .slice(0, 5)
+    .map((t, idx) => {
+      const q = quotaOverviews[idx];
+      const peak = q && q.quotas.length > 0
+        ? Math.max(...q.quotas.map((item) => Math.round(item.usagePercent ?? 0)))
+        : 0;
+      return {
+        id: t.id,
+        name: t.tenantName,
+        percent: Math.min(100, Math.max(0, peak))
+      };
+    })
+    .sort((a, b) => b.percent - a.percent);
+
+  const tenantNameMap = new Map(nextTenants.map((t) => [t.id, t.tenantName]));
+  const combinedLogs = [
+    ...nextOpLogs.map((l) => ({
+      sortKey: l.occurredAt || "",
+      time: formatTimeShort(l.occurredAt),
+      tenant: tenantNameMap.get(l.tenantId) ?? l.operatorName ?? `租户#${l.tenantId}`,
+      action: `${l.bizModule} · ${l.operationType}`,
+      status: l.success ? "SUCCESS" : "FAILED"
+    })),
+    ...nextLoginLogs.map((l) => ({
+      sortKey: l.occurredAt || "",
+      time: formatTimeShort(l.occurredAt),
+      tenant: tenantNameMap.get(l.tenantId) ?? l.username,
+      action: `登录认证 · ${l.loginType}`,
+      status: l.success ? "SUCCESS" : "DENIED"
+    }))
+  ]
+    .sort((a, b) => b.sortKey.localeCompare(a.sortKey))
+    .slice(0, 12)
+    .map(({ time, tenant, action, status }) => ({ time, tenant, action, status }));
+
+  recentLogs.value = combinedLogs;
+}
+
+const stats = computed(() => {
+  const contractTotal = contracts.value.reduce((acc, item) => acc + Number(item.totalPrice || 0), 0);
+  const billTotal = bills.value.reduce((acc, item) => acc + Number(item.amount || 0), 0);
+  const gmvValue = contractTotal > 0 ? contractTotal : billTotal;
+  const activeCount = tenants.value.filter((t) => t.status === "ACTIVE" || t.status === "TRIAL").length;
+  const events =
+    (metering.value?.totalApiCalls ?? 0) ||
+    ((auditOverview.value?.operationEventsToday ?? 0) + (auditOverview.value?.loginEventsToday ?? 0));
+
+  return {
+    totalGmv: `¥ ${gmvValue.toLocaleString("en-US", { maximumFractionDigits: 0 })}`,
+    activeTenants: activeCount || tenants.value.length,
+    throughputToday: events.toLocaleString(),
+    workflowCount: workflows.value.length
+  };
 });
 
-const recentLogs = ref([
-  { time: "15:08:12", tenant: "华为云生态", action: "采购入库核销", status: "SUCCESS" },
-  { time: "15:06:45", tenant: "比亚迪供应链", action: "批量审批通过 (6笔)", status: "SUCCESS" },
-  { time: "15:04:22", tenant: "顺丰速运", action: "高并发短信投递", status: "SUCCESS" },
-  { time: "15:01:09", tenant: "微盟科技", action: "大额支付回执校验", status: "SUCCESS" },
-  { time: "14:58:33", tenant: "阿里云计算", action: "租户套餐静默扩容", status: "SUCCESS" },
-  { time: "14:55:01", tenant: "腾讯金融", action: "跨端会话安全校验", status: "SUCCESS" }
-]);
+const aiDistributions = computed(() => {
+  const colors = ["#00e5ff", "#3b82f6", "#10b981", "#f59e0b"];
+  if (aiRuns.value.length > 0) {
+    const counts = new Map<string, number>();
+    for (const run of aiRuns.value) {
+      const key = run.modelId || "unknown";
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    const total = aiRuns.value.length;
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([name, count], idx) => ({
+        name,
+        percent: Math.round((count / total) * 100),
+        color: colors[idx % colors.length]
+      }));
+  }
+  const enabledModels = aiModels.value.filter((m) => m.status === "ENABLED").slice(0, 4);
+  if (enabledModels.length === 0) {
+    return [];
+  }
+  const share = Math.round(100 / enabledModels.length);
+  return enabledModels.map((m, idx) => ({
+    name: m.modelName || m.modelId,
+    percent: idx === 0 ? 100 - share * (enabledModels.length - 1) : share,
+    color: colors[idx % colors.length]
+  }));
+});
 
 onMounted(() => {
   updateTime();
-  timer = setInterval(updateTime, 1000);
+  clockTimer = setInterval(updateTime, 1000);
+  void loadScreenData();
+  dataTimer = setInterval(() => {
+    void loadScreenData();
+  }, 30000);
 });
 
 onUnmounted(() => {
-  if (timer) clearInterval(timer);
+  if (clockTimer) clearInterval(clockTimer);
+  if (dataTimer) clearInterval(dataTimer);
 });
 </script>
 
@@ -103,43 +281,22 @@ onUnmounted(() => {
 
     <!-- 主展示面板三栏布局 -->
     <main class="screen-body">
-      <!-- 左栏：指标仪表与排行 -->
+      <!-- 左栏：多租户分布 + 运行时与网关指标 -->
       <section class="screen-column col-left">
         <div class="screen-card">
           <div class="card-header">
             <span class="card-title-icon">✦</span>
-            <h3>实时多租户负荷 TOP5</h3>
+            <h3>实时多租户配额饱和 TOP5</h3>
           </div>
           <div class="card-content">
-            <div class="tenant-rank-item">
-              <span class="rank-badge rank-1">01</span>
-              <span class="rank-name">华为云数字化生态</span>
-              <div class="rank-bar-bg"><div class="rank-bar-fill" style="width: 92%;" /></div>
-              <span class="rank-val">92%</span>
+            <div v-for="(item, idx) in tenantRanks" :key="item.id" class="tenant-rank-item">
+              <span class="rank-badge" :class="idx < 3 ? `rank-${idx + 1}` : ''">{{ String(idx + 1).padStart(2, "0") }}</span>
+              <span class="rank-name">{{ item.name }}</span>
+              <div class="rank-bar-bg"><div class="rank-bar-fill" :style="{ width: `${item.percent}%` }" /></div>
+              <span class="rank-val">{{ item.percent }}%</span>
             </div>
-            <div class="tenant-rank-item">
-              <span class="rank-badge rank-2">02</span>
-              <span class="rank-name">比亚迪新能源供应链</span>
-              <div class="rank-bar-bg"><div class="rank-bar-fill" style="width: 85%;" /></div>
-              <span class="rank-val">85%</span>
-            </div>
-            <div class="tenant-rank-item">
-              <span class="rank-badge rank-3">03</span>
-              <span class="rank-name">顺丰全球智慧物流</span>
-              <div class="rank-bar-bg"><div class="rank-bar-fill" style="width: 78%;" /></div>
-              <span class="rank-val">78%</span>
-            </div>
-            <div class="tenant-rank-item">
-              <span class="rank-badge">04</span>
-              <span class="rank-name">腾讯企业服务集群</span>
-              <div class="rank-bar-bg"><div class="rank-bar-fill" style="width: 64%;" /></div>
-              <span class="rank-val">64%</span>
-            </div>
-            <div class="tenant-rank-item">
-              <span class="rank-badge">05</span>
-              <span class="rank-name">阿里国际供应链</span>
-              <div class="rank-bar-bg"><div class="rank-bar-fill" style="width: 53%;" /></div>
-              <span class="rank-val">53%</span>
+            <div v-if="tenantRanks.length === 0" class="screen-log-row">
+              <span class="log-action">暂无租户配额数据</span>
             </div>
           </div>
         </div>
@@ -147,37 +304,37 @@ onUnmounted(() => {
         <div class="screen-card mt-3">
           <div class="card-header">
             <span class="card-title-icon">✦</span>
-            <h3>集成网关吞吐速率 (QPS)</h3>
+            <h3>基础设施与集成网关实测指标</h3>
           </div>
           <div class="card-content">
             <div class="qps-grid">
               <div class="qps-cell">
-                <span class="qps-label">消息短信网关</span>
-                <span class="qps-num">4,820 <small>req/s</small></span>
+                <span class="qps-label">消息网关投递</span>
+                <span class="qps-num">{{ messageLogCount }} <small>条</small></span>
               </div>
               <div class="qps-cell">
-                <span class="qps-label">SMTP 邮件中心</span>
-                <span class="qps-num">950 <small>req/s</small></span>
+                <span class="qps-label">支付交易流水</span>
+                <span class="qps-num">{{ payOrderCount }} <small>笔</small></span>
               </div>
               <div class="qps-cell">
-                <span class="qps-label">聚合支付通道</span>
-                <span class="qps-num">1,210 <small>req/s</small></span>
+                <span class="qps-label">Redis 实时 ops/s</span>
+                <span class="qps-num">{{ redisInfo?.available ? redisInfo.instantaneousOpsPerSec : "--" }} <small>命中 {{ redisInfo?.hitRate ?? 0 }}%</small></span>
               </div>
               <div class="qps-cell">
-                <span class="qps-label">AI 模型流式推理</span>
-                <span class="qps-num">360 <small>tokens/s</small></span>
+                <span class="qps-label">JVM 堆内存 / 线程</span>
+                <span class="qps-num">{{ jvmInfo ? jvmInfo.heapUsedPercent.toFixed(1) : "--" }}% <small>{{ jvmInfo?.activeThreads ?? 0 }} 线程</small></span>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- 中栏：核心数字 KPI + 宏观全景地图 -->
+      <!-- 中栏：核心数字 KPI + 运行态枢纽拓扑 -->
       <section class="screen-column col-center">
         <!-- 核心统计大卡 -->
         <div class="kpi-banner">
           <div class="kpi-item">
-            <span class="kpi-label">平台交易累计总额 (GMV)</span>
+            <span class="kpi-label">合同与账单累计规模</span>
             <span class="kpi-value text-gold">{{ stats.totalGmv }}</span>
           </div>
           <div class="kpi-divider" />
@@ -187,42 +344,53 @@ onUnmounted(() => {
           </div>
           <div class="kpi-divider" />
           <div class="kpi-item">
-            <span class="kpi-label">今日网关总吞吐</span>
+            <span class="kpi-label">平台计量与审计总量</span>
             <span class="kpi-value text-blue">{{ stats.throughputToday }}</span>
           </div>
           <div class="kpi-divider" />
           <div class="kpi-item">
-            <span class="kpi-label">工作流流转审批</span>
+            <span class="kpi-label">工作流实例总数</span>
             <span class="kpi-value text-emerald">{{ stats.workflowCount }} <small>单</small></span>
           </div>
         </div>
 
-        <!-- 数字化拓扑与全国中心节点示意图 -->
+        <!-- 真实平台核心节点运行监控示意图 -->
         <div class="screen-map-container">
           <div class="map-radar-circle circle-1" />
           <div class="map-radar-circle circle-2" />
           <div class="map-radar-circle circle-3" />
 
-          <!-- 城市主要节点呼吸灯 -->
           <div class="map-node node-shanghai">
             <span class="node-dot" />
-            <span class="node-label">上海 (华东中心) · 98.9%</span>
+            <span class="node-label">
+              数据源枢纽 · {{ datasources.length }} 个 ({{ datasources.filter((d) => d.testStatus === "PASSED").length }} 连通)
+            </span>
           </div>
           <div class="map-node node-beijing">
             <span class="node-dot" />
-            <span class="node-label">北京 (华北中心) · 99.2%</span>
+            <span class="node-label">
+              JVM 核心 · 堆 {{ jvmInfo ? jvmInfo.heapUsedPercent.toFixed(1) : "0.0" }}% ({{ jvmInfo?.availableProcessors ?? "-" }} 核)
+            </span>
           </div>
           <div class="map-node node-shenzhen">
             <span class="node-dot" />
-            <span class="node-label">深圳 (华南中心) · 99.5%</span>
+            <span class="node-label">
+              Redis 缓存 · {{ redisInfo?.available ? `${redisInfo.totalKeys} Keys` : "单机退化" }}
+            </span>
           </div>
           <div class="map-node node-chengdu">
             <span class="node-dot" />
-            <span class="node-label">成都 (西南节点) · 97.8%</span>
+            <span class="node-label">
+              AI 网关 · {{ aiModels.filter((m) => m.status === "ENABLED").length }} 模型 ({{ (aiQuota?.usedTokensMonth ?? 0).toLocaleString() }} Tok)
+            </span>
           </div>
 
           <div class="map-status-overlay">
-            <span>全国四大核心计算中心集群双活运行中</span>
+            <span>
+              今日审计事件 {{ (auditOverview?.operationEventsToday ?? 0) + (auditOverview?.loginEventsToday ?? 0) }} 次 ·
+              当前存储占用 {{ metering?.storageMb ?? 0 }} MB ·
+              JVM 连续运行 {{ Math.floor((jvmInfo?.uptimeSeconds ?? 0) / 60) }} 分钟
+            </span>
           </div>
         </div>
       </section>
@@ -232,25 +400,16 @@ onUnmounted(() => {
         <div class="screen-card">
           <div class="card-header">
             <span class="card-title-icon">✦</span>
-            <h3>AI 大模型调用分布 (实时)</h3>
+            <h3>AI 大模型调用分布 ({{ aiRuns.length > 0 ? "实测执行" : "已启用模型" }})</h3>
           </div>
           <div class="card-content">
             <div class="ai-model-dist">
-              <div class="ai-dist-row">
-                <span class="ai-name">DeepSeek-V3</span>
-                <el-progress :percentage="52" color="#00e5ff" :stroke-width="10" />
+              <div v-for="item in aiDistributions" :key="item.name" class="ai-dist-row">
+                <span class="ai-name">{{ item.name }}</span>
+                <el-progress :percentage="item.percent" :color="item.color" :stroke-width="10" />
               </div>
-              <div class="ai-dist-row">
-                <span class="ai-name">DeepSeek-R1 (推理链)</span>
-                <el-progress :percentage="28" color="#3b82f6" :stroke-width="10" />
-              </div>
-              <div class="ai-dist-row">
-                <span class="ai-name">GPT-4o Mini</span>
-                <el-progress :percentage="14" color="#10b981" :stroke-width="10" />
-              </div>
-              <div class="ai-dist-row">
-                <span class="ai-name">通义千问 Qwen-Max</span>
-                <el-progress :percentage="6" color="#f59e0b" :stroke-width="10" />
+              <div v-if="aiDistributions.length === 0" class="screen-log-row">
+                <span class="log-action">暂未配置启用中的 AI 模型</span>
               </div>
             </div>
           </div>

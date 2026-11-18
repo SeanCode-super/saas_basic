@@ -6,6 +6,7 @@ import com.saasbasics.platform.common.exception.BizException;
 import com.saasbasics.platform.common.tenant.TenantAccessContext;
 import com.saasbasics.platform.common.tenant.TenantAccessContextHolder;
 import com.saasbasics.platform.modules.audit.service.AuditTrailService;
+import com.saasbasics.platform.modules.tenant.dto.TenantIsolationUpdateRequest;
 import com.saasbasics.platform.modules.tenant.dto.TenantPlanUpdateRequest;
 import com.saasbasics.platform.modules.tenant.dto.TenantQuotaOverviewResponse;
 import com.saasbasics.platform.modules.tenant.dto.TenantResponse;
@@ -150,6 +151,27 @@ public class TenantService {
         TenantResponse response = getTenant(id);
         auditTrailService.record("tenant", "tenant_plan", String.valueOf(id), "UPGRADE_PLAN",
                 String.valueOf(request.packageId()), response.packageName(), true);
+        return response;
+    }
+
+    @Transactional
+    public TenantResponse updateIsolationMode(Long id, TenantIsolationUpdateRequest request) {
+        TenantMapper tenantMapper = requiredMapper();
+        TenantEntity entity = tenantMapper.selectById(id);
+        if (entity == null || (entity.getDeleted() != null && entity.getDeleted() == 1)) {
+            throw new BizException("TENANT_NOT_FOUND", "Tenant not found");
+        }
+        String mode = request.isolationMode().trim().toUpperCase(java.util.Locale.ROOT);
+        if (!java.util.Set.of("PLATFORM", "SHARED_SCHEMA", "ISOLATED_SCHEMA", "DEDICATED_DATABASE").contains(mode)) {
+            throw new BizException("INVALID_ISOLATION_MODE", "不支持的租户隔离模式: " + mode);
+        }
+        String previous = entity.getIsolationMode();
+        entity.setIsolationMode(mode);
+        tenantMapper.updateById(entity);
+        tenantFeatureService.invalidateCache(id);
+        TenantResponse response = getTenant(id);
+        auditTrailService.record("tenant", "tenant_isolation", String.valueOf(id), "ISOLATION_MIGRATE",
+                previous, mode, true);
         return response;
     }
 

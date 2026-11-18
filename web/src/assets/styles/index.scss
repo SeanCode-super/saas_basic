@@ -748,6 +748,10 @@ html.dark .el-radio-group:has(.el-radio-button) {
    7. 对话框与抽屉 (iOS 27 晶透悬浮微倒角毛玻璃)
    ========================================================================== */
 .el-dialog {
+  max-height: calc(100vh - 48px) !important;
+  margin: 24px auto !important;
+  display: flex !important;
+  flex-direction: column !important;
   border-radius: var(--sb-radius-glass, 20px) !important;
   border: 1px solid var(--sb-border-subtle) !important;
   background: var(--sb-tier3-bg) !important;
@@ -770,6 +774,7 @@ html.dark .el-radio-group:has(.el-radio-button) {
   }
 
   .el-dialog__header {
+    flex-shrink: 0;
     padding: 15px 22px 13px;
     margin-right: 0;
     border-bottom: 1px solid var(--sb-border-subtle) !important;
@@ -784,11 +789,16 @@ html.dark .el-radio-group:has(.el-radio-button) {
   }
 
   .el-dialog__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
     padding: 20px 22px;
     background: transparent !important;
   }
 
   .el-dialog__footer {
+    flex-shrink: 0;
     padding: 13px 22px;
     border-top: 1px solid var(--sb-border-subtle) !important;
     background: var(--sb-tier2-header-bg) !important;

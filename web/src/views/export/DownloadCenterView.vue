@@ -17,6 +17,7 @@ import {
 import BaseCard from "@/components/base/BaseCard.vue";
 import ControlSurface from "@/components/platform/ControlSurface.vue";
 import ExportDialog from "@/components/platform/ExportDialog.vue";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 import {
   approveExportTask,
   deleteExportTask,
@@ -505,7 +506,7 @@ onUnmounted(() => {
       @exported="loadAll(true)"
     />
 
-    <el-dialog v-model="scheduleDialogVisible" title="新建 L2 定时自动报表计划" width="520px" destroy-on-close>
+    <WorkspacePanel v-model="scheduleDialogVisible" title="新建 L2 定时自动报表计划" width="560px" destroy-on-close>
       <el-form label-width="110px">
         <el-form-item label="报表名称" required>
           <el-input v-model="scheduleForm.scheduleName" placeholder="如：每周 CRM 商机漏斗分析 PDF 周报" />
@@ -541,7 +542,7 @@ onUnmounted(() => {
         <el-button @click="scheduleDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="savingSchedule" @click="handleSaveSchedule">保存计划</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
   </ControlSurface>
 </template>
 

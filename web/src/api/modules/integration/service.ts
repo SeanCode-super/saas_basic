@@ -1,6 +1,7 @@
 import { http } from "@/api/http";
 import type { ApiResponse } from "@/types/http";
 import type {
+  DatasourceProbeResult,
   DatasourceRow,
   DatasourceSavePayload,
   MessageChannelsData,
@@ -28,6 +29,16 @@ export async function fetchDatasources(): Promise<DatasourceRow[]> {
 export async function createDatasource(payload: DatasourceSavePayload): Promise<DatasourceRow> {
   const response = await http.post<ApiResponse<DatasourceRow>>("/integrations/datasources", payload);
   return response.data.data;
+}
+
+export async function probeDatasource(id: number): Promise<DatasourceProbeResult> {
+  const response = await http.post<ApiResponse<DatasourceProbeResult>>(`/integrations/datasources/${id}/test`);
+  return response.data.data;
+}
+
+export async function probeAllDatasources(): Promise<DatasourceProbeResult[]> {
+  const response = await http.post<ApiResponse<DatasourceProbeResult[]>>("/integrations/datasources/test-all");
+  return response.data.data ?? [];
 }
 
 // ==================== 多渠道消息网关 (Message Gateway) ====================

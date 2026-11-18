@@ -48,6 +48,7 @@ import {
 import type { IamLoginPolicyRow, IamPasswordPolicyRow } from "@/api/modules/iam";
 import BaseCard from "@/components/base/BaseCard.vue";
 import ControlSurface from "@/components/platform/ControlSurface.vue";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 import BaseRefreshButton from "@/components/base/BaseRefreshButton.vue";
 import RegistryImportDialog from "@/components/platform/RegistryImportDialog.vue";
 import ModuleWorkbench from "@/components/platform/ModuleWorkbench.vue";
@@ -214,7 +215,7 @@ const router = useRouter();
 const { activeSection } = useModuleSection(sectionItems, {
   mode: "path",
   basePath: "/system",
-  fallback: "overview"
+  fallback: "registry"
 });
 
 const currentSection = computed(() => props.section || activeSection.value);
@@ -1162,7 +1163,7 @@ onMounted(loadData);
     />
   </ControlSurface>
 
-  <el-dialog v-model="createVisible" title="新增系统配置" width="520px">
+  <WorkspacePanel v-model="createVisible" title="新增系统配置" width="560px">
     <el-form label-position="top">
       <el-form-item label="分组" required>
         <el-input v-model="form.group" placeholder="如 GLOBAL / SECURITY" />
@@ -1199,7 +1200,7 @@ onMounted(loadData);
       <el-button @click="createVisible = false">取消</el-button>
       <el-button type="primary" :loading="submitting" @click="handleCreate">确认新增</el-button>
     </template>
-  </el-dialog>
+  </WorkspacePanel>
 
   <RegistryImportDialog
     v-model:visible="importVisible"
@@ -1211,7 +1212,7 @@ onMounted(loadData);
     @confirm="handleImport"
   />
 
-  <el-dialog v-model="dictTypeVisible" :title="dictTypeEditingId ? '编辑字典类型' : '新增字典类型'" width="560px">
+  <WorkspacePanel v-model="dictTypeVisible" :title="dictTypeEditingId ? '编辑字典类型' : '新增字典类型'" width="580px">
     <el-form label-position="top">
       <el-form-item label="字典编码" required><el-input v-model="dictTypeForm.dictCode" placeholder="如 sys_user_sex" /></el-form-item>
       <el-form-item label="字典名称" required><el-input v-model="dictTypeForm.dictName" placeholder="如 用户性别" /></el-form-item>
@@ -1235,9 +1236,9 @@ onMounted(loadData);
       <el-button @click="dictTypeVisible = false">取消</el-button>
       <el-button type="primary" :loading="submitting" @click="handleSaveDictType">保存字典类型</el-button>
     </template>
-  </el-dialog>
+  </WorkspacePanel>
 
-  <el-dialog v-model="dictItemVisible" :title="dictItemEditingId ? '编辑字典项' : '新增字典项'" width="560px">
+  <WorkspacePanel v-model="dictItemVisible" :title="dictItemEditingId ? '编辑字典项' : '新增字典项'" width="580px">
     <el-form label-position="top">
       <el-form-item label="所属字典">
         <el-input :model-value="activeDictType ? `${activeDictType.dictName}（${activeDictType.dictCode}）` : '未选择'" disabled />
@@ -1280,9 +1281,9 @@ onMounted(loadData);
       <el-button @click="dictItemVisible = false">取消</el-button>
       <el-button type="primary" :loading="submitting" @click="handleSaveDictItem">保存字典项</el-button>
     </template>
-  </el-dialog>
+  </WorkspacePanel>
 
-  <el-dialog v-model="portalClientVisible" :title="portalClientEditingId ? '编辑门户 Client' : '新增门户 Client'" width="640px">
+  <WorkspacePanel v-model="portalClientVisible" :title="portalClientEditingId ? '编辑门户 Client' : '新增门户 Client'" width="680px">
     <el-form label-position="top">
       <el-form-item label="Client ID"><el-input v-model="portalClientForm.clientId" placeholder="如 portal_console" /></el-form-item>
       <el-form-item label="客户端名称" required><el-input v-model="portalClientForm.clientName" placeholder="如 平台总控制台" /></el-form-item>
@@ -1325,9 +1326,9 @@ onMounted(loadData);
       <el-button @click="portalClientVisible = false">取消</el-button>
       <el-button type="primary" :loading="submitting" @click="handleSavePortalClient">保存 Client</el-button>
     </template>
-  </el-dialog>
+  </WorkspacePanel>
 
-  <el-dialog v-model="portalTerminalVisible" :title="portalTerminalEditingId ? '编辑门户终端' : '新增门户终端'" width="640px">
+  <WorkspacePanel v-model="portalTerminalVisible" :title="portalTerminalEditingId ? '编辑门户终端' : '新增门户终端'" width="680px">
     <el-form label-position="top">
       <el-form-item label="绑定 Client">
         <el-select v-model="portalTerminalForm.portalClientId">
@@ -1378,5 +1379,5 @@ onMounted(loadData);
       <el-button @click="portalTerminalVisible = false">取消</el-button>
       <el-button type="primary" :loading="submitting" @click="handleSavePortalTerminal">保存终端</el-button>
     </template>
-  </el-dialog>
+  </WorkspacePanel>
 </template>

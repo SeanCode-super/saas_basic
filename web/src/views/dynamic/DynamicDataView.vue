@@ -27,6 +27,7 @@ import {
 import ControlSurface from "@/components/platform/ControlSurface.vue";
 import BaseCard from "@/components/base/BaseCard.vue";
 import ExportDialog from "@/components/platform/ExportDialog.vue";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 import {
   fetchDynamicMeta,
   fetchDynamicPage,
@@ -1105,11 +1106,11 @@ onMounted(() => {
       </template>
     </el-drawer>
 
-    <!-- 批量导入对话框 -->
-    <el-dialog
+    <!-- 批量导入工作区面板 -->
+    <WorkspacePanel
       v-model="importDialogVisible"
       title="批量导入业务台账数据"
-      width="600px"
+      width="640px"
       destroy-on-close
     >
       <div class="import-dialog-body">
@@ -1144,15 +1145,14 @@ onMounted(() => {
           确认批量导入
         </el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
 
-    <!-- 新增 / 编辑 动态表单弹窗 -->
-    <el-dialog
+    <!-- 新增 / 编辑 动态表单工作区面板 -->
+    <WorkspacePanel
       v-model="dialogVisible"
       :title="isEditing ? `编辑 ${meta?.modelName || '业务记录'}` : `新增 ${meta?.modelName || '业务记录'}`"
-      width="640px"
+      width="680px"
       destroy-on-close
-      append-to-body
     >
       <el-form
         ref="formRef"
@@ -1238,7 +1238,7 @@ onMounted(() => {
           </el-button>
         </span>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
 
     <ExportDialog
       v-model:visible="exportDialogVisible"

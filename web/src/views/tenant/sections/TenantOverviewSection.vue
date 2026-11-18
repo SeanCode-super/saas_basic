@@ -14,6 +14,7 @@ import { ElMessage } from "element-plus";
 import { createTenant } from "@/api/modules/tenant";
 import type { TenantRow } from "@/api/modules/tenant";
 import BaseCard from "@/components/base/BaseCard.vue";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 
 const props = defineProps<{
   rows: TenantRow[];
@@ -339,8 +340,8 @@ function exportTelemetry() {
       </div>
     </el-drawer>
 
-    <!-- Onboarding Wizard Dialog -->
-    <el-dialog v-model="wizardVisible" title="租户极速开通交付向导" width="580px">
+    <!-- Onboarding Wizard Workspace Panel -->
+    <WorkspacePanel v-model="wizardVisible" title="租户极速开通交付向导" width="620px">
       <el-steps :active="wizardStep" finish-status="success" simple style="margin-bottom: 20px;">
         <el-step title="企业标识" />
         <el-step title="套餐规格" />
@@ -400,7 +401,7 @@ function exportTelemetry() {
           {{ wizardStep === 3 ? "立即交付开通" : "下一步" }}
         </el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
   </div>
 </template>
 

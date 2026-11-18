@@ -310,15 +310,18 @@ export function canAccessIamSection(section: IamSection, hasPermission: (permiss
 }
 
 export function firstAccessibleIamSection(hasPermission: (permissionCode?: string) => boolean) {
-  return IAM_SECTION_ORDER.find((section) => canAccessIamSection(section, hasPermission)) ?? "foundation";
+  return (
+    IAM_SECTION_ORDER.find((section) => section !== "foundation" && canAccessIamSection(section, hasPermission)) ??
+    "user"
+  );
 }
 
 export function normalizeIamSection(
   value: string | undefined,
   hasPermission: (permissionCode?: string) => boolean
 ): IamSection {
-  const next = IAM_SECTION_ALIASES[value ?? ""] ?? value ?? "foundation";
-  const candidate = IAM_SECTION_ORDER.includes(next as IamSection) ? (next as IamSection) : "foundation";
+  const next = IAM_SECTION_ALIASES[value ?? ""] ?? value ?? "user";
+  const candidate = IAM_SECTION_ORDER.includes(next as IamSection) ? (next as IamSection) : "user";
   return canAccessIamSection(candidate, hasPermission) ? candidate : firstAccessibleIamSection(hasPermission);
 }
 
@@ -327,7 +330,7 @@ export function resolveIamSectionFromPath(
   hasPermission: (permissionCode?: string) => boolean
 ): IamSection | undefined {
   if (path === "/iam") {
-    return "foundation";
+    return "user";
   }
   if (!path.startsWith("/iam/")) {
     return undefined;
@@ -343,7 +346,7 @@ export function resolveIamSectionFromRoute(params: {
 }
 
 export function pathForIamSection(section: IamSection) {
-  return IAM_SECTION_PATH_MAP[section] ?? IAM_SECTION_PATH_MAP.foundation;
+  return IAM_SECTION_PATH_MAP[section] ?? IAM_SECTION_PATH_MAP.user;
 }
 
 export function resolveIamControlCopy(section: IamSection) {

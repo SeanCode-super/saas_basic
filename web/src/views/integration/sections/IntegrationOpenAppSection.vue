@@ -17,6 +17,7 @@ import {
   type OpenAppRow
 } from "@/api/modules/integration";
 import { http } from "@/api/http";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 
 const loading = ref(false);
 const rows = ref<OpenAppRow[]>([]);
@@ -298,12 +299,11 @@ onMounted(() => {
       </el-table>
     </el-card>
 
-    <!-- Create/Edit Dialog -->
-    <el-dialog
+    <!-- Create/Edit WorkspacePanel -->
+    <WorkspacePanel
       v-model="dialogVisible"
       :title="form.id ? '编辑开放应用' : '新建 Open API 接入应用'"
-      width="520px"
-      :close-on-click-modal="false"
+      width="560px"
     >
       <el-form label-position="top">
         <el-form-item label="应用名称" required>
@@ -323,7 +323,7 @@ onMounted(() => {
         <el-button @click="dialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="submitting" @click="handleSaveApp">确定创建</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
 
     <!-- Secret View/Reveal Dialog -->
     <el-dialog

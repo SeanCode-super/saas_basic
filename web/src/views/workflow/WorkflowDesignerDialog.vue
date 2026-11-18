@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 import { fetchIamRoles, fetchIamUsers } from "@/api/modules/iam/service";
 import type { IamRoleRow, IamUserRow } from "@/api/modules/iam/types";
 import {
@@ -441,12 +442,10 @@ async function handleSave() {
 </script>
 
 <template>
-  <el-dialog
+  <WorkspacePanel
     :model-value="visible"
-    width="1080px"
-    top="3vh"
+    size="full"
     destroy-on-close
-    class="workflow-designer-modal"
     @update:model-value="emit('update:visible', $event)"
   >
     <template #header>
@@ -908,7 +907,7 @@ async function handleSave() {
         </el-button>
       </div>
     </template>
-  </el-dialog>
+  </WorkspacePanel>
 </template>
 
 <style scoped>
@@ -944,8 +943,8 @@ async function handleSave() {
 }
 
 .designer-container {
-  min-height: 520px;
-  max-height: 640px;
+  flex: 1;
+  min-height: 460px;
   overflow-y: auto;
   padding: 8px 12px;
 }

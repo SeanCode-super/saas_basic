@@ -11,7 +11,18 @@ export interface DatasourceRow {
   username?: string;
   testStatus: string;
   status: string;
+  lastTestedAt?: string;
   remark?: string;
+}
+
+export interface DatasourceProbeResult {
+  id: number;
+  code: string;
+  name: string;
+  testStatus: "PASSED" | "FAILED" | string;
+  latencyMs: number;
+  message: string;
+  testedAt: string;
 }
 
 export interface DatasourceSavePayload {

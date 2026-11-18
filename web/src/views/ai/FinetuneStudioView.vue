@@ -12,6 +12,7 @@ import {
 } from "@element-plus/icons-vue";
 import BaseCard from "@/components/base/BaseCard.vue";
 import ControlSurface from "@/components/platform/ControlSurface.vue";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 import {
   addFinetuneSample,
   exportFinetuneJsonl,
@@ -345,8 +346,8 @@ onMounted(() => {
       </BaseCard>
     </div>
 
-    <!-- Add Dataset Dialog -->
-    <el-dialog v-model="datasetDialogVisible" title="新建微调数据集" width="460px" destroy-on-close>
+    <!-- Add Dataset Workspace Panel -->
+    <WorkspacePanel v-model="datasetDialogVisible" title="新建微调数据集" width="500px" destroy-on-close>
       <el-form label-width="92px">
         <el-form-item label="数据集名称" required>
           <el-input v-model="datasetForm.datasetName" placeholder="例如：法务合规问答微调集 v2" />
@@ -368,10 +369,10 @@ onMounted(() => {
         <el-button @click="datasetDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="savingDataset" @click="handleCreateDataset">确认创建</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
 
-    <!-- Add Sample Dialog -->
-    <el-dialog v-model="sampleDialogVisible" title="录入微调样本（自动触发手机号/邮箱脱敏）" width="560px" destroy-on-close>
+    <!-- Add Sample Workspace Panel -->
+    <WorkspacePanel v-model="sampleDialogVisible" title="录入微调样本（自动触发手机号/邮箱脱敏）" width="600px" destroy-on-close>
       <el-form label-width="96px">
         <el-form-item label="系统指令" required>
           <el-input v-model="sampleForm.instruction" />
@@ -390,10 +391,10 @@ onMounted(() => {
         <el-button @click="sampleDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="savingSample" @click="handleAddSample">保存样本</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
 
-    <!-- Start LoRA Job Dialog -->
-    <el-dialog v-model="jobDialogVisible" title="配置并启动 LoRA 微调评估任务" width="500px" destroy-on-close>
+    <!-- Start LoRA Job Workspace Panel -->
+    <WorkspacePanel v-model="jobDialogVisible" title="配置并启动 LoRA 微调评估任务" width="540px" destroy-on-close>
       <el-form label-width="104px">
         <el-form-item label="任务名称" required>
           <el-input v-model="jobForm.jobName" placeholder="例如：CRM+法务混合领域 Qwen-LoRA-v2" />
@@ -420,7 +421,7 @@ onMounted(() => {
         <el-button @click="jobDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="startingJob" @click="handleStartJob">开始训练评测</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
   </ControlSurface>
 </template>
 

@@ -54,7 +54,7 @@ const props = withDefaults(
 const authStore = useAuthStore();
 const route = useRoute();
 const router = useRouter();
-const activeTab = ref<IamSection>("foundation");
+const activeTab = ref<IamSection>("user");
 const globalInspectorVisible = ref(false);
 const {
   loading,
@@ -306,7 +306,7 @@ watch(
     if (props.section) {
       return;
     }
-    const next = resolveIamSectionFromPath(route.path, authStore.hasPermission) ?? "foundation";
+    const next = resolveIamSectionFromPath(route.path, authStore.hasPermission) ?? "user";
     if (activeTab.value !== next) {
       activeTab.value = next;
     }
@@ -323,7 +323,7 @@ watch(activeTab, async (value) => {
   if (props.section) {
     return;
   }
-  const current = resolveIamSectionFromPath(route.path, authStore.hasPermission) ?? "foundation";
+  const current = resolveIamSectionFromPath(route.path, authStore.hasPermission) ?? "user";
   if (value === current) {
     return;
   }

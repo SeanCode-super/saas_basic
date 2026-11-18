@@ -4,6 +4,8 @@ import com.saasbasics.platform.common.api.ApiResponse;
 import com.saasbasics.platform.common.auth.RequirePermission;
 import com.saasbasics.platform.modules.iam.dto.DataPermissionRuleResponse;
 import com.saasbasics.platform.modules.iam.dto.DataPermissionRuleSaveRequest;
+import com.saasbasics.platform.modules.iam.dto.DataPermissionSqlPreviewRequest;
+import com.saasbasics.platform.modules.iam.dto.DataPermissionSqlPreviewResponse;
 import com.saasbasics.platform.modules.iam.dto.MenuPermissionResponse;
 import com.saasbasics.platform.modules.iam.dto.MenuPermissionSaveRequest;
 import com.saasbasics.platform.modules.iam.dto.MenuSubjectGrantSaveRequest;
@@ -91,5 +93,12 @@ public class PermissionRuleController {
     public ApiResponse<DataPermissionRuleResponse> updateDataPermissionRuleStatus(@PathVariable Long id,
                                                                                   @Valid @RequestBody StatusUpdateRequest request) {
         return ApiResponse.success(dataPermissionRuleService.updateStatus(id, request));
+    }
+
+    @PostMapping("/data-permission-rules/preview-sql")
+    @RequirePermission("iam:data-scope:query")
+    public ApiResponse<DataPermissionSqlPreviewResponse> previewSqlRewrite(
+            @Valid @RequestBody DataPermissionSqlPreviewRequest request) {
+        return ApiResponse.success(dataPermissionRuleService.previewSqlRewrite(request));
     }
 }

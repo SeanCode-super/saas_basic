@@ -1,100 +1,44 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import {
   ElMessage
 } from "element-plus";
 import {
   Download
 } from "@element-plus/icons-vue";
+import { fetchHighRiskCatalog, type HighRiskCatalogItem } from "@/api/modules/audit";
 
-interface CatalogItem {
-  code: string;
-  name: string;
-  category: "IAM" | "TENANT" | "INTEGRATION" | "DATA" | "SCHEDULER";
-  riskLevel: "P0_CRITICAL" | "P1_HIGH" | "P2_MEDIUM";
-  requireApproval: boolean;
-  maskingPolicy: string;
-  retentionDays: number;
-}
-
-const catalog = ref<CatalogItem[]>([
-  {
-    code: "iam:role_api:grant",
-    name: "超级管理员角色与权限资源直接授予",
-    category: "IAM",
-    riskLevel: "P0_CRITICAL",
-    requireApproval: true,
-    maskingPolicy: "明细不可隐藏 · 强制复核",
-    retentionDays: 365
-  },
-  {
-    code: "iam:user:reset_pwd",
-    name: "管理员重置他人密码与手机号解绑",
-    category: "IAM",
-    riskLevel: "P1_HIGH",
-    requireApproval: false,
-    maskingPolicy: "密码哈希与密文全遮蔽",
-    retentionDays: 180
-  },
-  {
-    code: "tenant:isolation:upgrade",
-    name: "租户隔离级别变更 (共享到独库迁移)",
-    category: "TENANT",
-    riskLevel: "P0_CRITICAL",
-    requireApproval: true,
-    maskingPolicy: "数据源连接串密码完全脱敏",
-    retentionDays: 730
-  },
-  {
-    code: "tenant:status:freeze",
-    name: "租户空间欠费冻结或强行停用",
-    category: "TENANT",
-    riskLevel: "P1_HIGH",
-    requireApproval: true,
-    maskingPolicy: "记录操作人与完整依据",
-    retentionDays: 365
-  },
-  {
-    code: "integration:datasource:reveal_pwd",
-    name: "多源数据库连接明文密码查看",
-    category: "INTEGRATION",
-    riskLevel: "P0_CRITICAL",
-    requireApproval: true,
-    maskingPolicy: "动态水印遮盖 · 仅留痕 30 秒",
-    retentionDays: 365
-  },
-  {
-    code: "audit:data:batch_export",
-    name: "大批量业务数据与人员档案全量导出",
-    category: "DATA",
-    riskLevel: "P1_HIGH",
-    requireApproval: true,
-    maskingPolicy: "手机号/身份证脱敏掩码",
-    retentionDays: 365
-  },
-  {
-    code: "scheduler:job:force_stop",
-    name: "线上正在运行任务强制终止",
-    category: "SCHEDULER",
-    riskLevel: "P2_MEDIUM",
-    requireApproval: false,
-    maskingPolicy: "无需脱敏 · 留存执行栈",
-    retentionDays: 90
-  }
-]);
-
+const catalog = ref<HighRiskCatalogItem[]>([]);
+const loading = ref(false);
 const searchKeyword = ref("");
 const categoryFilter = ref("");
 
 const filteredList = computed(() => {
+  const kw = searchKeyword.value.trim().toLowerCase();
   return catalog.value.filter((item) => {
     const matchesKw =
-      !searchKeyword.value ||
-      item.name.includes(searchKeyword.value) ||
-      item.code.includes(searchKeyword.value);
+      !kw ||
+      item.name.toLowerCase().includes(kw) ||
+      item.code.toLowerCase().includes(kw) ||
+      item.urlPattern.toLowerCase().includes(kw);
     const matchesCat = !categoryFilter.value || item.category === categoryFilter.value;
     return matchesKw && matchesCat;
   });
+});
+
+async function loadCatalog() {
+  loading.value = true;
+  try {
+    catalog.value = await fetchHighRiskCatalog();
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message ?? "加载高风险管控目录失败");
+  } finally {
+    loading.value = false;
+  }
+}
+
+onMounted(() => {
+  void loadCatalog();
 });
 
 function exportCatalog() {
@@ -131,16 +75,17 @@ function exportCatalog() {
         clearable
         style="width: 240px"
       />
-      <el-select v-model="categoryFilter" placeholder="按业务领域筛选" clearable style="width: 160px">
+      <el-select v-model="categoryFilter" placeholder="按业务领域筛选" clearable style="width: 180px">
         <el-option label="身份与权限 (IAM)" value="IAM" />
         <el-option label="多租户控制 (TENANT)" value="TENANT" />
+        <el-option label="系统治理 (SYSTEM)" value="SYSTEM" />
         <el-option label="集成与数据源 (INTEGRATION)" value="INTEGRATION" />
         <el-option label="数据与导出 (DATA)" value="DATA" />
         <el-option label="任务调度 (SCHEDULER)" value="SCHEDULER" />
       </el-select>
     </div>
 
-    <el-table :data="filteredList" stripe style="width: 100%">
+    <el-table v-loading="loading" :data="filteredList" stripe style="width: 100%">
       <el-table-column prop="riskLevel" label="风险定级" width="130">
         <template #default="{ row }">
           <el-tag v-if="row.riskLevel === 'P0_CRITICAL'" size="small" type="danger" effect="dark">P0 极高危</el-tag>

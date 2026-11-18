@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed, reactive } from "vue";
+import { computed, onMounted, reactive } from "vue";
 import { ElMessage } from "element-plus";
 import BaseCard from "@/components/base/BaseCard.vue";
 import ControlSurface from "@/components/platform/ControlSurface.vue";
 import BaseRefreshButton from "@/components/base/BaseRefreshButton.vue";
 import ModuleWorkbench from "@/components/platform/ModuleWorkbench.vue";
 import { useModuleSection } from "@/hooks/useModuleSection";
+import { useAuthStore } from "@/stores/modules/auth";
+import { loadGovernancePolicy, saveGovernancePolicy } from "@/utils/governance-policy";
 import AuditBlacklistSection from "./sections/AuditBlacklistSection.vue";
 import AuditCatalogSection from "./sections/AuditCatalogSection.vue";
 import AuditOverviewSection from "./sections/AuditOverviewSection.vue";
@@ -20,6 +22,8 @@ const props = withDefaults(
     section: ""
   }
 );
+
+const authStore = useAuthStore();
 
 const auditPolicy = reactive({
   recordPermissionChange: true,
@@ -46,7 +50,7 @@ const sectionItems = [
 const { activeSection } = useModuleSection(sectionItems, {
   mode: "path",
   basePath: "/audit",
-  fallback: "overview"
+  fallback: "trail"
 });
 
 const currentSection = computed(() => props.section || activeSection.value);
@@ -88,9 +92,29 @@ const currentSectionComponent = computed(
   () => sectionComponentMap[currentSection.value as keyof typeof sectionComponentMap] ?? AuditOverviewSection
 );
 
-function savePolicy(message: string) {
-  ElMessage.success(message);
+async function loadData() {
+  await Promise.all([
+    loadGovernancePolicy("AUDIT", "audit.trail_policy", auditPolicy),
+    loadGovernancePolicy("AUDIT", "audit.risk_policy", riskPolicy)
+  ]);
 }
+
+async function savePolicy(message: string) {
+  const tenantId = authStore.currentUser?.tenantId ?? 1;
+  try {
+    await Promise.all([
+      saveGovernancePolicy("AUDIT", "audit.trail_policy", "审计留痕策略", auditPolicy, tenantId),
+      saveGovernancePolicy("AUDIT", "audit.risk_policy", "风险预警策略", riskPolicy, tenantId)
+    ]);
+    ElMessage.success(message);
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message ?? "保存审计策略失败");
+  }
+}
+
+onMounted(() => {
+  void loadData();
+});
 </script>
 
 <template>
@@ -102,7 +126,7 @@ function savePolicy(message: string) {
     :summary="summary"
   >
     <template #actions>
-      <BaseRefreshButton @click="savePolicy('已刷新审计视图')" />
+      <BaseRefreshButton @click="loadData" />
       <el-button type="primary" @click="savePolicy('审计与风险策略已保存')">保存审计策略</el-button>
     </template>
 
@@ -153,7 +177,7 @@ function savePolicy(message: string) {
     :description="activeSectionMeta.description"
   >
     <template #actions>
-      <BaseRefreshButton @click="savePolicy('已刷新审计视图')" />
+      <BaseRefreshButton @click="loadData" />
     </template>
 
     <component

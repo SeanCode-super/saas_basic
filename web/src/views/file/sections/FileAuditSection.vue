@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 import { Plus, DocumentChecked, View, Download, Warning } from "@element-plus/icons-vue";
 import ProTable from "@/components/pro/ProTable.vue";
 import type { ProTableColumn } from "@/components/pro/ProTable.vue";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 
 const props = defineProps<{
   loading?: boolean;
@@ -169,12 +170,11 @@ function resolveActionBadge(action: any) {
       </ProTable>
     </el-card>
 
-    <!-- Dialog for Manual Audit Log Registration -->
-    <el-dialog
+    <!-- Workspace Panel for Manual Audit Log Registration -->
+    <WorkspacePanel
       v-model="dialogVisible"
       title="登记文件访问审计事件"
-      width="540px"
-      append-to-body
+      width="560px"
       destroy-on-close
     >
       <el-form label-position="top">
@@ -216,7 +216,7 @@ function resolveActionBadge(action: any) {
         <el-button @click="dialogVisible = false">取消</el-button>
         <el-button type="primary" @click="handleSaveLog">确认登记</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
   </div>
 </template>
 

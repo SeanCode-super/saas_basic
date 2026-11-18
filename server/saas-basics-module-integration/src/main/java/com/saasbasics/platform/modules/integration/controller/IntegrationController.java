@@ -3,6 +3,7 @@ package com.saasbasics.platform.modules.integration.controller;
 import com.saasbasics.platform.common.api.ApiResponse;
 import com.saasbasics.platform.common.auth.RequirePermission;
 import com.saasbasics.platform.common.auth.RequireTenantFeature;
+import com.saasbasics.platform.modules.integration.dto.DatasourceProbeResultResponse;
 import com.saasbasics.platform.modules.integration.dto.DatasourceResponse;
 import com.saasbasics.platform.modules.integration.dto.DatasourceSaveRequest;
 import com.saasbasics.platform.modules.integration.service.IntegrationService;
@@ -50,5 +51,17 @@ public class IntegrationController {
     public ApiResponse<DatasourceResponse> updateDatasource(@PathVariable Long id,
                                                             @Valid @RequestBody DatasourceSaveRequest request) {
         return ApiResponse.success(integrationService.updateDatasource(id, request));
+    }
+
+    @PostMapping("/datasources/{id}/test")
+    @RequirePermission("integration:datasource:write")
+    public ApiResponse<DatasourceProbeResultResponse> testDatasource(@PathVariable Long id) {
+        return ApiResponse.success(integrationService.testDatasource(id));
+    }
+
+    @PostMapping("/datasources/test-all")
+    @RequirePermission("integration:datasource:write")
+    public ApiResponse<List<DatasourceProbeResultResponse>> testAllDatasources() {
+        return ApiResponse.success(integrationService.testAllDatasources());
     }
 }

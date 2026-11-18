@@ -10,6 +10,7 @@ import com.saasbasics.platform.common.auth.AuthPrincipal;
 import com.saasbasics.platform.common.auth.OrganizationAccessContext;
 import com.saasbasics.platform.common.exception.BizException;
 import com.saasbasics.platform.common.id.UuidV7Generator;
+import com.saasbasics.platform.common.security.SecurityBlacklistChecker;
 import com.saasbasics.platform.common.tenant.TenantAccessContext;
 import com.saasbasics.platform.common.tenant.TenantAccessContextHolder;
 import com.saasbasics.platform.common.tenant.TenantFeatureProvider;
@@ -130,7 +131,13 @@ public class AuthService {
     private final ObjectProvider<StringRedisTemplate> redisTemplateProvider;
     private final ObjectProvider<ObjectMapper> objectMapperProvider;
     private final Environment environment;
+    private SecurityBlacklistChecker securityBlacklistChecker;
     private final UuidV7Generator uuidGenerator = new UuidV7Generator();
+
+    @Autowired(required = false)
+    public void setSecurityBlacklistChecker(SecurityBlacklistChecker securityBlacklistChecker) {
+        this.securityBlacklistChecker = securityBlacklistChecker;
+    }
     private final ConcurrentHashMap<String, String> localSsoStateStore = new ConcurrentHashMap<>();
 
     public AuthService(SecurityProperties securityProperties,
@@ -296,6 +303,9 @@ public class AuthService {
                                                 String loginIp,
                                                 String userAgent,
                                                 TenantEntity tenant) {
+        if (securityBlacklistChecker != null) {
+            securityBlacklistChecker.assertAllowed(tenant.getId(), request.username(), loginIp);
+        }
         UserMapper userMapper = requiredUserMapper();
 
         PortalLoginContext portalLoginContext = resolvePortalLoginContext(request, tenant);

@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 import { ElMessage } from "element-plus";
 import { Folder, UploadFilled, Document, Box, CircleCheck, View, Download, CopyDocument } from "@element-plus/icons-vue";
 import BaseCard from "@/components/base/BaseCard.vue";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 
 const props = defineProps<{
   storagePolicy: {
@@ -209,15 +210,15 @@ function handleDownload(row: any) {
       </el-table>
     </el-card>
 
-    <!-- 预览弹窗 -->
-    <el-dialog v-model="previewDialogVisible" :title="previewTitle" width="600px" destroy-on-close>
+    <!-- 预览面板 -->
+    <WorkspacePanel v-model="previewDialogVisible" :title="previewTitle" width="640px" destroy-on-close>
       <div style="text-align: center; padding: 16px">
         <img :src="previewUrl" alt="预览" style="max-width: 100%; max-height: 400px; border-radius: 6px; box-shadow: 0 4px 12px rgb(0 0 0 / 0.1)" />
       </div>
       <template #footer>
         <el-button @click="previewDialogVisible = false">关闭</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
   </div>
 </template>
 

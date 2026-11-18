@@ -330,39 +330,27 @@ function getPositionEmployeeList(posId: number) {
     <!-- 岗位管理：企业级岗位职能治理工作台 -->
     <template v-if="mode === 'position'">
       <div class="position-enterprise-workspace">
-        <!-- 岗位量化看板 -->
-        <div class="org-stats-grid">
-          <div class="stat-card">
-            <div class="stat-icon-wrap is-primary"><el-icon><Suitcase /></el-icon></div>
-            <div class="stat-info">
-              <span class="stat-label">基准岗位总数</span>
-              <strong class="stat-val text-primary">{{ posStats.total }}</strong>
-              <span class="stat-sub">职能标准架构</span>
-            </div>
+        <!-- 岗位量化微胶囊 (紧凑单行，拒绝长卡片堆叠) -->
+        <div class="org-stats-pills">
+          <div class="stat-pill is-primary">
+            <el-icon><Suitcase /></el-icon>
+            <span class="pill-label">基准岗位总数</span>
+            <strong class="pill-val">{{ posStats.total }}</strong>
           </div>
-          <div class="stat-card">
-            <div class="stat-icon-wrap is-success"><el-icon><CircleCheck /></el-icon></div>
-            <div class="stat-info">
-              <span class="stat-label">正常启用岗位</span>
-              <strong class="stat-val text-success">{{ posStats.active }}</strong>
-              <span class="stat-sub">有效承接权限</span>
-            </div>
+          <div class="stat-pill is-success">
+            <el-icon><CircleCheck /></el-icon>
+            <span class="pill-label">正常启用</span>
+            <strong class="pill-val">{{ posStats.active }}</strong>
           </div>
-          <div class="stat-card">
-            <div class="stat-icon-wrap is-warning"><el-icon><UserFilled /></el-icon></div>
-            <div class="stat-info">
-              <span class="stat-label">在岗员工覆盖</span>
-              <strong class="stat-val text-warning">{{ posStats.assigned }}</strong>
-              <span class="stat-sub">人岗匹配关联</span>
-            </div>
+          <div class="stat-pill is-warning">
+            <el-icon><UserFilled /></el-icon>
+            <span class="pill-label">在岗覆盖</span>
+            <strong class="pill-val">{{ posStats.assigned }} 人</strong>
           </div>
-          <div class="stat-card">
-            <div class="stat-icon-wrap is-info"><el-icon><OfficeBuilding /></el-icon></div>
-            <div class="stat-info">
-              <span class="stat-label">部门覆盖度</span>
-              <strong class="stat-val text-info">{{ posStats.coveredDepts }}</strong>
-              <span class="stat-sub">组织体系覆盖</span>
-            </div>
+          <div class="stat-pill is-info">
+            <el-icon><OfficeBuilding /></el-icon>
+            <span class="pill-label">覆盖部门</span>
+            <strong class="pill-val">{{ posStats.coveredDepts }}</strong>
           </div>
         </div>
 
@@ -485,39 +473,27 @@ function getPositionEmployeeList(posId: number) {
     <!-- 员工档案：企业级左树右表全景人才工作台 -->
     <template v-else-if="mode === 'employee'">
       <div class="employee-enterprise-workspace">
-        <!-- 顶部核心量化看板 -->
-        <div class="org-stats-grid">
-          <div class="stat-card">
-            <div class="stat-icon-wrap is-primary"><el-icon><UserFilled /></el-icon></div>
-            <div class="stat-info">
-              <span class="stat-label">在职员工数</span>
-              <strong class="stat-val text-primary">{{ empStats.active }}</strong>
-              <span class="stat-sub">总在册: {{ empStats.total }} 人</span>
-            </div>
+        <!-- 员工核心量化微胶囊 -->
+        <div class="org-stats-pills">
+          <div class="stat-pill is-primary">
+            <el-icon><UserFilled /></el-icon>
+            <span class="pill-label">在职员工</span>
+            <strong class="pill-val">{{ empStats.active }} / {{ empStats.total }}</strong>
           </div>
-          <div class="stat-card">
-            <div class="stat-icon-wrap is-warning"><el-icon><Timer /></el-icon></div>
-            <div class="stat-info">
-              <span class="stat-label">试用期员工</span>
-              <strong class="stat-val text-warning">{{ empStats.probation }}</strong>
-              <span class="stat-sub">待转正述职评估</span>
-            </div>
+          <div class="stat-pill is-warning">
+            <el-icon><Timer /></el-icon>
+            <span class="pill-label">试用期</span>
+            <strong class="pill-val">{{ empStats.probation }}</strong>
           </div>
-          <div class="stat-card">
-            <div class="stat-icon-wrap is-danger"><el-icon><CircleClose /></el-icon></div>
-            <div class="stat-info">
-              <span class="stat-label">停用/离职</span>
-              <strong class="stat-val text-danger">{{ empStats.inactive }}</strong>
-              <span class="stat-sub">已冻结访问权限</span>
-            </div>
+          <div class="stat-pill is-danger">
+            <el-icon><CircleClose /></el-icon>
+            <span class="pill-label">停用/离职</span>
+            <strong class="pill-val">{{ empStats.inactive }}</strong>
           </div>
-          <div class="stat-card">
-            <div class="stat-icon-wrap is-success"><el-icon><Key /></el-icon></div>
-            <div class="stat-info">
-              <span class="stat-label">账号关联覆盖率</span>
-              <strong class="stat-val text-success">{{ empStats.accountLinkRate }}%</strong>
-              <span class="stat-sub">已绑定系统账号: {{ empStats.boundCount }} 人</span>
-            </div>
+          <div class="stat-pill is-success">
+            <el-icon><Key /></el-icon>
+            <span class="pill-label">账号关联率</span>
+            <strong class="pill-val">{{ empStats.accountLinkRate }}% ({{ empStats.boundCount }})</strong>
           </div>
         </div>
 
@@ -1383,71 +1359,46 @@ function getPositionEmployeeList(posId: number) {
   }
 }
 
-/* 核心量化看板 (紧凑单行微卡片) */
-.org-stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+/* 核心量化看板 (紧凑单行微胶囊) */
+.org-stats-pills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 10px;
   margin-bottom: 12px;
 
-  .stat-card {
-    display: flex;
+  .stat-pill {
+    display: inline-flex;
     align-items: center;
-    gap: 10px;
-    padding: 9px 14px;
-    border-radius: var(--sb-radius-glass-md, 14px);
-    background: var(--sb-tier1-bg);
-    backdrop-filter: var(--sb-glass-blur-sm);
-    -webkit-backdrop-filter: var(--sb-glass-blur-sm);
+    gap: 8px;
+    height: 34px;
+    padding: 0 14px;
+    border-radius: 999px;
+    background: var(--sb-tier2-bg);
     border: 1px solid var(--sb-border-subtle);
+    font-size: 12.5px;
+    color: var(--sb-text-secondary);
     box-shadow: var(--sb-shadow-xs);
 
-    .stat-icon-wrap {
-      width: 34px;
-      height: 34px;
-      display: grid;
-      place-items: center;
-      border-radius: 9px;
-      font-size: 16px;
-      flex-shrink: 0;
-
-      &.is-primary { background: #eff6ff; color: #2563eb; }
-      &.is-success { background: #ecfdf5; color: #10b981; }
-      &.is-warning { background: #fffbeb; color: #f59e0b; }
-      &.is-danger { background: #fef2f2; color: #ef4444; }
-      &.is-info { background: #f5f3ff; color: #8b5cf6; }
+    .el-icon {
+      font-size: 14px;
     }
 
-    .stat-info {
-      min-width: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 1px;
-
-      .stat-label {
-        font-size: 11.5px;
-        color: var(--sb-text-muted);
-        font-weight: 500;
-      }
-
-      .stat-val {
-        font-size: 18px;
-        font-weight: 700;
-        line-height: 1.2;
-        font-family: var(--sb-font-mono, monospace);
-
-        &.text-primary { color: var(--sb-primary-color); }
-        &.text-success { color: #10b981; }
-        &.text-warning { color: #f59e0b; }
-        &.text-danger { color: #ef4444; }
-        &.text-info { color: #8b5cf6; }
-      }
-
-      .stat-sub {
-        font-size: 11px;
-        color: var(--sb-text-muted);
-      }
+    .pill-label {
+      color: var(--sb-text-muted);
     }
+
+    .pill-val {
+      font-weight: 700;
+      font-family: var(--sb-font-mono, monospace);
+      color: var(--sb-text-primary);
+    }
+
+    &.is-primary .el-icon { color: var(--sb-primary-color); }
+    &.is-success .el-icon { color: #10b981; }
+    &.is-warning .el-icon { color: #f59e0b; }
+    &.is-danger .el-icon { color: #ef4444; }
+    &.is-info .el-icon { color: #8b5cf6; }
   }
 }
 

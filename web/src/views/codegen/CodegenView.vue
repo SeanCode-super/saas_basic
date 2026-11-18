@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed, reactive } from "vue";
+import { computed, onMounted, reactive } from "vue";
 import { ElMessage } from "element-plus";
 import ControlSurface from "@/components/platform/ControlSurface.vue";
 import BaseRefreshButton from "@/components/base/BaseRefreshButton.vue";
 import { useModuleSection } from "@/hooks/useModuleSection";
+import { useAuthStore } from "@/stores/modules/auth";
+import { loadGovernancePolicy, saveGovernancePolicy } from "@/utils/governance-policy";
 import CodegenArtifactSection from "./sections/CodegenArtifactSection.vue";
 import CodegenGateSection from "./sections/CodegenGateSection.vue";
 import CodegenMetadataSection from "./sections/CodegenMetadataSection.vue";
@@ -19,6 +21,8 @@ const props = withDefaults(
     section: ""
   }
 );
+
+const authStore = useAuthStore();
 
 const templatePolicy = reactive({
   generateSql: true,
@@ -55,7 +59,7 @@ const sectionItems = [
 const { activeSection, updateSection } = useModuleSection(sectionItems, {
   mode: "path",
   basePath: "/codegen",
-  fallback: "overview"
+  fallback: "ai-builder"
 });
 
 const currentSection = computed(() => props.section || activeSection.value);
@@ -86,9 +90,31 @@ const currentSectionComponent = computed(
   () => sectionComponentMap[currentSection.value as keyof typeof sectionComponentMap] ?? CodegenOverviewSection
 );
 
-function savePolicy(message: string) {
-  ElMessage.success(message);
+async function loadData() {
+  await Promise.all([
+    loadGovernancePolicy("CODEGEN", "codegen.template_policy", templatePolicy),
+    loadGovernancePolicy("CODEGEN", "codegen.style_guide", styleGuide),
+    loadGovernancePolicy("CODEGEN", "codegen.quality_gate", qualityGate)
+  ]);
 }
+
+async function savePolicy(message: string) {
+  const tenantId = authStore.currentUser?.tenantId ?? 1;
+  try {
+    await Promise.all([
+      saveGovernancePolicy("CODEGEN", "codegen.template_policy", "代码生成模板基线", templatePolicy, tenantId),
+      saveGovernancePolicy("CODEGEN", "codegen.style_guide", "代码生成工程规范", styleGuide, tenantId),
+      saveGovernancePolicy("CODEGEN", "codegen.quality_gate", "代码生成交付门禁", qualityGate, tenantId)
+    ]);
+    ElMessage.success(message);
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message ?? "保存代码生成策略失败");
+  }
+}
+
+onMounted(() => {
+  void loadData();
+});
 </script>
 
 <template>
@@ -98,7 +124,7 @@ function savePolicy(message: string) {
     :description="activeSectionMeta.description"
   >
     <template #actions>
-      <BaseRefreshButton @click="savePolicy('已刷新代码生成视图')" />
+      <BaseRefreshButton @click="loadData" />
     </template>
 
     <div class="module-section-stack">

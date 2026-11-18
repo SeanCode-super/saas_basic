@@ -11,9 +11,12 @@ import type {
 import ControlSurface from "@/components/platform/ControlSurface.vue";
 import BaseRefreshButton from "@/components/base/BaseRefreshButton.vue";
 import RegistryImportDialog from "@/components/platform/RegistryImportDialog.vue";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 import type { ProTableColumn } from "@/components/pro/ProTable.vue";
 import { useDict } from "@/hooks/useDict";
 import { useModuleSection } from "@/hooks/useModuleSection";
+import { useAuthStore } from "@/stores/modules/auth";
+import { loadGovernancePolicy, saveGovernancePolicy } from "@/utils/governance-policy";
 import { formatJsonManifest, parseJsonManifest } from "@/utils/manifest-import";
 import TenantIsolationSection from "./sections/TenantIsolationSection.vue";
 import TenantLedgerSection from "./sections/TenantLedgerSection.vue";
@@ -31,6 +34,7 @@ const props = withDefaults(
   }
 );
 
+const authStore = useAuthStore();
 const tenantStatusOptions = useDict("tenant_status");
 const loading = ref(false);
 const submitting = ref(false);
@@ -99,7 +103,7 @@ const router = useRouter();
 const { activeSection, updateSection } = useModuleSection(sectionItems, {
   mode: "path",
   basePath: "/tenant",
-  fallback: "overview"
+  fallback: "ledger"
 });
 
 const currentSection = computed(() => props.section || activeSection.value);
@@ -190,7 +194,10 @@ async function loadData() {
   try {
     const [tenants, pkgs] = await Promise.all([
       fetchTenantPage(),
-      fetchTenantPackages().catch(() => [])
+      fetchTenantPackages().catch(() => []),
+      loadGovernancePolicy("TENANT", "tenant.runtime_policy", runtimePolicy),
+      loadGovernancePolicy("TENANT", "tenant.package_policy", packagePolicy),
+      loadGovernancePolicy("TENANT", "tenant.isolation_policy", isolationPolicy)
     ]);
     rows.value = tenants;
     availablePackages.value = pkgs;
@@ -296,8 +303,18 @@ async function handleImport() {
   }
 }
 
-function savePolicy(message: string) {
-  ElMessage.success(message);
+async function savePolicy(message: string) {
+  const tenantId = authStore.currentUser?.tenantId ?? 1;
+  try {
+    await Promise.all([
+      saveGovernancePolicy("TENANT", "tenant.runtime_policy", "租户开通运行策略", runtimePolicy, tenantId),
+      saveGovernancePolicy("TENANT", "tenant.package_policy", "租户套餐配额基线", packagePolicy, tenantId),
+      saveGovernancePolicy("TENANT", "tenant.isolation_policy", "租户隔离升级策略", isolationPolicy, tenantId)
+    ]);
+    ElMessage.success(message);
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message ?? "保存租户治理策略失败");
+  }
 }
 
 onMounted(loadData);
@@ -338,7 +355,7 @@ onMounted(loadData);
     </div>
   </ControlSurface>
 
-  <el-dialog v-model="createVisible" title="新建租户空间" width="580px" :close-on-click-modal="false">
+  <WorkspacePanel v-model="createVisible" title="新建租户空间" subtitle="为企业客户开通独立的多租户控制空间与套餐配额" width="660px">
       <el-form label-position="top">
         <el-row :gutter="16">
           <el-col :span="12">
@@ -418,7 +435,7 @@ onMounted(loadData);
         <el-button @click="createVisible = false">取消</el-button>
         <el-button type="primary" :loading="submitting" @click="handleCreate">确认创建租户</el-button>
       </template>
-  </el-dialog>
+  </WorkspacePanel>
 
   <RegistryImportDialog
     v-model:visible="importVisible"

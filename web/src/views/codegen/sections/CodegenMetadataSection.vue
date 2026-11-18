@@ -21,6 +21,7 @@ import {
 } from "@element-plus/icons-vue";
 import type { CodegenColumnModel, DbTableItem, CodegenTableModel } from "@/api/modules/codegen";
 import { fetchDbTables, fetchDbTableColumns } from "@/api/modules/codegen";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 
 defineProps<{
   templatePolicy?: any;
@@ -481,8 +482,8 @@ function handleGoToArtifacts() {
       </el-table>
     </el-card>
 
-    <!-- 数据库表逆向导入弹窗 -->
-    <el-dialog v-model="dbImportDialogVisible" title="从当前 MySQL 数据库逆向导入物理表" width="760px" destroy-on-close>
+    <!-- 数据库表逆向导入工作区面板 -->
+    <WorkspacePanel v-model="dbImportDialogVisible" title="从当前 MySQL 数据库逆向导入物理表" size="wide" destroy-on-close>
       <div class="db-import-header">
         <el-input
           v-model="tableSearch"
@@ -521,7 +522,7 @@ function handleGoToArtifacts() {
       <template #footer>
         <el-button @click="dbImportDialogVisible = false">关闭</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
   </div>
 </template>
 

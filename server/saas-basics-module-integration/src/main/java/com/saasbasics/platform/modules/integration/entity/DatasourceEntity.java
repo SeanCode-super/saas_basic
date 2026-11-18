@@ -3,6 +3,7 @@ package com.saasbasics.platform.modules.integration.entity;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.saasbasics.platform.common.model.BaseTenantEntity;
+import java.time.LocalDateTime;
 
 @TableName("int_datasource")
 public class DatasourceEntity extends BaseTenantEntity {
@@ -33,6 +34,9 @@ public class DatasourceEntity extends BaseTenantEntity {
 
     @TableField("test_status")
     private String testStatus;
+
+    @TableField("last_tested_at")
+    private LocalDateTime lastTestedAt;
 
     @TableField("status")
     private String status;
@@ -107,6 +111,14 @@ public class DatasourceEntity extends BaseTenantEntity {
 
     public void setTestStatus(String testStatus) {
         this.testStatus = testStatus;
+    }
+
+    public LocalDateTime getLastTestedAt() {
+        return lastTestedAt;
+    }
+
+    public void setLastTestedAt(LocalDateTime lastTestedAt) {
+        this.lastTestedAt = lastTestedAt;
     }
 
     public String getStatus() {

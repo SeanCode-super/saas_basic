@@ -18,7 +18,10 @@ import type {
   TransportPolicyUpdatePayload,
   TransportKeyConfigurePayload,
   TransportRoundtripResult,
-  ApiCatalogSnapshot
+  ApiCatalogSnapshot,
+  SequenceRuleItem,
+  SequenceRuleSavePayload,
+  SequenceNextResult
 } from "./types";
 
 export async function fetchSystemConfigs(): Promise<SystemConfigRow[]> {
@@ -194,6 +197,30 @@ export async function verifyTransportRoundtrip(
       transportEncrypt: options?.transportEncrypt ?? true,
       onCryptoTrace: options?.onCryptoTrace
     }
+  );
+  return response.data.data;
+}
+
+export async function fetchSequenceRules(): Promise<SequenceRuleItem[]> {
+  const response = await http.get<ApiResponse<SequenceRuleItem[]>>("/system/sequences");
+  return response.data.data ?? [];
+}
+
+export async function updateSequenceRule(id: number, payload: SequenceRuleSavePayload): Promise<SequenceRuleItem> {
+  const response = await http.put<ApiResponse<SequenceRuleItem>>(`/system/sequences/${id}`, payload);
+  return response.data.data;
+}
+
+export async function generateNextSequence(code: string): Promise<SequenceNextResult> {
+  const response = await http.post<ApiResponse<SequenceNextResult>>(
+    `/system/sequences/${encodeURIComponent(code)}/next`
+  );
+  return response.data.data;
+}
+
+export async function resetSequenceRule(code: string): Promise<SequenceRuleItem> {
+  const response = await http.post<ApiResponse<SequenceRuleItem>>(
+    `/system/sequences/${encodeURIComponent(code)}/reset`
   );
   return response.data.data;
 }

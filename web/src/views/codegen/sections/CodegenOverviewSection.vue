@@ -6,6 +6,7 @@ import { Plus, RefreshRight, Document, Cpu, Check, Box, ArrowRight } from "@elem
 import { fetchCodegenProjects, createCodegenProject, updateCodegenProject } from "@/api/modules/codegen";
 import type { CodegenProjectRow, CodegenProjectSavePayload } from "@/api/modules/codegen";
 import { useAuthStore } from "@/stores/modules/auth";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 
 defineProps<{
   templatePolicy: any;
@@ -239,8 +240,8 @@ onMounted(() => {
       </el-table>
     </el-card>
 
-    <!-- 新建/编辑工程弹窗 -->
-    <el-dialog v-model="dialogVisible" :title="editingId ? '编辑代码生成工程' : '新建代码生成工程域'" width="580px" destroy-on-close>
+    <!-- 新建/编辑工程工作区面板 -->
+    <WorkspacePanel v-model="dialogVisible" :title="editingId ? '编辑代码生成工程' : '新建代码生成工程域'" width="620px" destroy-on-close>
       <el-form label-position="top">
         <el-row :gutter="16">
           <el-col :span="12">
@@ -280,7 +281,7 @@ onMounted(() => {
         <el-button @click="dialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="submitting" @click="handleSaveProject">确认并保存工程</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
   </div>
 </template>
 

@@ -15,6 +15,8 @@ const props = defineProps<{
   loadData: () => Promise<void> | void;
   openCreateDialog: () => void;
   openImportDialog: () => void;
+  handleProbeRow?: (row: DatasourceRow) => Promise<void> | void;
+  handleProbeAll?: () => Promise<void> | void;
 }>();
 
 const queryModel = computed({
@@ -43,6 +45,7 @@ const queryModel = computed({
       empty-description="可以先新增数据源，或导入接入清单快速建立连接台账。"
     >
       <template #toolbar>
+        <el-button @click="handleProbeAll?.()">全量连通探测</el-button>
         <el-button @click="openImportDialog">批量导入</el-button>
         <el-button type="primary" @click="openCreateDialog">新增数据源</el-button>
       </template>
@@ -51,6 +54,9 @@ const queryModel = computed({
       </template>
       <template #status="{ row }">
         <BaseStatusTag :status="row.status" />
+      </template>
+      <template #actions="{ row }">
+        <el-button link type="primary" size="small" @click="handleProbeRow?.(row)">连通探测</el-button>
       </template>
     </ProTable>
   </section>

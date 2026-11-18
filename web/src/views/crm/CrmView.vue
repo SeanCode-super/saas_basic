@@ -20,6 +20,7 @@ import {
   UserFilled,
   Wallet
 } from "@element-plus/icons-vue";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 import {
   addCrmFollowUpRecord,
   approveCrmContract,
@@ -887,7 +888,7 @@ onMounted(() => {
     </el-card>
 
     <!-- 弹窗 1：新建客户 -->
-    <el-dialog v-model="customerDialogVisible" title="录入企业客户" width="560px">
+    <WorkspacePanel v-model="customerDialogVisible" title="录入企业客户" width="600px">
       <el-form :model="customerForm" label-width="100px">
         <el-form-item label="企业全称" required>
           <el-input v-model="customerForm.name" placeholder="请输入企业法定全称" />
@@ -922,10 +923,10 @@ onMounted(() => {
         <el-button @click="customerDialogVisible = false">取消</el-button>
         <el-button type="primary" @click="handleCreateCustomer">确认建档</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
 
     <!-- 弹窗 2：新建线索 -->
-    <el-dialog v-model="clueDialogVisible" title="录入销售线索" width="540px">
+    <WorkspacePanel v-model="clueDialogVisible" title="录入销售线索" width="580px">
       <el-form :model="clueForm" label-width="100px">
         <el-form-item label="意向项目名" required>
           <el-input v-model="clueForm.name" placeholder="例如：某某智慧物流平台采购" />
@@ -952,10 +953,10 @@ onMounted(() => {
         <el-button @click="clueDialogVisible = false">取消</el-button>
         <el-button type="primary" @click="handleCreateClue">录入线索</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
 
     <!-- 弹窗 3：新建商机 -->
-    <el-dialog v-model="businessDialogVisible" title="新建销售商机" width="540px">
+    <WorkspacePanel v-model="businessDialogVisible" title="新建销售商机" width="580px">
       <el-form :model="businessForm" label-width="100px">
         <el-form-item label="商机名称" required>
           <el-input v-model="businessForm.name" placeholder="例如：华润二期智能数字看板" />
@@ -984,10 +985,10 @@ onMounted(() => {
         <el-button @click="businessDialogVisible = false">取消</el-button>
         <el-button type="primary" @click="handleCreateBusiness">保存商机</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
 
     <!-- 弹窗 4：商机阶段推进 -->
-    <el-dialog v-model="stageDialogVisible" title="推进商机销售阶段" width="500px">
+    <WorkspacePanel v-model="stageDialogVisible" title="推进商机销售阶段" width="540px">
       <el-form :model="stageForm" label-width="90px">
         <el-form-item label="推进至阶段">
           <el-select v-model="stageForm.stage" style="width: 100%">
@@ -1009,10 +1010,10 @@ onMounted(() => {
         <el-button @click="stageDialogVisible = false">取消</el-button>
         <el-button type="primary" @click="handleUpdateStage">更新推进</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
 
     <!-- 弹窗 5：拟定合同 -->
-    <el-dialog v-model="contractDialogVisible" title="拟定商务合同" width="560px">
+    <WorkspacePanel v-model="contractDialogVisible" title="拟定商务合同" width="600px">
       <el-form :model="contractForm" label-width="100px">
         <el-form-item label="合同名称" required>
           <el-input v-model="contractForm.name" placeholder="请输入合同标准命名" />
@@ -1041,10 +1042,10 @@ onMounted(() => {
         <el-button @click="contractDialogVisible = false">取消</el-button>
         <el-button type="primary" @click="handleCreateContract">发起审批并拟定</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
 
     <!-- 弹窗 6：录入回款 -->
-    <el-dialog v-model="receivableDialogVisible" title="录入财务回款" width="500px">
+    <WorkspacePanel v-model="receivableDialogVisible" title="录入财务回款" width="540px">
       <el-form :model="receivableForm" label-width="90px">
         <el-form-item label="关联合同" required>
           <el-select v-model="receivableForm.contractId" style="width: 100%">
@@ -1069,7 +1070,7 @@ onMounted(() => {
         <el-button @click="receivableDialogVisible = false">取消</el-button>
         <el-button type="primary" @click="handleCreateReceivable">确认提交</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
 
     <!-- 抽屉：全生命周期跟进记录与时间轴 -->
     <el-drawer v-model="followUpDrawerVisible" :title="'跟进轨迹时间轴 - ' + currentFollowUpTarget.title" size="460px">

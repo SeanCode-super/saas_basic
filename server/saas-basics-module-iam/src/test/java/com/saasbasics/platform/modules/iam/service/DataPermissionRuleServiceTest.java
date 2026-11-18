@@ -7,6 +7,8 @@ import com.saasbasics.platform.common.auth.AuthPrincipal;
 import com.saasbasics.platform.common.auth.DataPermissionSqlSpec;
 import com.saasbasics.platform.modules.audit.service.AuditTrailService;
 import com.saasbasics.platform.modules.iam.dto.AccessSubjectProfile;
+import com.saasbasics.platform.modules.iam.dto.DataPermissionSqlPreviewRequest;
+import com.saasbasics.platform.modules.iam.dto.DataPermissionSqlPreviewResponse;
 import com.saasbasics.platform.modules.iam.entity.DataPermissionRuleEntity;
 import com.saasbasics.platform.modules.iam.entity.RoleEntity;
 import com.saasbasics.platform.modules.iam.mapper.DataPermissionRuleMapper;
@@ -302,5 +304,21 @@ class DataPermissionRuleServiceTest {
 
         DataPermissionSqlSpec spec = roleAwareService.resolveDataPermission("erp:order");
         assertThat(spec.getUserIds()).containsExactlyInAnyOrder(12L, 13L, 14L);
+    }
+
+    @Test
+    @DisplayName("AST SQL 改写预览注入 tenant_id 且支持拒绝非 SELECT 语句")
+    void previewsAstTenantAndDataScopeRewrite() {
+        AuthContext.set(createPrincipal(1L, "PLATFORM", List.of("*"), List.of(1L)));
+        DataPermissionSqlPreviewResponse preview = roleAwareService.previewSqlRewrite(
+                new DataPermissionSqlPreviewRequest("SELECT * FROM iam_user WHERE status = 'ENABLED';", "iam:user:list", 1001L)
+        );
+        assertThat(preview.rewrittenSql()).contains("iam_user.tenant_id = 1001");
+        assertThat(preview.rewrittenSql()).contains("status = 'ENABLED'");
+        assertThat(preview.tenantId()).isEqualTo(1001L);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                roleAwareService.previewSqlRewrite(new DataPermissionSqlPreviewRequest("DELETE FROM iam_user", "iam:user:list", 1001L))
+        ).isInstanceOf(com.saasbasics.platform.common.exception.BizException.class);
     }
 }

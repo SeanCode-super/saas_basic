@@ -15,6 +15,7 @@ import {
   Setting
 } from "@element-plus/icons-vue";
 import BaseCard from "@/components/base/BaseCard.vue";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 import { getTransportPolicy, invalidateTransportPolicyCache } from "@/api/http";
 import {
   fetchTransportApiCatalog,
@@ -594,8 +595,8 @@ onMounted(() => {
       </div>
     </BaseCard>
 
-    <!-- 链路自测结果弹窗 -->
-    <el-dialog v-model="testDialogVisible" title="传输加密链路自测结果" width="620px">
+    <!-- 链路自测结果工作区面板 -->
+    <WorkspacePanel v-model="testDialogVisible" title="传输加密链路自测结果" width="640px">
       <div v-if="roundtripResult && roundtripTrace" class="roundtrip-box">
         <div class="roundtrip-ok">
           <el-icon><CircleCheck /></el-icon>
@@ -617,7 +618,7 @@ onMounted(() => {
       <template #footer>
         <el-button type="primary" @click="testDialogVisible = false">关闭</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
 
     <!-- 密钥管理与自定义配置弹窗 -->
     <TransportKeyManagerDialog

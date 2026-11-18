@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { InfoFilled } from "@element-plus/icons-vue";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 import IconPicker from "./components/IconPicker.vue";
 import type { IamDepartmentRow, IamMenuRow, IamPositionRow, IamRoleRow } from "@/api/modules/iam";
 import type {
@@ -201,7 +202,7 @@ function getDataScopeTemplateDesc(type: string) {
 </script>
 
 <template>
-  <el-dialog v-model="departmentDialog.visible" :title="departmentDialog.mode === 'create' ? '新增部门' : '编辑部门'" width="620px">
+  <WorkspacePanel v-model="departmentDialog.visible" :title="departmentDialog.mode === 'create' ? '新增部门' : '编辑部门'" width="620px">
     <el-form label-position="top">
       <div class="form-grid">
         <el-form-item label="上级部门">
@@ -241,9 +242,9 @@ function getDataScopeTemplateDesc(type: string) {
       <el-button @click="departmentDialog.visible = false">取消</el-button>
       <el-button type="primary" :loading="submitting" @click="submitDepartment">保存</el-button>
     </template>
-  </el-dialog>
+  </WorkspacePanel>
 
-  <el-dialog v-model="positionDialog.visible" :title="positionDialog.mode === 'create' ? '新增岗位' : '编辑岗位'" width="560px">
+  <WorkspacePanel v-model="positionDialog.visible" :title="positionDialog.mode === 'create' ? '新增岗位' : '编辑岗位'" width="560px">
     <el-form label-position="top">
       <div class="form-grid">
         <el-form-item label="岗位编码" required>
@@ -273,11 +274,12 @@ function getDataScopeTemplateDesc(type: string) {
       <el-button @click="positionDialog.visible = false">取消</el-button>
       <el-button type="primary" :loading="submitting" @click="submitPosition">保存</el-button>
     </template>
-  </el-dialog>
+  </WorkspacePanel>
 
-  <el-dialog
+  <WorkspacePanel
     v-model="employeeDialog.visible"
     :title="employeeDialog.mode === 'create' ? '新增员工' : employeeDialog.mode === 'transfer' ? '组织异动' : '编辑员工'"
+    subtitle="维护员工主数据、岗位归属与「入职一表通」系统登录授权"
     width="680px"
   >
     <el-form label-position="top">
@@ -386,9 +388,9 @@ function getDataScopeTemplateDesc(type: string) {
       <el-button @click="employeeDialog.visible = false">取消</el-button>
       <el-button type="primary" :loading="submitting" @click="submitEmployee">{{ employeeDialog.mode === "transfer" ? "保存异动" : "保存" }}</el-button>
     </template>
-  </el-dialog>
+  </WorkspacePanel>
 
-  <el-dialog v-model="userDialog.visible" :title="userDialog.mode === 'create' ? '新增用户' : '编辑用户'" width="680px">
+  <WorkspacePanel v-model="userDialog.visible" :title="userDialog.mode === 'create' ? '新增用户' : '编辑用户'" width="680px">
     <el-form label-position="top">
       <div class="form-grid">
         <el-form-item label="用户编码">
@@ -440,9 +442,9 @@ function getDataScopeTemplateDesc(type: string) {
       <el-button @click="userDialog.visible = false">取消</el-button>
       <el-button type="primary" :loading="submitting" @click="submitUser">保存</el-button>
     </template>
-  </el-dialog>
+  </WorkspacePanel>
 
-  <el-dialog v-model="roleDialog.visible" :title="roleDialog.mode === 'create' ? '新增角色' : '编辑角色'" width="620px">
+  <WorkspacePanel v-model="roleDialog.visible" :title="roleDialog.mode === 'create' ? '新增角色' : '编辑角色'" width="620px">
     <el-form label-position="top">
       <div class="form-grid">
         <el-form-item label="角色组 ID">
@@ -492,9 +494,9 @@ function getDataScopeTemplateDesc(type: string) {
       <el-button @click="roleDialog.visible = false">取消</el-button>
       <el-button type="primary" :loading="submitting" @click="submitRole">保存</el-button>
     </template>
-  </el-dialog>
+  </WorkspacePanel>
 
-  <el-dialog v-model="apiDialog.visible" :title="apiDialog.mode === 'create' ? '新增权限资源' : '编辑权限资源'" width="620px">
+  <WorkspacePanel v-model="apiDialog.visible" :title="apiDialog.mode === 'create' ? '新增权限资源' : '编辑权限资源'" width="620px">
     <el-form label-position="top">
       <div class="form-grid">
         <el-form-item label="权限编码" required>
@@ -533,9 +535,9 @@ function getDataScopeTemplateDesc(type: string) {
       <el-button @click="apiDialog.visible = false">取消</el-button>
       <el-button type="primary" :loading="submitting" @click="submitApiResource">保存</el-button>
     </template>
-  </el-dialog>
+  </WorkspacePanel>
 
-  <el-dialog
+  <WorkspacePanel
     v-model="menuDialog.visible"
     :title="menuDialog.mode === 'create' ? '新增权限资源' : '编辑权限资源'"
     width="680px"
@@ -639,9 +641,9 @@ function getDataScopeTemplateDesc(type: string) {
       <el-button @click="menuDialog.visible = false">取消</el-button>
       <el-button type="primary" :loading="submitting" @click="submitMenu">保存资源</el-button>
     </template>
-  </el-dialog>
+  </WorkspacePanel>
 
-  <el-dialog v-model="dataScopeDialog.visible" :title="dataScopeDialog.mode === 'create' ? '新增数据范围' : '编辑数据范围'" width="660px">
+  <WorkspacePanel v-model="dataScopeDialog.visible" :title="dataScopeDialog.mode === 'create' ? '新增数据范围' : '编辑数据范围'" width="660px">
     <el-form label-position="top">
       <div class="form-grid">
         <el-form-item label="范围编码" required>
@@ -697,9 +699,9 @@ function getDataScopeTemplateDesc(type: string) {
       <el-button @click="dataScopeDialog.visible = false">取消</el-button>
       <el-button type="primary" :loading="submitting" @click="submitDataScope">保存</el-button>
     </template>
-  </el-dialog>
+  </WorkspacePanel>
 
-  <el-dialog v-model="loginPolicyDialog.visible" :title="loginPolicyDialog.mode === 'create' ? '新增登录策略' : '编辑登录策略'" width="760px">
+  <WorkspacePanel v-model="loginPolicyDialog.visible" :title="loginPolicyDialog.mode === 'create' ? '新增登录策略' : '编辑登录策略'" size="wide">
     <el-form label-position="top">
       <div class="form-grid">
         <el-form-item label="策略编码" required>
@@ -745,9 +747,9 @@ function getDataScopeTemplateDesc(type: string) {
       <el-button @click="loginPolicyDialog.visible = false">取消</el-button>
       <el-button type="primary" :loading="submitting" @click="submitLoginPolicy">保存</el-button>
     </template>
-  </el-dialog>
+  </WorkspacePanel>
 
-  <el-dialog v-model="passwordPolicyDialog.visible" :title="passwordPolicyDialog.mode === 'create' ? '新增密码策略' : '编辑密码策略'" width="760px">
+  <WorkspacePanel v-model="passwordPolicyDialog.visible" :title="passwordPolicyDialog.mode === 'create' ? '新增密码策略' : '编辑密码策略'" size="wide">
     <el-form label-position="top">
       <div class="form-grid">
         <el-form-item label="策略编码" required>
@@ -792,7 +794,7 @@ function getDataScopeTemplateDesc(type: string) {
       <el-button @click="passwordPolicyDialog.visible = false">取消</el-button>
       <el-button type="primary" :loading="submitting" @click="submitPasswordPolicy">保存</el-button>
     </template>
-  </el-dialog>
+  </WorkspacePanel>
 </template>
 
 <style scoped lang="scss">

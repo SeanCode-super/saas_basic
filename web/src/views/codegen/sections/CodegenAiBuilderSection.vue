@@ -17,6 +17,7 @@ import {
   List
 } from "@element-plus/icons-vue";
 import BaseCard from "@/components/base/BaseCard.vue";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 import {
   designAiApp,
   publishAiApp,
@@ -534,12 +535,11 @@ onMounted(() => {
       </BaseCard>
     </div>
 
-    <!-- 发布成功弹窗 -->
-    <el-dialog
+    <!-- 发布成功工作区面板 -->
+    <WorkspacePanel
       v-model="publishSuccessVisible"
-      title="🎉 应用构建与发布成功！"
-      width="560px"
-      align-center
+      title="应用构建与发布成功"
+      width="580px"
     >
       <div class="success-dialog-body">
         <div class="success-icon-wrap">
@@ -576,11 +576,11 @@ onMounted(() => {
               goToApp(publishedModel?.modelCode || '');
             "
           >
-            👉 立即前往新应用工作台
+            立即前往新应用工作台
           </el-button>
         </span>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
   </div>
 </template>
 

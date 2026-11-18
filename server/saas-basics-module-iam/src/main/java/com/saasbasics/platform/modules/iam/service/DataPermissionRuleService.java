@@ -8,11 +8,14 @@ import com.saasbasics.platform.common.auth.AuthPrincipal;
 import com.saasbasics.platform.common.auth.DataPermissionContext;
 import com.saasbasics.platform.common.auth.DataPermissionProvider;
 import com.saasbasics.platform.common.auth.DataPermissionSqlSpec;
+import com.saasbasics.platform.common.auth.SqlAstDataGuard;
 import com.saasbasics.platform.common.exception.BizException;
 import com.saasbasics.platform.modules.audit.service.AuditTrailService;
 import com.saasbasics.platform.modules.iam.dto.AccessSubjectProfile;
 import com.saasbasics.platform.modules.iam.dto.DataPermissionRuleResponse;
 import com.saasbasics.platform.modules.iam.dto.DataPermissionRuleSaveRequest;
+import com.saasbasics.platform.modules.iam.dto.DataPermissionSqlPreviewRequest;
+import com.saasbasics.platform.modules.iam.dto.DataPermissionSqlPreviewResponse;
 import com.saasbasics.platform.modules.iam.dto.StatusUpdateRequest;
 import com.saasbasics.platform.modules.iam.entity.DataPermissionRuleEntity;
 import com.saasbasics.platform.modules.iam.entity.RoleEntity;
@@ -24,6 +27,20 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import net.sf.jsqlparser.expression.Expression;
+import net.sf.jsqlparser.expression.LongValue;
+import net.sf.jsqlparser.expression.Parenthesis;
+import net.sf.jsqlparser.expression.operators.conditional.AndExpression;
+import net.sf.jsqlparser.expression.operators.relational.EqualsTo;
+import net.sf.jsqlparser.parser.CCJSqlParserUtil;
+import net.sf.jsqlparser.schema.Column;
+import net.sf.jsqlparser.schema.Table;
+import net.sf.jsqlparser.statement.Statement;
+import net.sf.jsqlparser.statement.select.FromItem;
+import net.sf.jsqlparser.statement.select.ParenthesedSelect;
+import net.sf.jsqlparser.statement.select.PlainSelect;
+import net.sf.jsqlparser.statement.select.Select;
+import net.sf.jsqlparser.statement.select.SetOperationList;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
@@ -102,6 +119,83 @@ public class DataPermissionRuleService implements DataPermissionProvider {
         requiredMapper().updateById(entity);
         auditTrailService.record("iam", "data_permission_rule", String.valueOf(id), "STATUS", null, request.status(), true);
         return getRule(id);
+    }
+
+    public DataPermissionSqlPreviewResponse previewSqlRewrite(DataPermissionSqlPreviewRequest request) {
+        long startNs = System.nanoTime();
+        String rawSql = request.sql() != null ? request.sql().trim() : "";
+        if (rawSql.endsWith(";")) {
+            rawSql = rawSql.substring(0, rawSql.length() - 1).trim();
+        }
+        AuthPrincipal principal = AuthContext.get();
+        Long effectiveTenantId = request.tenantId() != null && request.tenantId() > 0
+                ? request.tenantId()
+                : (principal != null && principal.tenantId() != null ? principal.tenantId() : 1L);
+
+        Statement parsed;
+        try {
+            parsed = CCJSqlParserUtil.parse(rawSql);
+        } catch (Exception ex) {
+            throw new BizException("INVALID_SQL_AST", "SQL 语法解析失败，无法通过安全校验: " + ex.getMessage());
+        }
+        if (!(parsed instanceof Select select)) {
+            throw new BizException("INVALID_SQL_AST", "AST 安全改写探测仅允许 SELECT 查询语句");
+        }
+
+        injectTenantPredicate(select, effectiveTenantId);
+        String tenantRewritten = select.toString();
+
+        String resourceCode = request.resourceCode() != null && !request.resourceCode().isBlank()
+                ? request.resourceCode().trim()
+                : "iam:user:list";
+        DataPermissionSqlSpec spec = principal != null
+                ? resolveSpec(principal, resourceCode)
+                : DataPermissionSqlSpec.allowAll(effectiveTenantId);
+
+        String finalSql = tenantRewritten;
+        String scopeType = "TENANT_ISOLATED";
+        if (spec != null && spec.isDenyAll()) {
+            finalSql = SqlAstDataGuard.rewriteSelectSql(
+                    tenantRewritten,
+                    table -> new SqlAstDataGuard.TableScopeConfig(spec, "organization_id", "org_unit_id", "created_by")
+            );
+            scopeType = "DENY_ALL";
+        } else if (spec != null && !spec.isAllowAll() && spec.hasConstraints()) {
+            finalSql = SqlAstDataGuard.rewriteSelectSql(
+                    tenantRewritten,
+                    table -> new SqlAstDataGuard.TableScopeConfig(spec, "organization_id", "org_unit_id", "created_by")
+            );
+            scopeType = "TENANT_AND_5D_SCOPE";
+        }
+        long elapsedMicros = Math.max(1L, (System.nanoTime() - startNs) / 1_000L);
+        return new DataPermissionSqlPreviewResponse(rawSql, finalSql, scopeType, effectiveTenantId, elapsedMicros);
+    }
+
+    private static void injectTenantPredicate(Select select, Long tenantId) {
+        if (select instanceof PlainSelect plainSelect) {
+            FromItem fromItem = plainSelect.getFromItem();
+            if (fromItem instanceof Table table) {
+                Column tenantCol = table.getAlias() != null
+                        ? new Column(new Table(table.getAlias().getName()), "tenant_id")
+                        : new Column(table, "tenant_id");
+                Expression tenantPred = new EqualsTo(tenantCol, new LongValue(tenantId));
+                Expression existing = plainSelect.getWhere();
+                if (existing == null) {
+                    plainSelect.setWhere(tenantPred);
+                } else {
+                    Expression wrapped = existing instanceof Parenthesis ? existing : new Parenthesis(existing);
+                    plainSelect.setWhere(new AndExpression(wrapped, tenantPred));
+                }
+            } else if (fromItem instanceof ParenthesedSelect subSelect && subSelect.getSelect() != null) {
+                injectTenantPredicate(subSelect.getSelect(), tenantId);
+            }
+        } else if (select instanceof SetOperationList setOpList && setOpList.getSelects() != null) {
+            for (Select child : setOpList.getSelects()) {
+                injectTenantPredicate(child, tenantId);
+            }
+        } else if (select instanceof ParenthesedSelect parenthesed && parenthesed.getSelect() != null) {
+            injectTenantPredicate(parenthesed.getSelect(), tenantId);
+        }
     }
 
     @Override

@@ -56,3 +56,63 @@ export interface AuditQueryParam {
   bizModule?: string;
   operationType?: string;
 }
+
+export interface BlacklistItem {
+  id: number;
+  tenantId: number;
+  type: "IP" | "ACCOUNT" | "DEVICE" | string;
+  targetValue: string;
+  reason?: string;
+  blockedAt: string;
+  expireAt: string;
+  status: "ACTIVE" | "EXPIRED" | string;
+  operator?: string;
+}
+
+export interface BlacklistCreatePayload {
+  type: string;
+  targetValue: string;
+  reason?: string;
+  expireDays?: number | null;
+}
+
+export interface RiskRuleItem {
+  id: number;
+  code: string;
+  name: string;
+  severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | string;
+  ruleExpr: string;
+  action: string;
+  description?: string;
+  enabled: boolean;
+}
+
+export interface RiskEvaluatePayload {
+  ruleCode: string;
+  sampleAccount?: string;
+  sampleIp?: string;
+  frequency?: number;
+}
+
+export interface RiskEvaluateResult {
+  evaluatedAt: string;
+  matchedRule: string;
+  decision: string;
+  matchedThreshold: string;
+  enforcedAction: string;
+  latencyMs: number;
+  recentLoginFailures: number;
+  recentOperations: number;
+}
+
+export interface HighRiskCatalogItem {
+  code: string;
+  name: string;
+  httpMethod: string;
+  urlPattern: string;
+  category: string;
+  riskLevel: string;
+  requireApproval: boolean;
+  maskingPolicy: string;
+  retentionDays: number;
+}

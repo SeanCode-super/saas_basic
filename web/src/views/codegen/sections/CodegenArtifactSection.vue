@@ -4,6 +4,7 @@ import { ElMessage } from "element-plus";
 import { Download, DocumentCopy, Folder, Check, RefreshRight, Promotion } from "@element-plus/icons-vue";
 import type { CodegenPreviewFile, CodegenTableModel } from "@/api/modules/codegen";
 import { previewCodegen, downloadCodegenZip, writeCodegenToDisk } from "@/api/modules/codegen";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 
 defineProps<{
   outputMatrix?: string[];
@@ -173,8 +174,8 @@ onMounted(() => {
       </div>
     </el-card>
 
-    <!-- 模拟落盘确认弹窗 -->
-    <el-dialog v-model="dryRunVisible" title="模拟一键写入工程目录 (Dry Run)" width="640px" destroy-on-close>
+    <!-- 模拟落盘确认工作区面板 -->
+    <WorkspacePanel v-model="dryRunVisible" title="模拟一键写入工程目录 (Dry Run)" width="680px" destroy-on-close>
       <div class="dry-run-content">
         <el-alert
           title="系统将以安全只读沙箱模拟写入工程。此操作会校验包冲突、类名覆盖与 Flyway 版本号冲突。"
@@ -196,7 +197,7 @@ onMounted(() => {
         <el-button @click="dryRunVisible = false">取消</el-button>
         <el-button type="primary" :icon="Check" @click="handleConfirmApply">确认模拟落盘</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
   </div>
 </template>
 

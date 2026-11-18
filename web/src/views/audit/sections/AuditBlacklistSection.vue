@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, ref } from "vue";
+import { onMounted, reactive, ref } from "vue";
 import {
   ElMessage,
   ElMessageBox
@@ -8,6 +8,13 @@ import {
   Plus,
   Unlock
 } from "@element-plus/icons-vue";
+import {
+  createSecurityBlacklist,
+  deleteSecurityBlacklist,
+  fetchSecurityBlacklist,
+  type BlacklistItem
+} from "@/api/modules/audit";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 
 defineProps<{
   riskPolicy: {
@@ -16,59 +23,29 @@ defineProps<{
   savePolicy: (message: string) => void;
 }>();
 
-interface BlacklistItem {
-  id: number;
-  type: "IP" | "USER" | "DEVICE" | "TENANT";
-  targetValue: string;
-  reason: string;
-  blockedAt: string;
-  expireAt: string;
-  status: "ACTIVE" | "EXPIRED";
-  operator: string;
-}
-
-const list = ref<BlacklistItem[]>([
-  {
-    id: 1,
-    type: "IP",
-    targetValue: "192.168.1.105",
-    reason: "连续触发密码爆破达 10 次阈值",
-    blockedAt: "2026-10-17 14:20:00",
-    expireAt: "2026-10-24 14:20:00",
-    status: "ACTIVE",
-    operator: "system_detector"
-  },
-  {
-    id: 2,
-    type: "USER",
-    targetValue: "malicious_bot",
-    reason: "检测到非法 SQL AST 注入行为",
-    blockedAt: "2026-10-16 11:05:12",
-    expireAt: "永久封禁",
-    status: "ACTIVE",
-    operator: "admin"
-  },
-  {
-    id: 3,
-    type: "IP",
-    targetValue: "45.120.89.22",
-    reason: "跨租户数据穿透探测探针拦截",
-    blockedAt: "2026-10-15 08:30:19",
-    expireAt: "2026-10-18 08:30:19",
-    status: "ACTIVE",
-    operator: "system_detector"
-  }
-]);
-
+const list = ref<BlacklistItem[]>([]);
+const loading = ref(false);
+const submitting = ref(false);
 const searchKeyword = ref("");
 const dialogVisible = ref(false);
 
 const form = reactive({
-  type: "IP" as const,
+  type: "IP" as "IP" | "USER" | "DEVICE" | "TENANT",
   targetValue: "",
   reason: "",
   expireDays: 7
 });
+
+async function loadBlacklist() {
+  loading.value = true;
+  try {
+    list.value = await fetchSecurityBlacklist();
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message ?? "加载黑名单数据失败");
+  } finally {
+    loading.value = false;
+  }
+}
 
 function openAddDialog() {
   form.type = "IP";
@@ -78,25 +55,27 @@ function openAddDialog() {
   dialogVisible.value = true;
 }
 
-function handleAdd() {
+async function handleAdd() {
   if (!form.targetValue.trim()) {
     ElMessage.warning("请输入封禁目标值 (IP/账号/设备标识)");
     return;
   }
-  const now = new Date();
-  const expire = new Date(now.getTime() + form.expireDays * 86400000);
-  list.value.unshift({
-    id: Date.now(),
-    type: form.type,
-    targetValue: form.targetValue.trim(),
-    reason: form.reason || "管理员手动封禁处置",
-    blockedAt: now.toISOString().replace("T", " ").substring(0, 19),
-    expireAt: form.expireDays === 0 ? "永久封禁" : expire.toISOString().replace("T", " ").substring(0, 19),
-    status: "ACTIVE",
-    operator: "admin"
-  });
-  dialogVisible.value = false;
-  ElMessage.success(`目标「${form.targetValue}」已加入高危黑名单拦截引擎！`);
+  submitting.value = true;
+  try {
+    await createSecurityBlacklist({
+      type: form.type,
+      targetValue: form.targetValue.trim(),
+      reason: form.reason.trim() || undefined,
+      expireDays: form.expireDays > 0 ? form.expireDays : null
+    });
+    dialogVisible.value = false;
+    ElMessage.success(`目标「${form.targetValue.trim()}」已加入高危黑名单拦截引擎！`);
+    await loadBlacklist();
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message ?? "添加黑名单失败");
+  } finally {
+    submitting.value = false;
+  }
 }
 
 async function handleUnblock(row: BlacklistItem) {
@@ -106,12 +85,19 @@ async function handleUnblock(row: BlacklistItem) {
       "确认解除封禁",
       { type: "warning", confirmButtonText: "确认解封", cancelButtonText: "取消" }
     );
-    list.value = list.value.filter((i) => i.id !== row.id);
+    await deleteSecurityBlacklist(row.id);
     ElMessage.success(`目标「${row.targetValue}」已成功解封！`);
-  } catch {
-    // cancelled
+    await loadBlacklist();
+  } catch (error: any) {
+    if (error !== "cancel" && error !== "close") {
+      ElMessage.error(error?.response?.data?.message ?? "解除封禁失败");
+    }
   }
 }
+
+onMounted(() => {
+  void loadBlacklist();
+});
 </script>
 
 <template>
@@ -150,7 +136,8 @@ async function handleUnblock(row: BlacklistItem) {
 
       <!-- Blacklist Table -->
       <el-table
-        :data="list.filter(i => !searchKeyword || i.targetValue.includes(searchKeyword) || i.reason.includes(searchKeyword))"
+        v-loading="loading"
+        :data="list.filter(i => !searchKeyword || i.targetValue.includes(searchKeyword) || (i.reason || '').includes(searchKeyword))"
         stripe
         style="width: 100%"
       >
@@ -180,7 +167,7 @@ async function handleUnblock(row: BlacklistItem) {
     </el-card>
 
     <!-- Add Dialog -->
-    <el-dialog v-model="dialogVisible" title="添加黑名单拦截目标" width="500px">
+    <WorkspacePanel v-model="dialogVisible" title="添加黑名单拦截目标" width="500px">
       <el-form label-position="top">
         <el-form-item label="封禁类型" required>
           <el-select v-model="form.type" style="width: 100%">
@@ -207,9 +194,9 @@ async function handleUnblock(row: BlacklistItem) {
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleAdd">立即下发拦截</el-button>
+        <el-button type="primary" :loading="submitting" @click="handleAdd">立即下发拦截</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
   </div>
 </template>
 

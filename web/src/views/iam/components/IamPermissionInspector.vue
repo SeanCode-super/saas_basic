@@ -12,6 +12,7 @@ import {
   fetchUserPermissionInspection,
   simulatePermission
 } from "@/api/modules/iam";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 import type {
   IamDepartmentRow,
   IamMenuRow,
@@ -138,12 +139,10 @@ const inspectedMenuGroups = computed(() => {
 </script>
 
 <template>
-  <el-dialog
+  <WorkspacePanel
     :model-value="visible"
     title="成员权限透视与诊断器 (Permission Inspector & Simulator)"
     width="860px"
-    class="iam-inspector-dialog"
-    destroy-on-close
     @update:model-value="(val) => emit('update:visible', val)"
   >
     <!-- Top User Selector Bar -->
@@ -390,30 +389,10 @@ const inspectedMenuGroups = computed(() => {
         <el-button @click="emit('update:visible', false)">关闭</el-button>
       </div>
     </template>
-  </el-dialog>
+  </WorkspacePanel>
 </template>
 
 <style scoped lang="scss">
-.iam-inspector-dialog {
-  :deep(.el-dialog__header) {
-    margin-right: 0;
-    padding: 20px 24px 16px;
-    border-bottom: 1px solid var(--el-border-color-lighter);
-  }
-
-  :deep(.el-dialog__body) {
-    padding: 20px 24px;
-    background: #f8fafc;
-  }
-
-  :deep(.el-dialog__footer) {
-    padding: 14px 24px;
-    border-top: 1px solid rgba(226, 232, 240, 0.6);
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(14px);
-  }
-}
-
 .inspector-top-bar {
   display: flex;
   flex-direction: column;

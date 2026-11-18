@@ -21,6 +21,7 @@ import {
   TrendCharts,
   Lightning
 } from "@element-plus/icons-vue";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 import {
   acknowledgeAlertEvent,
   createAlertRule,
@@ -1236,7 +1237,7 @@ onUnmounted(() => {
       </el-table>
     </el-drawer>
 
-    <el-dialog v-model="ruleModalVisible" :title="editingRuleId ? '编辑告警规则' : '新建告警规则'" width="540px">
+    <WorkspacePanel v-model="ruleModalVisible" :title="editingRuleId ? '编辑告警规则' : '新建告警规则'" width="580px">
       <el-form label-position="top">
         <el-form-item label="规则编码" required>
           <el-input v-model="ruleForm.ruleCode" :disabled="Boolean(editingRuleId)" />
@@ -1286,7 +1287,7 @@ onUnmounted(() => {
         <el-button @click="ruleModalVisible = false">取消</el-button>
         <el-button type="primary" @click="handleSaveAlertRule">保存规则</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
   </div>
 </template>
 

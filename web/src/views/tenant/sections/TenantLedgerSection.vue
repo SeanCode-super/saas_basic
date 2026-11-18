@@ -26,6 +26,7 @@ import {
   Position
 } from "@element-plus/icons-vue";
 import { buildTenantSubdomainUrl } from "@/utils/portal-context";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 import {
   fetchTenantPackages,
   fetchTenantQuotas,
@@ -688,12 +689,11 @@ onMounted(() => {
       </template>
     </ProTable>
 
-    <!-- Edit Tenant Basic Info Dialog -->
-    <el-dialog
+    <!-- Edit Tenant Basic Info Workspace Panel -->
+    <WorkspacePanel
       v-model="editDialogVisible"
       :title="`编辑租户空间档案 —「${editForm.tenantName}」`"
-      width="600px"
-      :close-on-click-modal="false"
+      width="640px"
     >
       <el-form :model="editForm" label-position="top">
         <el-row :gutter="16">
@@ -758,14 +758,13 @@ onMounted(() => {
           保存租户档案
         </el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
 
-    <!-- Plan & Expiration Dialog -->
-    <el-dialog
+    <!-- Plan & Expiration Workspace Panel -->
+    <WorkspacePanel
       v-model="planDialogVisible"
       :title="`租户变配与履约续期 —「${activeTenant?.tenantName}」`"
-      width="540px"
-      :close-on-click-modal="false"
+      width="560px"
     >
       <el-form :model="planForm" label-position="top">
         <el-form-item label="当前租户">
@@ -817,7 +816,7 @@ onMounted(() => {
           确认生效变配
         </el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
 
     <!-- Quota Overview Drawer -->
     <el-drawer
@@ -1045,12 +1044,11 @@ onMounted(() => {
       </template>
     </el-drawer>
 
-    <!-- Tenant Snapshot Export & Restore Dialog -->
-    <el-dialog
+    <!-- Tenant Snapshot Export & Restore Workspace Panel -->
+    <WorkspacePanel
       v-model="snapshotDialogVisible"
       :title="`租户数据快照与灾备归档 —「${activeTenant?.tenantName || ''}」`"
-      width="600px"
-      :close-on-click-modal="false"
+      width="640px"
     >
       <el-tabs v-model="snapshotActiveTab" class="snapshot-tabs">
         <el-tab-pane label="全量快照导出备份" name="export">
@@ -1144,7 +1142,7 @@ onMounted(() => {
           </div>
         </el-tab-pane>
       </el-tabs>
-    </el-dialog>
+    </WorkspacePanel>
   </section>
 </template>
 

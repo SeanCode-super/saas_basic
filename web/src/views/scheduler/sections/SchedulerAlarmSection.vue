@@ -4,6 +4,7 @@ import { Plus, Bell, Warning, Message, Clock } from "@element-plus/icons-vue";
 import ProTable from "@/components/pro/ProTable.vue";
 import type { ProTableColumn } from "@/components/pro/ProTable.vue";
 import BaseStatusTag from "@/components/base/BaseStatusTag.vue";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 
 const props = defineProps<{
   jobs: Array<Record<string, unknown>>;
@@ -182,12 +183,10 @@ function resolveTriggerBadge(rule: any) {
     </el-card>
 
     <!-- Dialog: Clean Modal for Alarm Rule Create / Edit -->
-    <el-dialog
+    <WorkspacePanel
       v-model="dialogVisible"
       :title="isEditing ? '编辑调度告警规则' : '新增调度告警规则'"
       width="640px"
-      append-to-body
-      destroy-on-close
     >
       <el-form label-position="top">
         <div class="form-row-2">
@@ -258,7 +257,7 @@ function resolveTriggerBadge(rule: any) {
         <el-button @click="dialogVisible = false">取消</el-button>
         <el-button type="primary" @click="handleSave">保存规则</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
   </div>
 </template>
 

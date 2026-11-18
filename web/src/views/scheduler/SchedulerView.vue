@@ -20,6 +20,7 @@ import BaseRefreshButton from "@/components/base/BaseRefreshButton.vue";
 import ModuleWorkbench from "@/components/platform/ModuleWorkbench.vue";
 import { useModuleSection } from "@/hooks/useModuleSection";
 import { useAuthStore } from "@/stores/modules/auth";
+import { loadGovernancePolicy, saveGovernancePolicy } from "@/utils/governance-policy";
 import SchedulerAlarmSection from "./sections/SchedulerAlarmSection.vue";
 import SchedulerLogSection from "./sections/SchedulerLogSection.vue";
 import SchedulerOverviewSection from "./sections/SchedulerOverviewSection.vue";
@@ -84,7 +85,7 @@ const sectionItems = [
 const { activeSection } = useModuleSection(sectionItems, {
   mode: "path",
   basePath: "/scheduler",
-  fallback: "overview"
+  fallback: "strategy"
 });
 
 const currentSection = computed(() => props.section || activeSection.value);
@@ -166,7 +167,8 @@ async function loadData() {
     const [nextJobs, nextLogs, nextAlarms] = await Promise.all([
       fetchSchedulerJobs(),
       fetchSchedulerLogs(),
-      fetchSchedulerAlarms()
+      fetchSchedulerAlarms(),
+      loadGovernancePolicy("SCHEDULER", "scheduler.execution_policy", schedulerPolicy)
     ]);
     jobs.value = nextJobs;
     logs.value = nextLogs;
@@ -279,7 +281,22 @@ function editAlarm(row: SchedulerJobAlarmRow) {
   alarmPolicy.remark = row.remark || "";
 }
 
-async function savePolicy() {
+async function savePolicy(message?: string) {
+  if (currentSection.value === "strategy" || currentSection.value === "log") {
+    try {
+      await saveGovernancePolicy(
+        "SCHEDULER",
+        "scheduler.execution_policy",
+        "调度执行与日志治理策略",
+        schedulerPolicy,
+        getTenantId()
+      );
+      ElMessage.success(typeof message === "string" && message ? message : "调度执行策略已保存");
+    } catch (error: any) {
+      ElMessage.error(error?.response?.data?.message ?? "保存调度执行策略失败");
+    }
+    return;
+  }
   if (!alarmPolicy.alarmCode?.trim()) {
     ElMessage.warning("请输入告警策略编码");
     return;

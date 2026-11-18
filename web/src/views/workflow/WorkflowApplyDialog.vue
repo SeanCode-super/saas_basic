@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 import { startWorkflowInstance } from "@/api/modules/workflow";
 import type { FormFieldConfig, ProcessDefinitionRow } from "@/api/modules/workflow";
 
@@ -86,10 +87,10 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <el-dialog
+  <WorkspacePanel
     :model-value="visible"
     :title="definition ? `发起审批：${definition.processName}` : '发起审批申请'"
-    width="640px"
+    width="660px"
     destroy-on-close
     @update:model-value="emit('update:visible', $event)"
   >
@@ -175,7 +176,7 @@ async function handleSubmit() {
         立即提交审批
       </el-button>
     </template>
-  </el-dialog>
+  </WorkspacePanel>
 </template>
 
 <style scoped lang="scss">

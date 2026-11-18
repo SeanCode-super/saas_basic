@@ -36,6 +36,11 @@ export async function updateTenantStatus(id: number, status: string): Promise<Te
   return response.data.data;
 }
 
+export async function updateTenantIsolationMode(id: number, isolationMode: string): Promise<TenantRow> {
+  const response = await http.patch<ApiResponse<TenantRow>>(`/tenants/${id}/isolation-mode`, { isolationMode });
+  return response.data.data;
+}
+
 export async function updateTenantPlan(id: number, payload: TenantPlanUpdatePayload): Promise<TenantRow> {
   const response = await http.put<ApiResponse<TenantRow>>(`/tenants/${id}/plan`, payload);
   return response.data.data;

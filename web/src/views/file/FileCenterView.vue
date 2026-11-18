@@ -176,7 +176,7 @@ const sectionItems = [
 const { activeSection, updateSection } = useModuleSection(sectionItems, {
   mode: "path",
   basePath: "/file",
-  fallback: "overview"
+  fallback: "upload"
 });
 
 const currentSection = computed(() => props.section || activeSection.value);

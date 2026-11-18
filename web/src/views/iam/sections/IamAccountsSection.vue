@@ -20,6 +20,7 @@ import type { TreeInstance } from "element-plus";
 import BaseCard from "@/components/base/BaseCard.vue";
 import BaseStatusTag from "@/components/base/BaseStatusTag.vue";
 import ProTable from "@/components/pro/ProTable.vue";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 import type { ProTableColumn } from "@/components/pro/ProTable.vue";
 import {
   createIamDataPermissionRule,
@@ -899,11 +900,11 @@ function handleExportUsers() {
       </div>
     </div>
 
-    <!-- Clone Role Dialog -->
-    <el-dialog
+    <!-- Clone Role Workspace Panel -->
+    <WorkspacePanel
       v-model="cloneDialogVisible"
       title="一键克隆 / 复制角色"
-      width="520px"
+      width="560px"
       :destroy-on-close="true"
     >
       <div class="clone-dialog-content">
@@ -944,7 +945,7 @@ function handleExportUsers() {
           </el-button>
         </span>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
 
     <!-- 3-in-1 Role Drawer -->
     <IamRoleDrawer

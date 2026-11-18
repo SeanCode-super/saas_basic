@@ -1376,9 +1376,11 @@ onMounted(() => {
       </div>
 
       <el-watermark class="console-shell__watermark-wrap" :content="watermarkContent" :font="{ color: 'rgba(0, 0, 0, 0.015)', fontSize: 13 }">
-        <main class="console-shell__workspace">
-          <router-view :key="`${route.fullPath}::${viewRefreshSeed}`" />
-        </main>
+        <div id="sb-workspace-stage" class="console-shell__stage">
+          <main class="console-shell__workspace">
+            <router-view :key="`${route.fullPath}::${viewRefreshSeed}`" />
+          </main>
+        </div>
       </el-watermark>
     </div>
 
@@ -3298,6 +3300,16 @@ onMounted(() => {
   font-size: 10.5px;
   font-weight: 600;
   line-height: 1.2;
+}
+
+.console-shell__stage {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .console-shell__workspace {

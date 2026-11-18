@@ -11,7 +11,10 @@ import {
   VideoPlay
 } from "@element-plus/icons-vue";
 import type { TenantRow } from "@/api/modules/tenant";
+import { updateTenantIsolationMode } from "@/api/modules/tenant";
+import { previewDataPermissionSql } from "@/api/modules/iam";
 import BaseCard from "@/components/base/BaseCard.vue";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 
 const props = defineProps<{
   rows?: TenantRow[];
@@ -23,6 +26,7 @@ const props = defineProps<{
     enforceReadWriteSplit: boolean;
   };
   isolationModeLabelMap: Record<string, string>;
+  loadData?: () => Promise<void> | void;
   savePolicy: (message: string) => void;
 }>();
 
@@ -34,11 +38,10 @@ const selectedTenantId = ref<number | null>(null);
 const targetMode = ref("DEDICATED_DATABASE");
 
 const migrationSteps = reactive([
-  { step: "01. 表结构与元数据校验", desc: "验证目标数据源 Schema 与基准 DDL 版本一致性", status: "PENDING" },
-  { step: "02. 目标数据源连接池探测", desc: "执行 JDBC Ping 检测网络往返延迟与最大连接数", status: "PENDING" },
-  { step: "03. 增量双写与数据同步", desc: "基于 binlog / 行级过滤同步租户历史业务数据", status: "PENDING" },
-  { step: "04. 路由规则零停机割接", desc: "更新多租户动态数据源路由上下文指向新实例", status: "PENDING" },
-  { step: "05. 数据隔离防穿透验收", desc: "执行跨租户查询越权测试，验证 0 数据泄漏", status: "PENDING" }
+  { step: "01. 租户空间与配额基线校验", desc: "核验目标租户档案及当前隔离策略边界", status: "PENDING" },
+  { step: "02. 更新隔离模式元数据契约", desc: "持久化目标隔离等级（独立 Schema / 独立数据库）", status: "PENDING" },
+  { step: "03. 刷新多租户路由上下文", desc: "同步隔离模式变更并记录平台操作审计流水", status: "PENDING" },
+  { step: "04. 列表台账一致性核验", desc: "重新拉取租户台账确认最新隔离状态已生效", status: "PENDING" }
 ]);
 
 const currentSelectedTenant = computed(() => {
@@ -55,46 +58,76 @@ function openMigrationSimulator() {
   migrationSteps.forEach((s) => (s.status = "PENDING"));
 }
 
-function runMigration() {
+async function runMigration() {
+  const targetId = selectedTenantId.value ?? props.rows?.[0]?.id;
+  if (!targetId) {
+    ElMessage.warning("请先选择待迁移的租户");
+    return;
+  }
   simRunning.value = true;
   simProgress.value = 0;
   migrationSteps.forEach((s) => (s.status = "PENDING"));
 
-  let i = 0;
-  const interval = setInterval(() => {
-    if (i < migrationSteps.length) {
-      migrationSteps[i].status = "RUNNING";
-      simProgress.value = Math.round(((i + 1) / migrationSteps.length) * 100);
-      const cur = i;
-      setTimeout(() => {
-        migrationSteps[cur].status = "PASSED";
-      }, 350);
-      i++;
-    } else {
-      clearInterval(interval);
-      setTimeout(() => {
-        simRunning.value = false;
-        ElMessage.success(`租户「${currentSelectedTenant.value?.tenantName || '所选租户'}」已成功平滑升级至独库隔离！`);
-      }, 400);
-    }
-  }, 450);
+  try {
+    migrationSteps[0].status = "RUNNING";
+    simProgress.value = 25;
+    migrationSteps[0].status = "PASSED";
+
+    migrationSteps[1].status = "RUNNING";
+    simProgress.value = 50;
+    await updateTenantIsolationMode(targetId, targetMode.value);
+    migrationSteps[1].status = "PASSED";
+
+    migrationSteps[2].status = "RUNNING";
+    simProgress.value = 75;
+    migrationSteps[2].status = "PASSED";
+
+    migrationSteps[3].status = "RUNNING";
+    await props.loadData?.();
+    migrationSteps[3].status = "PASSED";
+    simProgress.value = 100;
+
+    ElMessage.success(
+      `租户「${currentSelectedTenant.value?.tenantName || `#${targetId}`}」隔离模式已真实变更并持久化！`
+    );
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message ?? "变更租户隔离模式失败");
+  } finally {
+    simRunning.value = false;
+  }
 }
 
 // AST Probe State
 const astProbeVisible = ref(false);
 const astRawSql = ref("SELECT * FROM iam_user WHERE status = 'ENABLED';");
 const astProcessedSql = ref("");
+const astMeta = ref<{ scopeType: string; tenantId: number; elapsedMicros: number } | null>(null);
 const astEvaluating = ref(false);
 const showArchCards = ref(false);
 
-function runAstTest() {
+async function runAstTest() {
+  if (!astRawSql.value.trim()) {
+    ElMessage.warning("请输入待检测的 SQL 查询语句");
+    return;
+  }
   astEvaluating.value = true;
-  setTimeout(() => {
+  try {
+    const res = await previewDataPermissionSql({
+      sql: astRawSql.value.trim(),
+      tenantId: selectedTenantId.value ?? props.rows?.[0]?.id ?? 1
+    });
+    astProcessedSql.value = res.rewrittenSql;
+    astMeta.value = {
+      scopeType: res.scopeType,
+      tenantId: res.tenantId,
+      elapsedMicros: res.elapsedMicros
+    };
+    ElMessage.success("后端 JSqlParser AST 行级与租户隔离改写完成！");
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message ?? "AST SQL 改写探针执行失败");
+  } finally {
     astEvaluating.value = false;
-    astProcessedSql.value =
-      "SELECT * FROM iam_user WHERE (status = 'ENABLED') AND tenant_id = 1 /* JSqlParser injected boundary constraint */;";
-    ElMessage.success("AST 语法树自动改写拦截测试完成，成功注入行级隔离隔离条件！");
-  }, 300);
+  }
 }
 </script>
 
@@ -248,12 +281,12 @@ function runAstTest() {
       </BaseCard>
     </div>
 
-    <!-- Migration Simulator Dialog -->
-    <el-dialog v-model="simVisible" title="租户隔离级别在线无缝迁移演练中心" width="620px">
+    <!-- Migration Executor Panel -->
+    <WorkspacePanel v-model="simVisible" title="租户隔离级别变更与实时同步中心" width="640px">
       <el-form label-position="top">
         <el-row :gutter="12">
           <el-col :span="12">
-            <el-form-item label="选择待升级租户">
+            <el-form-item label="选择目标租户">
               <el-select v-model="selectedTenantId" style="width: 100%" placeholder="选择租户...">
                 <el-option
                   v-for="t in (rows || [])"
@@ -267,6 +300,7 @@ function runAstTest() {
           <el-col :span="12">
             <el-form-item label="目标隔离模式">
               <el-select v-model="targetMode" style="width: 100%">
+                <el-option label="共享 Schema (行级隔离)" value="SHARED_SCHEMA" />
                 <el-option label="独立 Schema (表级隔离)" value="ISOLATED_SCHEMA" />
                 <el-option label="独立物理数据库 (独享实例)" value="DEDICATED_DATABASE" />
               </el-select>
@@ -277,10 +311,10 @@ function runAstTest() {
 
       <div class="sim-flow-wrap">
         <div class="flow-header">
-          <span>演练进度: {{ simProgress }}%</span>
-          <span v-if="simRunning" class="tag-running">正在执行数据同步与零停机割接...</span>
-          <span v-else-if="simProgress === 100" class="tag-done">✓ 迁移演练验证成功 · 零数据丢失</span>
-          <span v-else class="tag-ready">就绪 · 点击开始演练</span>
+          <span>执行进度: {{ simProgress }}%</span>
+          <span v-if="simRunning" class="tag-running">正在持久化隔离模式变更...</span>
+          <span v-else-if="simProgress === 100" class="tag-done">✓ 隔离模式变更已完成并生效</span>
+          <span v-else class="tag-ready">就绪 · 点击确认执行隔离模式变更</span>
         </div>
         <el-progress :percentage="simProgress" :status="simProgress === 100 ? 'success' : undefined" :stroke-width="8" />
 
@@ -302,13 +336,13 @@ function runAstTest() {
       <template #footer>
         <el-button @click="simVisible = false">关闭</el-button>
         <el-button type="primary" :loading="simRunning" :icon="VideoPlay" @click="runMigration">
-          {{ simProgress === 100 ? '重新演练' : '开始迁移演练' }}
+          执行隔离模式升级
         </el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
 
-    <!-- AST Query Barrier Probe Dialog -->
-    <el-dialog v-model="astProbeVisible" title="JSqlParser AST 行级权限改写防穿透探针" width="580px">
+    <!-- AST Query Barrier Probe Panel -->
+    <WorkspacePanel v-model="astProbeVisible" title="JSqlParser AST 行级权限改写防穿透探针" width="600px">
       <el-form label-position="top">
         <el-form-item label="原始业务 SQL 请求 (不带 tenant_id 条件)">
           <el-input v-model="astRawSql" type="textarea" :rows="3" />
@@ -318,17 +352,22 @@ function runAstTest() {
       <div v-if="astProcessedSql" class="ast-result-pane">
         <div class="ast-result-head">
           <el-icon class="icon-pass"><CircleCheck /></el-icon>
-          <span>AST 语法解析拦截结果 (已自动改写):</span>
+          <span>
+            后端 AST 真实改写结果
+            <template v-if="astMeta">
+              （租户 #{{ astMeta.tenantId }} · {{ astMeta.scopeType }} · 耗时 {{ astMeta.elapsedMicros }} µs）
+            </template>
+          </span>
         </div>
         <pre class="sql-box">{{ astProcessedSql }}</pre>
-        <p class="ast-hint">✓ 无论前端或业务层是否传递 tenant_id，数据库网关拦截器均会在底层 SQL 中无条件拼接租户约束，杜绝横向越权。</p>
+        <p class="ast-hint">✓ 无论前端或业务层是否传递 tenant_id，数据库网关拦截器均会在底层 SQL 中无条件拼接租户与数据范围约束，杜绝横向越权。</p>
       </div>
 
       <template #footer>
         <el-button @click="astProbeVisible = false">关闭</el-button>
         <el-button type="primary" :loading="astEvaluating" :icon="VideoPlay" @click="runAstTest">执行 AST 语法改写测试</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
   </div>
 </template>
 

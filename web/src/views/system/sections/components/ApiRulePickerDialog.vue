@@ -11,6 +11,7 @@ import type {
   ApiPathGroupItem
 } from "@/api/modules/system";
 import { antMatch } from "@/utils/transport-crypto";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 
 export type RuleTargetKey = "include" | "sensitive" | "exclude";
 type ExplorerDimension = "package" | "path" | "module";
@@ -385,11 +386,10 @@ function nodeBadgeLabel(nodeType: ApiPackageTreeNode["nodeType"]): string {
 </script>
 
 <template>
-  <el-dialog
+  <WorkspacePanel
     v-model="dialogVisible"
     title="多维度接口选择器与实时调用统计 (项目级 / 各级包名级 / 路径层级)"
-    width="min(1160px, 95vw)"
-    top="4vh"
+    size="full"
     destroy-on-close
   >
     <div v-loading="loading" class="picker-shell">
@@ -719,7 +719,7 @@ function nodeBadgeLabel(nodeType: ApiPackageTreeNode["nodeType"]): string {
       <el-button @click="dialogVisible = false">取消</el-button>
       <el-button type="primary" @click="handleConfirmApply">应用所选规则到配置页</el-button>
     </template>
-  </el-dialog>
+  </WorkspacePanel>
 </template>
 
 <style scoped lang="scss">

@@ -36,6 +36,8 @@ import type {
   PermissionSimulationResponse,
   SecurityBaselineData,
   SecurityBaselineSavePayload,
+  DataPermissionSqlPreviewRequest,
+  DataPermissionSqlPreviewResponse,
   UserRoleAssignment
 } from "./types";
 
@@ -392,6 +394,16 @@ export async function fetchSecurityBaseline(): Promise<SecurityBaselineData> {
 
 export async function saveSecurityBaseline(payload: SecurityBaselineSavePayload): Promise<SecurityBaselineData> {
   const response = await http.put<ApiResponse<SecurityBaselineData>>("/iam/security-baseline", payload);
+  return response.data.data;
+}
+
+export async function previewDataPermissionSql(
+  payload: DataPermissionSqlPreviewRequest
+): Promise<DataPermissionSqlPreviewResponse> {
+  const response = await http.post<ApiResponse<DataPermissionSqlPreviewResponse>>(
+    "/iam/data-permission-rules/preview-sql",
+    payload
+  );
   return response.data.data;
 }
 

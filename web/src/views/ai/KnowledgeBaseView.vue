@@ -15,6 +15,7 @@ import {
 } from "@element-plus/icons-vue";
 import BaseCard from "@/components/base/BaseCard.vue";
 import ControlSurface from "@/components/platform/ControlSurface.vue";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 import {
   askKnowledge,
   deleteKnowledgeDoc,
@@ -474,8 +475,8 @@ onMounted(() => {
       </BaseCard>
     </div>
 
-    <!-- Create KB Dialog -->
-    <el-dialog v-model="kbDialogVisible" title="新建企业知识库" width="480px" destroy-on-close>
+    <!-- Create KB Workspace Panel -->
+    <WorkspacePanel v-model="kbDialogVisible" title="新建企业知识库" width="520px" destroy-on-close>
       <el-form label-width="96px">
         <el-form-item label="知识库名称" required>
           <el-input v-model="kbForm.kbName" placeholder="如：研发交付与安全标准库" />
@@ -498,10 +499,10 @@ onMounted(() => {
         <el-button @click="kbDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="savingKb" @click="handleCreateKb">创建知识库</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
 
-    <!-- Text Ingest Dialog -->
-    <el-dialog v-model="textDialogVisible" title="直接录入企业制度文本" width="560px" destroy-on-close>
+    <!-- Text Ingest Workspace Panel -->
+    <WorkspacePanel v-model="textDialogVisible" title="直接录入企业制度文本" width="600px" destroy-on-close>
       <el-form label-width="88px">
         <el-form-item label="文档标题" required>
           <el-input v-model="textForm.docName" placeholder="如：售后 SLA 响应与赔付规范.md" />
@@ -519,7 +520,7 @@ onMounted(() => {
         <el-button @click="textDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="savingText" @click="handleIngestText">切分并建索引</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
 
     <!-- Chunk Inspector Drawer -->
     <el-drawer v-model="chunkDrawerVisible" :title="`语义切片透视 · ${chunkDocTitle}`" size="520px">

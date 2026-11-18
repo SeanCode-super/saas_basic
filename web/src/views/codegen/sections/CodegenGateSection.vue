@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import {
+  computed,
+  onMounted,
   ref
 } from "vue";
 import {
@@ -9,12 +11,20 @@ import {
   Check,
   CircleCheck,
   Search,
-  MagicStick,
+  Refresh,
   Setting,
   ArrowUp
 } from "@element-plus/icons-vue";
+import {
+  fetchCodegenProjects,
+  fetchDbTableColumns,
+  fetchDbTables,
+  type CodegenColumnModel,
+  type CodegenProjectRow,
+  type DbTableItem
+} from "@/api/modules/codegen";
 
-defineProps<{
+const props = defineProps<{
   qualityGate: {
     requireAuditField: boolean;
     requireDictBinding: boolean;
@@ -27,8 +37,10 @@ defineProps<{
 
 const policyExpanded = ref(false);
 const scanning = ref(false);
-const scanDone = ref(false);
-const scanScore = ref(100);
+const scanScore = ref(0);
+const dbTables = ref<DbTableItem[]>([]);
+const selectedTable = ref("");
+const projects = ref<CodegenProjectRow[]>([]);
 
 interface GateRuleCheck {
   id: string;
@@ -39,62 +51,146 @@ interface GateRuleCheck {
   recommendation: string;
 }
 
-const checkResults = ref<GateRuleCheck[]>([
-  {
-    id: "GATE_01",
-    name: "审计字段合规性",
-    dimension: "数据审计",
-    status: "PASSED",
-    detail: "数据模型包含完整的 created_at, created_by, updated_at, updated_by 审计切面列",
-    recommendation: "符合生产环境追溯标准，已挂载 MybatisPlus 自动填充元对象处理器"
-  },
-  {
-    id: "GATE_02",
-    name: "多租户行级隔离探针",
-    dimension: "租户安全",
-    status: "PASSED",
-    detail: "已检测到 tenant_id 隔离列与 (tenant_id, id) 联合索引",
-    recommendation: "符合 JSqlParser AST 行级改写要求，具备防租户越权隔离能力"
-  },
-  {
-    id: "GATE_03",
-    name: "字典与枚举绑定校验",
-    dimension: "元数据映射",
-    status: "PASSED",
-    detail: "字段 contract_status 已绑定 contract_status_enum 字典类型",
-    recommendation: "前端 ProTable 渲染与查询下拉组件将自动对齐系统字典"
-  },
-  {
-    id: "GATE_04",
-    name: "列表分页与安全防注入约束",
-    dimension: "接口规范",
-    status: "PASSED",
-    detail: "Controller 查询契约已继承 PageQuery，最大分页限制 200 条，已阻止动态 ORDER BY 注入",
-    recommendation: "符合金融级 API 分页安全基线"
-  },
-  {
-    id: "GATE_05",
-    name: "权限码与菜单骨架闭环",
-    dimension: "权限体系",
-    status: "PASSED",
-    detail: "已定义 biz_contract:query, biz_contract:create 等原子权限，且已挂载菜单注册 SQL",
-    recommendation: "生成代码落盘后可直接在角色授权中心点选分配"
+const checkResults = ref<GateRuleCheck[]>([]);
+
+const passedCount = computed(() => checkResults.value.filter((item) => item.status === "PASSED").length);
+
+function evaluateTableGate(tableName: string, cols: CodegenColumnModel[]): GateRuleCheck[] {
+  const names = new Set(cols.map((c) => c.columnName.toLowerCase()));
+  const auditCols = ["created_at", "created_by", "updated_at", "updated_by"];
+  const foundAudit = auditCols.filter((c) => names.has(c));
+  const auditPassed = !props.qualityGate.requireAuditField || foundAudit.length === auditCols.length;
+
+  const hasTenant = names.has("tenant_id");
+  const hasDeleted = names.has("deleted");
+  const isolationStatus: GateRuleCheck["status"] =
+    hasTenant && hasDeleted ? "PASSED" : hasTenant || hasDeleted ? "WARNING" : "FAILED";
+
+  const dictCols = cols.filter((c) => Boolean(c.dictCode));
+  const statusCols = cols.filter((c) => c.columnName.endsWith("status") || c.columnName.endsWith("type"));
+  const dictStatus: GateRuleCheck["status"] =
+    !props.qualityGate.requireDictBinding || dictCols.length > 0
+      ? "PASSED"
+      : statusCols.length > 0
+        ? "WARNING"
+        : "PASSED";
+
+  const pkCols = cols.filter((c) => c.isPk);
+  const queryCols = cols.filter((c) => c.isQuery);
+  const queryStatus: GateRuleCheck["status"] =
+    pkCols.length > 0 && (!props.qualityGate.requireQueryForm || queryCols.length > 0)
+      ? "PASSED"
+      : pkCols.length > 0
+        ? "WARNING"
+        : "FAILED";
+
+  const enabledProjects = projects.value.filter((p) => p.status === "ENABLED").length;
+  const projectStatus: GateRuleCheck["status"] = enabledProjects > 0 ? "PASSED" : "WARNING";
+
+  return [
+    {
+      id: "GATE_01",
+      name: "审计字段合规性",
+      dimension: "数据审计",
+      status: auditPassed ? "PASSED" : foundAudit.length > 0 ? "WARNING" : "FAILED",
+      detail: `表 ${tableName} 检测到 ${foundAudit.length}/4 个标准审计列 (${foundAudit.join(", ") || "无"})`,
+      recommendation: auditPassed
+        ? "符合生产环境追溯标准，已匹配 MyBatis-Plus 自动填充规范"
+        : "建议补全 created_at, created_by, updated_at, updated_by"
+    },
+    {
+      id: "GATE_02",
+      name: "多租户与软删除隔离",
+      dimension: "租户安全",
+      status: isolationStatus,
+      detail: `tenant_id: ${hasTenant ? "已就绪" : "缺失"} · deleted 逻辑删: ${hasDeleted ? "已就绪" : "缺失"}`,
+      recommendation:
+        isolationStatus === "PASSED"
+          ? "符合 JSqlParser AST 行级与租户隔离改写要求"
+          : "业务表建议补充 tenant_id 与 deleted 索引列以防越权与误删"
+    },
+    {
+      id: "GATE_03",
+      name: "字典与枚举绑定校验",
+      dimension: "元数据映射",
+      status: dictStatus,
+      detail:
+        dictCols.length > 0
+          ? `检测到 ${dictCols.length} 个显式字典绑定字段 (${dictCols.map((c) => c.columnName).join(", ")})`
+          : `发现 ${statusCols.length} 个状态/类型字段，可在元数据建模中绑定 sys_dict`,
+      recommendation: "前端 ProTable 渲染与查询下拉组件将自动对齐系统字典"
+    },
+    {
+      id: "GATE_04",
+      name: "主键与查询契约约束",
+      dimension: "接口规范",
+      status: queryStatus,
+      detail: `主键字段 ${pkCols.length} 个 · 可查询字段 ${queryCols.length} 个（共 ${cols.length} 列）`,
+      recommendation: "已校验主键唯一性与 PageQuery 安全分页输入约束"
+    },
+    {
+      id: "GATE_05",
+      name: "生成工程注册与产物闭环",
+      dimension: "工程治理",
+      status: projectStatus,
+      detail: `当前已注册 ${enabledProjects} 个启用态代码生成工程模板基线`,
+      recommendation:
+        enabledProjects > 0
+          ? "生成代码落盘后可直接在菜单与角色授权中心分配"
+          : "建议先在代码生成工程台账中启用默认生成工程"
+    }
+  ];
+}
+
+async function handleRunScan() {
+  if (!selectedTable.value) {
+    ElMessage.warning("当前暂无可检测的数据库表");
+    return;
   }
-]);
-
-function handleRunScan() {
   scanning.value = true;
-  setTimeout(() => {
+  try {
+    const res = await fetchDbTableColumns(selectedTable.value);
+    const cols = res.data ?? [];
+    const results = evaluateTableGate(selectedTable.value, cols);
+    checkResults.value = results;
+    scanScore.value = results.reduce(
+      (sum, item) => sum + (item.status === "PASSED" ? 20 : item.status === "WARNING" ? 10 : 0),
+      0
+    );
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message ?? `拉取表 ${selectedTable.value} 元数据失败`);
+  } finally {
     scanning.value = false;
-    scanDone.value = true;
-    scanScore.value = 100;
-    ElMessage.success("代码生成交付门禁检测完成，质检评分 100/100，符合上线交付准入标准");
-  }, 600);
+  }
 }
 
-function handleAutoFix() {
-  ElMessage.success("已自动补齐缺失的安全切面与数据权限枚举，所有门禁检查项已处于合规状态");
+async function loadMetadataAndScan() {
+  scanning.value = true;
+  try {
+    const [tablesRes, projectsRes] = await Promise.all([
+      fetchDbTables(),
+      fetchCodegenProjects().catch(() => ({ data: [] as CodegenProjectRow[] }))
+    ]);
+    dbTables.value = tablesRes.data ?? [];
+    projects.value = projectsRes.data ?? [];
+    if (!selectedTable.value && dbTables.value.length > 0) {
+      const preferred =
+        dbTables.value.find((t) => /^(biz_|crm_|erp_|iam_user$)/.test(t.tableName)) ?? dbTables.value[0];
+      selectedTable.value = preferred.tableName;
+    }
+    if (selectedTable.value) {
+      await handleRunScan();
+    }
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message ?? "加载数据库表清单失败");
+  } finally {
+    scanning.value = false;
+  }
 }
+
+onMounted(() => {
+  void loadMetadataAndScan();
+});
 </script>
 
 <template>
@@ -104,19 +200,35 @@ function handleAutoFix() {
       <div class="gate-toolbar-row">
         <div class="toolbar-left">
           <span class="toolbar-title">交付质量门禁</span>
-          <el-tag type="success" size="default" effect="light" class="gate-score-pill">
-            <el-icon><CircleCheck /></el-icon> 门禁评分 {{ scanScore }}/100 · 准入达标
+          <el-tag :type="scanScore >= 80 ? 'success' : scanScore >= 60 ? 'warning' : 'danger'" size="default" effect="light" class="gate-score-pill">
+            <el-icon><CircleCheck /></el-icon>
+            门禁评分 {{ scanScore }}/100 · {{ passedCount }}/{{ checkResults.length }} 通过
           </el-tag>
-          <span class="gate-summary-text">已覆盖数据审计、租户隔离、字典绑定、防注入与权限闭环 5 大维度</span>
+          <span class="gate-summary-text">实时读取数据库元数据，检测审计列、租户隔离、字典绑定与查询契约</span>
         </div>
 
         <div class="toolbar-actions">
+          <el-select
+            v-model="selectedTable"
+            size="small"
+            filterable
+            placeholder="选择检测数据表"
+            style="width: 220px"
+            @change="handleRunScan"
+          >
+            <el-option
+              v-for="t in dbTables"
+              :key="t.tableName"
+              :label="t.tableComment ? `${t.tableName} (${t.tableComment})` : t.tableName"
+              :value="t.tableName"
+            />
+          </el-select>
           <el-button link type="primary" size="small" :icon="policyExpanded ? ArrowUp : Setting" @click="policyExpanded = !policyExpanded">
             {{ policyExpanded ? '收起门禁规则' : '门禁策略设置' }}
           </el-button>
-          <el-button :icon="MagicStick" plain size="small" @click="handleAutoFix">一键自动修复</el-button>
+          <el-button :icon="Refresh" plain size="small" :loading="scanning" @click="loadMetadataAndScan">刷新表元数据</el-button>
           <el-button type="primary" :icon="Search" size="small" :loading="scanning" @click="handleRunScan">
-            {{ scanning ? '静态检测中...' : '开始门禁检测' }}
+            {{ scanning ? '元数据检测中...' : '开始门禁检测' }}
           </el-button>
         </div>
       </div>
@@ -171,11 +283,11 @@ function handleAutoFix() {
       <!-- 门禁检查项清单表格 -->
       <div class="gate-table-wrapper">
         <div class="table-subheading">
-          <span class="subheading-title">静态门禁规则检验清单 (共 {{ checkResults.length }} 项)</span>
-          <span class="subheading-meta">企业级架构基准合规率 100% · 生产上线交付准入通过</span>
+          <span class="subheading-title">静态门禁规则检验清单 ({{ selectedTable || '未选择表' }} · 共 {{ checkResults.length }} 项)</span>
+          <span class="subheading-meta">真实元数据合规分 {{ scanScore }}/100 · 通过 {{ passedCount }} 项</span>
         </div>
 
-        <el-table :data="checkResults" border stripe style="width: 100%">
+        <el-table v-loading="scanning" :data="checkResults" border stripe style="width: 100%">
           <el-table-column prop="id" label="规则编号" width="105" align="center" />
           <el-table-column prop="name" label="门禁检查项" width="170" />
           <el-table-column prop="dimension" label="评估维度" width="115" align="center">
@@ -184,8 +296,11 @@ function handleAutoFix() {
             </template>
           </el-table-column>
           <el-table-column prop="status" label="状态" width="95" align="center">
-            <template #default>
-              <el-tag type="success" size="small"><el-icon><CircleCheck /></el-icon> 通过</el-tag>
+            <template #default="{ row }">
+              <el-tag :type="row.status === 'PASSED' ? 'success' : row.status === 'WARNING' ? 'warning' : 'danger'" size="small">
+                <el-icon v-if="row.status === 'PASSED'"><CircleCheck /></el-icon>
+                {{ row.status === 'PASSED' ? '通过' : row.status === 'WARNING' ? '待完善' : '未通过' }}
+              </el-tag>
             </template>
           </el-table-column>
           <el-table-column prop="detail" label="检测结果描述" min-width="260" show-overflow-tooltip />

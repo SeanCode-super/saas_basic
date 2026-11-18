@@ -18,6 +18,7 @@ import type {
 } from "@/api/modules/iam";
 import BaseStatusTag from "@/components/base/BaseStatusTag.vue";
 import ProTable from "@/components/pro/ProTable.vue";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 import type { ProTableColumn } from "@/components/pro/ProTable.vue";
 import type { DimensionAxisConfig } from "@/utils/dimension-slice";
 import { localizeScopeType } from "../iam-meta";
@@ -841,12 +842,12 @@ async function batchUpdateRules(rows: IamDataPermissionRuleRow[], status: "ENABL
       </ProTable>
     </div>
 
-    <!-- 可视化数据权限规则配置抽屉/对话框 -->
-    <el-dialog
+    <!-- 可视化数据权限规则配置内嵌工作区 -->
+    <WorkspacePanel
       v-model="ruleDialog.visible"
       :title="ruleDialog.mode === 'create' ? '新增数据权限规则' : '编辑数据权限规则'"
-      width="780px"
-      class="visual-rule-dialog"
+      subtitle="可视化配置组织单元、人员、职位、角色及 ABAC 业务属性五维边界"
+      size="wide"
       destroy-on-close
     >
       <el-form label-position="top">
@@ -1070,7 +1071,7 @@ async function batchUpdateRules(rows: IamDataPermissionRuleRow[], status: "ENABL
           保存权限规则
         </el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
   </div>
 </template>
 

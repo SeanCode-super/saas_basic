@@ -3,6 +3,7 @@ package com.saasbasics.platform.modules.tenant.controller;
 import com.saasbasics.platform.common.api.ApiResponse;
 import com.saasbasics.platform.common.api.PageResponse;
 import com.saasbasics.platform.common.auth.RequirePermission;
+import com.saasbasics.platform.modules.tenant.dto.TenantIsolationUpdateRequest;
 import com.saasbasics.platform.modules.tenant.dto.TenantPlanUpdateRequest;
 import com.saasbasics.platform.modules.tenant.dto.TenantQuotaOverviewResponse;
 import com.saasbasics.platform.modules.tenant.dto.TenantResponse;
@@ -71,5 +72,12 @@ public class TenantController {
     public ApiResponse<TenantResponse> updateStatus(@PathVariable Long id,
                                                     @Valid @RequestBody TenantStatusUpdateRequest request) {
         return ApiResponse.success(tenantService.updateStatus(id, request));
+    }
+
+    @PatchMapping("/{id}/isolation-mode")
+    @RequirePermission("tenant:write")
+    public ApiResponse<TenantResponse> updateIsolationMode(@PathVariable Long id,
+                                                           @Valid @RequestBody TenantIsolationUpdateRequest request) {
+        return ApiResponse.success(tenantService.updateIsolationMode(id, request));
     }
 }

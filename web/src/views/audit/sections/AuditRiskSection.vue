@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, ref } from "vue";
+import { onMounted, reactive, ref } from "vue";
 import {
   ElMessage
 } from "element-plus";
@@ -7,6 +7,14 @@ import {
   Cpu,
   VideoPlay
 } from "@element-plus/icons-vue";
+import {
+  evaluateRiskRule,
+  fetchRiskRules,
+  updateRiskRuleStatus,
+  type RiskEvaluateResult,
+  type RiskRuleItem
+} from "@/api/modules/audit";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 
 defineProps<{
   riskPolicy: {
@@ -17,40 +25,8 @@ defineProps<{
   savePolicy: (message: string) => void;
 }>();
 
-const rules = reactive([
-  {
-    id: "RULE_BRUTE_FORCE",
-    name: "暴力破解防范规则",
-    desc: "同一 IP 或账号 5 分钟内连续认证失败达 5 次，自动触发告警并锁定 15 分钟。",
-    severity: "HIGH",
-    enabled: true,
-    action: "LOCK_ACCOUNT"
-  },
-  {
-    id: "RULE_EXPORT_BURST",
-    name: "大批量敏捷数据导出",
-    desc: "单次导出数据超过 5,000 条，或 1 小时内累计导出 3 次以上，触发二次主管审批与留痕。",
-    severity: "CRITICAL",
-    enabled: true,
-    action: "REQUIRE_APPROVAL"
-  },
-  {
-    id: "RULE_PRIV_ESCALATION",
-    name: "未授权提权与越权拦截",
-    desc: "非超级管理员账号试图直接修改 iam_role_api 或分配根组织管理权限，立即拦截并阻断会话。",
-    severity: "CRITICAL",
-    enabled: true,
-    action: "REVOKE_SESSION"
-  },
-  {
-    id: "RULE_GEO_ANOMALY",
-    name: "异地/多端并发登录异常",
-    desc: "同一用户账号在 10 分钟内出现跨省/跨大区 IP 访问，强制触发短信或 MFA 验证码二次校验。",
-    severity: "MEDIUM",
-    enabled: true,
-    action: "TRIGGER_MFA"
-  }
-]);
+const rules = ref<RiskRuleItem[]>([]);
+const loading = ref(false);
 
 // Rule Simulator
 const simModalVisible = ref(false);
@@ -61,28 +37,59 @@ const simForm = reactive({
   sampleIp: "124.78.201.33",
   frequency: 8
 });
-const simResult = ref<Record<string, any> | null>(null);
+const simResult = ref<RiskEvaluateResult | null>(null);
 
-function runSimulation() {
-  simRunning.value = true;
-  setTimeout(() => {
-    simRunning.value = false;
-    simResult.value = {
-      evaluatedAt: new Date().toISOString(),
-      matchedRule: simForm.ruleType,
-      decision: simForm.frequency >= 5 ? "ALERT_AND_BLOCK" : "ALLOW_WITH_LOG",
-      matchedThreshold: "失败阈值 >= 5次 (实际提交: " + simForm.frequency + "次)",
-      enforcedAction: simForm.frequency >= 5 ? "封禁客户端 IP 15分钟 · 发送安全员告警" : "无处置动作",
-      latencyMs: "0.82ms"
-    };
-    ElMessage.success("风险规则引擎决策模拟完成！");
-  }, 400);
+async function loadRules() {
+  loading.value = true;
+  try {
+    rules.value = await fetchRiskRules();
+    if (rules.value.length > 0 && !rules.value.some((r) => r.code === simForm.ruleType)) {
+      simForm.ruleType = rules.value[0].code;
+    }
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message ?? "加载风险规则失败");
+  } finally {
+    loading.value = false;
+  }
 }
+
+async function handleToggleRule(rule: RiskRuleItem, nextEnabled: boolean | string | number) {
+  const enabled = Boolean(nextEnabled);
+  try {
+    const updated = await updateRiskRuleStatus(rule.id, enabled);
+    rule.enabled = updated.enabled;
+    ElMessage.success(`规则「${rule.name}」已${updated.enabled ? "启用" : "停用"}`);
+  } catch (error: any) {
+    rule.enabled = !enabled;
+    ElMessage.error(error?.response?.data?.message ?? "更新风险规则状态失败");
+  }
+}
+
+async function runSimulation() {
+  simRunning.value = true;
+  try {
+    simResult.value = await evaluateRiskRule({
+      ruleCode: simForm.ruleType,
+      sampleAccount: simForm.sampleAccount.trim() || undefined,
+      sampleIp: simForm.sampleIp.trim() || undefined,
+      frequency: simForm.frequency
+    });
+    ElMessage.success("风险规则引擎真实评估完成！");
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message ?? "执行风险规则评估失败");
+  } finally {
+    simRunning.value = false;
+  }
+}
+
+onMounted(() => {
+  void loadRules();
+});
 </script>
 
 <template>
   <div class="risk-policy-stack">
-    <el-card shadow="never">
+    <el-card shadow="never" v-loading="loading">
       <template #header>
         <div class="panel-header">
           <div class="header-left">
@@ -97,7 +104,7 @@ function runSimulation() {
 
       <!-- Risk Rules Grid -->
       <div class="rules-grid">
-        <div v-for="r in rules" :key="r.id" class="rule-card">
+        <div v-for="r in rules" :key="r.code" class="rule-card">
           <div class="rule-head">
             <div class="rule-title-group">
               <el-tag
@@ -109,23 +116,23 @@ function runSimulation() {
               </el-tag>
               <strong>{{ r.name }}</strong>
             </div>
-            <el-switch v-model="r.enabled" @change="savePolicy(`规则「${r.name}」状态已更新`)" />
+            <el-switch v-model="r.enabled" @change="(val) => handleToggleRule(r, val)" />
           </div>
-          <p class="rule-desc">{{ r.desc }}</p>
+          <p class="rule-desc">{{ r.description || r.ruleExpr }}</p>
           <div class="rule-foot">
             <span class="action-label">处置动作: <strong>{{ r.action }}</strong></span>
-            <span class="mono-code">{{ r.id }}</span>
+            <span class="mono-code">{{ r.code }}</span>
           </div>
         </div>
       </div>
     </el-card>
 
-    <!-- Simulation Modal -->
-    <el-dialog v-model="simModalVisible" title="安全风险决策规则实时模拟" width="560px">
+    <!-- Simulation Panel -->
+    <WorkspacePanel v-model="simModalVisible" title="安全风险决策规则实时模拟" width="560px">
       <el-form label-position="top">
         <el-form-item label="选择被测安全规则">
           <el-select v-model="simForm.ruleType" style="width: 100%">
-            <el-option v-for="r in rules" :key="r.id" :label="`${r.name} (${r.id})`" :value="r.id" />
+            <el-option v-for="r in rules" :key="r.code" :label="`${r.name} (${r.code})`" :value="r.code" />
           </el-select>
         </el-form-item>
         <el-row :gutter="12">
@@ -151,18 +158,22 @@ function runSimulation() {
           <el-tag :type="simResult.decision.includes('BLOCK') ? 'danger' : 'success'" size="small" effect="dark">
             {{ simResult.decision }}
           </el-tag>
-          <span class="latency">决策耗时: {{ simResult.latencyMs }}</span>
+          <span class="latency">决策耗时: {{ simResult.latencyMs }}ms</span>
         </div>
         <p><strong>命中规则:</strong> {{ simResult.matchedRule }}</p>
         <p><strong>触发阈值:</strong> {{ simResult.matchedThreshold }}</p>
         <p><strong>执行联动:</strong> {{ simResult.enforcedAction }}</p>
+        <p>
+          <strong>实时审计统计:</strong> 近期登录失败 {{ simResult.recentLoginFailures }} 次 · 近期敏感操作
+          {{ simResult.recentOperations }} 次
+        </p>
       </div>
 
       <template #footer>
         <el-button @click="simModalVisible = false">关闭</el-button>
         <el-button type="primary" :loading="simRunning" :icon="VideoPlay" @click="runSimulation">执行模拟评估</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
   </div>
 </template>
 

@@ -33,6 +33,7 @@ import {
   updateIamMenuPermissionStatus
 } from "@/api/modules/iam";
 import { reloadRedisCache } from "@/api/modules/system";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 import type {
   IamDepartmentRow,
   IamMenuPermissionRow,
@@ -1549,8 +1550,8 @@ function resolveMenuTypeTag(type: string) {
       </el-tab-pane>
     </el-tabs>
 
-    <!-- 例外授权编辑弹窗 -->
-    <el-dialog
+    <!-- 例外授权编辑工作区面板 -->
+    <WorkspacePanel
       v-model="exceptionDialog.visible"
       :title="exceptionDialog.mode === 'create' ? '新增例外授权' : '编辑例外授权'"
       width="620px"
@@ -1598,7 +1599,7 @@ function resolveMenuTypeTag(type: string) {
         <el-button @click="exceptionDialog.visible = false">取消</el-button>
         <el-button type="primary" @click="saveException">保存例外授权</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
   </section>
 </template>
 

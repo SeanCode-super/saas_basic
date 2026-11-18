@@ -31,6 +31,7 @@ import {
   MagicStick,
   Bottom
 } from "@element-plus/icons-vue";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 import {
   fetchAppServices,
   startAppService,
@@ -1558,11 +1559,11 @@ onUnmounted(() => {
       </div>
     </el-drawer>
 
-    <!-- 5. 制品中心与版本回滚弹窗 -->
-    <el-dialog
+    <!-- 5. 制品中心与版本回滚工作区面板 -->
+    <WorkspacePanel
       v-model="artifactModalVisible"
       title="制品中心与多版本发布 (Artifact Hub & Rollback)"
-      width="60%"
+      size="wide"
     >
       <div v-if="artifactService" class="artifact-content">
         <!-- 上传新制品 -->
@@ -1618,14 +1619,13 @@ onUnmounted(() => {
           </div>
         </div>
       </div>
-    </el-dialog>
+    </WorkspacePanel>
 
-    <!-- 6. 服务配置添加/编辑弹窗 (支持模板化与端口冲突检测) -->
-    <el-dialog
+    <!-- 6. 服务配置添加/编辑工作区面板 (支持模板化与端口冲突检测) -->
+    <WorkspacePanel
       v-model="editDialogVisible"
       :title="editForm.id ? '编辑纳管服务' : '新建纳管服务'"
-      width="58%"
-      class="service-edit-dialog"
+      size="wide"
       destroy-on-close
     >
       <!-- 智能模板选择器 (仅在新建服务时展示) -->
@@ -1778,7 +1778,7 @@ onUnmounted(() => {
           </div>
         </div>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
   </div>
 </template>
 

@@ -8,6 +8,7 @@ import {
   FolderOpened,
   CircleCheckFilled
 } from "@element-plus/icons-vue";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 import type {
   FileStorageRow,
   FileStorageTestResult,
@@ -352,8 +353,8 @@ async function handleSaveRoute() {
       </el-table>
     </el-card>
 
-    <!-- 新建/编辑存储源弹窗 -->
-    <el-dialog v-model="dialogVisible" :title="isEditing ? '编辑存储源与默认路径' : '新增文件存储源'" width="680px" destroy-on-close>
+    <!-- 新建/编辑存储源工作区面板 -->
+    <WorkspacePanel v-model="dialogVisible" :title="isEditing ? '编辑存储源与默认路径' : '新增文件存储源'" width="720px" destroy-on-close>
       <el-form label-position="top">
         <el-row :gutter="16">
           <el-col :span="12">
@@ -482,10 +483,10 @@ async function handleSaveRoute() {
         <el-button @click="dialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="savingStorage" @click="handleConfirmSave">保存配置</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
 
-    <!-- 新建/编辑业务目录路由弹窗 -->
-    <el-dialog v-model="routeDialogVisible" :title="editingRouteId ? '编辑业务目录规则' : '新增业务目录规则'" width="580px" destroy-on-close>
+    <!-- 新建/编辑业务目录路由工作区面板 -->
+    <WorkspacePanel v-model="routeDialogVisible" :title="editingRouteId ? '编辑业务目录规则' : '新增业务目录规则'" width="640px" destroy-on-close>
       <el-form label-position="top">
         <el-row :gutter="16">
           <el-col :span="12">
@@ -572,10 +573,10 @@ async function handleSaveRoute() {
         <el-button @click="routeDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="savingRoute" @click="handleSaveRoute">保存规则</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
 
-    <!-- 实时连通性探测报告弹窗 -->
-    <el-dialog v-model="pingModalVisible" title="存储源连通性与读写实时探测" width="560px" destroy-on-close>
+    <!-- 实时连通性探测报告工作区面板 -->
+    <WorkspacePanel v-model="pingModalVisible" title="存储源连通性与读写实时探测" width="580px" destroy-on-close>
       <div v-if="pingTarget" class="ping-box">
         <div class="ping-header">
           <span class="target-name">{{ pingTarget.storageName }} ({{ pingTarget.storageType }})</span>
@@ -607,7 +608,7 @@ async function handleSaveRoute() {
       <template #footer>
         <el-button type="primary" :disabled="pinging" @click="pingModalVisible = false">确定</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
   </div>
 </template>
 

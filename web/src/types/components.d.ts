@@ -93,6 +93,7 @@ declare module 'vue' {
     TagsView: typeof import('./../components/platform/TagsView.vue')['default']
     TenantSwitcher: typeof import('./../components/platform/TenantSwitcher.vue')['default']
     TianshuLogo: typeof import('./../components/brand/TianshuLogo.vue')['default']
+    WorkspacePanel: typeof import('./../components/platform/WorkspacePanel.vue')['default']
   }
   export interface GlobalDirectives {
     vLoading: typeof import('element-plus/es')['ElLoadingDirective']

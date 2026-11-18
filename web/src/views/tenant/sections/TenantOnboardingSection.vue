@@ -8,6 +8,7 @@ import {
 } from "@element-plus/icons-vue";
 import { createTenant } from "@/api/modules/tenant";
 import { fetchSystemConfigs, upsertSystemConfigByKey } from "@/api/modules/system";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 import { useAuthStore } from "@/stores/modules/auth";
 
 const props = defineProps<{
@@ -410,7 +411,7 @@ onMounted(() => {
       </div>
     </el-collapse-transition>
 
-    <el-dialog v-model="createDialogVisible" title="登记企业租户入驻申请" width="480px" destroy-on-close>
+    <WorkspacePanel v-model="createDialogVisible" title="登记企业租户入驻申请" width="520px" destroy-on-close>
       <el-form :model="createForm" label-position="top">
         <el-form-item label="申请企业名称" required>
           <el-input v-model="createForm.tenantName" placeholder="例如：上海云帆数智科技有限公司" />
@@ -443,7 +444,7 @@ onMounted(() => {
         <el-button @click="createDialogVisible = false">取消</el-button>
         <el-button type="primary" @click="handleCreateApplication">提交入驻工单</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
   </div>
 </template>
 

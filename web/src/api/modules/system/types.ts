@@ -330,3 +330,35 @@ export interface TransportRoundtripResult {
   policyVersion: number;
   serverHandledAtMs: number;
 }
+
+export interface SequenceRuleItem {
+  id: number;
+  tenantId: number;
+  code: string;
+  name: string;
+  prefix: string;
+  datePattern: string;
+  pattern: string;
+  seqLength: number;
+  step: number;
+  currentSeq: number;
+  resetCycle: "DAILY" | "MONTHLY" | "YEARLY" | "NEVER" | string;
+  sample: string;
+  status: string;
+}
+
+export interface SequenceRuleSavePayload {
+  name: string;
+  prefix?: string;
+  datePattern?: string;
+  seqLength?: number;
+  step?: number;
+  resetCycle?: string;
+  status?: string;
+}
+
+export interface SequenceNextResult {
+  code: string;
+  currentSeq: number;
+  generatedValue: string;
+}

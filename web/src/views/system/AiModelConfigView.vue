@@ -23,6 +23,7 @@ import {
   Check,
   Close
 } from "@element-plus/icons-vue";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 import {
   fetchAiProviders,
   saveAiProvider,
@@ -1069,8 +1070,8 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Provider Edit/Create Dialog -->
-    <el-dialog v-model="providerDialogVisible" :title="providerDialogTitle" width="640px" destroy-on-close>
+    <!-- Provider Edit/Create Workspace Panel -->
+    <WorkspacePanel v-model="providerDialogVisible" :title="providerDialogTitle" width="680px" destroy-on-close>
       <div class="preset-pill-row">
         <span class="preset-label">快捷预填模版：</span>
         <button v-for="p in providerPresets" :key="p.code" type="button" class="preset-pill-btn" @click="applyPreset(p)">
@@ -1129,10 +1130,10 @@ onMounted(() => {
         <el-button @click="providerDialogVisible = false">取消</el-button>
         <el-button type="primary" @click="submitProviderForm">加密保存配置</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
 
-    <!-- Model Edit/Create Dialog -->
-    <el-dialog v-model="modelDialogVisible" :title="modelDialogTitle" width="600px" destroy-on-close>
+    <!-- Model Edit/Create Workspace Panel -->
+    <WorkspacePanel v-model="modelDialogVisible" :title="modelDialogTitle" width="640px" destroy-on-close>
       <el-form label-position="top">
         <el-row :gutter="16">
           <el-col :span="12">
@@ -1184,10 +1185,10 @@ onMounted(() => {
         <el-button @click="modelDialogVisible = false">取消</el-button>
         <el-button type="primary" @click="submitModelForm">保存模型</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
 
-    <!-- MCP Server Dialog -->
-    <el-dialog v-model="mcpDialogVisible" title="注册外部 MCP 服务（JSON-RPC 2.0）" width="560px" destroy-on-close>
+    <!-- MCP Server Workspace Panel -->
+    <WorkspacePanel v-model="mcpDialogVisible" title="注册外部 MCP 服务（JSON-RPC 2.0）" width="580px" destroy-on-close>
       <el-form label-position="top">
         <el-row :gutter="16">
           <el-col :span="12">
@@ -1218,10 +1219,10 @@ onMounted(() => {
         <el-button @click="mcpDialogVisible = false">取消</el-button>
         <el-button type="primary" @click="submitMcpForm">确认注册</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
 
-    <!-- MCP Probe Result Dialog -->
-    <el-dialog v-model="mcpProbeDialogVisible" title="MCP JSON-RPC 2.0 握手与工具发现报告" width="600px">
+    <!-- MCP Probe Result Workspace Panel -->
+    <WorkspacePanel v-model="mcpProbeDialogVisible" title="MCP JSON-RPC 2.0 握手与工具发现报告" width="640px">
       <div v-if="mcpProbeResult">
         <el-alert
           :title="mcpProbeResult.message"
@@ -1242,10 +1243,10 @@ onMounted(() => {
           </el-table-column>
         </el-table>
       </div>
-    </el-dialog>
+    </WorkspacePanel>
 
-    <!-- Launch Run Dialog -->
-    <el-dialog v-model="runDialogVisible" title="发起 M3 受控 AI Run（含工具编排与风控状态机）" width="540px">
+    <!-- Launch Run Workspace Panel -->
+    <WorkspacePanel v-model="runDialogVisible" title="发起 M3 受控 AI Run（含工具编排与风控状态机）" width="580px">
       <el-form label-position="top">
         <el-form-item label="目标模型">
           <el-select v-model="runForm.modelId" style="width: 100%">
@@ -1270,10 +1271,10 @@ onMounted(() => {
         <el-button @click="runDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="launchingRun" @click="submitLaunchRun">提交执行 Run</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
 
-    <!-- Quota Dialog -->
-    <el-dialog v-model="quotaDialogVisible" title="配置租户 AI 月度 Token 配额与速率上限" width="440px">
+    <!-- Quota Workspace Panel -->
+    <WorkspacePanel v-model="quotaDialogVisible" title="配置租户 AI 月度 Token 配额与速率上限" width="480px">
       <el-form label-position="top">
         <el-form-item label="月度 Token 预算上限">
           <el-input-number v-model="quotaForm.monthlyTokenLimit" :min="1000" :step="100000" style="width: 100%" />
@@ -1286,10 +1287,10 @@ onMounted(() => {
         <el-button @click="quotaDialogVisible = false">取消</el-button>
         <el-button type="primary" @click="submitQuotaForm">保存配额策略</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
 
-    <!-- Prompt Save & Versions Dialogs -->
-    <el-dialog v-model="promptSaveDialogVisible" title="创建并发布不可变 Prompt 新版本" width="580px">
+    <!-- Prompt Save & Versions Workspace Panels -->
+    <WorkspacePanel v-model="promptSaveDialogVisible" title="创建并发布不可变 Prompt 新版本" width="640px">
       <el-form label-position="top">
         <el-row :gutter="16">
           <el-col :span="12">
@@ -1314,9 +1315,9 @@ onMounted(() => {
         <el-button @click="promptSaveDialogVisible = false">取消</el-button>
         <el-button type="primary" @click="submitPromptVersion">发布不可变版本</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
 
-    <el-dialog v-model="promptVersionsDialogVisible" :title="`版本历史: ${currentPromptCode}`" width="680px">
+    <WorkspacePanel v-model="promptVersionsDialogVisible" :title="`版本历史: ${currentPromptCode}`" width="720px">
       <el-table :data="promptVersions" border size="small">
         <el-table-column prop="versionNo" label="版本" width="80" align="center">
           <template #default="{ row }">v{{ row.versionNo }}</template>
@@ -1329,10 +1330,10 @@ onMounted(() => {
           </template>
         </el-table-column>
       </el-table>
-    </el-dialog>
+    </WorkspacePanel>
 
-    <!-- Test Connection Result Dialog -->
-    <el-dialog v-model="testResultDialog" title="连通性握手诊断报告" width="540px">
+    <!-- Test Connection Result Workspace Panel -->
+    <WorkspacePanel v-model="testResultDialog" title="连通性握手诊断报告" width="560px">
       <div v-if="currentTestResult" class="test-result-wrapper">
         <div class="result-status-header" :class="currentTestResult.success ? 'success' : 'failed'">
           <el-icon :size="40">
@@ -1356,7 +1357,7 @@ onMounted(() => {
       <template #footer>
         <el-button type="primary" @click="testResultDialog = false">我知道了</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
   </div>
 </template>
 

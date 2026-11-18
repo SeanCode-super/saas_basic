@@ -19,16 +19,31 @@ import {
   ElMessage
 } from "element-plus";
 import { http } from "@/api/http";
+import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 import { useTenantStore } from "@/stores/modules/tenant";
 import {
   createTenant,
+  fetchTenantBills,
   fetchTenantMeteringSummary,
   fetchTenantPage,
+  fetchTenantQuotas,
+  type TenantBillRow,
   type TenantMeteringSummary,
+  type TenantQuotaOverview,
   type TenantRow
 } from "@/api/modules/tenant";
 import { createIamUser, fetchIamDepartments, fetchIamUsers, type IamUserRow } from "@/api/modules/iam";
-import { fetchOperationLogs, type OperationLog } from "@/api/modules/audit";
+import { fetchLoginLogs, fetchOperationLogs, type LoginLog, type OperationLog } from "@/api/modules/audit";
+import {
+  listCrmBusinesses,
+  listCrmContracts,
+  type CrmBusinessRow,
+  type CrmContractRow
+} from "@/api/modules/crm";
+import { fetchWorkflowInstances, type ProcessInstanceRow } from "@/api/modules/workflow";
+import { fetchAiModels, fetchAiRuns, type AiModelConfigRow, type AiRunRow } from "@/api/modules/ai";
+import { fetchJvmInfo, type JvmInfoData } from "@/api/modules/system";
+import { fetchSchedulerJobs, type SchedulerJobRow } from "@/api/modules/scheduler";
 
 const router = useRouter();
 const tenantStore = useTenantStore();
@@ -36,10 +51,20 @@ const tenantStore = useTenantStore();
 const loading = ref(false);
 const tenants = ref<TenantRow[]>([]);
 const users = ref<IamUserRow[]>([]);
-const deptNodeCount = ref(4);
+const deptNodeCount = ref(0);
 const operationLogs = ref<OperationLog[]>([]);
+const loginLogs = ref<LoginLog[]>([]);
 const meteringSummary = ref<TenantMeteringSummary | null>(null);
-const gatewayLatencyMs = ref<number>(12);
+const tenantQuotaOverview = ref<TenantQuotaOverview | null>(null);
+const tenantBills = ref<TenantBillRow[]>([]);
+const crmContracts = ref<CrmContractRow[]>([]);
+const crmBusinesses = ref<CrmBusinessRow[]>([]);
+const workflowInstances = ref<ProcessInstanceRow[]>([]);
+const aiModels = ref<AiModelConfigRow[]>([]);
+const aiRuns = ref<AiRunRow[]>([]);
+const schedulerJobs = ref<SchedulerJobRow[]>([]);
+const jvmInfo = ref<JvmInfoData | null>(null);
+const gatewayLatencyMs = ref<number>(0);
 
 // Date segmented pill state
 const activeDateTab = ref<"day" | "week" | "month" | "quarter">("day");
@@ -60,70 +85,203 @@ const currentDate = now.getDate();
 const currentDayOfWeek = now.getDay();
 const dateDisplay = `${currentMonth}月${currentDate}日 星期${weekdays[currentDayOfWeek]}`;
 
-// 重点业务协同项目列表 (对标参考图右上卡片)
-const keyProjects = reactive([
-  {
-    id: 1,
-    name: "商用卫星低轨组网数据中台",
-    stage: "阶段三",
-    amount: "32,500.00",
-    status: "进行中",
-    statusType: "success"
-  },
-  {
-    id: 2,
-    name: "数字能源微电网分布式采集",
-    stage: "阶段一",
-    amount: "18,400.00",
-    status: "待审核",
-    statusType: "primary"
-  },
-  {
-    id: 3,
-    name: "智能工业装配机器人协同",
-    stage: "阶段四",
-    amount: "45,000.00",
-    status: "已履约",
-    statusType: "info"
+function windowSpanMs(tab: "day" | "week" | "month" | "quarter"): number {
+  switch (tab) {
+    case "day":
+      return 24 * 3600 * 1000;
+    case "week":
+      return 7 * 24 * 3600 * 1000;
+    case "month":
+      return 30 * 24 * 3600 * 1000;
+    case "quarter":
+      return 90 * 24 * 3600 * 1000;
   }
-]);
+}
 
-// 销售走势声波细柱数据 (24 柱代表 24 小时或时间跨度)
-const soundwaveBars = [
-  25, 40, 30, 55, 70, 85, 100, 90, 65, 45, 35, 50,
-  60, 80, 95, 75, 55, 40, 30, 48, 62, 85, 70, 45
-];
+function parseTimestamp(value?: string): number | null {
+  if (!value) return null;
+  const parsed = Date.parse(value.replace(" ", "T"));
+  return Number.isFinite(parsed) ? parsed : null;
+}
 
-// 算力热力点阵 (4 行 x 12 列)
-const dotMatrix = [
-  [3, 3, 2, 3, 3, 2, 3, 3, 3, 2, 3, 3],
-  [2, 3, 3, 1, 3, 3, 2, 3, 3, 3, 1, 2],
-  [3, 2, 3, 3, 3, 2, 1, 3, 3, 2, 3, 3],
-  [1, 3, 2, 3, 2, 3, 3, 1, 2, 3, 3, 2]
-];
+function bucketTimestamps(timestamps: Array<string | undefined>, bucketCount: number): number[] {
+  const counts = Array.from({ length: bucketCount }, () => 0);
+  const end = Date.now();
+  const span = windowSpanMs(activeDateTab.value);
+  const start = end - span;
+  for (const raw of timestamps) {
+    const ts = parseTimestamp(raw);
+    if (ts == null) continue;
+    if (ts < start || ts > end) continue;
+    const ratio = Math.min(0.9999, Math.max(0, (ts - start) / span));
+    const idx = Math.floor(ratio * bucketCount);
+    counts[idx] += 1;
+  }
+  return counts;
+}
 
-// 层级配额预算数据
-const tieredQuotas = [
-  { name: "核心算力集群", percent: 85, color: "linear-gradient(90deg, #06b6d4, #0284c7)" },
-  { name: "存储流转通道", percent: 62, color: "linear-gradient(90deg, #10b981, #059669)" },
-  { name: "专属网络带宽", percent: 94, color: "linear-gradient(90deg, #f59e0b, #d97706)" }
-];
+const keyProjects = computed(() => {
+  if (crmContracts.value.length > 0) {
+    return crmContracts.value.slice(0, 3).map((c) => ({
+      id: `contract-${c.id}`,
+      name: c.name,
+      stage: c.customerName || c.contractNo,
+      amount: Number(c.totalPrice || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      status: c.status === "APPROVED" ? "已审批" : c.status === "APPROVING" ? "审批中" : "草稿",
+      statusType: c.status === "APPROVED" ? "success" : c.status === "APPROVING" ? "primary" : "info",
+      targetPath: "/crm"
+    }));
+  }
+  if (crmBusinesses.value.length > 0) {
+    return crmBusinesses.value.slice(0, 3).map((b) => ({
+      id: `biz-${b.id}`,
+      name: b.name,
+      stage: `${b.customerName} · 赢率 ${b.winRate}%`,
+      amount: Number(b.totalPrice || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      status: b.stage,
+      statusType: b.stage === "WON" ? "success" : "primary",
+      targetPath: "/crm"
+    }));
+  }
+  return workflowInstances.value.slice(0, 3).map((w) => ({
+    id: `wf-${w.id}`,
+    name: w.title,
+    stage: w.processName,
+    amount: w.instanceNo,
+    status: w.status,
+    statusType: w.status === "APPROVED" ? "success" : "primary",
+    targetPath: "/workflow"
+  }));
+});
+
+const soundwaveBars = computed(() => {
+  const allTimestamps = [
+    ...crmContracts.value.map((c) => c.createdAt),
+    ...crmBusinesses.value.map((b) => b.createdAt),
+    ...workflowInstances.value.map((w) => w.createdAt),
+    ...operationLogs.value.map((l) => l.occurredAt)
+  ];
+  const counts = bucketTimestamps(allTimestamps, 24);
+  const maxVal = Math.max(...counts, 1);
+  return counts.map((cnt) => (cnt === 0 ? 12 : Math.max(20, Math.round((cnt / maxVal) * 100))));
+});
+
+const dotMatrix = computed(() => {
+  const activity = [
+    ...aiRuns.value.map((r) => r.startedAt),
+    ...operationLogs.value.map((l) => l.occurredAt),
+    ...loginLogs.value.map((l) => l.occurredAt)
+  ];
+  const counts = bucketTimestamps(activity, 48);
+  const maxVal = Math.max(...counts, 1);
+  const rows: number[][] = [];
+  for (let r = 0; r < 4; r++) {
+    const row: number[] = [];
+    for (let c = 0; c < 12; c++) {
+      const cnt = counts[r * 12 + c];
+      if (cnt === 0) row.push(1);
+      else if (cnt / maxVal >= 0.6) row.push(3);
+      else row.push(2);
+    }
+    rows.push(row);
+  }
+  return rows;
+});
+
+const tieredQuotas = computed(() => {
+  const colors = [
+    "linear-gradient(90deg, #06b6d4, #0284c7)",
+    "linear-gradient(90deg, #10b981, #059669)",
+    "linear-gradient(90deg, #f59e0b, #d97706)"
+  ];
+  const items = tenantQuotaOverview.value?.quotas ?? [];
+  return items.slice(0, 3).map((q, idx) => ({
+    name: q.quotaName,
+    percent: Math.min(100, Math.max(0, Math.round(q.usagePercent ?? 0))),
+    color: colors[idx % colors.length]
+  }));
+});
+
+const salesSummary = computed(() => {
+  const totalContract = crmContracts.value.reduce((sum, item) => sum + Number(item.totalPrice || 0), 0);
+  const approvedCount = crmContracts.value.filter((item) => item.status === "APPROVED").length;
+  return {
+    amountText: totalContract.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    badgeText: `${crmContracts.value.length} 份合同 · 已签 ${approvedCount}`
+  };
+});
+
+const apiSplineData = computed(() => {
+  const timestamps = [
+    ...operationLogs.value.map((l) => l.occurredAt),
+    ...loginLogs.value.map((l) => l.occurredAt)
+  ];
+  const buckets = bucketTimestamps(timestamps, 6);
+  const maxVal = Math.max(...buckets, 1);
+  const points = buckets.map((cnt, idx) => {
+    const x = Math.round((idx / 5) * 200);
+    const y = Math.round(52 - (cnt / maxVal) * 40);
+    return { x, y, cnt };
+  });
+  let linePath = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1];
+    const curr = points[i];
+    const cx = Math.round((prev.x + curr.x) / 2);
+    linePath += ` C ${cx} ${prev.y}, ${cx} ${curr.y}, ${curr.x} ${curr.y}`;
+  }
+  const areaPath = `${linePath} L 200 60 L 0 60 Z`;
+  let peak = points[0];
+  for (const p of points) {
+    if (p.cnt >= peak.cnt) peak = p;
+  }
+  return { linePath, areaPath, peak };
+});
+
+const chartTicksLabel = computed(() => {
+  switch (activeDateTab.value) {
+    case "day":
+      return ["00:00", "08:00", "16:00", "现在"];
+    case "week":
+      return ["7天前", "5天前", "2天前", "今日"];
+    case "month":
+      return ["30天前", "20天前", "10天前", "今日"];
+    case "quarter":
+    default:
+      return ["90天前", "60天前", "30天前", "今日"];
+  }
+});
+
+const enabledAiCount = computed(() => aiModels.value.filter((m) => m.status === "ENABLED").length);
+const enabledJobCount = computed(() => schedulerJobs.value.filter((j) => j.status === "ENABLED").length);
+const totalAiTokensUsed = computed(() =>
+  aiRuns.value.reduce((sum, r) => sum + Number(r.totalTokens || 0), 0)
+);
+const totalBillsAmountText = computed(() => {
+  const total = tenantBills.value.reduce((sum, b) => sum + Number(b.amount || 0), 0);
+  return total.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+});
 
 function navigateTo(path: string) {
   router.push(path);
 }
 
 const formattedApiCalls = computed(() => {
-  const calls = meteringSummary.value?.totalApiCalls ?? operationLogs.value.length;
+  const calls = meteringSummary.value?.totalApiCalls ?? operationLogs.value.length + loginLogs.value.length;
   return calls.toLocaleString();
 });
 
 const estimatedCostText = computed(() => {
   const cost = meteringSummary.value?.estimatedCost;
-  if (typeof cost === "number" && Number.isFinite(cost)) {
+  if (typeof cost === "number" && Number.isFinite(cost) && cost > 0) {
     return cost.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
-  return "87,348.00";
+  const billTotal = tenantBills.value.reduce((sum, b) => sum + Number(b.amount || 0), 0);
+  if (billTotal > 0) {
+    return billTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  const contractTotal = crmContracts.value.reduce((sum, c) => sum + Number(c.totalPrice || 0), 0);
+  return contractTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 });
 
 const activeSeatsCount = computed(() => {
@@ -133,20 +291,57 @@ const activeSeatsCount = computed(() => {
 async function loadDashboardData() {
   loading.value = true;
   const startedAt = performance.now();
+  const currentTenantId = Number(tenantStore.currentTenant?.id ?? 1);
   try {
-    const [tenantsRes, usersRes, deptsRes, opLogsRes, meteringRes] = await Promise.all([
+    const [
+      tenantsRes,
+      usersRes,
+      deptsRes,
+      opLogsRes,
+      loginLogsRes,
+      meteringRes,
+      quotaRes,
+      billsRes,
+      contractsRes,
+      businessesRes,
+      workflowsRes,
+      aiModelsRes,
+      aiRunsRes,
+      jobsRes,
+      jvmRes
+    ] = await Promise.all([
       fetchTenantPage().catch(() => []),
       fetchIamUsers().catch(() => []),
       fetchIamDepartments().catch(() => []),
       fetchOperationLogs().catch(() => []),
-      fetchTenantMeteringSummary().catch(() => null)
+      fetchLoginLogs().catch(() => []),
+      fetchTenantMeteringSummary().catch(() => null),
+      fetchTenantQuotas(currentTenantId).catch(() => null),
+      fetchTenantBills().catch(() => []),
+      listCrmContracts().then((r) => r.data ?? []).catch(() => []),
+      listCrmBusinesses().then((r) => r.data ?? []).catch(() => []),
+      fetchWorkflowInstances().catch(() => []),
+      fetchAiModels().catch(() => []),
+      fetchAiRuns().catch(() => []),
+      fetchSchedulerJobs().catch(() => []),
+      fetchJvmInfo().catch(() => null)
     ]);
     gatewayLatencyMs.value = Math.max(1, Math.round(performance.now() - startedAt));
     tenants.value = Array.isArray(tenantsRes) ? tenantsRes : [];
     users.value = Array.isArray(usersRes) ? usersRes : [];
     operationLogs.value = Array.isArray(opLogsRes) ? opLogsRes : ((opLogsRes as any)?.data || []);
-    deptNodeCount.value = deptsRes.length || 4;
+    loginLogs.value = Array.isArray(loginLogsRes) ? loginLogsRes : [];
+    deptNodeCount.value = deptsRes.length;
     meteringSummary.value = meteringRes;
+    tenantQuotaOverview.value = quotaRes;
+    tenantBills.value = Array.isArray(billsRes) ? billsRes : [];
+    crmContracts.value = Array.isArray(contractsRes) ? contractsRes : [];
+    crmBusinesses.value = Array.isArray(businessesRes) ? businessesRes : [];
+    workflowInstances.value = Array.isArray(workflowsRes) ? workflowsRes : [];
+    aiModels.value = Array.isArray(aiModelsRes) ? aiModelsRes : [];
+    aiRuns.value = Array.isArray(aiRunsRes) ? aiRunsRes : [];
+    schedulerJobs.value = Array.isArray(jobsRes) ? jobsRes : [];
+    jvmInfo.value = jvmRes;
   } finally {
     loading.value = false;
   }
@@ -433,7 +628,7 @@ onMounted(() => {
               v-for="p in keyProjects"
               :key="p.id"
               class="ios-project-row"
-              @click="navigateTo('/crm')"
+              @click="navigateTo(p.targetPath)"
             >
               <div class="ios-project-row__main">
                 <span class="ios-project-row__name">{{ p.name }}</span>
@@ -446,51 +641,54 @@ onMounted(() => {
                 </span>
               </div>
             </div>
+            <div v-if="keyProjects.length === 0" class="ios-project-row">
+              <div class="ios-project-row__main">
+                <span class="ios-project-row__name">当前暂无进行中的合同与商机</span>
+                <span class="ios-project-row__stage">前往 CRM 或审批中心发起业务后自动同步</span>
+              </div>
+            </div>
           </div>
         </div>
       </section>
     </div>
 
     <!-- =========================================================================
-         3. 第二层：下排 4 联数据微拟物玻璃卡片 (销售走势/7天访问/算力矩阵/收益分析)
+         3. 第二层：下排 4 联真实数据卡片 (合同营收/审计与网关请求/AI与调度协同/配额预算)
          ========================================================================= -->
     <div class="ios-dashboard__metrics-grid">
-      <!-- 3.1 销售走势 (细密声波律动柱状图) -->
+      <!-- 3.1 合同营收与业务活跃趋势 -->
       <div class="ios-glass-card ios-metric-card">
         <div class="ios-metric-card__header">
-          <span class="ios-metric-card__title">销售走势</span>
-          <button class="ios-icon-btn-sm"><el-icon><MoreFilled /></el-icon></button>
+          <span class="ios-metric-card__title">合同履约与活跃趋势</span>
+          <button class="ios-icon-btn-sm" @click="navigateTo('/crm')"><el-icon><MoreFilled /></el-icon></button>
         </div>
         <div class="ios-metric-card__value-row">
-          <strong class="ios-metric-card__number">52,396.15</strong>
-          <span class="ios-metric-card__badge-up">较上周 +18.4%</span>
+          <strong class="ios-metric-card__number">{{ salesSummary.amountText }}</strong>
+          <span class="ios-metric-card__badge-up">{{ salesSummary.badgeText }}</span>
         </div>
         
-        <!-- 声波细柱状图 -->
+        <!-- 真实事件频次声波柱状图 -->
         <div class="ios-soundwave-chart">
           <div
             v-for="(val, idx) in soundwaveBars"
             :key="idx"
             class="ios-soundwave-bar"
             :class="{
-              'is-peak': idx >= 5 && idx <= 8,
-              'is-highlight': idx >= 13 && idx <= 16
+              'is-peak': val >= 80,
+              'is-highlight': val >= 45 && val < 80
             }"
             :style="{ height: `${val}%` }"
           />
         </div>
         <div class="ios-chart-ticks">
-          <span>周一</span>
-          <span>周三</span>
-          <span>周五</span>
-          <span>今日</span>
+          <span v-for="t in chartTicksLabel" :key="t">{{ t }}</span>
         </div>
       </div>
 
       <!-- 3.2 API 调用量与实时网关延迟 -->
       <div class="ios-glass-card ios-metric-card">
         <div class="ios-metric-card__header">
-          <span class="ios-metric-card__title">API 计量请求</span>
+          <span class="ios-metric-card__title">API 计量与审计事件</span>
           <span class="ios-pill-tag">实时接入</span>
         </div>
         <div class="ios-metric-card__value-row">
@@ -498,7 +696,7 @@ onMounted(() => {
           <span class="ios-metric-card__subtext">实测 RTT {{ gatewayLatencyMs }}ms</span>
         </div>
 
-        <!-- 渐变曲线 SVG -->
+        <!-- 动态渐变曲线 SVG -->
         <div class="ios-spline-chart">
           <svg viewBox="0 0 200 60" class="ios-spline-svg" preserveAspectRatio="none">
             <defs>
@@ -507,39 +705,40 @@ onMounted(() => {
                 <stop offset="100%" stop-color="#0284c7" stop-opacity="0.0" />
               </linearGradient>
             </defs>
+            <path :d="apiSplineData.areaPath" fill="url(#curveGradient)" />
             <path
-              d="M 0 50 Q 30 45, 60 25 T 120 12 T 160 30 T 200 18 L 200 60 L 0 60 Z"
-              fill="url(#curveGradient)"
-            />
-            <path
-              d="M 0 50 Q 30 45, 60 25 T 120 12 T 160 30 T 200 18"
+              :d="apiSplineData.linePath"
               fill="none"
               stroke="#0284c7"
               stroke-width="2.5"
               stroke-linecap="round"
             />
-            <circle cx="120" cy="12" r="3.5" fill="#0284c7" stroke="#ffffff" stroke-width="1.5" />
+            <circle
+              :cx="apiSplineData.peak.x"
+              :cy="apiSplineData.peak.y"
+              r="3.5"
+              fill="#0284c7"
+              stroke="#ffffff"
+              stroke-width="1.5"
+            />
           </svg>
         </div>
         <div class="ios-chart-ticks">
-          <span>周一</span>
-          <span>周二</span>
-          <span>周三</span>
-          <span>周四</span>
-          <span>周五</span>
-          <span>今日</span>
+          <span v-for="t in chartTicksLabel" :key="t">{{ t }}</span>
         </div>
       </div>
 
-      <!-- 3.3 算力矩阵 / 新增积分 (微点阵热力图) -->
+      <!-- 3.3 AI 推理与调度算力协同 (实测密度点阵) -->
       <div class="ios-glass-card ios-metric-card">
         <div class="ios-metric-card__header">
-          <span class="ios-metric-card__title">算力协同</span>
-          <span class="ios-pill-tag ios-pill-tag--emerald">48 节点就绪</span>
+          <span class="ios-metric-card__title">AI 与调度算力协同</span>
+          <span class="ios-pill-tag ios-pill-tag--emerald">{{ enabledAiCount }} 模型 · {{ enabledJobCount }} 任务</span>
         </div>
         <div class="ios-metric-card__value-row">
-          <strong class="ios-metric-card__number">2,800 <small>积分</small></strong>
-          <span class="ios-metric-card__subtext">负载平稳 99.8%</span>
+          <strong class="ios-metric-card__number">{{ totalAiTokensUsed.toLocaleString() }} <small>Tokens</small></strong>
+          <span class="ios-metric-card__subtext">
+            JVM 余量 {{ jvmInfo ? (100 - jvmInfo.heapUsedPercent).toFixed(1) : "--" }}%
+          </span>
         </div>
 
         <!-- 点阵热力网格 -->
@@ -560,18 +759,18 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- 3.4 收益分析 / 配额预算 (层级步进容量条) -->
+      <!-- 3.4 租户配额使用率与账单汇总 -->
       <div class="ios-glass-card ios-metric-card">
         <div class="ios-metric-card__header">
-          <span class="ios-metric-card__title">收益分析</span>
-          <span class="ios-pill-tag ios-pill-tag--amber">达标 88.5%</span>
+          <span class="ios-metric-card__title">租户配额与账单概览</span>
+          <span class="ios-pill-tag ios-pill-tag--amber">{{ tenantBills.length }} 期账单</span>
         </div>
         <div class="ios-metric-card__value-row">
-          <strong class="ios-metric-card__number">64,000.00</strong>
-          <span class="ios-metric-card__subtext">总预算 72,000</span>
+          <strong class="ios-metric-card__number">{{ totalBillsAmountText }}</strong>
+          <span class="ios-metric-card__subtext">存储 {{ meteringSummary?.storageMb ?? 0 }} MB</span>
         </div>
 
-        <!-- 3 阶水平步进容量条 -->
+        <!-- 真实租户配额进度条 -->
         <div class="ios-tier-scales">
           <div v-for="t in tieredQuotas" :key="t.name" class="ios-tier-item">
             <div class="ios-tier-item__info">
@@ -587,18 +786,18 @@ onMounted(() => {
           </div>
         </div>
         <div class="ios-chart-ticks">
-          <span>12,000</span>
-          <span>36,000</span>
-          <span>64,000</span>
+          <span>部门 {{ deptNodeCount }}</span>
+          <span>成员 {{ users.length }}</span>
+          <span>租户 {{ tenants.length }}</span>
         </div>
       </div>
     </div>
 
     <!-- =========================================================================
-         4. 模态框与弹窗交互 (健康体检 / 账号录入 / 租户开通)
+         4. 工作区内置面板交互 (健康体检 / 账号录入 / 租户开通)
          ========================================================================= -->
-    <!-- 系统健康体检弹窗 -->
-    <el-dialog v-model="probeVisible" title="天枢企业级基础设施健康全栈巡检" width="620px" destroy-on-close>
+    <!-- 系统健康体检面板 -->
+    <WorkspacePanel v-model="probeVisible" title="天枢企业级基础设施健康全栈巡检" width="640px">
       <div class="probe-dialog-body">
         <div class="probe-progress-wrap">
           <div class="probe-progress-info">
@@ -629,10 +828,10 @@ onMounted(() => {
         <el-button @click="probeVisible = false">关闭窗口</el-button>
         <el-button type="primary" :loading="probing" @click="runHealthProbe">再次执行检测</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
 
     <!-- 极速录入用户 -->
-    <el-dialog v-model="quickUserVisible" title="录入在职系统账号" width="460px">
+    <WorkspacePanel v-model="quickUserVisible" title="录入在职系统账号" width="480px">
       <el-form label-position="top">
         <el-form-item label="登录用户名">
           <el-input v-model="userForm.username" placeholder="如：zhangsan" />
@@ -648,10 +847,10 @@ onMounted(() => {
         <el-button @click="quickUserVisible = false">取消</el-button>
         <el-button type="primary" @click="handleCreateQuickUser">确认录入</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
 
     <!-- 极速开通租户 -->
-    <el-dialog v-model="quickTenantVisible" title="创建企业租户空间" width="460px">
+    <WorkspacePanel v-model="quickTenantVisible" title="创建企业租户空间" width="480px">
       <el-form label-position="top">
         <el-form-item label="租户编码 (全局唯一)">
           <el-input v-model="tenantForm.tenantCode" placeholder="如：corp_alpha" />
@@ -664,7 +863,7 @@ onMounted(() => {
         <el-button @click="quickTenantVisible = false">取消</el-button>
         <el-button type="primary" @click="handleCreateQuickTenant">开通空间</el-button>
       </template>
-    </el-dialog>
+    </WorkspacePanel>
   </div>
 </template>
 
