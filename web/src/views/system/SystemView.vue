@@ -1308,7 +1308,9 @@ onMounted(loadData);
       </el-form-item>
       <el-form-item label="验证码模式">
         <el-select v-model="portalClientForm.captchaMode">
-          <el-option label="图片验证码" value="IMAGE" />
+          <el-option label="智能无感+滑块核验 (天枢智盾)" value="SMART" />
+          <el-option label="滑动拼图验证" value="SLIDER" />
+          <el-option label="自适应核验 (兼容旧配置)" value="IMAGE" />
           <el-option label="关闭" value="NONE" />
         </el-select>
       </el-form-item>
@@ -1361,7 +1363,9 @@ onMounted(loadData);
       </el-form-item>
       <el-form-item label="验证码模式">
         <el-select v-model="portalTerminalForm.captchaMode">
-          <el-option label="图片验证码" value="IMAGE" />
+          <el-option label="智能无感+滑块核验 (天枢智盾)" value="SMART" />
+          <el-option label="滑动拼图验证" value="SLIDER" />
+          <el-option label="自适应核验 (兼容旧配置)" value="IMAGE" />
           <el-option label="关闭" value="NONE" />
         </el-select>
       </el-form-item>

@@ -326,6 +326,9 @@ public class AuthService {
 
         UserEntity user = userMapper.selectByTenantAndUsername(tenant.getId(), request.username());
         if (user == null) {
+            if (captchaService != null) {
+                captchaService.recordAuthFailure(loginIp);
+            }
             recordLoginFailure(tenant.getId(), request.username(), 0L, request.password(), loginIp, userAgent, "用户名或密码错误", loginPolicy);
             throw new BizException("AUTH_INVALID_CREDENTIALS", "账号或密码错误");
         }
@@ -338,6 +341,9 @@ public class AuthService {
 
         PasswordPolicyEntity passwordPolicy = currentPasswordPolicy(tenant.getId(), portalLoginContext.passwordPolicyId());
         if (!passwordSecurityService.matches(request.password(), user.getPasswordHash())) {
+            if (captchaService != null) {
+                captchaService.recordAuthFailure(loginIp);
+            }
             recordLoginFailure(tenant.getId(), user.getUsername(), user.getId(), request.password(), loginIp, userAgent, "用户名或密码错误", loginPolicy);
             throw new BizException("AUTH_INVALID_CREDENTIALS", "账号或密码错误");
         }
@@ -362,6 +368,9 @@ public class AuthService {
         }
 
         clearFailStat(failStat);
+        if (captchaService != null) {
+            captchaService.clearAuthRisk(loginIp);
+        }
         user.setLastLoginAt(authenticatedAtLocal);
         user.setLastLoginIp(loginIp);
         userMapper.updateById(user);

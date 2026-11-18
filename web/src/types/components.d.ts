@@ -90,6 +90,7 @@ declare module 'vue' {
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SchemaForm: typeof import('./../components/pro/SchemaForm.vue')['default']
+    SmartShieldCaptcha: typeof import('./../components/auth/SmartShieldCaptcha.vue')['default']
     TagsView: typeof import('./../components/platform/TagsView.vue')['default']
     TenantSwitcher: typeof import('./../components/platform/TenantSwitcher.vue')['default']
     TianshuLogo: typeof import('./../components/brand/TianshuLogo.vue')['default']

@@ -55,6 +55,20 @@ public class AuthController {
         return ApiResponse.success(captchaService.issueChallenge());
     }
 
+    @GetMapping("/captcha/challenge")
+    public ApiResponse<CaptchaService.SmartCaptchaChallenge> smartCaptcha(
+            @RequestParam(required = false, defaultValue = "AUTO") String mode,
+            HttpServletRequest httpServletRequest) {
+        return ApiResponse.success(captchaService.issueSmartChallenge(mode, httpServletRequest.getRemoteAddr()));
+    }
+
+    @PostMapping("/captcha/verify")
+    public ApiResponse<CaptchaService.VerifyChallengeResponse> verifyCaptcha(
+            @RequestBody CaptchaService.VerifyChallengeRequest request,
+            HttpServletRequest httpServletRequest) {
+        return ApiResponse.success(captchaService.verifyInteractiveChallenge(request, httpServletRequest.getRemoteAddr()));
+    }
+
     @GetMapping("/mfa/status")
     public ApiResponse<MfaAccountService.MfaStatusResponse> mfaStatus() {
         return ApiResponse.success(mfaAccountService.getStatus());

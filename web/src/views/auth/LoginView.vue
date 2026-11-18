@@ -2,30 +2,29 @@
 import { computed, onMounted, reactive, ref, useId } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
-import { Key, Lock, RefreshRight, User } from "@element-plus/icons-vue";
+import { Lock, Monitor, Moon, Sunny, User } from "@element-plus/icons-vue";
 import { fetchPortalEntry, type PortalEntry } from "@/api/modules/portal";
 import {
   acceptTenantInvite,
   confirmPasswordReset,
-  fetchAuthCaptcha,
   fetchTenantInvitePreview,
   sendPasswordResetCode,
   type TenantInviteResponse
 } from "@/api/modules/auth";
 import { useAuthStore } from "@/stores/modules/auth";
-import { useThemeStore, type ThemePreset } from "@/stores/modules/theme";
+import { useThemeStore, type ThemeMode, type ThemePreset } from "@/stores/modules/theme";
 import {
   extractSubdomainTenant,
   rememberPortalContext,
   resolvePortalContext
 } from "@/utils/portal-context";
 import TianshuLogo from "@/components/brand/TianshuLogo.vue";
+import SmartShieldCaptcha, { type CaptchaTicket } from "@/components/auth/SmartShieldCaptcha.vue";
 
 const form = reactive({
   tenantCode: "",
   clientId: "",
   terminalCode: "web",
-  captchaCode: "",
   totpCode: "",
   username: "admin",
   password: "Admin@123456"
@@ -33,10 +32,10 @@ const form = reactive({
 const loading = ref(false);
 const booting = ref(false);
 const portal = ref<PortalEntry | null>(null);
-const captchaId = ref("");
-const captchaImageUrl = ref("");
 const mfaRequired = ref(false);
 const loginError = ref("");
+const shieldRef = ref<InstanceType<typeof SmartShieldCaptcha> | null>(null);
+const captchaTicket = ref<CaptchaTicket | null>(null);
 
 // 自助找回密码 (OTP) 状态
 const resetDialogVisible = ref(false);
@@ -119,7 +118,13 @@ const presetOptions: PresetPalette[] = [
   }
 ];
 
-const captchaEnabled = computed(() => portal.value?.captcha.mode === "IMAGE");
+const modeOptions: Array<{ value: ThemeMode; label: string; icon: typeof Sunny }> = [
+  { value: "light", label: "亮色", icon: Sunny },
+  { value: "dark", label: "暗色", icon: Moon },
+  { value: "system", label: "跟随系统", icon: Monitor }
+];
+
+const captchaEnabled = computed(() => portal.value?.captcha.mode !== "NONE");
 
 const activePreset = computed(
   () => presetOptions.find((item) => item.value === themeStore.preset) ?? presetOptions[0]
@@ -132,6 +137,67 @@ const universeStyle = computed(() => ({
   "--portal-secondary": activePreset.value.secondary,
   "--portal-secondary-rgb": activePreset.value.secondaryRgb
 }));
+
+// 双色系动态星轨 SVG 调色板：亮色版高对比度蓝靛晶钻，暗色版深空冰青极光
+const astroPalette = computed(() =>
+  themeStore.isDark
+    ? {
+        nebulaCenter: "#38BDF8",
+        nebulaMid: "#6366F1",
+        nebulaEdge: "#030614",
+        coreAuraCenter: "#E0F2FE",
+        coreAuraMid: "#38BDF8",
+        ringOuter: "rgba(148, 163, 184, 0.24)",
+        ringMiddle: "rgba(129, 140, 248, 0.28)",
+        ringInner: "rgba(56, 189, 248, 0.24)",
+        ringInnerDash: "rgba(165, 180, 252, 0.30)",
+        orbitStart: "#818CF8",
+        orbitMid: "#38BDF8",
+        orbitEnd: "#6366F1",
+        pulsePrimary: "#7DD3FC",
+        pulseSecondary: "#A5B4FC",
+        starTop: "#FFFFFF",
+        starMid: "#BAE6FD",
+        starBottom: "#6366F1",
+        starHighlightOpacity: "0.92",
+        starCorePivot: "#060A17",
+        starCenterDot: "#FFFFFF",
+        resonanceStroke: "#38BDF8",
+        sat1: "#38BDF8",
+        sat2: "#C7D2FE",
+        sat3: "#6EE7B7",
+        sat4: "#7DD3FC",
+        sat5: "#67E8F9"
+      }
+    : {
+        nebulaCenter: "#38BDF8",
+        nebulaMid: "#6366F1",
+        nebulaEdge: "#EEF2FF",
+        coreAuraCenter: "#FFFFFF",
+        coreAuraMid: "#60A5FA",
+        ringOuter: "rgba(79, 70, 229, 0.24)",
+        ringMiddle: "rgba(37, 99, 235, 0.28)",
+        ringInner: "rgba(2, 132, 199, 0.26)",
+        ringInnerDash: "rgba(79, 70, 229, 0.30)",
+        orbitStart: "#4F46E5",
+        orbitMid: "#0284C7",
+        orbitEnd: "#2563EB",
+        pulsePrimary: "#0284C7",
+        pulseSecondary: "#4F46E5",
+        starTop: "#E0F2FE",
+        starMid: "#3B82F6",
+        starBottom: "#3730A3",
+        starHighlightOpacity: "0.96",
+        starCorePivot: "#0F172A",
+        starCenterDot: "#FFFFFF",
+        resonanceStroke: "#2563EB",
+        sat1: "#0284C7",
+        sat2: "#4F46E5",
+        sat3: "#059669",
+        sat4: "#2563EB",
+        sat5: "#0891B2"
+      }
+);
 
 const displayPortalTitle = computed(() => {
   const title = portal.value?.portalTitle?.trim();
@@ -172,15 +238,12 @@ function getAxiosErrorCode(error: unknown): string | undefined {
   return undefined;
 }
 
-async function refreshCaptcha() {
-  try {
-    const challenge = await fetchAuthCaptcha();
-    captchaId.value = challenge.captchaId;
-    captchaImageUrl.value = challenge.imageDataUrl;
-  } catch {
-    captchaId.value = "";
-    captchaImageUrl.value = "";
-  }
+function onShieldVerified(ticket: CaptchaTicket) {
+  captchaTicket.value = ticket;
+}
+
+function onShieldReset() {
+  captchaTicket.value = null;
 }
 
 async function bootstrapPortal() {
@@ -194,7 +257,6 @@ async function bootstrapPortal() {
     form.tenantCode = entry.tenantCode;
     document.title = `${displayPortalTitle.value} | 登录`;
     loginError.value = "";
-    await refreshCaptcha();
     rememberPortalContext({
       clientId: entry.clientId,
       terminalCode: entry.terminal.terminalCode,
@@ -232,25 +294,6 @@ async function bootstrapPortal() {
   }
 }
 
-function fillDemoAccount(type: "admin" | "user" = "admin") {
-  form.tenantCode =
-    portal.value?.tenantCode ||
-    (route.query.tenantCode as string) ||
-    (route.query.tenant as string) ||
-    "platform";
-  if (type === "user") {
-    form.username = "user";
-    form.password = "User@123456";
-    form.captchaCode = "";
-    ElMessage.success("已填入企业成员凭证 (user)");
-  } else {
-    form.username = "admin";
-    form.password = "Admin@123456";
-    form.captchaCode = "";
-    ElMessage.success("已填入管理员凭证 (admin)");
-  }
-}
-
 function validateForm() {
   if (!form.username.trim()) {
     loginError.value = "请输入用户名";
@@ -258,10 +301,6 @@ function validateForm() {
   }
   if (!form.password.trim()) {
     loginError.value = "请输入密码";
-    return false;
-  }
-  if (captchaEnabled.value && !form.captchaCode.trim()) {
-    loginError.value = "请输入图形验证码";
     return false;
   }
   if (mfaRequired.value && !form.totpCode.trim()) {
@@ -277,14 +316,24 @@ async function handleLogin() {
     ElMessage.error(loginError.value);
     return;
   }
+
+  let activeTicket = captchaTicket.value;
+  if (captchaEnabled.value && !activeTicket) {
+    activeTicket = (await shieldRef.value?.ensureVerified()) ?? null;
+    if (!activeTicket) {
+      return;
+    }
+    captchaTicket.value = activeTicket;
+  }
+
   loading.value = true;
   try {
     await authStore.login({
       tenantCode: form.tenantCode.trim() || undefined,
       clientId: form.clientId,
       terminalCode: form.terminalCode,
-      captchaId: captchaEnabled.value && captchaId.value ? captchaId.value : undefined,
-      captchaCode: form.captchaCode.trim() || undefined,
+      captchaId: captchaEnabled.value && activeTicket ? activeTicket.captchaId : undefined,
+      captchaCode: captchaEnabled.value && activeTicket ? activeTicket.passToken : undefined,
       totpCode: mfaRequired.value ? form.totpCode.trim() : undefined,
       username: form.username.trim(),
       password: form.password.trim()
@@ -293,7 +342,7 @@ async function handleLogin() {
     void router.push(redirect);
   } catch (error: unknown) {
     const errCode = getAxiosErrorCode(error);
-    const errMsg = getAxiosErrorMessage(error, "登录失败，请检查账号、密码或验证码");
+    const errMsg = getAxiosErrorMessage(error, "登录失败，请检查账号或密码");
     if (errCode === "AUTH_MFA_REQUIRED") {
       mfaRequired.value = true;
       loginError.value = errMsg;
@@ -302,9 +351,9 @@ async function handleLogin() {
       loginError.value = errMsg;
       ElMessage.error(errMsg);
     }
+    captchaTicket.value = null;
     if (captchaEnabled.value) {
-      await refreshCaptcha();
-      form.captchaCode = "";
+      shieldRef.value?.resetShield(true);
     }
   } finally {
     loading.value = false;
@@ -445,8 +494,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="login-universe" :style="universeStyle">
-    <!-- 全屏深空极光、星场与宇宙空间网格背景 -->
+  <div class="login-universe" :class="{ 'is-dark': themeStore.isDark }" :style="universeStyle">
+    <!-- 全屏空间背景（支持亮色晨曦星轨版与暗夜深空版） -->
     <div class="universe-aurora" aria-hidden="true">
       <div class="aurora-orb orb-primary" />
       <div class="aurora-orb orb-secondary" />
@@ -455,75 +504,92 @@ onMounted(() => {
       <div class="universe-stars" />
     </div>
 
-    <!-- 右上角极简光效切换点（无多余文字） -->
-    <div class="floating-spectrum" title="切换空间光效主题">
-      <button
-        v-for="item in presetOptions"
-        :key="item.value"
-        type="button"
-        class="spectrum-dot-btn"
-        :class="{ 'is-active': themeStore.preset === item.value }"
-        :title="item.label"
-        :aria-label="`切换主题为${item.label}`"
-        @click="themeStore.setPreset(item.value)"
-      >
-        <span class="dot-core" :style="{ backgroundColor: item.color }" />
-      </button>
+    <!-- 右上角悬浮外观控制条：亮色 / 暗色 / 跟随系统 + 四套光效光谱点 -->
+    <div class="floating-controls">
+      <div class="mode-switcher" role="group" aria-label="外观模式切换">
+        <button
+          v-for="m in modeOptions"
+          :key="m.value"
+          type="button"
+          class="mode-pill-btn"
+          :class="{ 'is-active': themeStore.mode === m.value }"
+          :title="`切换为${m.label}模式`"
+          @click="themeStore.setMode(m.value)"
+        >
+          <el-icon><component :is="m.icon" /></el-icon>
+          <span>{{ m.label }}</span>
+        </button>
+      </div>
+
+      <span class="controls-divider" aria-hidden="true" />
+
+      <div class="spectrum-group" title="切换光效主题">
+        <button
+          v-for="item in presetOptions"
+          :key="item.value"
+          type="button"
+          class="spectrum-dot-btn"
+          :class="{ 'is-active': themeStore.preset === item.value }"
+          :title="item.label"
+          :aria-label="`切换主题为${item.label}`"
+          @click="themeStore.setPreset(item.value)"
+        >
+          <span class="dot-core" :style="{ backgroundColor: item.color }" />
+        </button>
+      </div>
     </div>
 
-    <!-- 左右分域空间舞台：左侧大型纯动态星轨中枢 · 右侧极简悬浮暗夜晶体登录舱 -->
+    <!-- 左右分域空间舞台：左侧纯净大型星轨动效 · 右侧极简琉璃登录舱 -->
     <main class="universe-layout">
-      <!-- 左侧：放大全屏星轨与天枢四芒星全息动效（零文字干扰） -->
+      <!-- 左侧：放大全屏动态星轨（无文字、无边框） -->
       <section class="cosmic-astrolabe-zone" aria-hidden="true">
         <svg viewBox="0 0 640 640" fill="none" xmlns="http://www.w3.org/2000/svg" class="grand-astrolabe">
           <defs>
             <radialGradient :id="`cosmos-nebula-${svgUid}`" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.34" />
-              <stop offset="42%" stop-color="#6366F1" stop-opacity="0.22" />
-              <stop offset="100%" stop-color="#030614" stop-opacity="0" />
+              <stop offset="0%" :stop-color="astroPalette.nebulaCenter" stop-opacity="0.34" />
+              <stop offset="44%" :stop-color="astroPalette.nebulaMid" stop-opacity="0.20" />
+              <stop offset="100%" :stop-color="astroPalette.nebulaEdge" stop-opacity="0" />
             </radialGradient>
             <radialGradient :id="`cosmos-core-aura-${svgUid}`" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stop-color="#E0F2FE" stop-opacity="0.52" />
-              <stop offset="45%" stop-color="#38BDF8" stop-opacity="0.22" />
-              <stop offset="100%" stop-color="#030614" stop-opacity="0" />
+              <stop offset="0%" :stop-color="astroPalette.coreAuraCenter" stop-opacity="0.56" />
+              <stop offset="46%" :stop-color="astroPalette.coreAuraMid" stop-opacity="0.24" />
+              <stop offset="100%" :stop-color="astroPalette.nebulaEdge" stop-opacity="0" />
             </radialGradient>
             <linearGradient :id="`orbit-grad-a-${svgUid}`" x1="56" y1="420" x2="584" y2="220" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stop-color="#818CF8" stop-opacity="0.14" />
-              <stop offset="50%" stop-color="#38BDF8" stop-opacity="0.96" />
-              <stop offset="100%" stop-color="#6366F1" stop-opacity="0.22" />
+              <stop offset="0%" :stop-color="astroPalette.orbitStart" stop-opacity="0.22" />
+              <stop offset="50%" :stop-color="astroPalette.orbitMid" stop-opacity="0.96" />
+              <stop offset="100%" :stop-color="astroPalette.orbitEnd" stop-opacity="0.26" />
             </linearGradient>
             <linearGradient :id="`orbit-grad-b-${svgUid}`" x1="88" y1="200" x2="552" y2="440" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.12" />
-              <stop offset="50%" stop-color="#A5B4FC" stop-opacity="0.82" />
-              <stop offset="100%" stop-color="#38BDF8" stop-opacity="0.16" />
+              <stop offset="0%" :stop-color="astroPalette.orbitMid" stop-opacity="0.18" />
+              <stop offset="50%" :stop-color="astroPalette.orbitStart" stop-opacity="0.82" />
+              <stop offset="100%" :stop-color="astroPalette.orbitMid" stop-opacity="0.22" />
             </linearGradient>
             <linearGradient :id="`orbit-grad-c-${svgUid}`" x1="200" y1="110" x2="440" y2="530" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stop-color="#22D3EE" stop-opacity="0.08" />
-              <stop offset="50%" stop-color="#818CF8" stop-opacity="0.46" />
-              <stop offset="100%" stop-color="#22D3EE" stop-opacity="0.10" />
+              <stop offset="0%" :stop-color="astroPalette.orbitMid" stop-opacity="0.12" />
+              <stop offset="50%" :stop-color="astroPalette.orbitEnd" stop-opacity="0.50" />
+              <stop offset="100%" :stop-color="astroPalette.orbitMid" stop-opacity="0.14" />
             </linearGradient>
             <linearGradient :id="`star-prism-${svgUid}`" x1="240" y1="236" x2="400" y2="404" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stop-color="#FFFFFF" />
-              <stop offset="46%" stop-color="#BAE6FD" />
-              <stop offset="100%" stop-color="#6366F1" />
+              <stop offset="0%" :stop-color="astroPalette.starTop" />
+              <stop offset="48%" :stop-color="astroPalette.starMid" />
+              <stop offset="100%" :stop-color="astroPalette.starBottom" />
             </linearGradient>
             <linearGradient :id="`radar-cone-${svgUid}`" x1="320" y1="320" x2="520" y2="112" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.26" />
-              <stop offset="65%" stop-color="#6366F1" stop-opacity="0.08" />
-              <stop offset="100%" stop-color="#38BDF8" stop-opacity="0" />
+              <stop offset="0%" :stop-color="astroPalette.orbitMid" stop-opacity="0.22" />
+              <stop offset="65%" :stop-color="astroPalette.orbitEnd" stop-opacity="0.06" />
+              <stop offset="100%" :stop-color="astroPalette.orbitMid" stop-opacity="0" />
             </linearGradient>
           </defs>
 
-          <!-- 星云底光与核心引爆光晕 -->
           <circle cx="320" cy="320" r="280" :fill="`url(#cosmos-nebula-${svgUid})`" />
           <circle cx="320" cy="320" r="170" :fill="`url(#cosmos-core-aura-${svgUid})`" />
 
-          <!-- 同心精密校准环（顺/逆向缓慢旋转） -->
           <circle
             cx="320"
             cy="320"
             r="276"
-            stroke="rgba(148, 163, 184, 0.24)"
+            :stroke="astroPalette.ringOuter"
             stroke-width="1.2"
             stroke-dasharray="2 10"
             class="astro-ring-outer"
@@ -532,18 +598,16 @@ onMounted(() => {
             cx="320"
             cy="320"
             r="228"
-            stroke="rgba(129, 140, 248, 0.28)"
-            stroke-width="1.1"
+            :stroke="astroPalette.ringMiddle"
+            stroke-width="1.15"
             stroke-dasharray="18 10 2 10"
             class="astro-ring-middle"
           />
-          <circle cx="320" cy="320" r="164" stroke="rgba(56, 189, 248, 0.24)" stroke-width="1" />
-          <circle cx="320" cy="320" r="104" stroke="rgba(165, 180, 252, 0.30)" stroke-width="1" stroke-dasharray="3 6" />
+          <circle cx="320" cy="320" r="164" :stroke="astroPalette.ringInner" stroke-width="1" />
+          <circle cx="320" cy="320" r="104" :stroke="astroPalette.ringInnerDash" stroke-width="1" stroke-dasharray="3 6" />
 
-          <!-- 容积扫描光束扇区 -->
           <path d="M320 320 L320 44 A276 276 0 0 1 528 138 Z" :fill="`url(#radar-cone-${svgUid})`" class="astro-radar-sweep" />
 
-          <!-- 轨道 C：第三维度倾斜辅助轨 -->
           <ellipse
             cx="320"
             cy="320"
@@ -551,10 +615,9 @@ onMounted(() => {
             ry="62"
             transform="rotate(-68 320 320)"
             :stroke="`url(#orbit-grad-c-${svgUid})`"
-            stroke-width="1.25"
+            stroke-width="1.35"
           />
 
-          <!-- 轨道 B：交叉副量子轨与反向流光 -->
           <ellipse
             cx="320"
             cy="320"
@@ -562,7 +625,7 @@ onMounted(() => {
             ry="78"
             transform="rotate(28 320 320)"
             :stroke="`url(#orbit-grad-b-${svgUid})`"
-            stroke-width="1.5"
+            stroke-width="1.6"
           />
           <ellipse
             cx="320"
@@ -570,13 +633,12 @@ onMounted(() => {
             rx="252"
             ry="78"
             transform="rotate(28 320 320)"
-            stroke="#A5B4FC"
+            :stroke="astroPalette.pulseSecondary"
             stroke-width="2.2"
             stroke-dasharray="36 440"
             class="astro-pulse-track-rev"
           />
 
-          <!-- 轨道 A：主斜向星轨与彗星光流 -->
           <ellipse
             cx="320"
             cy="320"
@@ -584,7 +646,7 @@ onMounted(() => {
             ry="86"
             transform="rotate(-24 320 320)"
             :stroke="`url(#orbit-grad-a-${svgUid})`"
-            stroke-width="1.9"
+            stroke-width="2"
           />
           <ellipse
             cx="320"
@@ -592,24 +654,22 @@ onMounted(() => {
             rx="268"
             ry="86"
             transform="rotate(-24 320 320)"
-            stroke="#7DD3FC"
+            :stroke="astroPalette.pulsePrimary"
             stroke-width="2.6"
             stroke-dasharray="48 460"
             class="astro-pulse-track"
           />
 
-          <!-- 中心外扩共振能量环 -->
           <circle
             cx="320"
             cy="320"
             r="56"
-            stroke="#38BDF8"
-            stroke-width="1.4"
-            stroke-opacity="0.45"
+            :stroke="astroPalette.resonanceStroke"
+            stroke-width="1.5"
+            stroke-opacity="0.48"
             class="astro-resonance-ring"
           />
 
-          <!-- 放大天枢 3D 切面四芒星棱镜中枢 -->
           <g class="astro-core-star">
             <path
               d="M320 232L341 299L408 320L341 341L320 408L299 341L232 320L299 299Z"
@@ -618,36 +678,35 @@ onMounted(() => {
             <path
               d="M320 232L341 299L320 320L232 320L299 299Z"
               fill="#FFFFFF"
-              fill-opacity="0.92"
+              :fill-opacity="astroPalette.starHighlightOpacity"
             />
-            <path d="M320 292L348 320L320 348L292 320Z" fill="#060A17" fill-opacity="0.58" />
-            <circle cx="320" cy="320" r="12" fill="#38BDF8" fill-opacity="0.34" />
-            <circle cx="320" cy="320" r="6" fill="#FFFFFF" />
+            <path d="M320 292L348 320L320 348L292 320Z" :fill="astroPalette.starCorePivot" fill-opacity="0.72" />
+            <circle cx="320" cy="320" r="12" :fill="astroPalette.orbitMid" fill-opacity="0.34" />
+            <circle cx="320" cy="320" r="6" :fill="astroPalette.starCenterDot" />
           </g>
 
-          <!-- 轨域脉冲卫星节点 -->
           <g class="astro-satellites">
-            <circle cx="142" cy="238" r="9" fill="#38BDF8" fill-opacity="0.24" />
-            <circle cx="142" cy="238" r="4.2" fill="#38BDF8" />
-            <circle cx="498" cy="242" r="10" fill="#818CF8" fill-opacity="0.28" />
-            <circle cx="498" cy="242" r="4.5" fill="#C7D2FE" />
-            <circle cx="204" cy="424" r="8.5" fill="#34D399" fill-opacity="0.26" />
-            <circle cx="204" cy="424" r="3.8" fill="#6EE7B7" />
-            <circle cx="462" cy="398" r="9" fill="#38BDF8" fill-opacity="0.24" />
-            <circle cx="462" cy="398" r="4" fill="#7DD3FC" />
-            <circle cx="358" cy="146" r="7.5" fill="#22D3EE" fill-opacity="0.25" />
-            <circle cx="358" cy="146" r="3.4" fill="#67E8F9" />
+            <circle cx="142" cy="238" r="9" :fill="astroPalette.sat1" fill-opacity="0.22" />
+            <circle cx="142" cy="238" r="4.2" :fill="astroPalette.sat1" />
+            <circle cx="498" cy="242" r="10" :fill="astroPalette.sat2" fill-opacity="0.24" />
+            <circle cx="498" cy="242" r="4.5" :fill="astroPalette.sat2" />
+            <circle cx="204" cy="424" r="8.5" :fill="astroPalette.sat3" fill-opacity="0.24" />
+            <circle cx="204" cy="424" r="3.8" :fill="astroPalette.sat3" />
+            <circle cx="462" cy="398" r="9" :fill="astroPalette.sat4" fill-opacity="0.22" />
+            <circle cx="462" cy="398" r="4" :fill="astroPalette.sat4" />
+            <circle cx="358" cy="146" r="7.5" :fill="astroPalette.sat5" fill-opacity="0.24" />
+            <circle cx="358" cy="146" r="3.4" :fill="astroPalette.sat5" />
           </g>
         </svg>
       </section>
 
-      <!-- 右侧：极简悬浮暗夜玻璃登录舱 -->
+      <!-- 右侧：极简自适应琉璃登录舱（亮色晶透白 / 暗色曜石黑） -->
       <section class="auth-prism-card" aria-label="账号登录">
         <div class="prism-top-beam" aria-hidden="true" />
 
         <header class="card-brand">
           <img v-if="customLogoUrl" :src="customLogoUrl" alt="品牌标识" class="custom-portal-logo" />
-          <TianshuLogo v-else :size="42" theme="dark" animated />
+          <TianshuLogo v-else :size="42" :theme="themeStore.isDark ? 'dark' : 'light'" animated />
           <span class="card-brand__name">{{ displayPortalTitle }}</span>
         </header>
 
@@ -689,35 +748,15 @@ onMounted(() => {
               />
             </el-form-item>
 
+            <!-- 天枢智盾：低风险一键无感核验 / 高风险自动弹滑动拼图 -->
             <el-form-item v-if="captchaEnabled">
-              <div class="captcha-row">
-                <el-input
-                  v-model="form.captchaCode"
-                  size="large"
-                  placeholder="图形验证码"
-                  :prefix-icon="Key"
-                  @keyup.enter="handleLogin"
-                />
-                <button
-                  type="button"
-                  class="captcha-box"
-                  title="点击刷新验证码"
-                  @click="refreshCaptcha"
-                >
-                  <span class="captcha-img-wrap">
-                    <img
-                      v-if="captchaImageUrl"
-                      :src="captchaImageUrl"
-                      alt="图形验证码"
-                      class="captcha-img"
-                    />
-                    <span v-else class="captcha-fallback">刷新</span>
-                  </span>
-                  <span class="captcha-refresh-pill" aria-hidden="true">
-                    <el-icon><RefreshRight /></el-icon>
-                  </span>
-                </button>
-              </div>
+              <SmartShieldCaptcha
+                ref="shieldRef"
+                :dark="themeStore.isDark"
+                :mode-hint="portal?.captcha.mode || 'SMART'"
+                @verified="onShieldVerified"
+                @reset="onShieldReset"
+              />
             </el-form-item>
 
             <el-form-item v-if="mfaRequired">
@@ -732,12 +771,7 @@ onMounted(() => {
             </el-form-item>
 
             <div class="auth-meta-row">
-              <div class="demo-links">
-                <button type="button" class="meta-link-btn" @click="fillDemoAccount('admin')">管理员</button>
-                <span class="meta-dot" aria-hidden="true">·</span>
-                <button type="button" class="meta-link-btn" @click="fillDemoAccount('user')">成员</button>
-              </div>
-              <button type="button" class="meta-link-btn is-accent" @click="openResetDialog">忘记密码</button>
+              <button type="button" class="meta-link-btn" @click="openResetDialog">忘记密码？</button>
             </div>
 
             <button type="submit" class="cyber-submit-btn" :disabled="loading">
@@ -755,7 +789,6 @@ onMounted(() => {
             </button>
           </el-form>
 
-          <!-- 纯图标联邦登录一行（零文字冗余） -->
           <div class="sso-icon-row">
             <div class="sso-hairline" aria-hidden="true" />
             <div class="sso-icons">
@@ -851,18 +884,18 @@ onMounted(() => {
   --portal-secondary: #0ea5e9;
   --portal-secondary-rgb: 14, 165, 233;
 
-  /* 强制覆写全局浅色/毛玻璃控件令牌，防止浅色模式下表单容器被全局样式染白 */
-  --sb-control-bg: rgba(17, 25, 48, 0.88);
-  --sb-control-bg-hover: rgba(22, 33, 62, 0.95);
-  --sb-border-color: rgba(148, 163, 184, 0.34);
+  /* 默认亮色晨曦星轨版：清透浅色表单控件令牌 */
+  --sb-control-bg: rgba(248, 250, 252, 0.94);
+  --sb-control-bg-hover: #ffffff;
+  --sb-border-color: rgba(148, 163, 184, 0.36);
   --sb-border-strong: rgba(var(--portal-glow-rgb), 0.72);
   --sb-primary-color: var(--portal-glow);
-  --sb-text-primary: #ffffff;
-  --sb-text-secondary: #ffffff;
-  --sb-text-muted: #cbd5e1;
-  --el-input-text-color: #ffffff;
-  --el-text-color-regular: #ffffff;
-  --el-text-color-placeholder: rgba(148, 163, 184, 0.78);
+  --sb-text-primary: #0f172a;
+  --sb-text-secondary: #0f172a;
+  --sb-text-muted: #64748b;
+  --el-input-text-color: #0f172a;
+  --el-text-color-regular: #0f172a;
+  --el-text-color-placeholder: #64748b;
 
   position: relative;
   min-height: 100vh;
@@ -872,8 +905,24 @@ onMounted(() => {
   justify-content: center;
   padding: 28px clamp(20px, 5vw, 72px);
   overflow-x: hidden;
-  background: radial-gradient(circle at 28% 45%, #0a1535 0%, #060b1e 48%, #030614 100%);
-  color: #f8fafc;
+  background: radial-gradient(circle at 28% 45%, #dbeafe 0%, #eef2ff 50%, #f8fafc 100%);
+  color: #0f172a;
+  transition: background 120ms ease, color 120ms ease;
+
+  &.is-dark {
+    --sb-control-bg: rgba(17, 25, 48, 0.88);
+    --sb-control-bg-hover: rgba(22, 33, 62, 0.95);
+    --sb-border-color: rgba(148, 163, 184, 0.34);
+    --sb-text-primary: #ffffff;
+    --sb-text-secondary: #ffffff;
+    --sb-text-muted: #cbd5e1;
+    --el-input-text-color: #ffffff;
+    --el-text-color-regular: #ffffff;
+    --el-text-color-placeholder: rgba(148, 163, 184, 0.78);
+
+    background: radial-gradient(circle at 28% 45%, #0a1535 0%, #060b1e 48%, #030614 100%);
+    color: #f8fafc;
+  }
 }
 
 .universe-aurora {
@@ -896,7 +945,7 @@ onMounted(() => {
   left: 6%;
   width: 680px;
   height: 680px;
-  background: radial-gradient(circle, rgba(var(--portal-glow-rgb), 0.34) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(var(--portal-glow-rgb), 0.24) 0%, transparent 70%);
 }
 
 .orb-secondary {
@@ -904,7 +953,7 @@ onMounted(() => {
   bottom: -160px;
   width: 620px;
   height: 620px;
-  background: radial-gradient(circle, rgba(var(--portal-secondary-rgb), 0.24) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(var(--portal-secondary-rgb), 0.20) 0%, transparent 70%);
 }
 
 .orb-core {
@@ -913,22 +962,51 @@ onMounted(() => {
   width: 540px;
   height: 540px;
   transform: translate(-50%, -50%);
-  background: radial-gradient(circle, rgba(var(--portal-secondary-rgb), 0.16) 0%, transparent 72%);
+  background: radial-gradient(circle, rgba(var(--portal-secondary-rgb), 0.14) 0%, transparent 72%);
+}
+
+.is-dark {
+  .orb-primary {
+    background: radial-gradient(circle, rgba(var(--portal-glow-rgb), 0.34) 0%, transparent 70%);
+  }
+
+  .orb-secondary {
+    background: radial-gradient(circle, rgba(var(--portal-secondary-rgb), 0.24) 0%, transparent 70%);
+  }
+
+  .orb-core {
+    background: radial-gradient(circle, rgba(var(--portal-secondary-rgb), 0.16) 0%, transparent 72%);
+  }
 }
 
 .universe-grid {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(to right, rgba(148, 163, 184, 0.06) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(148, 163, 184, 0.06) 1px, transparent 1px);
+    linear-gradient(to right, rgba(79, 70, 229, 0.065) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(79, 70, 229, 0.065) 1px, transparent 1px);
   background-size: 48px 48px;
   mask-image: radial-gradient(ellipse 88% 82% at 38% 50%, #000 30%, transparent 100%);
+}
+
+.is-dark .universe-grid {
+  background-image:
+    linear-gradient(to right, rgba(148, 163, 184, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(148, 163, 184, 0.06) 1px, transparent 1px);
 }
 
 .universe-stars {
   position: absolute;
   inset: 0;
+  background-image:
+    radial-gradient(1.5px 1.5px at 12% 18%, rgba(79, 70, 229, 0.42), transparent),
+    radial-gradient(1.5px 1.5px at 26% 74%, rgba(2, 132, 199, 0.45), transparent),
+    radial-gradient(1.5px 1.5px at 44% 12%, rgba(99, 102, 241, 0.36), transparent),
+    radial-gradient(1.5px 1.5px at 62% 84%, rgba(2, 132, 199, 0.34), transparent),
+    radial-gradient(1.5px 1.5px at 84% 24%, rgba(79, 70, 229, 0.36), transparent);
+}
+
+.is-dark .universe-stars {
   background-image:
     radial-gradient(1.5px 1.5px at 12% 18%, rgba(255, 255, 255, 0.45), transparent),
     radial-gradient(1.5px 1.5px at 26% 74%, rgba(56, 189, 248, 0.48), transparent),
@@ -938,20 +1016,87 @@ onMounted(() => {
     radial-gradient(1px 1px at 90% 68%, rgba(165, 180, 252, 0.35), transparent);
 }
 
-/* 右上角极简光效圆点栏 */
-.floating-spectrum {
+/* 右上角外观切换栏：亮色 / 暗色 / 跟随系统 + 光谱点 */
+.floating-controls {
   position: fixed;
-  top: 22px;
-  right: 26px;
+  top: 20px;
+  right: 24px;
   z-index: 10;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 8px;
+  gap: 8px;
+  padding: 4px 8px 4px 4px;
   border-radius: 9999px;
-  background: rgba(15, 23, 42, 0.62);
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  backdrop-filter: blur(14px);
+  background: rgba(255, 255, 255, 0.80);
+  border: 1px solid rgba(203, 213, 225, 0.78);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 24px -8px rgba(15, 23, 42, 0.12);
+}
+
+.is-dark .floating-controls {
+  background: rgba(15, 23, 42, 0.72);
+  border-color: rgba(148, 163, 184, 0.24);
+  box-shadow: 0 10px 26px -8px rgba(0, 0, 0, 0.45);
+}
+
+.mode-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.mode-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: #475569;
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 150ms ease, color 150ms ease, box-shadow 150ms ease;
+
+  &:hover {
+    color: #0f172a;
+  }
+
+  &.is-active {
+    background: #ffffff;
+    color: var(--portal-glow);
+    font-weight: 600;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.12);
+  }
+}
+
+.is-dark .mode-pill-btn {
+  color: #94a3b8;
+
+  &:hover {
+    color: #f8fafc;
+  }
+
+  &.is-active {
+    background: rgba(var(--portal-glow-rgb), 0.28);
+    color: #ffffff;
+    box-shadow: inset 0 0 0 1px rgba(var(--portal-glow-rgb), 0.45);
+  }
+}
+
+.controls-divider {
+  width: 1px;
+  height: 14px;
+  background: rgba(148, 163, 184, 0.35);
+}
+
+.spectrum-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .spectrum-dot-btn {
@@ -972,8 +1117,12 @@ onMounted(() => {
   }
 
   &.is-active {
-    border-color: #ffffff;
+    border-color: var(--portal-glow);
   }
+}
+
+.is-dark .spectrum-dot-btn.is-active {
+  border-color: #ffffff;
 }
 
 .dot-core {
@@ -1048,19 +1197,28 @@ onMounted(() => {
   animation: astroSatellitePulse 3.6s ease-in-out infinite;
 }
 
-/* 右侧极简暗夜晶体玻璃登录舱 */
+/* 右侧极简自适应琉璃登录舱 */
 .auth-prism-card {
   position: relative;
   width: 100%;
   padding: 36px 32px 28px;
   border-radius: 26px;
+  background: rgba(255, 255, 255, 0.84);
+  border: 1px solid rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(28px) saturate(190%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.96),
+    0 28px 68px -18px rgba(30, 41, 59, 0.16);
+  overflow: hidden;
+  transition: background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.is-dark .auth-prism-card {
   background: rgba(10, 16, 34, 0.78);
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  backdrop-filter: blur(28px) saturate(185%);
+  border-color: rgba(148, 163, 184, 0.22);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.16),
     0 30px 72px -18px rgba(0, 0, 0, 0.68);
-  overflow: hidden;
 }
 
 .prism-top-beam {
@@ -1078,7 +1236,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 28px;
+  margin-bottom: 26px;
 }
 
 .custom-portal-logo {
@@ -1093,24 +1251,72 @@ onMounted(() => {
   font-size: 18px;
   font-weight: 700;
   letter-spacing: 0.03em;
-  color: #f8fafc;
+  color: #0f172a;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+.is-dark .card-brand__name {
+  color: #f8fafc;
+}
+
 .login-universe .prism-form {
   :deep(.el-form-item) {
-    margin-bottom: 16px;
+    margin-bottom: 15px;
   }
 
   :deep(.el-input__wrapper) {
     height: 46px;
     padding: 0 14px;
     border-radius: 12px !important;
+    background: rgba(248, 250, 252, 0.95) !important;
+    box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.36) inset !important;
+    transition: box-shadow 180ms ease, background 180ms ease;
+
+    &:hover {
+      background: #ffffff !important;
+      box-shadow: 0 0 0 1px rgba(var(--portal-glow-rgb), 0.56) inset !important;
+    }
+
+    &.is-focus,
+    &:focus-within {
+      background: #ffffff !important;
+      box-shadow:
+        0 0 0 1.5px var(--portal-glow) inset,
+        0 0 22px -6px rgba(var(--portal-glow-rgb), 0.38) !important;
+    }
+  }
+
+  :deep(.el-input__inner) {
+    color: #0f172a !important;
+    font-size: 14px;
+    font-weight: 500;
+    caret-color: var(--portal-glow);
+
+    &::placeholder {
+      color: #64748b !important;
+      font-weight: 400;
+    }
+
+    &:-webkit-autofill {
+      -webkit-text-fill-color: #0f172a !important;
+      -webkit-box-shadow: 0 0 0 1000px #f8fafc inset !important;
+      transition: background-color 5000s ease-in-out 0s;
+    }
+  }
+
+  :deep(.el-input__prefix),
+  :deep(.el-input__suffix),
+  :deep(.el-input__icon) {
+    color: #64748b !important;
+  }
+}
+
+.login-universe.is-dark .prism-form {
+  :deep(.el-input__wrapper) {
     background: rgba(17, 25, 48, 0.88) !important;
     box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.34) inset !important;
-    transition: box-shadow 180ms ease, background 180ms ease;
 
     &:hover {
       background: rgba(22, 33, 62, 0.95) !important;
@@ -1128,19 +1334,15 @@ onMounted(() => {
 
   :deep(.el-input__inner) {
     color: #ffffff !important;
-    font-size: 14px;
-    font-weight: 500;
     caret-color: var(--portal-secondary);
 
     &::placeholder {
       color: rgba(148, 163, 184, 0.78) !important;
-      font-weight: 400;
     }
 
     &:-webkit-autofill {
       -webkit-text-fill-color: #ffffff !important;
       -webkit-box-shadow: 0 0 0 1000px #111930 inset !important;
-      transition: background-color 5000s ease-in-out 0s;
     }
   }
 
@@ -1156,78 +1358,11 @@ onMounted(() => {
   border-radius: 10px;
 }
 
-.captcha-row {
-  width: 100%;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 140px;
-  gap: 10px;
-}
-
-.captcha-box {
-  position: relative;
-  height: 46px;
-  border-radius: 12px;
-  border: 1px solid rgba(148, 163, 184, 0.34);
-  background: rgba(17, 25, 48, 0.92);
-  padding: 0;
-  overflow: hidden;
-  cursor: pointer;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 26px;
-  align-items: stretch;
-  transition: border-color 160ms ease;
-
-  &:hover {
-    border-color: var(--portal-glow);
-  }
-}
-
-.captcha-img-wrap {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f8fafc;
-  overflow: hidden;
-}
-
-.captcha-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.captcha-fallback {
-  font-size: 12px;
-  color: #475569;
-}
-
-.captcha-refresh-pill {
-  border-left: 1px solid rgba(148, 163, 184, 0.32);
-  background: rgba(17, 25, 48, 0.92);
-  color: #e2e8f0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-}
-
-/* 轻量单行操作栏（零盒状冗余） */
 .auth-meta-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin: -2px 2px 14px;
-}
-
-.demo-links {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.meta-dot {
-  color: rgba(148, 163, 184, 0.55);
-  font-size: 12px;
+  justify-content: flex-end;
+  margin: -4px 2px 14px;
 }
 
 .meta-link-btn {
@@ -1235,20 +1370,22 @@ onMounted(() => {
   border: 0;
   background: transparent;
   font-size: 12.5px;
-  color: rgba(203, 213, 225, 0.90);
+  font-weight: 500;
+  color: var(--portal-glow);
   cursor: pointer;
   transition: color 150ms ease;
 
   &:hover {
-    color: #ffffff;
+    opacity: 0.82;
   }
+}
 
-  &.is-accent {
-    color: #7dd3fc;
+.is-dark .meta-link-btn {
+  color: #7dd3fc;
 
-    &:hover {
-      color: #ffffff;
-    }
+  &:hover {
+    color: #ffffff;
+    opacity: 1;
   }
 }
 
@@ -1266,7 +1403,7 @@ onMounted(() => {
   font-size: 15px;
   font-weight: 600;
   letter-spacing: 0.04em;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.32);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.26);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1275,7 +1412,7 @@ onMounted(() => {
   overflow: hidden;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.34),
-    0 14px 32px -8px rgba(var(--portal-glow-rgb), 0.62);
+    0 14px 30px -8px rgba(var(--portal-glow-rgb), 0.52);
   transition: transform 180ms ease, box-shadow 180ms ease, background-position 260ms ease, opacity 180ms ease;
 
   &:hover:not(:disabled) {
@@ -1283,7 +1420,7 @@ onMounted(() => {
     transform: translateY(-1px);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.42),
-      0 18px 36px -8px rgba(var(--portal-glow-rgb), 0.72);
+      0 18px 36px -8px rgba(var(--portal-glow-rgb), 0.65);
   }
 
   &:hover:not(:disabled) .btn-arrow {
@@ -1323,7 +1460,7 @@ onMounted(() => {
 .sso-hairline {
   height: 1px;
   width: 100%;
-  background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.28), transparent);
+  background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.32), transparent);
   margin-bottom: 16px;
 }
 
@@ -1340,8 +1477,8 @@ onMounted(() => {
   padding: 0;
   border-radius: 50%;
   border: 1px solid rgba(148, 163, 184, 0.32);
-  background: rgba(15, 23, 42, 0.62);
-  color: rgba(226, 232, 240, 0.92);
+  background: rgba(248, 250, 252, 0.88);
+  color: #334155;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1354,10 +1491,22 @@ onMounted(() => {
   }
 
   &:hover {
+    border-color: var(--portal-glow);
+    background: rgba(var(--portal-glow-rgb), 0.12);
+    color: var(--portal-glow);
+    transform: translateY(-1px);
+  }
+}
+
+.is-dark .sso-icon-btn {
+  border-color: rgba(148, 163, 184, 0.32);
+  background: rgba(15, 23, 42, 0.62);
+  color: rgba(226, 232, 240, 0.92);
+
+  &:hover {
     border-color: var(--portal-secondary);
     background: rgba(var(--portal-glow-rgb), 0.22);
     color: #ffffff;
-    transform: translateY(-1px);
   }
 }
 
@@ -1454,16 +1603,23 @@ onMounted(() => {
 
 @media (max-width: 640px) {
   .login-universe {
-    padding: 20px 16px;
+    padding: 68px 16px 24px;
   }
 
-  .floating-spectrum {
+  .floating-controls {
     top: 14px;
-    right: 16px;
+    right: 12px;
+    gap: 6px;
+    padding: 3px 6px 3px 3px;
+  }
+
+  .mode-pill-btn {
+    padding: 0 7px;
+    font-size: 11px;
   }
 
   .auth-prism-card {
-    padding: 30px 22px 24px;
+    padding: 28px 20px 24px;
     border-radius: 22px;
   }
 }

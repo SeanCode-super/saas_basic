@@ -62,6 +62,30 @@ export interface CaptchaChallenge {
   expiresInSeconds: number;
 }
 
+export interface SmartCaptchaChallenge {
+  captchaId: string;
+  challengeType: "SMART" | "SLIDER";
+  powSalt?: string | null;
+  powDifficulty: number;
+  backgroundImageDataUrl?: string | null;
+  pieceImageDataUrl?: string | null;
+  targetY?: number | null;
+  expiresInSeconds: number;
+}
+
+export interface VerifyCaptchaPayload {
+  captchaId: string;
+  nonce?: string;
+  slideX?: number;
+  durationMs: number;
+  trailCount: number;
+}
+
+export interface VerifyCaptchaResponse {
+  verified: boolean;
+  passToken: string;
+}
+
 export interface MfaStatusResponse {
   enabled: boolean;
   policyForceMfa: boolean;

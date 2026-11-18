@@ -11,12 +11,27 @@ import type {
   PasswordResetConfirmPayload,
   PasswordResetSendCodePayload,
   PasswordResetSendCodeResponse,
+  SmartCaptchaChallenge,
   TenantInviteAcceptPayload,
-  TenantInviteResponse
+  TenantInviteResponse,
+  VerifyCaptchaPayload,
+  VerifyCaptchaResponse
 } from "./types";
 
 export async function fetchAuthCaptcha(): Promise<CaptchaChallenge> {
   const response = await http.get<ApiResponse<CaptchaChallenge>>("/auth/captcha");
+  return response.data.data;
+}
+
+export async function fetchSmartCaptchaChallenge(mode: "AUTO" | "SMART" | "SLIDER" = "AUTO"): Promise<SmartCaptchaChallenge> {
+  const response = await http.get<ApiResponse<SmartCaptchaChallenge>>("/auth/captcha/challenge", {
+    params: { mode }
+  });
+  return response.data.data;
+}
+
+export async function verifySmartCaptcha(payload: VerifyCaptchaPayload): Promise<VerifyCaptchaResponse> {
+  const response = await http.post<ApiResponse<VerifyCaptchaResponse>>("/auth/captcha/verify", payload);
   return response.data.data;
 }
 
