@@ -16,6 +16,7 @@ declare module 'vue' {
     CommandPaletteDialog: typeof import('./../components/platform/CommandPaletteDialog.vue')['default']
     ControlSurface: typeof import('./../components/platform/ControlSurface.vue')['default']
     DictTag: typeof import('./../components/common/DictTag.vue')['default']
+    DimensionSliceBar: typeof import('./../components/pro/DimensionSliceBar.vue')['default']
     ElAlert: typeof import('element-plus/es')['ElAlert']
     ElAutocomplete: typeof import('element-plus/es')['ElAutocomplete']
     ElAvatar: typeof import('element-plus/es')['ElAvatar']

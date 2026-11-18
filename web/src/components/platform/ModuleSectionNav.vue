@@ -23,13 +23,12 @@ function update(value: string) {
       <button
         v-for="item in items"
         :key="item.key"
+        type="button"
         class="module-section-nav__item"
         :class="{ 'is-active': modelValue === item.key }"
         @click="update(item.key)"
       >
-        <div>
-          <strong>{{ item.label }}</strong>
-        </div>
+        <strong>{{ item.label }}</strong>
       </button>
     </div>
   </section>
@@ -38,45 +37,51 @@ function update(value: string) {
 <style scoped lang="scss">
 .module-section-nav {
   display: block;
-  background: var(--sb-glass-bg, rgba(255, 255, 255, 0.90));
-  border: 1px solid rgba(226, 232, 240, 0.92);
-  border-radius: 14px;
-  padding: 4px 16px 0;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  box-shadow: 0 4px 14px -4px rgba(15, 23, 42, 0.05);
+  background: var(--sb-tier1-bg, rgba(255, 255, 255, 0.88));
+  border: 1px solid var(--sb-border-subtle, #e2e8f0);
+  border-radius: 12px;
+  padding: 4px;
+  backdrop-filter: var(--sb-glass-blur-sm, blur(14px));
+  -webkit-backdrop-filter: var(--sb-glass-blur-sm, blur(14px));
+  box-shadow: var(--sb-shadow-xs);
 }
 
 .module-section-nav__grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 20px;
+  align-items: center;
+  gap: 4px;
 }
 
 .module-section-nav__item {
   display: inline-flex;
   align-items: center;
-  margin-bottom: -1px;
-  padding: 10px 4px;
-  border: 0;
-  border-bottom: 2.5px solid transparent;
+  justify-content: center;
+  height: 30px;
+  padding: 0 13px;
+  border: 1px solid transparent;
+  border-radius: var(--sb-radius-control, 8px);
   background: transparent;
-  color: var(--sb-text-muted, #475569);
-  text-align: left;
+  color: var(--sb-text-muted);
+  text-align: center;
   cursor: pointer;
-  transition: 140ms ease;
+  white-space: nowrap;
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
 
   &:hover {
-    color: var(--sb-text-primary, #0f172a);
+    color: var(--sb-text-primary);
+    background: var(--sb-surface-soft);
   }
 
   &.is-active {
-    border-bottom-color: var(--sb-primary-color, #2563eb);
-    color: var(--sb-primary-color, #2563eb);
+    background: var(--sb-tier2-bg);
+    border-color: var(--sb-border-subtle);
+    color: var(--sb-primary-color);
+    box-shadow: var(--sb-shadow-xs);
   }
 
   strong {
-    font-size: 13.5px;
+    font-size: 13px;
     font-weight: 600;
   }
 }

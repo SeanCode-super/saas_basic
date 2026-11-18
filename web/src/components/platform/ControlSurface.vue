@@ -14,15 +14,17 @@ withDefaults(
 
 <template>
   <section class="control-surface" :aria-label="title">
-    <header v-if="title || $slots.actions" class="control-surface__header">
+    <header v-if="title || $slots.actions || $slots.nav" class="control-surface__header">
       <div class="control-surface__heading">
-        <div class="control-surface__title-row">
-          <h2 class="control-surface__title">{{ title }}</h2>
-          <span v-if="badge || eyebrow" class="control-surface__badge">
-            {{ badge || eyebrow }}
-          </span>
-        </div>
-        <p v-if="description" class="control-surface__desc">{{ description }}</p>
+        <span v-if="badge || eyebrow" class="control-surface__badge">
+          {{ badge || eyebrow }}
+        </span>
+        <h2 class="control-surface__title">{{ title }}</h2>
+        <span v-if="description" class="control-surface__divider" aria-hidden="true" />
+        <p v-if="description" class="control-surface__desc" :title="description">{{ description }}</p>
+      </div>
+      <div v-if="$slots.nav" class="control-surface__nav">
+        <slot name="nav" />
       </div>
       <div v-if="$slots.actions" class="control-surface__toolbar">
         <slot name="actions" />
@@ -44,60 +46,72 @@ withDefaults(
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 12px 18px;
-  padding: 14px 20px;
-  margin-bottom: 14px;
-  border-radius: 18px;
-  background: var(--sb-glass-bg, rgba(255, 255, 255, 0.90));
-  border: 1px solid rgba(226, 232, 240, 0.92);
-  backdrop-filter: blur(18px) saturate(150%);
-  -webkit-backdrop-filter: blur(18px) saturate(150%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.96),
-    0 6px 20px -6px rgba(15, 23, 42, 0.06);
+  gap: 10px 14px;
+  min-height: 46px;
+  padding: 8px 16px;
+  margin-bottom: 10px;
+  border-radius: var(--sb-radius-glass-md, 14px);
+  background: var(--sb-tier1-bg, rgba(255, 255, 255, 0.88));
+  border: 1px solid var(--sb-border-subtle, #e2e8f0);
+  backdrop-filter: var(--sb-glass-blur-sm, blur(14px) saturate(150%));
+  -webkit-backdrop-filter: var(--sb-glass-blur-sm, blur(14px) saturate(150%));
+  box-shadow: var(--sb-shadow-xs);
 }
 
 .control-surface__heading {
   min-width: 0;
-  flex: 1 1 360px;
-}
-
-.control-surface__title-row {
+  flex: 1 1 280px;
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
   gap: 10px;
 }
 
 .control-surface__title {
   margin: 0;
-  font-size: 16.5px;
+  font-size: 15.5px;
   font-weight: 700;
-  color: var(--sb-text-primary, #0f172a);
-  line-height: 1.3;
+  color: var(--sb-text-primary);
+  line-height: 1.25;
   letter-spacing: -0.015em;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .control-surface__badge {
   display: inline-flex;
   align-items: center;
-  padding: 2px 9px;
+  padding: 2px 8px;
   border-radius: 9999px;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  color: #1d4ed8;
+  background: var(--sb-badge-primary-bg, rgba(37, 99, 235, 0.10));
+  border: 1px solid var(--sb-badge-primary-border, rgba(37, 99, 235, 0.24));
+  color: var(--sb-badge-primary-text, #1d4ed8);
   font-size: 11px;
   font-weight: 600;
-  line-height: 1.4;
+  line-height: 1.35;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.control-surface__divider {
+  width: 1px;
+  height: 14px;
+  background: var(--sb-border-color, #cbd5e1);
+  flex-shrink: 0;
 }
 
 .control-surface__desc {
-  margin: 4px 0 0;
+  margin: 0;
+  flex: 1;
+  min-width: 120px;
   font-size: 12.5px;
-  color: var(--sb-text-muted, #475569);
-  line-height: 1.45;
+  color: var(--sb-text-muted);
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+.control-surface__nav,
 .control-surface__toolbar {
   display: flex;
   align-items: center;
@@ -108,5 +122,12 @@ withDefaults(
 
 .control-surface__body {
   min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .control-surface__divider,
+  .control-surface__desc {
+    display: none;
+  }
 }
 </style>

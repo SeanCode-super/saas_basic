@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import {
+  nextTick,
   onBeforeUnmount,
+  onMounted,
   ref,
   watch
 } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { useRoute, useRouter, type RouteLocationNormalizedLoaded } from "vue-router";
 import {
   ArrowDown,
   ArrowRight,
@@ -13,20 +15,28 @@ import {
   Refresh,
   Remove
 } from "@element-plus/icons-vue";
+import { useMenuStore } from "@/stores/modules/menu";
+import { resolveRouteTagTitle } from "@/utils/tag-title";
 
 interface TagItem {
   title: string;
   path: string;
+  rawPath: string;
+  rawQuery?: Record<string, unknown>;
+  routeTitle?: string;
   name?: string;
   closable: boolean;
 }
 
 const route = useRoute();
 const router = useRouter();
+const menuStore = useMenuStore();
+const scrollRef = ref<HTMLElement | null>(null);
 
 const fixedHome: TagItem = {
   title: "控制台首页",
   path: "/dashboard",
+  rawPath: "/dashboard",
   name: "dashboard",
   closable: false
 };
@@ -37,28 +47,86 @@ const contextMenuTop = ref(0);
 const contextMenuLeft = ref(0);
 const selectedTag = ref<TagItem | null>(null);
 
-function addTag(r: any) {
+function computeTagTitle(path: string, query?: Record<string, unknown>, routeTitle?: string): string {
+  return resolveRouteTagTitle({
+    path,
+    query,
+    routeTitle,
+    navigation: menuStore.navigation
+  });
+}
+
+function addTag(r: RouteLocationNormalizedLoaded) {
   if (!r.path || r.path === "/" || r.path === "/login") return;
 
-  const title = (r.meta?.title as string) || r.name || "新标签";
-  const existing = visitedTags.value.find((t) => t.path === r.fullPath || t.path === r.path);
+  const fullPath = r.fullPath || r.path;
+  const routeTitle = typeof r.meta?.title === "string" ? r.meta.title : r.name ? String(r.name) : undefined;
+  const title = computeTagTitle(r.path, r.query as Record<string, unknown>, routeTitle);
+  const existing = visitedTags.value.find((t) => t.path === fullPath || (r.path === "/dashboard" && t.rawPath === "/dashboard"));
   if (!existing) {
     visitedTags.value.push({
       title,
-      path: r.fullPath || r.path,
+      path: fullPath,
+      rawPath: r.path,
+      rawQuery: r.query as Record<string, unknown>,
+      routeTitle,
       name: r.name ? String(r.name) : undefined,
       closable: r.path !== "/dashboard"
     });
+  } else {
+    existing.title = title;
   }
+}
+
+function scrollActiveTagIntoView() {
+  void nextTick(() => {
+    const activeEl = scrollRef.value?.querySelector<HTMLElement>(".tags-view-item.is-active");
+    activeEl?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+  });
 }
 
 watch(
   () => route.fullPath,
   () => {
     addTag(route);
+    scrollActiveTagIntoView();
   },
   { immediate: true }
 );
+
+watch(
+  () => menuStore.navigation,
+  () => {
+    visitedTags.value.forEach((tag) => {
+      if (tag.rawPath !== "/dashboard") {
+        tag.title = computeTagTitle(tag.rawPath, tag.rawQuery, tag.routeTitle);
+      }
+    });
+  }
+);
+
+function handleWheelScroll(e: WheelEvent) {
+  const el = scrollRef.value;
+  if (!el || el.scrollWidth <= el.clientWidth) return;
+  if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+    e.preventDefault();
+    el.scrollLeft += e.deltaY;
+  }
+}
+
+function handleTagShortcut(e: KeyboardEvent) {
+  if (e.altKey && e.key.toLowerCase() === "w") {
+    const current = getActiveTag();
+    if (current.closable) {
+      e.preventDefault();
+      handleCloseTag(current);
+    }
+  }
+}
+
+onMounted(() => {
+  window.addEventListener("keydown", handleTagShortcut);
+});
 
 function isActive(tag: TagItem) {
   return route.fullPath === tag.path || route.path === tag.path;
@@ -134,6 +202,7 @@ watch(contextMenuVisible, (val) => {
 
 onBeforeUnmount(() => {
   unbindGlobalDismissListeners();
+  window.removeEventListener("keydown", handleTagShortcut);
 });
 
 async function refreshSelectedTag(targetTag?: TagItem) {
@@ -197,13 +266,15 @@ async function handleToolbarCommand(command: string | number | Record<string, un
 
 <template>
   <div class="tags-view-container">
-    <div class="tags-view-scroll">
+    <div ref="scrollRef" class="tags-view-scroll" @wheel="handleWheelScroll">
       <div
         v-for="tag in visitedTags"
         :key="tag.path"
         class="tags-view-item"
         :class="{ 'is-active': isActive(tag) }"
+        :title="`${tag.title}（中键关闭 / Alt+W 关闭当前）`"
         @click="handleSelectTag(tag)"
+        @auxclick.middle.prevent="tag.closable && handleCloseTag(tag, $event)"
         @contextmenu="openContextMenu(tag, $event)"
       >
         <span class="tag-dot" v-if="isActive(tag)" />
@@ -279,14 +350,12 @@ async function handleToolbarCommand(command: string | number | Record<string, un
 .tags-view-container {
   height: 40px;
   width: 100%;
-  background: var(--sb-glass-bg, rgba(255, 255, 255, 0.88));
-  backdrop-filter: blur(20px) saturate(160%);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
-  border-radius: 16px;
-  border: 1px solid var(--sb-border-color, rgba(226, 232, 240, 0.90));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.98),
-    0 6px 18px -6px rgba(15, 23, 42, 0.05);
+  background: var(--sb-tier1-bg, rgba(255, 255, 255, 0.88));
+  backdrop-filter: var(--sb-glass-blur-sm, blur(14px) saturate(150%));
+  -webkit-backdrop-filter: var(--sb-glass-blur-sm, blur(14px) saturate(150%));
+  border-radius: var(--sb-radius-glass-md, 14px);
+  border: 1px solid var(--sb-border-subtle, #e2e8f0);
+  box-shadow: var(--sb-shadow-xs);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -345,32 +414,32 @@ async function handleToolbarCommand(command: string | number | Record<string, un
   align-items: center;
   height: 28px;
   line-height: 28px;
-  border: 1px solid rgba(226, 232, 240, 0.90);
-  color: #334155;
-  background: rgba(248, 250, 252, 0.92);
+  border: 1px solid var(--sb-border-subtle, #e2e8f0);
+  color: var(--sb-text-tertiary, #334155);
+  background: var(--sb-control-bg, rgba(248, 250, 252, 0.92));
   padding: 0 12px;
   font-size: 12px;
   font-weight: 550;
   border-radius: 9999px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  box-shadow: var(--sb-shadow-xs);
   cursor: pointer;
   transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
   gap: 6px;
 
   &:hover {
-    color: var(--sb-text-primary, #0f172a);
-    background: #ffffff;
-    border-color: #cbd5e1;
-    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+    color: var(--sb-text-primary);
+    background: var(--sb-control-bg-hover);
+    border-color: var(--sb-border-color);
+    box-shadow: var(--sb-shadow-sm);
     transform: translateY(-0.5px);
   }
 
   &.is-active {
-    background: #ffffff;
-    color: #1d4ed8;
-    border-color: #bfdbfe;
-    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.10);
+    background: var(--sb-badge-primary-bg, rgba(37, 99, 235, 0.10));
+    color: var(--sb-badge-primary-text, #1d4ed8);
+    border-color: var(--sb-badge-primary-border, rgba(37, 99, 235, 0.24));
+    box-shadow: var(--sb-shadow-xs);
     font-weight: 650;
   }
 }
@@ -379,12 +448,12 @@ async function handleToolbarCommand(command: string | number | Record<string, un
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #2563eb;
+  background: var(--sb-primary-color, #2563eb);
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
 }
 
 .tag-title {
-  max-width: 130px;
+  max-width: 150px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -394,12 +463,12 @@ async function handleToolbarCommand(command: string | number | Record<string, un
   font-size: 11px;
   border-radius: 4px;
   padding: 1px;
-  color: #94a3b8;
+  color: var(--sb-text-disabled, #94a3b8);
   transition: all 0.12s ease;
 
   &:hover {
-    background: #dbeafe;
-    color: #1d4ed8;
+    background: var(--sb-badge-primary-bg);
+    color: var(--sb-badge-primary-text);
   }
 }
 

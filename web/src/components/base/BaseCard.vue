@@ -24,46 +24,38 @@ const cardClass = computed(() => [`base-card--${props.tone}`]);
 
 <style scoped lang="scss">
 .base-card {
-  border: 1px solid rgba(226, 232, 240, 0.92);
-  border-radius: var(--sb-radius-glass, 22px);
-  background: var(--sb-glass-bg, rgba(255, 255, 255, 0.90));
-  backdrop-filter: blur(22px) saturate(165%);
-  -webkit-backdrop-filter: blur(22px) saturate(165%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.98),
-    0 10px 28px -8px rgba(15, 23, 42, 0.06);
+  border: 1px solid var(--sb-border-subtle, #e2e8f0);
+  border-radius: var(--sb-radius-glass, 20px);
+  background: var(--sb-tier2-bg, rgba(255, 255, 255, 0.96));
+  box-shadow: var(--sb-shadow-sm);
   transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 180ms ease, border-color 180ms ease;
 
   &:hover {
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 1),
-      0 14px 34px -10px rgba(15, 23, 42, 0.09);
+    box-shadow: var(--sb-shadow-md);
   }
 }
 
 .base-card :deep(.el-card__header) {
-  padding: 14px 20px;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.85);
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--sb-border-subtle, #e2e8f0);
   font-weight: 650;
   color: var(--sb-text-primary);
-  background: rgba(248, 250, 252, 0.94);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-radius: var(--sb-radius-glass, 22px) var(--sb-radius-glass, 22px) 0 0;
+  background: var(--sb-tier2-header-bg, rgba(248, 250, 252, 0.98));
+  border-radius: var(--sb-radius-glass, 20px) var(--sb-radius-glass, 20px) 0 0;
 }
 
 .base-card :deep(.el-card__body) {
-  padding: 18px 20px;
+  padding: 16px 18px;
   background: transparent;
 }
 
 .base-card--soft,
 .base-card--contrast {
-  background: rgba(248, 250, 252, 0.92);
+  background: var(--sb-surface-soft, rgba(248, 250, 252, 0.90));
 }
 
 .base-card--accent {
-  border-color: rgba(147, 197, 253, 0.95);
-  background: rgba(239, 246, 255, 0.94);
+  border-color: var(--sb-badge-primary-border, rgba(37, 99, 235, 0.24));
+  background: var(--sb-badge-primary-bg, rgba(37, 99, 235, 0.10));
 }
 </style>

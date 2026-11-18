@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
   CircleCheck,
@@ -7,9 +8,15 @@ import {
   Download,
   Plus,
   RefreshRight,
+  Search,
   WarningFilled
 } from "@element-plus/icons-vue";
+import ControlSurface from "@/components/platform/ControlSurface.vue";
 import ExportDialog from "@/components/platform/ExportDialog.vue";
+import ModuleSectionNav from "@/components/platform/ModuleSectionNav.vue";
+import ModuleWorkbench from "@/components/platform/ModuleWorkbench.vue";
+import ProTable, { type ProTableColumn } from "@/components/pro/ProTable.vue";
+import type { DimensionAxisConfig } from "@/utils/dimension-slice";
 import {
   createErpPurchaseOrder,
   deleteErpProduct,
@@ -27,9 +34,52 @@ import type {
   ErpPurchaseOrderRow
 } from "@/api/modules/erp";
 
-const activeTab = ref<"products" | "inventory" | "purchase" | "records">("inventory");
+type ErpSectionKey = "inventory" | "products" | "purchase" | "records";
+
+const erpSectionItems: Array<{ key: ErpSectionKey; label: string; description: string }> = [
+  { key: "inventory", label: "实时库存看板", description: "多仓实时可用库存、安全预警线与资产估值监控。" },
+  { key: "products", label: "物料商品档案", description: "统一维护商品物料编码、分类规格与采销指导价。" },
+  { key: "purchase", label: "采购履约管理", description: "采购订单下单、在途履约与一键入库核销台账。" },
+  { key: "records", label: "出入库流水台账", description: "采购入库、销售出库及调拨操作全链路审计流水。" }
+];
+
+const route = useRoute();
+const router = useRouter();
+
+function parseTabQuery(raw: unknown): ErpSectionKey {
+  const value = String(raw || "");
+  if (value === "products" || value === "purchase" || value === "records") {
+    return value;
+  }
+  return "inventory";
+}
+
+const activeTab = ref<ErpSectionKey>(parseTabQuery(route.query.tab));
 const loading = ref(false);
 const erpExportVisible = ref(false);
+
+watch(
+  () => route.query.tab,
+  (val) => {
+    const parsed = parseTabQuery(val);
+    if (parsed !== activeTab.value) {
+      activeTab.value = parsed;
+    }
+  }
+);
+
+function updateSection(nextKey: string) {
+  const normalized = parseTabQuery(nextKey);
+  activeTab.value = normalized;
+  void router.replace({
+    path: route.path,
+    query: { ...route.query, tab: normalized }
+  });
+}
+
+const activeSectionMeta = computed(
+  () => erpSectionItems.find((item) => item.key === activeTab.value) ?? erpSectionItems[0]
+);
 
 const erpExportSource = computed(() => {
   if (activeTab.value === "products") return "erp_product";
@@ -82,7 +132,6 @@ const erpRecordAdHocRows = computed(() =>
   activeTab.value === "records" ? (records.value as unknown as Array<Record<string, unknown>>) : []
 );
 
-// Filtered lists
 const filteredProducts = computed(() => {
   if (!productSearch.value.trim()) return products.value;
   const kw = productSearch.value.toLowerCase();
@@ -105,43 +154,121 @@ const filteredInventory = computed(() => {
   );
 });
 
-// 统一分页
-const erpPage = ref(1);
-const erpPageSize = ref(10);
+const lowStockCount = computed(
+  () => inventory.value.filter((item) => item.isLowStock).length
+);
 
-const currentErpList = computed<any[]>(() => {
-  switch (activeTab.value) {
-    case "inventory": return filteredInventory.value;
-    case "products": return filteredProducts.value;
-    case "purchase": return purchaseOrders.value;
-    case "records": return records.value;
-    default: return [];
+const pendingPurchaseCount = computed(
+  () => purchaseOrders.value.filter((item) => item.status === "PENDING").length
+);
+
+const inventoryTotalValue = computed(() =>
+  inventory.value.reduce((acc, item) => acc + Number(item.totalValue || 0), 0)
+);
+
+const erpSummary = computed(() => [
+  { label: "实时在库物料", value: inventory.value.length },
+  { label: "低库存预警项", value: lowStockCount.value },
+  { label: "待入库采购单", value: pendingPurchaseCount.value },
+  { label: "实时库存总估值", value: `¥ ${inventoryTotalValue.value.toLocaleString()}` }
+]);
+
+// Columns & 5D Slice Dimensions
+const inventoryColumns: ProTableColumn[] = [
+  { prop: "productCode", label: "物料编码", width: 128 },
+  { prop: "productName", label: "物料全称", minWidth: 180, slot: "productName" },
+  { prop: "warehouseName", label: "所属仓库", width: 156 },
+  { prop: "stockQuantity", label: "当前总在库", width: 112, align: "center", numeric: true, slot: "stockQuantity" },
+  { prop: "lockedQuantity", label: "锁定库存", width: 96, align: "center", numeric: true },
+  { prop: "availableQuantity", label: "可用库存", width: 100, align: "center", numeric: true, slot: "availableQuantity" },
+  { prop: "health", label: "库存健康度", width: 130, align: "center", slot: "health" },
+  { prop: "totalValue", label: "库存估值", width: 132, numeric: true, slot: "totalValue" }
+];
+
+const inventoryDimensions: DimensionAxisConfig[] = [
+  { key: "warehouseName", label: "所属仓库" },
+  {
+    key: "healthStatus",
+    label: "库存健康度",
+    accessor: (row) => (row.isLowStock ? "LOW" : "OK"),
+    options: [
+      { label: "低于预警线", value: "LOW" },
+      { label: "库存充足", value: "OK" }
+    ]
   }
-});
+];
 
-const paginatedInventory = computed(() => {
-  const start = (erpPage.value - 1) * erpPageSize.value;
-  return filteredInventory.value.slice(start, start + erpPageSize.value);
-});
+const productColumns: ProTableColumn[] = [
+  { prop: "productCode", label: "物料编码", width: 150 },
+  { prop: "productName", label: "物料名称", minWidth: 180 },
+  { prop: "category", label: "分类", width: 120 },
+  { prop: "specification", label: "规格型号", minWidth: 150 },
+  { prop: "unit", label: "单位", width: 72, align: "center" },
+  { prop: "purchasePrice", label: "采购指导价", width: 124, numeric: true, slot: "purchasePrice" },
+  { prop: "salePrice", label: "指导售价", width: 124, numeric: true, slot: "salePrice" },
+  { prop: "minStock", label: "安全警戒值", width: 106, align: "center", numeric: true },
+  { prop: "actions", label: "操作", width: 96, align: "center", slot: "actions" }
+];
 
-const paginatedProducts = computed(() => {
-  const start = (erpPage.value - 1) * erpPageSize.value;
-  return filteredProducts.value.slice(start, start + erpPageSize.value);
-});
+const productDimensions: DimensionAxisConfig[] = [
+  { key: "category", label: "物料分类" },
+  { key: "unit", label: "计量单位" }
+];
 
-const paginatedPurchaseOrders = computed(() => {
-  const start = (erpPage.value - 1) * erpPageSize.value;
-  return purchaseOrders.value.slice(start, start + erpPageSize.value);
-});
+const purchaseColumns: ProTableColumn[] = [
+  { prop: "orderNo", label: "采购单号", width: 180 },
+  { prop: "supplierName", label: "供货单位", minWidth: 180 },
+  { prop: "totalAmount", label: "订单标的总额", width: 140, numeric: true, slot: "totalAmount" },
+  { prop: "status", label: "履约状态", width: 126, align: "center", slot: "status" },
+  { prop: "remark", label: "采购说明", minWidth: 160 },
+  { prop: "createdAt", label: "制单时间", width: 170 },
+  { prop: "actions", label: "操作", width: 126, align: "center", slot: "actions" }
+];
 
-const paginatedRecords = computed(() => {
-  const start = (erpPage.value - 1) * erpPageSize.value;
-  return records.value.slice(start, start + erpPageSize.value);
-});
+const purchaseDimensions: DimensionAxisConfig[] = [
+  {
+    key: "status",
+    label: "履约状态",
+    options: [
+      { label: "待入库验收", value: "PENDING" },
+      { label: "已入库完成", value: "IN_STORAGE" }
+    ]
+  },
+  { key: "supplierName", label: "供货单位" }
+];
 
-watch([activeTab, productSearch, inventorySearch], () => {
-  erpPage.value = 1;
-});
+const recordColumns: ProTableColumn[] = [
+  { prop: "recordNo", label: "流水单号", width: 180 },
+  { prop: "recordType", label: "业务类型", width: 116, align: "center", slot: "recordType" },
+  { prop: "productName", label: "物料名称", minWidth: 170 },
+  { prop: "warehouseName", label: "执行仓库", width: 156 },
+  { prop: "beforeQuantity", label: "变动前", width: 92, align: "center", numeric: true },
+  { prop: "changeQuantity", label: "变动数量", width: 100, align: "center", numeric: true, slot: "changeQuantity" },
+  { prop: "afterQuantity", label: "变动后", width: 92, align: "center", numeric: true },
+  { prop: "operatorName", label: "操作人", width: 110 },
+  { prop: "remark", label: "操作备注", minWidth: 160 },
+  { prop: "createdAt", label: "记录时间", width: 170 }
+];
+
+const recordDimensions: DimensionAxisConfig[] = [
+  {
+    key: "recordType",
+    label: "业务类型",
+    options: [
+      { label: "采购入库", value: "PURCHASE_IN" },
+      { label: "销售出库", value: "SALE_OUT" },
+      { label: "调拨调整", value: "TRANSFER" }
+    ]
+  },
+  { key: "warehouseName", label: "执行仓库" }
+];
+
+function getErrorMessage(err: unknown, fallback: string): string {
+  if (err && typeof err === "object" && "message" in err && typeof (err as { message?: unknown }).message === "string") {
+    return (err as { message: string }).message || fallback;
+  }
+  return fallback;
+}
 
 async function loadAll() {
   loading.value = true;
@@ -156,18 +283,17 @@ async function loadAll() {
     inventory.value = invs;
     purchaseOrders.value = pos;
     records.value = recs;
-  } catch (err: any) {
-    ElMessage.error(err?.message || "加载 ERP 数据失败");
+  } catch (err: unknown) {
+    ElMessage.error(getErrorMessage(err, "加载 ERP 数据失败"));
   } finally {
     loading.value = false;
   }
 }
 
 onMounted(() => {
-  loadAll();
+  void loadAll();
 });
 
-// Product Actions
 function openAddProductDialog() {
   productForm.productCode = `PRD-${Date.now().toString(36).toUpperCase()}`;
   productForm.productName = "";
@@ -191,9 +317,9 @@ async function handleSaveProduct() {
     await saveErpProduct(productForm);
     ElMessage.success("物料商品已成功录入，并完成库存初始化！");
     productDialogVisible.value = false;
-    loadAll();
-  } catch (err: any) {
-    ElMessage.error(err?.message || "保存物料失败");
+    await loadAll();
+  } catch (err: unknown) {
+    ElMessage.error(getErrorMessage(err, "保存物料失败"));
   }
 }
 
@@ -202,11 +328,14 @@ async function handleDeleteProduct(id: number) {
     await ElMessageBox.confirm("确定删除该物料档案吗？", "删除确认", { type: "warning" });
     await deleteErpProduct(id);
     ElMessage.success("物料已安全删除");
-    loadAll();
-  } catch {}
+    await loadAll();
+  } catch (err: unknown) {
+    if (err !== "cancel" && err !== "close") {
+      ElMessage.error(getErrorMessage(err, "删除物料失败"));
+    }
+  }
 }
 
-// Purchase Actions
 function openAddPurchaseDialog() {
   purchaseForm.supplierId = 1;
   purchaseForm.supplierName = "华为数字能源技术有限公司";
@@ -220,9 +349,9 @@ async function handleSavePurchase() {
     await createErpPurchaseOrder(purchaseForm);
     ElMessage.success("采购订单已生成！");
     purchaseDialogVisible.value = false;
-    loadAll();
-  } catch (err: any) {
-    ElMessage.error(err?.message || "创建采购单失败");
+    await loadAll();
+  } catch (err: unknown) {
+    ElMessage.error(getErrorMessage(err, "创建采购单失败"));
   }
 }
 
@@ -235,188 +364,180 @@ async function handleStockIn(order: ErpPurchaseOrderRow) {
     );
     await stockInPurchaseOrder(order.id, 1);
     ElMessage.success("采购订单入库成功！已自动更新库存并生成台账流水。");
-    loadAll();
-  } catch {}
+    await loadAll();
+  } catch (err: unknown) {
+    if (err !== "cancel" && err !== "close") {
+      ElMessage.error(getErrorMessage(err, "入库核销失败"));
+    }
+  }
 }
 </script>
 
 <template>
   <div class="erp-container">
-    <el-card shadow="never" class="mb-4">
-      <template #header>
-        <div class="flex-between">
-          <div>
-            <h2 class="panel-title">企业级进销存 (ERP) 供应链中枢</h2>
-            <p class="panel-subtitle">支持商品物料档案、多仓实时库存、采购订单全生命周期履约与出入库台账审计。</p>
-          </div>
-          <div class="flex-actions">
-            <el-button :icon="Download" @click="erpExportVisible = true">安全导出</el-button>
-            <el-button :icon="RefreshRight" :loading="loading" @click="loadAll">刷新数据</el-button>
-          </div>
-        </div>
+    <ControlSurface
+      badge="ERP"
+      :title="activeSectionMeta.label"
+      :description="activeSectionMeta.description"
+    >
+      <template #actions>
+        <el-button :icon="Download" @click="erpExportVisible = true">安全导出</el-button>
+        <el-button :icon="RefreshRight" :loading="loading" @click="loadAll">刷新数据</el-button>
+        <el-button
+          v-if="activeTab === 'products'"
+          type="primary"
+          :icon="Plus"
+          @click="openAddProductDialog"
+        >
+          新增物料档案
+        </el-button>
+        <el-button
+          v-else-if="activeTab === 'purchase'"
+          type="primary"
+          :icon="DocumentAdd"
+          @click="openAddPurchaseDialog"
+        >
+          新建采购订单
+        </el-button>
       </template>
 
-      <!-- 选项卡切换 -->
-      <el-tabs v-model="activeTab" class="erp-tabs">
-        <!-- 1. 实时多仓库存看板 -->
-        <el-tab-pane label="实时库存看板" name="inventory">
-          <div class="tab-toolbar">
-            <el-input
-              v-model="inventorySearch"
-              placeholder="搜索物料编码、物料名称、仓库..."
-              prefix-icon="Search"
-              clearable
-              style="width: 320px;"
-            />
-          </div>
-
-          <el-table :data="paginatedInventory" stripe border style="width: 100%;">
-            <el-table-column prop="productCode" label="物料编码" width="128" />
-            <el-table-column prop="productName" label="物料全称" min-width="170">
-              <template #default="{ row }">
-                <strong>{{ row.productName }}</strong>
-                <div class="text-muted">{{ row.specification }}</div>
-              </template>
-            </el-table-column>
-            <el-table-column prop="warehouseName" label="所属仓库" width="148" show-overflow-tooltip />
-            <el-table-column prop="stockQuantity" label="当前总在库" width="100" align="center">
-              <template #default="{ row }">
-                <span class="stock-badge">{{ row.stockQuantity }} {{ row.unit }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="lockedQuantity" label="锁定库存" width="88" align="center" />
-            <el-table-column prop="availableQuantity" label="可用库存" width="92" align="center">
-              <template #default="{ row }">
-                <strong class="text-success">{{ row.availableQuantity }}</strong>
-              </template>
-            </el-table-column>
-            <el-table-column label="库存健康度" width="120" align="center">
-              <template #default="{ row }">
-                <el-tag v-if="row.isLowStock" type="danger" size="small" :icon="WarningFilled">
-                  低于预警线 ({{ row.minStock }})
-                </el-tag>
-                <el-tag v-else type="success" size="small" :icon="CircleCheck">充足</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="totalValue" label="库存估值" width="115" align="right">
-              <template #default="{ row }">
-                ¥ {{ (row.totalValue || 0).toLocaleString() }}
-              </template>
-            </el-table-column>
-          </el-table>
-        </el-tab-pane>
-
-        <!-- 2. 商品物料档案 -->
-        <el-tab-pane label="物料商品档案" name="products">
-          <div class="tab-toolbar flex-between">
-            <el-input
-              v-model="productSearch"
-              placeholder="搜索物料编码、名称、分类..."
-              prefix-icon="Search"
-              clearable
-              style="width: 320px;"
-            />
-            <el-button type="primary" :icon="Plus" @click="openAddProductDialog">新增物料档案</el-button>
-          </div>
-
-          <el-table :data="paginatedProducts" stripe border style="width: 100%;">
-            <el-table-column prop="productCode" label="物料编码" width="150" />
-            <el-table-column prop="productName" label="物料名称" min-width="180" />
-            <el-table-column prop="category" label="分类" width="120" />
-            <el-table-column prop="specification" label="规格型号" min-width="150" />
-            <el-table-column prop="unit" label="单位" width="70" align="center" />
-            <el-table-column prop="purchasePrice" label="采购指导价" width="120" align="right">
-              <template #default="{ row }">¥ {{ row.purchasePrice?.toFixed(2) }}</template>
-            </el-table-column>
-            <el-table-column prop="salePrice" label="指导售价" width="120" align="right">
-              <template #default="{ row }">¥ {{ row.salePrice?.toFixed(2) }}</template>
-            </el-table-column>
-            <el-table-column prop="minStock" label="安全警戒值" width="100" align="center" />
-            <el-table-column label="操作" width="100" align="center">
-              <template #default="{ row }">
-                <el-button link type="danger" @click="handleDeleteProduct(row.id)">删除</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-        </el-tab-pane>
-
-        <!-- 3. 采购履约管理 -->
-        <el-tab-pane label="采购履约管理" name="purchase">
-          <div class="tab-toolbar flex-between">
-            <span class="text-muted">已开通与工作流审批与出入库全链路联动</span>
-            <el-button type="primary" :icon="DocumentAdd" @click="openAddPurchaseDialog">新建采购订单</el-button>
-          </div>
-
-          <el-table :data="paginatedPurchaseOrders" stripe border style="width: 100%;">
-            <el-table-column prop="orderNo" label="采购单号" width="180" />
-            <el-table-column prop="supplierName" label="供货单位" min-width="180" />
-            <el-table-column prop="totalAmount" label="订单标的总额" width="140" align="right">
-              <template #default="{ row }">¥ {{ row.totalAmount?.toLocaleString() }}</template>
-            </el-table-column>
-            <el-table-column prop="status" label="履约状态" width="120" align="center">
-              <template #default="{ row }">
-                <el-tag v-if="row.status === 'IN_STORAGE'" type="success">已入库完成</el-tag>
-                <el-tag v-else type="warning">待入库验收</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="remark" label="采购说明" min-width="160" />
-            <el-table-column prop="createdAt" label="制单时间" width="180" />
-            <el-table-column label="操作" width="140" align="center">
-              <template #default="{ row }">
-                <el-button
-                  v-if="row.status === 'PENDING'"
-                  type="primary"
-                  size="small"
-                  @click="handleStockIn(row)"
-                >
-                  一键入库
-                </el-button>
-                <span v-else class="text-muted">无需操作</span>
-              </template>
-            </el-table-column>
-          </el-table>
-        </el-tab-pane>
-
-        <!-- 4. 出入库台账审计 -->
-        <el-tab-pane label="出入库流水台账" name="records">
-          <el-table :data="paginatedRecords" stripe border style="width: 100%;">
-            <el-table-column prop="recordNo" label="流水单号" width="180" />
-            <el-table-column prop="recordType" label="业务类型" width="120" align="center">
-              <template #default="{ row }">
-                <el-tag v-if="row.recordType === 'PURCHASE_IN'" type="success">采购入库</el-tag>
-                <el-tag v-else-if="row.recordType === 'SALE_OUT'" type="warning">销售出库</el-tag>
-                <el-tag v-else type="info">调拨调整</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="productName" label="物料名称" min-width="180" />
-            <el-table-column prop="warehouseName" label="执行仓库" width="180" />
-            <el-table-column prop="beforeQuantity" label="变动前库存" width="110" align="center" />
-            <el-table-column prop="changeQuantity" label="变动数量" width="110" align="center">
-              <template #default="{ row }">
-                <strong :class="row.changeQuantity > 0 ? 'text-success' : 'text-danger'">
-                  {{ row.changeQuantity > 0 ? `+${row.changeQuantity}` : row.changeQuantity }}
-                </strong>
-              </template>
-            </el-table-column>
-            <el-table-column prop="afterQuantity" label="变动后库存" width="110" align="center" />
-            <el-table-column prop="operatorName" label="操作人" width="120" />
-            <el-table-column prop="remark" label="操作备注" min-width="180" />
-            <el-table-column prop="createdAt" label="记录时间" width="180" />
-          </el-table>
-        </el-tab-pane>
-      </el-tabs>
-
-      <div class="erp-pagination-bar">
-        <el-pagination
-          v-model:current-page="erpPage"
-          v-model:page-size="erpPageSize"
-          :page-sizes="[10, 20, 50, 100]"
-          layout="total, sizes, prev, pager, next, jumper"
-          :total="currentErpList.length"
-          background
+      <div class="module-section-stack">
+        <ModuleSectionNav
+          :model-value="activeTab"
+          :items="erpSectionItems"
+          @update:model-value="updateSection"
         />
+
+        <ModuleWorkbench
+          eyebrow="ERP"
+          :title="activeSectionMeta.label"
+          :description="activeSectionMeta.description"
+          :summary="erpSummary"
+        >
+          <!-- 1. 实时多仓库存看板 -->
+          <ProTable
+            v-if="activeTab === 'inventory'"
+            title="多仓实时库存明细"
+            row-key="id"
+            :columns="inventoryColumns"
+            :data="filteredInventory"
+            :loading="loading"
+            :dimensions="inventoryDimensions"
+            dimension-storage-key="erp-inventory"
+            empty-title="暂无库存记录"
+            empty-description="请调整多维切片或关键词筛选。"
+          >
+            <template #search>
+              <el-input
+                v-model="inventorySearch"
+                placeholder="搜索物料编码、物料名称、仓库..."
+                :prefix-icon="Search"
+                clearable
+                style="width: 320px;"
+              />
+            </template>
+            <template #productName="{ row }">
+              <strong>{{ row.productName }}</strong>
+              <div class="text-muted">{{ row.specification }}</div>
+            </template>
+            <template #stockQuantity="{ row }">
+              <span class="stock-badge">{{ row.stockQuantity }} {{ row.unit }}</span>
+            </template>
+            <template #availableQuantity="{ row }">
+              <strong class="text-success">{{ row.availableQuantity }}</strong>
+            </template>
+            <template #health="{ row }">
+              <el-tag v-if="row.isLowStock" type="danger" size="small" :icon="WarningFilled">
+                低于预警线 ({{ row.minStock }})
+              </el-tag>
+              <el-tag v-else type="success" size="small" :icon="CircleCheck">充足</el-tag>
+            </template>
+            <template #totalValue="{ row }">
+              ¥ {{ (row.totalValue || 0).toLocaleString() }}
+            </template>
+          </ProTable>
+
+          <!-- 2. 商品物料档案 -->
+          <ProTable
+            v-else-if="activeTab === 'products'"
+            title="物料商品主档案"
+            row-key="id"
+            :columns="productColumns"
+            :data="filteredProducts"
+            :loading="loading"
+            :dimensions="productDimensions"
+            dimension-storage-key="erp-products"
+          >
+            <template #search>
+              <el-input
+                v-model="productSearch"
+                placeholder="搜索物料编码、名称、分类..."
+                :prefix-icon="Search"
+                clearable
+                style="width: 320px;"
+              />
+            </template>
+            <template #purchasePrice="{ row }">¥ {{ row.purchasePrice?.toFixed(2) }}</template>
+            <template #salePrice="{ row }">¥ {{ row.salePrice?.toFixed(2) }}</template>
+            <template #actions="{ row }">
+              <el-button link type="danger" @click="handleDeleteProduct(row.id)">删除</el-button>
+            </template>
+          </ProTable>
+
+          <!-- 3. 采购履约管理 -->
+          <ProTable
+            v-else-if="activeTab === 'purchase'"
+            title="采购订单履约台账"
+            row-key="id"
+            :columns="purchaseColumns"
+            :data="purchaseOrders"
+            :loading="loading"
+            :dimensions="purchaseDimensions"
+            dimension-storage-key="erp-purchase"
+          >
+            <template #totalAmount="{ row }">¥ {{ row.totalAmount?.toLocaleString() }}</template>
+            <template #status="{ row }">
+              <el-tag v-if="row.status === 'IN_STORAGE'" type="success">已入库完成</el-tag>
+              <el-tag v-else type="warning">待入库验收</el-tag>
+            </template>
+            <template #actions="{ row }">
+              <el-button
+                v-if="row.status === 'PENDING'"
+                type="primary"
+                size="small"
+                @click="handleStockIn(row)"
+              >
+                一键入库
+              </el-button>
+              <span v-else class="text-muted">已核销</span>
+            </template>
+          </ProTable>
+
+          <!-- 4. 出入库台账审计 -->
+          <ProTable
+            v-else
+            title="出入库流水审计台账"
+            row-key="id"
+            :columns="recordColumns"
+            :data="records"
+            :loading="loading"
+            :dimensions="recordDimensions"
+            dimension-storage-key="erp-records"
+          >
+            <template #recordType="{ row }">
+              <el-tag v-if="row.recordType === 'PURCHASE_IN'" type="success">采购入库</el-tag>
+              <el-tag v-else-if="row.recordType === 'SALE_OUT'" type="warning">销售出库</el-tag>
+              <el-tag v-else type="info">调拨调整</el-tag>
+            </template>
+            <template #changeQuantity="{ row }">
+              <strong :class="row.changeQuantity > 0 ? 'text-success' : 'text-danger'">
+                {{ row.changeQuantity > 0 ? `+${row.changeQuantity}` : row.changeQuantity }}
+              </strong>
+            </template>
+          </ProTable>
+        </ModuleWorkbench>
       </div>
-    </el-card>
+    </ControlSurface>
 
     <!-- 新建物料 Dialog -->
     <el-dialog v-model="productDialogVisible" title="录入物料商品档案" width="560px">
@@ -510,60 +631,22 @@ async function handleStockIn(order: ErpPurchaseOrderRow) {
   box-sizing: border-box;
 }
 
-.erp-tabs {
-  background: transparent;
-}
-
-.flex-between {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.panel-title {
-  font-size: 18px;
-  font-weight: 600;
-  margin: 0;
-  color: var(--el-text-color-primary);
-}
-
-.panel-subtitle {
-  font-size: 13px;
-  color: var(--el-text-color-secondary);
-  margin: 4px 0 0;
-}
-
-.tab-toolbar {
-  margin-bottom: 16px;
-}
-
 .stock-badge {
-  font-family: monospace;
-  font-weight: bold;
+  font-family: var(--sb-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
 }
 
 .text-muted {
   font-size: 12px;
-  color: var(--el-text-color-placeholder);
+  color: var(--sb-text-muted);
 }
 
 .text-success {
-  color: var(--el-color-success);
+  color: var(--sb-success-color);
 }
 
 .text-danger {
-  color: var(--el-color-danger);
-}
-
-.mb-4 {
-  margin-bottom: 16px;
-}
-
-.erp-pagination-bar {
-  display: flex;
-  justify-content: flex-end;
-  padding: 16px 8px 8px;
-  margin-top: 12px;
-  border-top: 1px solid rgba(226, 232, 240, 0.6);
+  color: var(--sb-danger-color);
 }
 </style>

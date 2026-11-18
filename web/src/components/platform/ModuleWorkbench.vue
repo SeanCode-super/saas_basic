@@ -34,12 +34,12 @@ defineProps<{
 .module-workbench,
 .module-workbench__content {
   display: grid;
-  gap: 14px;
+  gap: 10px;
 }
 
 .module-workbench__toolbar {
   display: flex;
-  min-height: 34px;
+  min-height: 32px;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
@@ -48,21 +48,19 @@ defineProps<{
 .module-workbench__summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  border: 1px solid rgba(226, 232, 240, 0.92);
-  border-radius: var(--sb-radius-glass-md, 18px);
-  background: var(--sb-glass-bg, rgba(255, 255, 255, 0.90));
-  backdrop-filter: blur(20px) saturate(160%);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.98),
-    0 8px 24px -6px rgba(15, 23, 42, 0.06);
+  border: 1px solid var(--sb-border-subtle, #e2e8f0);
+  border-radius: var(--sb-radius-glass-md, 14px);
+  background: var(--sb-tier1-bg, rgba(255, 255, 255, 0.88));
+  backdrop-filter: var(--sb-glass-blur-sm, blur(14px));
+  -webkit-backdrop-filter: var(--sb-glass-blur-sm, blur(14px));
+  box-shadow: var(--sb-shadow-xs);
   overflow: hidden;
 }
 
 .module-workbench__summary-item {
   min-width: 0;
-  padding: 14px 18px;
-  border-right: 1px solid rgba(226, 232, 240, 0.5);
+  padding: 10px 16px;
+  border-right: 1px solid var(--sb-border-subtle, #e2e8f0);
 
   &:last-child {
     border-right: 0;
@@ -79,9 +77,11 @@ defineProps<{
   }
 
   strong {
-    margin-top: 5px;
+    margin-top: 4px;
     overflow: hidden;
-    font-size: 20px;
+    color: var(--sb-text-primary);
+    font-size: 19px;
+    font-variant-numeric: tabular-nums;
     line-height: 1.2;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -94,7 +94,7 @@ defineProps<{
   }
 
   .module-workbench__summary-item {
-    border-bottom: 1px solid var(--sb-border-color);
+    border-bottom: 1px solid var(--sb-border-subtle);
 
     &:nth-child(2n) {
       border-right: 0;

@@ -222,6 +222,31 @@ function selectLayout(mode: LayoutMode) {
             </button>
           </div>
         </div>
+
+        <div class="control-row">
+          <span class="control-label">
+            <el-icon><Operation /></el-icon>
+            {{ t("launchpad.density") }}
+          </span>
+          <div class="segmented-group">
+            <button
+              type="button"
+              class="seg-btn"
+              :class="{ 'is-active': themeStore.tableDensity === 'comfortable' }"
+              @click="themeStore.setTableDensity('comfortable')"
+            >
+              {{ t("launchpad.densityComfortable") }}
+            </button>
+            <button
+              type="button"
+              class="seg-btn"
+              :class="{ 'is-active': themeStore.tableDensity === 'compact' }"
+              @click="themeStore.setTableDensity('compact')"
+            >
+              {{ t("launchpad.densityCompact") }}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </el-popover>

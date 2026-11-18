@@ -2,8 +2,10 @@ import { computed, ref } from "vue";
 import { defineStore } from "pinia";
 
 export type ThemeMode = "light" | "dark" | "system";
+export type TableDensity = "comfortable" | "compact";
 
 const THEME_STORAGE_KEY = "sb-theme-mode";
+const DENSITY_STORAGE_KEY = "sb-table-density";
 
 function readInitialThemeMode(): ThemeMode {
   if (typeof window === "undefined") {
@@ -16,6 +18,14 @@ function readInitialThemeMode(): ThemeMode {
   return "light";
 }
 
+function readInitialTableDensity(): TableDensity {
+  if (typeof window === "undefined") {
+    return "comfortable";
+  }
+  const stored = localStorage.getItem(DENSITY_STORAGE_KEY);
+  return stored === "compact" ? "compact" : "comfortable";
+}
+
 function prefersSystemDark(): boolean {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
     return false;
@@ -25,10 +35,18 @@ function prefersSystemDark(): boolean {
 
 export const useThemeStore = defineStore("theme", () => {
   const mode = ref<ThemeMode>(readInitialThemeMode());
+  const tableDensity = ref<TableDensity>(readInitialTableDensity());
   const systemDark = ref<boolean>(prefersSystemDark());
   let initialized = false;
 
   const isDark = computed(() => (mode.value === "system" ? systemDark.value : mode.value === "dark"));
+
+  function applyDomDensity() {
+    if (typeof document === "undefined") {
+      return;
+    }
+    document.documentElement.dataset.density = tableDensity.value;
+  }
 
   function applyDomTheme() {
     if (typeof document === "undefined") {
@@ -37,6 +55,7 @@ export const useThemeStore = defineStore("theme", () => {
     const dark = isDark.value;
     document.documentElement.classList.toggle("dark", dark);
     document.documentElement.style.colorScheme = dark ? "dark" : "light";
+    applyDomDensity();
   }
 
   function initThemeListener() {
@@ -62,12 +81,22 @@ export const useThemeStore = defineStore("theme", () => {
     applyDomTheme();
   }
 
+  function setTableDensity(next: TableDensity) {
+    tableDensity.value = next;
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(DENSITY_STORAGE_KEY, next);
+    }
+    applyDomDensity();
+  }
+
   initThemeListener();
 
   return {
     mode,
+    tableDensity,
     isDark,
     setMode,
+    setTableDensity,
     applyDomTheme
   };
 });

@@ -206,7 +206,11 @@ export const APP_TAXONOMY: Record<string, AppMeta> = {
     summary: "商品物料、多仓库存与采购销售履约中枢。",
     description: "商品主数据、多级仓储库存出入库调度与采销订单流转履约。",
     sections: {
-      erp: { label: "ERP 进销存管理", description: "物料清单、仓储调度与采销进销存履约台账。" }
+      erp: { label: "ERP 进销存管理", description: "物料清单、仓储调度与采销进销存履约台账。" },
+      inventory: { label: "实时库存看板", description: "多仓实时可用库存、安全预警线与估值监控。" },
+      products: { label: "物料商品档案", description: "统一商品物料编码、分类规格与指导价维护。" },
+      purchase: { label: "采购履约管理", description: "供应链采购订单下单、在途追踪与一键入库核销。" },
+      records: { label: "出入库流水台账", description: "采购入库、销售出库与调拨全链路台账审计。" }
     }
   },
   report: {

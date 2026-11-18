@@ -1,13 +1,20 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import type { TableInstance } from "element-plus";
-import { Download } from "@element-plus/icons-vue";
+import { Download, Operation, Setting } from "@element-plus/icons-vue";
 import BaseCard from "@/components/base/BaseCard.vue";
+import DimensionSliceBar from "@/components/pro/DimensionSliceBar.vue";
+import { useThemeStore } from "@/stores/modules/theme";
+import { filterRowsByDimensions, type DimensionAxisConfig } from "@/utils/dimension-slice";
 
 export interface ProTableColumn {
   prop: string;
   label: string;
+  width?: number;
   minWidth?: number;
+  align?: "left" | "center" | "right";
+  numeric?: boolean;
+  defaultHidden?: boolean;
   slot?: string;
   formatter?: (row: Record<string, unknown>) => string;
   fixed?: boolean | "left" | "right";
@@ -28,6 +35,8 @@ const props = withDefaults(
     compact?: boolean;
     pagination?: boolean;
     pageSize?: number;
+    dimensions?: DimensionAxisConfig[];
+    dimensionStorageKey?: string;
   }>(),
   {
     selectable: false,
@@ -47,23 +56,91 @@ const emit = defineEmits<{
   sizeChange: [number];
 }>();
 
+const themeStore = useThemeStore();
+const isCompact = computed(() => props.compact || themeStore.tableDensity === "compact");
+
 const currentPage = ref(1);
 const currentPageSize = ref(props.pageSize ?? 10);
+const dimensionSelections = ref<Record<string, string>>({});
 
-const total = computed(() => props.count ?? props.data.length);
+const hiddenColumnProps = ref<string[]>(
+  props.columns.filter((col) => col.defaultHidden).map((col) => col.prop)
+);
 
-const paginatedData = computed(() => {
-  if (!props.pagination) return props.data;
-  // If count is explicitly provided and different from data.length, it's server-side pagination, don't slice
-  if (props.count !== undefined && props.count !== props.data.length) {
+watch(
+  () => props.columns,
+  (cols) => {
+    const validProps = new Set(cols.map((c) => c.prop));
+    hiddenColumnProps.value = hiddenColumnProps.value.filter((p) => validProps.has(p));
+  }
+);
+
+const visibleColumns = computed(() =>
+  props.columns.filter((col) => !hiddenColumnProps.value.includes(col.prop))
+);
+
+function isColumnVisible(prop: string): boolean {
+  return !hiddenColumnProps.value.includes(prop);
+}
+
+function toggleColumnVisibility(prop: string) {
+  if (isColumnVisible(prop)) {
+    if (visibleColumns.value.length <= 1) return;
+    hiddenColumnProps.value = [...hiddenColumnProps.value, prop];
+  } else {
+    hiddenColumnProps.value = hiddenColumnProps.value.filter((p) => p !== prop);
+  }
+}
+
+function resetColumnVisibility() {
+  hiddenColumnProps.value = props.columns
+    .filter((col) => col.defaultHidden)
+    .map((col) => col.prop);
+}
+
+function toggleTableDensity() {
+  themeStore.setTableDensity(
+    themeStore.tableDensity === "compact" ? "comfortable" : "compact"
+  );
+}
+
+const isServerPaginated = computed(
+  () => props.count !== undefined && props.count !== props.data.length
+);
+
+const slicedData = computed(() => {
+  if (!props.dimensions?.length || isServerPaginated.value) {
     return props.data;
   }
+  return filterRowsByDimensions(props.data, props.dimensions, dimensionSelections.value);
+});
+
+const total = computed(() => {
+  if (props.dimensions?.length && !isServerPaginated.value) {
+    return slicedData.value.length;
+  }
+  return props.count ?? slicedData.value.length;
+});
+
+const paginatedData = computed(() => {
+  if (!props.pagination) return slicedData.value;
+  if (isServerPaginated.value) {
+    return slicedData.value;
+  }
   const start = (currentPage.value - 1) * currentPageSize.value;
-  return props.data.slice(start, start + currentPageSize.value);
+  return slicedData.value.slice(start, start + currentPageSize.value);
 });
 
 watch(
-  () => props.data.length,
+  dimensionSelections,
+  () => {
+    currentPage.value = 1;
+  },
+  { deep: true }
+);
+
+watch(
+  () => slicedData.value.length,
   () => {
     const maxPage = Math.max(1, Math.ceil(total.value / currentPageSize.value));
     if (currentPage.value > maxPage) {
@@ -114,12 +191,15 @@ function exportRows(rows: object[], mode: "selected" | "current") {
     return;
   }
 
-  const header = props.columns.map((column) => escapeCsvCell(column.label)).join(",");
+  const cols = visibleColumns.value;
+  const header = cols.map((column) => escapeCsvCell(column.label)).join(",");
   const body = rows
     .map((row) =>
-      props.columns
+      cols
         .map((column) => {
-          const raw = column.formatter ? column.formatter(row as Record<string, unknown>) : (row as Record<string, unknown>)[column.prop];
+          const raw = column.formatter
+            ? column.formatter(row as Record<string, unknown>)
+            : (row as Record<string, unknown>)[column.prop];
           return escapeCsvCell(raw);
         })
         .join(",")
@@ -138,7 +218,7 @@ function exportRows(rows: object[], mode: "selected" | "current") {
 </script>
 
 <template>
-  <BaseCard class="pro-table" :class="{ 'pro-table--compact': compact }">
+  <BaseCard class="pro-table" :class="{ 'pro-table--compact': isCompact }">
     <template #header>
       <div class="pro-table__header">
         <div class="pro-table__headline">
@@ -146,8 +226,50 @@ function exportRows(rows: object[], mode: "selected" | "current") {
           <span>{{ total }} 条</span>
         </div>
         <div class="pro-table__actions">
-          <el-tooltip v-if="data.length" content="导出当前数据" placement="top">
-            <el-button :icon="Download" aria-label="导出当前数据" @click="exportRows(data, 'current')" />
+          <el-tooltip
+            :content="themeStore.tableDensity === 'compact' ? '切换为舒适行高' : '切换为紧凑高密度'"
+            placement="top"
+          >
+            <el-button
+              :icon="Operation"
+              :type="themeStore.tableDensity === 'compact' ? 'primary' : 'default'"
+              plain
+              aria-label="切换表格行密度"
+              @click="toggleTableDensity"
+            />
+          </el-tooltip>
+          <el-popover placement="bottom-end" :width="220" trigger="click">
+            <template #reference>
+              <span>
+                <el-tooltip content="列维度显隐配置" placement="top">
+                  <el-button :icon="Setting" aria-label="列维度显隐配置" />
+                </el-tooltip>
+              </span>
+            </template>
+            <div class="pro-table__column-config">
+              <div class="column-config-head">
+                <strong>列维度显示</strong>
+                <el-button link type="primary" size="small" @click="resetColumnVisibility">恢复默认</el-button>
+              </div>
+              <div class="column-config-list">
+                <label
+                  v-for="col in columns"
+                  :key="col.prop"
+                  class="column-config-item"
+                >
+                  <el-checkbox
+                    :model-value="isColumnVisible(col.prop)"
+                    :disabled="isColumnVisible(col.prop) && visibleColumns.length <= 1"
+                    @change="toggleColumnVisibility(col.prop)"
+                  >
+                    {{ col.label }}
+                  </el-checkbox>
+                </label>
+              </div>
+            </div>
+          </el-popover>
+          <el-tooltip v-if="slicedData.length" content="导出当前数据" placement="top">
+            <el-button :icon="Download" aria-label="导出当前数据" @click="exportRows(slicedData, 'current')" />
           </el-tooltip>
           <slot name="toolbar" />
         </div>
@@ -169,6 +291,14 @@ function exportRows(rows: object[], mode: "selected" | "current") {
       <slot name="search" />
     </div>
 
+    <DimensionSliceBar
+      v-if="dimensions?.length"
+      v-model="dimensionSelections"
+      :axes="dimensions"
+      :rows="isServerPaginated ? slicedData : data"
+      :storage-key="dimensionStorageKey"
+    />
+
     <el-table
       ref="tableRef"
       :data="paginatedData"
@@ -181,11 +311,14 @@ function exportRows(rows: object[], mode: "selected" | "current") {
     >
       <el-table-column v-if="props.selectable" type="selection" width="48" reserve-selection />
       <el-table-column
-        v-for="column in columns"
+        v-for="column in visibleColumns"
         :key="column.prop"
         :prop="column.prop"
         :label="column.label"
-        :min-width="column.minWidth ?? 120"
+        :width="column.width"
+        :min-width="column.minWidth ?? (column.width ? undefined : 120)"
+        :align="column.align ?? (column.numeric ? 'right' : undefined)"
+        :class-name="column.numeric || column.align === 'right' ? 'is-tabular' : undefined"
         :fixed="column.fixed"
       >
         <template v-if="column.slot" #default="scope">
@@ -267,8 +400,8 @@ function exportRows(rows: object[], mode: "selected" | "current") {
 
 .pro-table__search {
   margin: 0;
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--sb-border-color);
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--sb-border-subtle);
 }
 
 .pro-table__bulkbar {
@@ -276,12 +409,11 @@ function exportRows(rows: object[], mode: "selected" | "current") {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin: 12px 14px;
+  margin: 10px 14px;
   padding: 9px 12px;
-  border: 1px solid rgba(37, 99, 235, 0.25);
-  border-radius: var(--sb-radius-sm, 6px);
-  background: rgba(239, 246, 255, 0.65);
-  backdrop-filter: blur(14px);
+  border: 1px solid var(--sb-badge-primary-border);
+  border-radius: var(--sb-radius-control, 8px);
+  background: var(--sb-badge-primary-bg);
 }
 
 .pro-table__bulkcopy {
@@ -300,9 +432,39 @@ function exportRows(rows: object[], mode: "selected" | "current") {
 
 .pro-table__actions {
   display: flex;
-  gap: 12px;
+  align-items: center;
+  gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.pro-table__column-config {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.column-config-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--sb-border-subtle);
+  font-size: 12.5px;
+  color: var(--sb-text-primary);
+}
+
+.column-config-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.column-config-item {
+  display: flex;
+  align-items: center;
 }
 
 .pro-table__grid :deep(.el-table) {
@@ -314,21 +476,21 @@ function exportRows(rows: object[], mode: "selected" | "current") {
 }
 
 .pro-table__grid :deep(.el-table__header th) {
-  height: 42px;
-  background: rgba(248, 250, 252, 0.98) !important;
+  height: 40px;
+  background: var(--sb-tier2-header-bg) !important;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   color: var(--sb-text-primary) !important;
   font-size: 13px;
   font-weight: 650;
-  border-bottom: 1.5px solid #e2e8f0 !important;
+  border-bottom: 1.5px solid var(--sb-border-subtle) !important;
   border-right: none !important;
   border-left: none !important;
 }
 
 .pro-table__grid :deep(.el-table__header th.el-table-fixed-column--right),
 .pro-table__grid :deep(.el-table__header th.el-table-fixed-column--left) {
-  background: rgba(248, 250, 252, 0.98) !important;
+  background: var(--sb-tier2-header-bg) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   z-index: 5 !important;
@@ -348,7 +510,7 @@ function exportRows(rows: object[], mode: "selected" | "current") {
 
 .pro-table__grid :deep(.el-table__body tr:nth-child(odd) > td.el-table-fixed-column--right),
 .pro-table__grid :deep(.el-table__body tr:nth-child(odd) > td.el-table-fixed-column--left) {
-  background: rgba(255, 255, 255, 0.98) !important;
+  background: var(--sb-tier2-bg) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   box-shadow: none !important;
@@ -358,7 +520,7 @@ function exportRows(rows: object[], mode: "selected" | "current") {
 
 .pro-table__grid :deep(.el-table__body tr:nth-child(even) > td.el-table-fixed-column--right),
 .pro-table__grid :deep(.el-table__body tr:nth-child(even) > td.el-table-fixed-column--left) {
-  background: rgba(248, 250, 252, 0.98) !important;
+  background: var(--sb-tier2-zebra-bg) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   box-shadow: none !important;
@@ -368,7 +530,7 @@ function exportRows(rows: object[], mode: "selected" | "current") {
 
 .pro-table__grid :deep(.el-table__body tr:hover > td.el-table-fixed-column--right),
 .pro-table__grid :deep(.el-table__body tr:hover > td.el-table-fixed-column--left) {
-  background: rgba(239, 246, 255, 0.98) !important;
+  background: var(--sb-tier2-hover-bg) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   box-shadow: none !important;
@@ -378,13 +540,24 @@ function exportRows(rows: object[], mode: "selected" | "current") {
 
 .pro-table__grid :deep(.el-table td),
 .pro-table__grid :deep(.el-table th.el-table__cell) {
-  padding: 10px 0;
+  padding: 9px 0;
   border-right: none !important;
   border-left: none !important;
 }
 
+.pro-table--compact .pro-table__grid :deep(.el-table__header th) {
+  height: 34px !important;
+  padding: 6px 0 !important;
+  font-size: 12.5px !important;
+}
+
+.pro-table--compact .pro-table__grid :deep(.el-table td) {
+  padding: 5px 0 !important;
+  font-size: 12.5px !important;
+}
+
 .pro-table__grid :deep(.el-table__row:hover > td.el-table__cell) {
-  background: rgba(239, 246, 255, 0.98) !important;
+  background: var(--sb-tier2-hover-bg) !important;
   backdrop-filter: none;
 }
 
@@ -392,9 +565,9 @@ function exportRows(rows: object[], mode: "selected" | "current") {
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  padding: 12px 16px;
-  border-top: 1px solid #e2e8f0;
-  background: rgba(248, 250, 252, 0.94);
+  padding: 10px 16px;
+  border-top: 1px solid var(--sb-border-subtle);
+  background: var(--sb-tier2-header-bg);
   backdrop-filter: none;
 }
 

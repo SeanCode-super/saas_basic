@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
-import { InfoFilled } from "@element-plus/icons-vue";
+import { Close, InfoFilled, Plus } from "@element-plus/icons-vue";
 import {
   createIamDataPermissionRule,
   updateIamDataPermissionRule,
@@ -19,9 +19,17 @@ import type {
 import BaseStatusTag from "@/components/base/BaseStatusTag.vue";
 import ProTable from "@/components/pro/ProTable.vue";
 import type { ProTableColumn } from "@/components/pro/ProTable.vue";
+import type { DimensionAxisConfig } from "@/utils/dimension-slice";
 import { localizeScopeType } from "../iam-meta";
 
 type SubjectType = "USER" | "DEPARTMENT" | "POSITION" | "COMPANY" | "TENANT" | "ROLE";
+type AbacOperator = "EQ" | "NEQ" | "GT" | "GTE" | "LT" | "LTE" | "LIKE" | "IN";
+
+interface AbacConditionDraft {
+  field: string;
+  operator: AbacOperator;
+  rawValue: string;
+}
 type ScopeType =
   | "ALL"
   | "DEPT_AND_CHILDREN"
@@ -84,10 +92,172 @@ const ruleForm = reactive({
 });
 
 const customForm = reactive({
+  organizationIds: [] as number[],
   departmentIds: [] as number[],
   userIds: [] as number[],
-  positionIds: [] as number[]
+  positionIds: [] as number[],
+  abacConditions: [] as AbacConditionDraft[]
 });
+
+const abacFieldPresets = [
+  { label: "所属仓库编码 (warehouse_code)", value: "warehouse_code" },
+  { label: "业务大区编码 (region_code)", value: "region_code" },
+  { label: "物料/业务分类 (category)", value: "category" },
+  { label: "单据总金额 (total_amount)", value: "total_amount" },
+  { label: "业务审批状态 (status)", value: "status" },
+  { label: "部门成本中心 (cost_center)", value: "cost_center" }
+];
+
+const abacOperatorOptions: Array<{ label: string; value: AbacOperator }> = [
+  { label: "等于 (=)", value: "EQ" },
+  { label: "不等于 (!=)", value: "NEQ" },
+  { label: "大于 (>)", value: "GT" },
+  { label: "大于等于 (>=)", value: "GTE" },
+  { label: "小于 (<)", value: "LT" },
+  { label: "小于等于 (<=)", value: "LTE" },
+  { label: "模糊包含 (LIKE)", value: "LIKE" },
+  { label: "枚举集合 (IN)", value: "IN" }
+];
+
+function addAbacConditionRow() {
+  customForm.abacConditions.push({
+    field: "warehouse_code",
+    operator: "EQ",
+    rawValue: ""
+  });
+}
+
+function removeAbacConditionRow(index: number) {
+  customForm.abacConditions.splice(index, 1);
+}
+
+function parseAbacScalar(raw: string, op: AbacOperator): string | number | boolean {
+  const trimmed = raw.trim();
+  if (trimmed === "true") return true;
+  if (trimmed === "false") return false;
+  const numericPattern = /^-?(0|[1-9]\d*)(\.\d+)?$/;
+  if (numericPattern.test(trimmed) || ((op === "GT" || op === "GTE" || op === "LT" || op === "LTE") && !Number.isNaN(Number(trimmed)))) {
+    return Number(trimmed);
+  }
+  return trimmed;
+}
+
+function serializeAbacConditions(drafts: AbacConditionDraft[]): Array<{ field: string; operator: AbacOperator; value: unknown }> {
+  const result: Array<{ field: string; operator: AbacOperator; value: unknown }> = [];
+  for (const item of drafts) {
+    const field = item.field.trim();
+    const raw = item.rawValue.trim();
+    if (!field || !raw) continue;
+    if (item.operator === "IN") {
+      const parts = raw
+        .split(/[,，]/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (parts.length > 0) {
+        result.push({
+          field,
+          operator: "IN",
+          value: parts.map((p) => parseAbacScalar(p, "EQ"))
+        });
+      }
+    } else {
+      result.push({
+        field,
+        operator: item.operator,
+        value: parseAbacScalar(raw, item.operator)
+      });
+    }
+  }
+  return result;
+}
+
+function formatSqlConditionLiteral(val: unknown): string {
+  if (typeof val === "number" || typeof val === "boolean") {
+    return String(val);
+  }
+  return `'${String(val).replace(/'/g, "''")}'`;
+}
+
+const sqlBoundaryPreview = computed(() => {
+  switch (ruleForm.scopeType) {
+    case "ALL":
+    case "TENANT":
+      return "tenant_id = #{currentUser.tenantId} /* 全租户通行，无额外行级裁剪 */";
+    case "ORG_AND_CHILDREN":
+      return "(tenant_id = #{currentUser.tenantId} AND org_unit_id IN (#{currentUser.companySubTreeIds}))";
+    case "DEPT_AND_CHILDREN":
+      return "(tenant_id = #{currentUser.tenantId} AND org_unit_id IN (#{currentUser.deptSubTreeIds}))";
+    case "DEPT_ONLY":
+      return "(tenant_id = #{currentUser.tenantId} AND org_unit_id = #{currentUser.departmentId})";
+    case "SELF_AND_SUBORDINATES":
+    case "SELF":
+      return "(tenant_id = #{currentUser.tenantId} AND created_by = #{currentUser.userId})";
+    case "CUSTOM": {
+      const clauses: string[] = [];
+      if (customForm.organizationIds.length > 0) {
+        clauses.push(`organization_id IN (${customForm.organizationIds.join(", ")})`);
+      }
+      if (customForm.departmentIds.length > 0) {
+        clauses.push(`org_unit_id IN (${customForm.departmentIds.join(", ")})`);
+      }
+      if (customForm.userIds.length > 0) {
+        clauses.push(`created_by IN (${customForm.userIds.join(", ")})`);
+      }
+      if (customForm.positionIds.length > 0) {
+        clauses.push(`/* 岗位维度: position_id IN (${customForm.positionIds.join(", ")}) */`);
+      }
+      for (const cond of serializeAbacConditions(customForm.abacConditions)) {
+        const opMap: Record<AbacOperator, string> = {
+          EQ: "=",
+          NEQ: "!=",
+          GT: ">",
+          GTE: ">=",
+          LT: "<",
+          LTE: "<=",
+          LIKE: "LIKE",
+          IN: "IN"
+        };
+        if (cond.operator === "IN" && Array.isArray(cond.value)) {
+          clauses.push(`${cond.field} IN (${cond.value.map(formatSqlConditionLiteral).join(", ")})`);
+        } else {
+          clauses.push(`${cond.field} ${opMap[cond.operator]} ${formatSqlConditionLiteral(cond.value)}`);
+        }
+      }
+      if (!clauses.length) {
+        return "1 = 0 /* 尚未勾选任何 5D 边界，默认拒绝所有行访问 */";
+      }
+      return clauses.length === 1
+        ? `tenant_id = #{currentUser.tenantId} AND ${clauses[0]}`
+        : `tenant_id = #{currentUser.tenantId} AND (${clauses.join(" OR ")})`;
+    }
+    default:
+      return "tenant_id = #{currentUser.tenantId}";
+  }
+});
+
+const ruleDimensionAxes = computed<DimensionAxisConfig[]>(() => [
+  {
+    key: "subjectType",
+    label: "主体维度",
+    options: subjectTypeOptions
+  },
+  {
+    key: "scopeType",
+    label: "范围策略",
+    options: scopeTypeOptions.map((item) => ({
+      label: localizeScopeType(item.value),
+      value: item.value
+    }))
+  },
+  {
+    key: "status",
+    label: "规则状态",
+    options: [
+      { label: "正常启用", value: "ENABLED" },
+      { label: "暂停使用", value: "DISABLED" }
+    ]
+  }
+]);
 
 const companyDepartments = computed(() => props.departments.filter((item) => Number(item.parentId ?? 0) <= 0));
 
@@ -248,6 +418,15 @@ function summarizeConfig(scopeType: string, configJson?: string): string {
   try {
     const parsed = JSON.parse(configJson);
     const parts: string[] = [];
+    const orgIds: number[] = parsed.organizationIds || [];
+    if (orgIds.length > 0) {
+      const orgNames = orgIds
+        .map((id) => props.departments.find((d) => d.id === id)?.deptName ?? `公司#${id}`)
+        .slice(0, 2);
+      const extra = orgIds.length > 2 ? ` 等${orgIds.length}个主体` : "";
+      parts.push(`主体: ${orgNames.join("、")}${extra}`);
+    }
+
     const deptIds: number[] = parsed.departmentIds || parsed.orgUnitIds || [];
     if (deptIds.length > 0) {
       const deptNames = deptIds
@@ -272,6 +451,14 @@ function summarizeConfig(scopeType: string, configJson?: string): string {
         .map((id) => props.positions.find((p) => p.id === id)?.positionName ?? `岗位#${id}`)
         .slice(0, 3);
       parts.push(`岗位: ${posNames.join("、")}`);
+    }
+
+    const conditions = Array.isArray(parsed.conditions) ? parsed.conditions : [];
+    if (conditions.length > 0) {
+      const first = conditions[0];
+      const condSummary = `${first.field} ${first.operator} ${Array.isArray(first.value) ? first.value.join(",") : first.value}`;
+      const extra = conditions.length > 1 ? ` 等${conditions.length}条属性规则` : "";
+      parts.push(`ABAC: ${condSummary}${extra}`);
     }
 
     return parts.length > 0 ? parts.join("；") : "已配置自定义过滤";
@@ -350,9 +537,11 @@ function resetRuleForm() {
   ruleForm.status = "ENABLED";
   ruleForm.remark = "";
 
+  customForm.organizationIds = [];
   customForm.departmentIds = [];
   customForm.userIds = [];
   customForm.positionIds = [];
+  customForm.abacConditions = [];
 }
 
 function openRuleCreate() {
@@ -373,20 +562,38 @@ function openRuleEdit(row: IamDataPermissionRuleRow) {
   ruleForm.status = row.status;
   ruleForm.remark = row.remark ?? "";
 
+  customForm.organizationIds = [];
   customForm.departmentIds = [];
   customForm.userIds = [];
   customForm.positionIds = [];
+  customForm.abacConditions = [];
 
   if (row.configJson) {
     try {
       const parsed = JSON.parse(row.configJson);
+      customForm.organizationIds = parsed.organizationIds || [];
       customForm.departmentIds = parsed.departmentIds || parsed.orgUnitIds || [];
       customForm.userIds = parsed.userIds || parsed.employeeIds || [];
       customForm.positionIds = parsed.positionIds || [];
+      if (Array.isArray(parsed.conditions)) {
+        customForm.abacConditions = parsed.conditions.map(
+          (item: { field?: string; operator?: string; value?: unknown }) => ({
+            field: String(item.field ?? ""),
+            operator: (String(item.operator ?? "EQ").toUpperCase() as AbacOperator) || "EQ",
+            rawValue: Array.isArray(item.value)
+              ? item.value.map((v) => String(v)).join(", ")
+              : item.value == null
+                ? ""
+                : String(item.value)
+          })
+        );
+      }
     } catch {
+      customForm.organizationIds = [];
       customForm.departmentIds = [];
       customForm.userIds = [];
       customForm.positionIds = [];
+      customForm.abacConditions = [];
     }
   }
 
@@ -405,20 +612,33 @@ async function submitRule() {
 
   let configJson: string | undefined = undefined;
   if (ruleForm.scopeType === "CUSTOM") {
+    const hasIncompleteAbac = customForm.abacConditions.some(
+      (item) => (item.field.trim() && !item.rawValue.trim()) || (!item.field.trim() && item.rawValue.trim())
+    );
+    if (hasIncompleteAbac) {
+      ElMessage.warning("请补全业务属性维度条件中的字段名与匹配值");
+      return;
+    }
+
+    const conditions = serializeAbacConditions(customForm.abacConditions);
     const hasAnySelection =
+      customForm.organizationIds.length > 0 ||
       customForm.departmentIds.length > 0 ||
       customForm.userIds.length > 0 ||
-      customForm.positionIds.length > 0;
+      customForm.positionIds.length > 0 ||
+      conditions.length > 0;
 
     if (!hasAnySelection) {
-      ElMessage.warning("自定义数据范围下，请至少勾选一个允许访问的部门、成员或岗位");
+      ElMessage.warning("自定义数据范围下，请至少勾选组织/人员维度或添加一条业务属性维度条件");
       return;
     }
 
     configJson = JSON.stringify({
+      organizationIds: customForm.organizationIds,
       departmentIds: customForm.departmentIds,
       userIds: customForm.userIds,
-      positionIds: customForm.positionIds
+      positionIds: customForm.positionIds,
+      conditions
     });
   }
 
@@ -489,6 +709,8 @@ async function batchUpdateRules(rows: IamDataPermissionRuleRow[], status: "ENABL
         :columns="dataPermissionRuleColumns"
         :data="decoratedRules"
         :loading="loading"
+        :dimensions="ruleDimensionAxes"
+        dimension-storage-key="iam-data-scope-rules"
         selectable
         title="数据权限规则"
         subtitle="面向业务主管与管理员，通过可视化勾选配置个人、部门、上下级及自定义数据访问边界。"
@@ -592,7 +814,7 @@ async function batchUpdateRules(rows: IamDataPermissionRuleRow[], status: "ENABL
     <el-dialog
       v-model="ruleDialog.visible"
       :title="ruleDialog.mode === 'create' ? '新增数据权限规则' : '编辑数据权限规则'"
-      width="720px"
+      width="780px"
       class="visual-rule-dialog"
       destroy-on-close
     >
@@ -641,15 +863,35 @@ async function batchUpdateRules(rows: IamDataPermissionRuleRow[], status: "ENABL
           </div>
         </div>
 
-        <!-- 自定义范围：可视化勾选面板，彻底消除任何 JSON 或代码 -->
+        <!-- 自定义范围：天枢 5D 五轴可视化边界构建器，彻底消除任何 JSON 或手写 SQL -->
         <div v-else class="custom-scope-panel">
           <div class="custom-scope-header">
-            <div class="custom-scope-title">可视化指定访问范围</div>
-            <div class="custom-scope-subtitle">直接在下方勾选授权对象允许跨域查阅的部门、人员或岗位，底层自动转换为行级安全过滤条件。</div>
+            <div class="custom-scope-title">天枢 5D 五轴可视化数据边界</div>
+            <div class="custom-scope-subtitle">按需勾选法人公司、部门树、岗位、人员，或叠加 ABAC 业务属性条件；底层自动编译为 JSqlParser 行级过滤 AST。</div>
           </div>
 
           <div class="custom-scope-fields">
-            <el-form-item label="允许访问的部门">
+            <el-form-item label="轴 1 · 独立法人公司主体">
+              <el-select
+                v-model="customForm.organizationIds"
+                multiple
+                filterable
+                collapse-tags
+                collapse-tags-tooltip
+                clearable
+                placeholder="勾选允许跨域查阅的公司法人主体（可选）"
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="corp in companyDepartments"
+                  :key="corp.id"
+                  :label="corp.deptName"
+                  :value="corp.id"
+                />
+              </el-select>
+            </el-form-item>
+
+            <el-form-item label="轴 2 · 允许访问的部门">
               <el-tree-select
                 v-model="customForm.departmentIds"
                 :data="departmentTreeOptions"
@@ -667,7 +909,27 @@ async function batchUpdateRules(rows: IamDataPermissionRuleRow[], status: "ENABL
               />
             </el-form-item>
 
-            <el-form-item label="允许访问的成员">
+            <el-form-item label="轴 3 · 允许访问的岗位（可选）">
+              <el-select
+                v-model="customForm.positionIds"
+                multiple
+                filterable
+                collapse-tags
+                collapse-tags-tooltip
+                clearable
+                placeholder="勾选允许查阅的岗位（可多选）"
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="p in props.positions"
+                  :key="p.id"
+                  :label="`${p.positionName} (${p.positionCode})`"
+                  :value="p.id"
+                />
+              </el-select>
+            </el-form-item>
+
+            <el-form-item label="轴 4 · 允许访问的成员">
               <el-select
                 v-model="customForm.userIds"
                 multiple
@@ -687,26 +949,74 @@ async function batchUpdateRules(rows: IamDataPermissionRuleRow[], status: "ENABL
               </el-select>
             </el-form-item>
 
-            <el-form-item label="允许访问的岗位（可选）">
-              <el-select
-                v-model="customForm.positionIds"
-                multiple
-                filterable
-                collapse-tags
-                collapse-tags-tooltip
-                clearable
-                placeholder="勾选允许查阅的岗位（可多选）"
-                style="width: 100%"
-              >
-                <el-option
-                  v-for="p in props.positions"
-                  :key="p.id"
-                  :label="`${p.positionName} (${p.positionCode})`"
-                  :value="p.id"
-                />
-              </el-select>
-            </el-form-item>
+            <div class="abac-builder-block">
+              <div class="abac-builder-header">
+                <div>
+                  <span class="abac-builder-title">轴 5 · 业务属性动态维度条件 (ABAC)</span>
+                  <span class="abac-builder-hint">例如限制仅查看指定仓库、地域、物料分类或金额上限内的数据</span>
+                </div>
+                <el-button size="small" type="primary" plain :icon="Plus" @click="addAbacConditionRow">
+                  添加属性维度
+                </el-button>
+              </div>
+
+              <div v-if="customForm.abacConditions.length === 0" class="abac-empty-hint">
+                暂未添加业务属性条件，当前仅按上方组织/岗位/人员边界过滤。
+              </div>
+
+              <div v-else class="abac-rows">
+                <div v-for="(cond, index) in customForm.abacConditions" :key="index" class="abac-row">
+                  <el-select
+                    v-model="cond.field"
+                    filterable
+                    allow-create
+                    default-first-option
+                    placeholder="选择或输入字段名"
+                    class="abac-field-select"
+                  >
+                    <el-option
+                      v-for="preset in abacFieldPresets"
+                      :key="preset.value"
+                      :label="preset.label"
+                      :value="preset.value"
+                    />
+                  </el-select>
+
+                  <el-select v-model="cond.operator" class="abac-op-select">
+                    <el-option
+                      v-for="op in abacOperatorOptions"
+                      :key="op.value"
+                      :label="op.label"
+                      :value="op.value"
+                    />
+                  </el-select>
+
+                  <el-input
+                    v-model="cond.rawValue"
+                    :placeholder="cond.operator === 'IN' ? '多个值用逗号分隔，如 WH-SH, WH-SZ' : '输入比较值，如 50000 或 APPROVED'"
+                    class="abac-val-input"
+                  />
+
+                  <el-button
+                    circle
+                    size="small"
+                    :icon="Close"
+                    aria-label="删除属性条件"
+                    @click="removeAbacConditionRow(index)"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
+        </div>
+
+        <!-- 实时等效 SQL 边界预览 -->
+        <div class="sql-preview-box">
+          <div class="sql-preview-header">
+            <span>实时等效行级 SQL 断言预览 (JSqlParser AST)</span>
+            <el-tag size="small" effect="plain" type="info">{{ localizeScopeType(ruleForm.scopeType) }}</el-tag>
+          </div>
+          <code class="sql-preview-code">WHERE {{ sqlBoundaryPreview }}</code>
         </div>
 
         <el-form-item label="规则业务备注" style="margin-top: 16px">
@@ -747,15 +1057,11 @@ async function batchUpdateRules(rows: IamDataPermissionRuleRow[], status: "ENABL
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 12px 20px;
-  border-radius: var(--sb-radius-glass-md, 18px);
-  background: rgba(255, 255, 255, 0.90);
-  backdrop-filter: blur(28px) saturate(210%) contrast(104%);
-  -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(104%);
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  box-shadow:
-    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
-    0 10px 25px -5px rgba(12, 34, 56, 0.05);
+  padding: 10px 18px;
+  border-radius: var(--sb-radius-glass-md, 14px);
+  background: var(--sb-tier1-bg);
+  border: 1px solid var(--sb-border-subtle);
+  box-shadow: var(--sb-shadow-xs);
   flex-wrap: wrap;
 }
 
@@ -795,7 +1101,7 @@ async function batchUpdateRules(rows: IamDataPermissionRuleRow[], status: "ENABL
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 13px;
-  color: #1e293b;
+  color: var(--sb-text-secondary);
 }
 
 .scope-policy-hint {
@@ -803,14 +1109,14 @@ async function batchUpdateRules(rows: IamDataPermissionRuleRow[], status: "ENABL
   align-items: flex-start;
   gap: 12px;
   padding: 12px 16px;
-  border-radius: 6px;
-  background-color: #f8fafc;
-  border: 1px solid #e2e8f0;
-  margin-bottom: 8px;
+  border-radius: 8px;
+  background-color: var(--sb-surface-soft);
+  border: 1px solid var(--sb-border-subtle);
+  margin-bottom: 10px;
 
   .scope-hint-icon {
     font-size: 18px;
-    color: #2563eb;
+    color: var(--sb-primary-color);
     margin-top: 2px;
     flex-shrink: 0;
   }
@@ -818,36 +1124,36 @@ async function batchUpdateRules(rows: IamDataPermissionRuleRow[], status: "ENABL
   .scope-hint-title {
     font-size: 13px;
     font-weight: 600;
-    color: #0f172a;
+    color: var(--sb-text-primary);
     margin-bottom: 2px;
   }
 
   .scope-hint-desc {
     font-size: 12px;
-    color: #475569;
+    color: var(--sb-text-muted);
     line-height: 1.5;
   }
 }
 
 .custom-scope-panel {
   padding: 14px 16px;
-  border-radius: 6px;
-  background-color: #f8fafc;
-  border: 1px solid #cbd5e1;
-  margin-bottom: 8px;
+  border-radius: 10px;
+  background-color: var(--sb-surface-soft);
+  border: 1px solid var(--sb-border-subtle);
+  margin-bottom: 10px;
 
   .custom-scope-header {
     margin-bottom: 12px;
 
     .custom-scope-title {
-      font-size: 13px;
-      font-weight: 600;
-      color: #0f172a;
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--sb-text-primary);
     }
 
     .custom-scope-subtitle {
       font-size: 12px;
-      color: #475569;
+      color: var(--sb-text-muted);
       margin-top: 2px;
     }
   }
@@ -861,6 +1167,84 @@ async function batchUpdateRules(rows: IamDataPermissionRuleRow[], status: "ENABL
       margin-bottom: 0;
     }
   }
+}
+
+.abac-builder-block {
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--sb-border-color);
+}
+
+.abac-builder-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.abac-builder-title {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--sb-text-primary);
+}
+
+.abac-builder-hint {
+  display: block;
+  font-size: 11.5px;
+  color: var(--sb-text-muted);
+  margin-top: 2px;
+}
+
+.abac-empty-hint {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px dashed var(--sb-border-subtle);
+  font-size: 12px;
+  color: var(--sb-text-muted);
+  background: var(--sb-tier2-bg);
+}
+
+.abac-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.abac-row {
+  display: grid;
+  grid-template-columns: minmax(170px, 1.3fr) 136px minmax(160px, 1.4fr) 28px;
+  gap: 8px;
+  align-items: center;
+}
+
+.sql-preview-box {
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--sb-badge-primary-border);
+  background: var(--sb-badge-primary-bg);
+  margin-top: 10px;
+}
+
+.sql-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--sb-badge-primary-text);
+}
+
+.sql-preview-code {
+  display: block;
+  font-family: var(--sb-font-mono);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--sb-text-primary);
+  word-break: break-all;
 }
 
 @media (max-width: 1280px) {

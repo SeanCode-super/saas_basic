@@ -61,37 +61,29 @@ h1, h2, h3, h4, h5, h6 {
 .base-card,
 .ep-card,
 .workbench-card {
-  border: 1px solid rgba(226, 232, 240, 0.92) !important;
+  border: 1px solid var(--sb-border-subtle) !important;
   border-radius: var(--sb-radius-glass) !important;
-  background: var(--sb-glass-bg) !important;
-  backdrop-filter: var(--sb-glass-blur) !important;
-  -webkit-backdrop-filter: var(--sb-glass-blur) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.98),
-    0 10px 28px -8px rgba(15, 23, 42, 0.06) !important;
+  background: var(--sb-tier2-bg) !important;
+  box-shadow: var(--sb-shadow-sm) !important;
   transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 180ms ease, border-color 180ms ease;
 
   &:hover {
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 1),
-      0 14px 34px -10px rgba(15, 23, 42, 0.09) !important;
+    box-shadow: var(--sb-shadow-md) !important;
   }
 
   .el-card__header,
   .ep-card__header {
-    padding: 14px 22px;
-    border-bottom: 1px solid rgba(226, 232, 240, 0.85) !important;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--sb-border-subtle) !important;
     font-size: 14.5px;
     font-weight: 650;
     color: var(--sb-text-primary);
-    background: rgba(248, 250, 252, 0.94) !important;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    background: var(--sb-tier2-header-bg) !important;
     border-radius: var(--sb-radius-glass) var(--sb-radius-glass) 0 0;
   }
 
   .el-card__body {
-    padding: 20px 22px;
+    padding: 16px 18px;
     background: transparent !important;
   }
 }
@@ -104,46 +96,44 @@ h1, h2, h3, h4, h5, h6 {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 18px;
-  background: var(--sb-glass-bg) !important;
-  backdrop-filter: var(--sb-glass-blur) !important;
-  -webkit-backdrop-filter: var(--sb-glass-blur) !important;
-  border: 1px solid rgba(226, 232, 240, 0.92) !important;
-  border-radius: 18px !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.98),
-    0 6px 20px -6px rgba(15, 23, 42, 0.05) !important;
-  margin-bottom: 16px;
+  padding: 10px 16px;
+  background: var(--sb-tier1-bg) !important;
+  backdrop-filter: var(--sb-glass-blur-sm) !important;
+  -webkit-backdrop-filter: var(--sb-glass-blur-sm) !important;
+  border: 1px solid var(--sb-border-subtle) !important;
+  border-radius: var(--sb-radius-glass-md) !important;
+  box-shadow: var(--sb-shadow-xs) !important;
+  margin-bottom: 12px;
 }
 
 /* ==========================================================================
    3. 工业级高对比度操作按钮 (Engineered Buttons)
    ========================================================================== */
 .el-button {
-  border-radius: 8px;
+  border-radius: var(--sb-radius-control, 8px);
   font-weight: 550;
   font-size: 13px;
   height: 32px;
   padding: 0 14px;
   transition: all 140ms cubic-bezier(0.16, 1, 0.3, 1);
 
-  /* 默认次级按钮 (清晰白底微边) */
+  /* 默认次级按钮 */
   &:not(.el-button--primary, .el-button--success, .el-button--warning, .el-button--danger, .is-link, .is-text) {
-    border: 1px solid #cbd5e1;
-    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid var(--sb-border-color);
+    background: var(--sb-control-bg);
     color: var(--sb-text-secondary);
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    box-shadow: var(--sb-shadow-xs);
 
     &:hover {
-      background: #ffffff;
-      border-color: #94a3b8;
+      background: var(--sb-control-bg-hover);
+      border-color: var(--sb-border-strong);
       color: var(--sb-text-primary);
-      box-shadow: 0 3px 10px rgba(15, 23, 42, 0.07);
+      box-shadow: var(--sb-shadow-sm);
       transform: translateY(-0.5px);
     }
 
     &:active {
-      background: #f1f5f9;
+      background: var(--sb-surface-contrast);
       transform: translateY(0);
     }
   }
@@ -177,21 +167,21 @@ h1, h2, h3, h4, h5, h6 {
 .el-input__wrapper,
 .el-select__wrapper,
 .el-textarea__inner {
-  border-radius: var(--sb-radius-glass-sm);
-  background: rgba(255, 255, 255, 0.94) !important;
+  border-radius: var(--sb-radius-control, 8px);
+  background: var(--sb-control-bg) !important;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
-  box-shadow: 0 0 0 1px #cbd5e1 inset !important;
+  box-shadow: 0 0 0 1px var(--sb-border-color) inset !important;
   transition: all 160ms cubic-bezier(0.16, 1, 0.3, 1);
 
   &:hover {
-    background: #ffffff !important;
-    box-shadow: 0 0 0 1px #94a3b8 inset !important;
+    background: var(--sb-control-bg-hover) !important;
+    box-shadow: 0 0 0 1px var(--sb-border-strong) inset !important;
   }
 
   &.is-focus,
   &:focus-within {
-    background: #ffffff !important;
+    background: var(--sb-control-bg-hover) !important;
     box-shadow: 0 0 0 1.5px var(--sb-primary-color) inset, 0 0 0 3px rgba(37, 99, 235, 0.14) !important;
   }
 }
@@ -202,26 +192,22 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ==========================================================================
-   5. iOS 27 / visionOS 高对比数据表格 (Clean Luminous Data Grid)
+   5. TCDS v3.0 高对比数据表格 (Tier-2 Data Grid + 同心圆角 10px + 语义暗色自适应)
    ========================================================================== */
 .el-table {
-  --el-table-border: 1px solid #e2e8f0;
-  --el-table-border-color: #e2e8f0;
+  --el-table-border: 1px solid var(--sb-border-subtle);
+  --el-table-border-color: var(--sb-border-subtle);
   --el-table-fixed-left-column: none !important;
   --el-table-fixed-right-column: none !important;
   --el-table-fixed-box-shadow: none !important;
-  --el-table-header-bg-color: #f8fafc !important;
-  --el-table-bg-color: rgba(255, 255, 255, 0.96) !important;
-  --el-table-tr-bg-color: rgba(255, 255, 255, 0.96) !important;
+  --el-table-header-bg-color: var(--sb-tier2-header-bg) !important;
+  --el-table-bg-color: var(--sb-tier2-bg) !important;
+  --el-table-tr-bg-color: var(--sb-tier2-bg) !important;
 
-  border: 1px solid rgba(226, 232, 240, 0.95) !important;
-  border-radius: var(--sb-radius-glass) !important;
-  background: rgba(255, 255, 255, 0.95) !important;
-  backdrop-filter: blur(18px) saturate(140%) !important;
-  -webkit-backdrop-filter: blur(18px) saturate(140%) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.98),
-    0 10px 28px -8px rgba(15, 23, 42, 0.06) !important;
+  border: 1px solid var(--sb-border-subtle) !important;
+  border-radius: var(--sb-radius-glass-sm) !important;
+  background: var(--sb-tier2-bg) !important;
+  box-shadow: var(--sb-shadow-xs) !important;
   color: var(--sb-text-secondary);
   font-size: 13px;
   overflow: hidden;
@@ -241,54 +227,49 @@ h1, h2, h3, h4, h5, h6 {
     background: transparent !important;
   }
 
-  /* 表头：清澈浅灰蓝表头 + 锐利深色表头字 */
   th.el-table__cell {
-    background: rgba(248, 250, 252, 0.98) !important;
+    background: var(--sb-tier2-header-bg) !important;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
     color: var(--sb-text-primary) !important;
     font-weight: 650 !important;
     font-size: 13px !important;
-    border-bottom: 1.5px solid #e2e8f0 !important;
-    border-right: none !important;
-    border-left: none !important;
-    padding: 11px 0 !important;
-    letter-spacing: -0.01em;
-  }
-
-  /* 行级单元格：纯净分隔线，告别透明透色混淆 */
-  td.el-table__cell {
-    border-bottom: 1px solid #f1f5f9 !important;
+    border-bottom: 1.5px solid var(--sb-border-subtle) !important;
     border-right: none !important;
     border-left: none !important;
     padding: 10px 0 !important;
+    letter-spacing: -0.01em;
+  }
+
+  td.el-table__cell {
+    border-bottom: 1px solid var(--sb-border-subtle) !important;
+    border-right: none !important;
+    border-left: none !important;
+    padding: 9px 0 !important;
     color: var(--sb-text-secondary);
   }
 
-  /* 全站所有列表隔行换色 (Clean High-Clarity Zebra Striping) */
   tbody tr:nth-child(odd) > td.el-table__cell {
-    background-color: rgba(255, 255, 255, 0.98) !important;
+    background-color: var(--sb-tier2-bg) !important;
   }
 
   tbody tr:nth-child(even) > td.el-table__cell,
   &--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
-    background-color: rgba(248, 250, 252, 0.98) !important;
+    background-color: var(--sb-tier2-zebra-bg) !important;
   }
 
-  /* 悬浮行：清爽微蓝高亮 */
   tbody tr:hover > td.el-table__cell,
   .el-table__row:hover > td.el-table__cell {
-    background-color: rgba(239, 246, 255, 0.98) !important;
+    background-color: var(--sb-tier2-hover-bg) !important;
     backdrop-filter: none;
   }
 
-  /* 1. 默认与非穿透滚动状态：固定列与数据列 100% 统一纯澈白/浅灰底色 */
   th.el-table__cell.el-table-fixed-column--right,
   th.el-table__cell.el-table-fixed-column--left,
   .el-table__fixed-right th.el-table__cell,
   .el-table__fixed th.el-table__cell,
   .el-table__header-wrapper th.el-table-fixed-column--right {
-    background: rgba(248, 250, 252, 0.98) !important;
+    background: var(--sb-tier2-header-bg) !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     z-index: 4 !important;
@@ -300,7 +281,7 @@ h1, h2, h3, h4, h5, h6 {
   tbody tr:nth-child(odd) > td.el-table__cell.el-table-fixed-column--left,
   .el-table__fixed-right tbody tr:nth-child(odd) td.el-table__cell,
   .el-table__fixed tbody tr:nth-child(odd) td.el-table__cell {
-    background: rgba(255, 255, 255, 0.98) !important;
+    background: var(--sb-tier2-bg) !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     box-shadow: none !important;
@@ -312,7 +293,7 @@ h1, h2, h3, h4, h5, h6 {
   tbody tr:nth-child(even) > td.el-table__cell.el-table-fixed-column--left,
   .el-table__fixed-right tbody tr:nth-child(even) td.el-table__cell,
   .el-table__fixed tbody tr:nth-child(even) td.el-table__cell {
-    background: rgba(248, 250, 252, 0.98) !important;
+    background: var(--sb-tier2-zebra-bg) !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     box-shadow: none !important;
@@ -324,7 +305,7 @@ h1, h2, h3, h4, h5, h6 {
   tbody tr:hover > td.el-table__cell.el-table-fixed-column--left,
   .el-table__fixed-right tbody tr:hover td.el-table__cell,
   .el-table__fixed tbody tr:hover td.el-table__cell {
-    background: rgba(239, 246, 255, 0.98) !important;
+    background: var(--sb-tier2-hover-bg) !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     box-shadow: none !important;
@@ -332,39 +313,38 @@ h1, h2, h3, h4, h5, h6 {
     border-left: none !important;
   }
 
-  /* 2. 当窄屏/缩放触发横向滚动时，固定列自动切换为高不透明度底面 + 柔和高光分隔线，彻底防止底层文字穿透重叠 */
   &.is-scrolling-left,
   &.is-scrolling-middle {
     th.el-table__cell.el-table-fixed-column--right,
     .el-table__fixed-right th.el-table__cell {
-      background: #f8fafc !important;
+      background: var(--sb-tier2-fixed-zebra-bg) !important;
       backdrop-filter: none !important;
       -webkit-backdrop-filter: none !important;
-      border-left: 1px solid #e2e8f0 !important;
-      box-shadow: -6px 0 12px -6px rgba(15, 23, 42, 0.12) !important;
+      border-left: 1px solid var(--sb-border-subtle) !important;
+      box-shadow: -6px 0 12px -6px rgba(15, 23, 42, 0.14) !important;
     }
 
     tbody tr:nth-child(odd) > td.el-table__cell.el-table-fixed-column--right,
     .el-table__fixed-right tbody tr:nth-child(odd) td.el-table__cell {
-      background: #ffffff !important;
+      background: var(--sb-tier2-fixed-bg) !important;
       backdrop-filter: none !important;
       -webkit-backdrop-filter: none !important;
-      border-left: 1px solid #e2e8f0 !important;
-      box-shadow: -6px 0 12px -6px rgba(15, 23, 42, 0.08) !important;
+      border-left: 1px solid var(--sb-border-subtle) !important;
+      box-shadow: -6px 0 12px -6px rgba(15, 23, 42, 0.10) !important;
     }
 
     tbody tr:nth-child(even) > td.el-table__cell.el-table-fixed-column--right,
     .el-table__fixed-right tbody tr:nth-child(even) td.el-table__cell {
-      background: #f8fafc !important;
+      background: var(--sb-tier2-fixed-zebra-bg) !important;
       backdrop-filter: none !important;
       -webkit-backdrop-filter: none !important;
-      border-left: 1px solid #e2e8f0 !important;
-      box-shadow: -6px 0 12px -6px rgba(15, 23, 42, 0.08) !important;
+      border-left: 1px solid var(--sb-border-subtle) !important;
+      box-shadow: -6px 0 12px -6px rgba(15, 23, 42, 0.10) !important;
     }
 
     tbody tr:hover > td.el-table__cell.el-table-fixed-column--right,
     .el-table__fixed-right tbody tr:hover td.el-table__cell {
-      background: #eff6ff !important;
+      background: var(--sb-tier2-hover-bg) !important;
     }
   }
 
@@ -372,34 +352,34 @@ h1, h2, h3, h4, h5, h6 {
   &.is-scrolling-middle {
     th.el-table__cell.el-table-fixed-column--left,
     .el-table__fixed th.el-table__cell {
-      background: #f8fafc !important;
+      background: var(--sb-tier2-fixed-zebra-bg) !important;
       backdrop-filter: none !important;
       -webkit-backdrop-filter: none !important;
-      border-right: 1px solid #e2e8f0 !important;
-      box-shadow: 6px 0 12px -6px rgba(15, 23, 42, 0.12) !important;
+      border-right: 1px solid var(--sb-border-subtle) !important;
+      box-shadow: 6px 0 12px -6px rgba(15, 23, 42, 0.14) !important;
     }
 
     tbody tr:nth-child(odd) > td.el-table__cell.el-table-fixed-column--left,
     .el-table__fixed tbody tr:nth-child(odd) td.el-table__cell {
-      background: #ffffff !important;
+      background: var(--sb-tier2-fixed-bg) !important;
       backdrop-filter: none !important;
       -webkit-backdrop-filter: none !important;
-      border-right: 1px solid #e2e8f0 !important;
-      box-shadow: 6px 0 12px -6px rgba(15, 23, 42, 0.08) !important;
+      border-right: 1px solid var(--sb-border-subtle) !important;
+      box-shadow: 6px 0 12px -6px rgba(15, 23, 42, 0.10) !important;
     }
 
     tbody tr:nth-child(even) > td.el-table__cell.el-table-fixed-column--left,
     .el-table__fixed tbody tr:nth-child(even) td.el-table__cell {
-      background: #f8fafc !important;
+      background: var(--sb-tier2-fixed-zebra-bg) !important;
       backdrop-filter: none !important;
       -webkit-backdrop-filter: none !important;
-      border-right: 1px solid #e2e8f0 !important;
-      box-shadow: 6px 0 12px -6px rgba(15, 23, 42, 0.08) !important;
+      border-right: 1px solid var(--sb-border-subtle) !important;
+      box-shadow: 6px 0 12px -6px rgba(15, 23, 42, 0.10) !important;
     }
 
     tbody tr:hover > td.el-table__cell.el-table-fixed-column--left,
     .el-table__fixed tbody tr:hover td.el-table__cell {
-      background: #eff6ff !important;
+      background: var(--sb-tier2-hover-bg) !important;
     }
   }
 
@@ -557,26 +537,24 @@ h1, h2, h3, h4, h5, h6 {
 
       /* 中性/详情/查阅操作 (高雅墨石灰) */
       &:not(.el-button--primary, .el-button--danger, .el-button--success, .el-button--warning) {
-        color: #475569 !important;
+        color: var(--sb-text-muted) !important;
 
         &:hover {
-          background: rgba(255, 255, 255, 0.75) !important;
-          color: #0f172a !important;
-          border: 1px solid rgba(255, 255, 255, 0.95) !important;
-          box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08) !important;
-          backdrop-filter: blur(8px) !important;
-          -webkit-backdrop-filter: blur(8px) !important;
+          background: var(--sb-surface-soft) !important;
+          color: var(--sb-text-primary) !important;
+          border: 1px solid var(--sb-border-color) !important;
+          box-shadow: var(--sb-shadow-xs) !important;
           transform: translateY(-0.5px) !important;
         }
 
         &:active {
-          background: rgba(241, 245, 249, 0.85) !important;
+          background: var(--sb-surface-contrast) !important;
           transform: translateY(0) !important;
         }
       }
     }
 
-    /* 表格内微型状态胶囊与数据列毛玻璃深度融合 */
+    /* 表格内微型状态胶囊 */
     .el-tag {
       border-radius: 9999px !important;
       height: 22px !important;
@@ -584,9 +562,6 @@ h1, h2, h3, h4, h5, h6 {
       font-weight: 600 !important;
       font-size: 11.5px !important;
       letter-spacing: -0.01em !important;
-      backdrop-filter: blur(10px) !important;
-      -webkit-backdrop-filter: blur(10px) !important;
-      box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.75), 0 1px 2px rgba(15, 23, 42, 0.03) !important;
     }
   }
 
@@ -704,14 +679,12 @@ h1, h2, h3, h4, h5, h6 {
    7. 对话框与抽屉 (iOS 27 晶透悬浮微倒角毛玻璃)
    ========================================================================== */
 .el-dialog {
-  border-radius: 22px !important;
-  border: 1px solid rgba(226, 232, 240, 0.95) !important;
-  background: rgba(255, 255, 255, 0.96) !important;
-  backdrop-filter: blur(28px) saturate(160%) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(160%) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 1),
-    0 24px 60px -12px rgba(15, 23, 42, 0.16) !important;
+  border-radius: var(--sb-radius-glass, 20px) !important;
+  border: 1px solid var(--sb-border-subtle) !important;
+  background: var(--sb-tier3-bg) !important;
+  backdrop-filter: var(--sb-glass-blur-lg) !important;
+  -webkit-backdrop-filter: var(--sb-glass-blur-lg) !important;
+  box-shadow: var(--sb-glass-shadow-lg) !important;
   overflow: hidden;
   position: relative;
 
@@ -728,10 +701,10 @@ h1, h2, h3, h4, h5, h6 {
   }
 
   .el-dialog__header {
-    padding: 16px 22px 14px;
+    padding: 15px 22px 13px;
     margin-right: 0;
-    border-bottom: 1px solid #e2e8f0 !important;
-    background: rgba(248, 250, 252, 0.95) !important;
+    border-bottom: 1px solid var(--sb-border-subtle) !important;
+    background: var(--sb-tier2-header-bg) !important;
 
     .el-dialog__title {
       font-size: 16px;
@@ -742,32 +715,31 @@ h1, h2, h3, h4, h5, h6 {
   }
 
   .el-dialog__body {
-    padding: 22px;
+    padding: 20px 22px;
     background: transparent !important;
   }
 
   .el-dialog__footer {
-    padding: 14px 22px;
-    border-top: 1px solid #e2e8f0 !important;
-    background: rgba(248, 250, 252, 0.92) !important;
+    padding: 13px 22px;
+    border-top: 1px solid var(--sb-border-subtle) !important;
+    background: var(--sb-tier2-header-bg) !important;
   }
 }
 
 .el-drawer {
-  background: rgba(255, 255, 255, 0.96) !important;
-  backdrop-filter: blur(28px) saturate(160%) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(160%) !important;
-  border-left: 1px solid #e2e8f0 !important;
-  box-shadow:
-    -10px 0 40px rgba(15, 23, 42, 0.12) !important;
+  background: var(--sb-tier3-bg) !important;
+  backdrop-filter: var(--sb-glass-blur-lg) !important;
+  -webkit-backdrop-filter: var(--sb-glass-blur-lg) !important;
+  border-left: 1px solid var(--sb-border-subtle) !important;
+  box-shadow: var(--sb-glass-shadow-lg) !important;
 
   .el-drawer__header {
-    padding: 16px 22px 14px;
+    padding: 15px 22px 13px;
     margin-bottom: 0;
-    border-bottom: 1px solid #e2e8f0 !important;
+    border-bottom: 1px solid var(--sb-border-subtle) !important;
     color: var(--sb-text-primary);
     font-weight: 700;
-    background: rgba(248, 250, 252, 0.95) !important;
+    background: var(--sb-tier2-header-bg) !important;
   }
 
   .el-drawer__body {
@@ -775,9 +747,9 @@ h1, h2, h3, h4, h5, h6 {
   }
 
   .el-drawer__footer {
-    padding: 14px 22px;
-    border-top: 1px solid #e2e8f0 !important;
-    background: rgba(248, 250, 252, 0.92) !important;
+    padding: 13px 22px;
+    border-top: 1px solid var(--sb-border-subtle) !important;
+    background: var(--sb-tier2-header-bg) !important;
   }
 }
 
@@ -789,7 +761,7 @@ h1, h2, h3, h4, h5, h6 {
 
   .el-tabs__header {
     background: transparent !important;
-    border-bottom: 1px solid rgba(226, 232, 240, 0.6) !important;
+    border-bottom: 1px solid var(--sb-border-subtle) !important;
   }
 
   .el-tabs__content {
@@ -798,31 +770,26 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .el-tabs--border-card {
-  background: var(--sb-glass-bg) !important;
-  backdrop-filter: var(--sb-glass-blur) !important;
-  -webkit-backdrop-filter: var(--sb-glass-blur) !important;
-  border: 1px solid rgba(226, 232, 240, 0.92) !important;
-  border-radius: 22px !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.98),
-    0 10px 28px -8px rgba(15, 23, 42, 0.06) !important;
+  background: var(--sb-tier2-bg) !important;
+  border: 1px solid var(--sb-border-subtle) !important;
+  border-radius: var(--sb-radius-glass, 20px) !important;
+  box-shadow: var(--sb-shadow-sm) !important;
   overflow: hidden;
 
   .el-tabs__header {
-    background: rgba(248, 250, 252, 0.94) !important;
-    backdrop-filter: blur(12px) !important;
-    border-bottom: 1px solid #e2e8f0 !important;
+    background: var(--sb-tier2-header-bg) !important;
+    border-bottom: 1px solid var(--sb-border-subtle) !important;
   }
 
   .el-tabs__content {
     background: transparent !important;
-    padding: 20px 22px;
+    padding: 18px 20px;
   }
 }
 
 .el-tabs__nav-wrap::after {
   height: 1px !important;
-  background-color: #e2e8f0 !important;
+  background-color: var(--sb-border-subtle) !important;
 }
 
 .el-tabs__item {
@@ -851,16 +818,16 @@ h1, h2, h3, h4, h5, h6 {
    9. 分页控件 (Precision Glass Pagination)
    ========================================================================== */
 .el-pagination {
-  margin-top: 16px;
+  margin-top: 14px;
   justify-content: flex-end;
   background: transparent !important;
 
   .btn-prev,
   .btn-next,
   .el-pager li {
-    background: rgba(255, 255, 255, 0.92) !important;
+    background: var(--sb-control-bg) !important;
     backdrop-filter: none;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--sb-border-color);
     border-radius: 6px;
     margin: 0 3px;
     font-size: 12.5px;
@@ -903,14 +870,31 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ==========================================================================
-   11. 等宽排版与微调 (Tabular Numerals)
+   11. 等宽排版与全局高密度切换 (Tabular Numerals & Compact Table Density)
    ========================================================================== */
 .tabular-nums,
+.sb-tabular,
+.el-statistic__number,
 .el-table,
+.el-table .is-right .cell,
+.el-table .el-table__cell.is-tabular .cell,
 .dashboard__stat strong,
 .pro-stat-card strong,
 .ep-stat-card__value {
   font-variant-numeric: tabular-nums;
+}
+
+html[data-density="compact"] .el-table {
+  th.el-table__cell {
+    height: 34px !important;
+    padding: 6px 0 !important;
+    font-size: 12.5px !important;
+  }
+
+  td.el-table__cell {
+    padding: 5px 0 !important;
+    font-size: 12.5px !important;
+  }
 }
 
 #app {
@@ -922,7 +906,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ==========================================================================
-   12. 全站系统级 iOS 27 Liquid Glass 毛玻璃表面穿透规范 (Global Liquid Surfaces)
+   12. 全站系统级 TCDS v3.0 三级光学层级表面规范 (Tiered Glass & Solid Data Cards)
    ========================================================================== */
 .module-section-stack,
 .control-surface,
@@ -930,7 +914,7 @@ h1, h2, h3, h4, h5, h6 {
   background: transparent !important;
 }
 
-/* 全站所有卡片与容器：无条件透光液态玻璃 */
+/* Tier 2：中层业务卡片与表格底座（高对比实底微边框，轻量少模糊降重绘） */
 .base-card,
 .el-card,
 .ep-card,
@@ -955,21 +939,17 @@ h1, h2, h3, h4, h5, h6 {
 [class*="-role-sidebar"],
 [class*="-matrix-card"],
 [class*="-stat-card"] {
-  background: var(--sb-glass-bg) !important;
-  backdrop-filter: var(--sb-glass-blur) !important;
-  -webkit-backdrop-filter: var(--sb-glass-blur) !important;
-  border: 1px solid rgba(226, 232, 240, 0.92) !important;
-  border-radius: var(--sb-radius-glass, 22px) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.98),
-    0 10px 28px -8px rgba(15, 23, 42, 0.06) !important;
+  background: var(--sb-tier2-bg) !important;
+  border: 1px solid var(--sb-border-subtle) !important;
+  border-radius: var(--sb-radius-glass, 20px) !important;
+  box-shadow: var(--sb-shadow-sm) !important;
 
   .el-card__body {
     background: transparent !important;
   }
 }
 
-/* 指挥台、遥测指标条、工具栏：高可读清透胶囊 */
+/* Tier 1：指挥台、遥测指标条、工具栏（微磨砂低透条带 + 14px 同心次级圆角） */
 .command-surface,
 .filter-toolbar,
 .table-toolbar,
@@ -992,27 +972,24 @@ h1, h2, h3, h4, h5, h6 {
 [class*="-control-bar"],
 [class*="-action-toolbar"],
 [class*="-filter-panel"] {
-  background: var(--sb-glass-bg) !important;
-  backdrop-filter: var(--sb-glass-blur) !important;
-  -webkit-backdrop-filter: var(--sb-glass-blur) !important;
-  border: 1px solid rgba(226, 232, 240, 0.92) !important;
-  border-radius: var(--sb-radius-glass-md, 16px) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.98),
-    0 6px 20px -6px rgba(15, 23, 42, 0.05) !important;
+  background: var(--sb-tier1-bg) !important;
+  backdrop-filter: var(--sb-glass-blur-sm) !important;
+  -webkit-backdrop-filter: var(--sb-glass-blur-sm) !important;
+  border: 1px solid var(--sb-border-subtle) !important;
+  border-radius: var(--sb-radius-glass-md, 14px) !important;
+  box-shadow: var(--sb-shadow-xs) !important;
 }
 
-/* 浮动下拉与气泡菜单 */
+/* Tier 3：浮动下拉与气泡菜单（强投影 + blur(20px)） */
 .el-popper.is-light,
 .el-select-dropdown,
 .el-dropdown-menu {
-  background: rgba(255, 255, 255, 0.96) !important;
-  backdrop-filter: blur(22px) saturate(160%) !important;
-  -webkit-backdrop-filter: blur(22px) saturate(160%) !important;
-  border: 1px solid #cbd5e1 !important;
-  border-radius: 14px !important;
-  box-shadow:
-    0 14px 34px -8px rgba(15, 23, 42, 0.12) !important;
+  background: var(--sb-tier3-bg) !important;
+  backdrop-filter: blur(20px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(160%) !important;
+  border: 1px solid var(--sb-border-color) !important;
+  border-radius: var(--sb-radius-glass-md, 14px) !important;
+  box-shadow: var(--sb-glass-shadow) !important;
 
   .el-select-dropdown__item,
   .el-dropdown-menu__item {
@@ -1024,11 +1001,11 @@ h1, h2, h3, h4, h5, h6 {
     &:hover,
     &.hover,
     &.is-hovering {
-      background: rgba(37, 99, 235, 0.10) !important;
+      background: rgba(37, 99, 235, 0.12) !important;
       color: var(--sb-primary-color) !important;
     }
     &.is-selected {
-      background: rgba(37, 99, 235, 0.16) !important;
+      background: rgba(37, 99, 235, 0.18) !important;
       color: var(--sb-primary-color) !important;
       font-weight: 600 !important;
     }
@@ -1046,32 +1023,32 @@ h1, h2, h3, h4, h5, h6 {
     transition: all 120ms ease !important;
 
     &:hover {
-      background: rgba(255, 255, 255, 0.65) !important;
+      background: var(--sb-surface-soft) !important;
     }
   }
 
   .el-tree-node.is-current > .el-tree-node__content {
-    background: rgba(37, 99, 235, 0.12) !important;
+    background: var(--sb-badge-primary-bg) !important;
     color: var(--sb-primary-color) !important;
     font-weight: 600 !important;
   }
 }
 
 .el-collapse {
-  border-top: 1px solid rgba(226, 232, 240, 0.6) !important;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.6) !important;
+  border-top: 1px solid var(--sb-border-subtle) !important;
+  border-bottom: 1px solid var(--sb-border-subtle) !important;
   background: transparent !important;
 
   .el-collapse-item__header {
     background: transparent !important;
     color: var(--sb-text-primary) !important;
-    border-bottom: 1px solid rgba(226, 232, 240, 0.5) !important;
+    border-bottom: 1px solid var(--sb-border-subtle) !important;
     font-weight: 600 !important;
   }
 
   .el-collapse-item__wrap {
     background: transparent !important;
-    border-bottom: 1px solid rgba(226, 232, 240, 0.5) !important;
+    border-bottom: 1px solid var(--sb-border-subtle) !important;
   }
 }
 
@@ -1097,15 +1074,25 @@ html.dark body {
 html.dark .el-card,
 html.dark .base-card,
 html.dark .ep-card,
-html.dark .workbench-card {
-  border-color: rgba(51, 65, 85, 0.82) !important;
+html.dark .workbench-card,
+html.dark .command-surface,
+html.dark .filter-toolbar,
+html.dark .table-toolbar,
+html.dark [class*="-metric-strip"],
+html.dark [class*="-telemetry-bar"],
+html.dark [class*="-summary-bar"],
+html.dark [class*="-toolbar-strip"],
+html.dark [class*="-control-bar"],
+html.dark [class*="-action-toolbar"],
+html.dark [class*="-filter-panel"] {
+  border-color: rgba(51, 65, 85, 0.85) !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
     0 14px 36px -10px rgba(0, 0, 0, 0.55) !important;
 
   .el-card__header,
   .ep-card__header {
-    background: rgba(15, 23, 42, 0.88) !important;
+    background: var(--sb-tier2-header-bg) !important;
     border-bottom-color: rgba(51, 65, 85, 0.72) !important;
     color: var(--sb-text-primary);
   }
@@ -1114,7 +1101,7 @@ html.dark .workbench-card {
 html.dark .el-popper.is-light,
 html.dark .el-select-dropdown,
 html.dark .el-dropdown-menu {
-  background: rgba(15, 23, 42, 0.96) !important;
-  border-color: rgba(51, 65, 85, 0.85) !important;
+  background: var(--sb-tier3-bg) !important;
+  border-color: rgba(51, 65, 85, 0.88) !important;
   color: var(--sb-text-secondary);
 }

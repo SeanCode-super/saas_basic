@@ -92,11 +92,27 @@
   --sb-glass-shadow-lg: 0 24px 56px -12px rgba(12, 34, 56, 0.12), 0 8px 24px -4px rgba(12, 34, 56, 0.06);
   --sb-glass-shadow-glow: 0 0 28px -2px rgba(37, 99, 235, 0.28);
 
-  /* 悬浮晶体圆角规范 (iOS 27 连续大曲率) */
-  --sb-radius-glass: 26px;
-  --sb-radius-glass-md: 18px;
-  --sb-radius-glass-sm: 12px;
+  /* 悬浮晶体圆角规范 (TCDS v3.0 严格同心圆角阶梯: 外容器 20px -> 次级栏 14px -> 内嵌表格 10px -> 控件 8px) */
+  --sb-radius-glass: 20px;
+  --sb-radius-glass-md: 14px;
+  --sb-radius-glass-sm: 10px;
+  --sb-radius-control: 8px;
   --sb-radius-glass-pill: 9999px;
+
+  /* TCDS v3.0 三级光学表面与控件语义令牌 */
+  --sb-tier1-bg: rgba(255, 255, 255, 0.88);
+  --sb-tier2-bg: rgba(255, 255, 255, 0.96);
+  --sb-tier2-header-bg: rgba(248, 250, 252, 0.98);
+  --sb-tier2-zebra-bg: rgba(248, 250, 252, 0.96);
+  --sb-tier2-hover-bg: rgba(239, 246, 255, 0.96);
+  --sb-tier2-fixed-bg: #ffffff;
+  --sb-tier2-fixed-zebra-bg: #f8fafc;
+  --sb-tier3-bg: rgba(255, 255, 255, 0.97);
+  --sb-badge-primary-bg: rgba(37, 99, 235, 0.10);
+  --sb-badge-primary-border: rgba(37, 99, 235, 0.24);
+  --sb-badge-primary-text: #1d4ed8;
+  --sb-control-bg: rgba(255, 255, 255, 0.94);
+  --sb-control-bg-hover: #ffffff;
 
   /* 底座画布与表面层级 (Crisp Luminous Mist & Elevated Frosted Surfaces) */
   --sb-page-shell: transparent;
@@ -190,6 +206,13 @@ html.dark {
   --sb-text-muted: #94a3b8;
   --sb-text-disabled: #64748b;
 
+  --app-text-primary: #f8fafc;
+  --app-text-secondary: #cbd5e1;
+  --app-text-muted: #94a3b8;
+  --app-surface-card: rgba(15, 23, 42, 0.90);
+  --app-surface-subtle: rgba(30, 41, 59, 0.78);
+  --app-border-soft: rgba(51, 65, 85, 0.82);
+
   --sb-border-color: #334155;
   --sb-border-subtle: #1e293b;
   --sb-border-strong: #475569;
@@ -201,6 +224,20 @@ html.dark {
   --sb-glass-border: 1px solid rgba(255, 255, 255, 0.12);
   --sb-glass-border-subtle: 1px solid rgba(255, 255, 255, 0.08);
   --sb-glass-specular: var(--sb-glass-specular-dark);
+
+  --sb-tier1-bg: rgba(15, 23, 42, 0.80);
+  --sb-tier2-bg: rgba(15, 23, 42, 0.92);
+  --sb-tier2-header-bg: rgba(30, 41, 59, 0.94);
+  --sb-tier2-zebra-bg: rgba(19, 29, 49, 0.94);
+  --sb-tier2-hover-bg: rgba(37, 99, 235, 0.18);
+  --sb-tier2-fixed-bg: #0f172a;
+  --sb-tier2-fixed-zebra-bg: #131d31;
+  --sb-tier3-bg: rgba(15, 23, 42, 0.96);
+  --sb-badge-primary-bg: rgba(59, 130, 246, 0.18);
+  --sb-badge-primary-border: rgba(96, 165, 250, 0.34);
+  --sb-badge-primary-text: #93c5fd;
+  --sb-control-bg: rgba(15, 23, 42, 0.86);
+  --sb-control-bg-hover: rgba(30, 41, 59, 0.95);
 
   --sb-surface-color: rgba(15, 23, 42, 0.85);
   --sb-surface-strong: rgba(15, 23, 42, 0.94);
@@ -221,7 +258,9 @@ html.dark {
   --el-border-color: #334155;
   --el-border-color-light: #1e293b;
 
-  --el-table-header-bg-color: rgba(30, 41, 59, 0.85);
+  --el-table-bg-color: rgba(15, 23, 42, 0.92);
+  --el-table-tr-bg-color: rgba(15, 23, 42, 0.92);
+  --el-table-header-bg-color: rgba(30, 41, 59, 0.94);
   --el-table-header-text-color: #f8fafc;
   --el-table-text-color: #e2e8f0;
   --el-table-border-color: rgba(51, 65, 85, 0.7);

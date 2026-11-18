@@ -54,6 +54,7 @@ import type {
 } from "@/api/modules/tenant";
 import ProTable, { type ProTableColumn } from "@/components/pro/ProTable.vue";
 import SchemaForm, { type SchemaField } from "@/components/pro/SchemaForm.vue";
+import type { DimensionAxisConfig } from "@/utils/dimension-slice";
 import { useTenantStore } from "@/stores/modules/tenant";
 
 const props = defineProps<{
@@ -76,6 +77,36 @@ const queryModel = computed({
   get: () => props.query,
   set: (value) => Object.assign(props.query, value)
 });
+
+const ledgerDimensionAxes: DimensionAxisConfig[] = [
+  {
+    key: "packageName",
+    label: "订阅套餐",
+    accessor: (row) => String(row.packageName || "未分配")
+  },
+  {
+    key: "isolationMode",
+    label: "隔离模式",
+    options: [
+      { label: "平台模式", value: "PLATFORM" },
+      { label: "共享 Schema", value: "SHARED_SCHEMA" },
+      { label: "独立 Schema", value: "ISOLATED_SCHEMA" },
+      { label: "独立数据库", value: "DEDICATED_DATABASE" }
+    ]
+  },
+  {
+    key: "status",
+    label: "生命周期",
+    options: [
+      { label: "正常履约", value: "ACTIVE" },
+      { label: "试用体验", value: "TRIAL" },
+      { label: "临期预警", value: "EXPIRING" },
+      { label: "到期只读", value: "EXPIRED" },
+      { label: "欠费冻结", value: "SUSPENDED" },
+      { label: "已停用", value: "DISABLED" }
+    ]
+  }
+];
 
 // Plan & Expiration Dialog
 const planDialogVisible = ref(false);
@@ -563,6 +594,8 @@ onMounted(() => {
       :loading="loading"
       :columns="columns"
       :data="rows"
+      :dimensions="ledgerDimensionAxes"
+      dimension-storage-key="tenant-ledger"
       selectable
       empty-title="当前没有租户台账"
       empty-description="可以先新建租户，或通过导入清单一次性导入租户基础档案。"
