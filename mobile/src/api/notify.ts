@@ -8,10 +8,11 @@ export function apiGetMyNotifications(category?: string) {
   });
 }
 
-export function apiGetUnreadNotificationCount() {
+export function apiGetUnreadNotificationCount(silent = false) {
   return request<{ count: number }>({
     url: "/api/system/notify/unread-count",
-    method: "GET"
+    method: "GET",
+    silent
   });
 }
 

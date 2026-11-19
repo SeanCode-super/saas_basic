@@ -1,9 +1,10 @@
 import { request } from "../utils/request";
 
-export function apiGetInventory() {
+export function apiGetInventory(silent = false) {
   return request<any[]>({
     url: "/api/erp/inventory",
-    method: "GET"
+    method: "GET",
+    silent
   });
 }
 
