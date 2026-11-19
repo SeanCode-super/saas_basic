@@ -293,3 +293,114 @@ export const WARM_NOTIFY = [
     createdAt: "昨天"
   }
 ];
+
+// -----------------------------------------------------------------------------
+// 用户全量个人档案温热缓存规范 (消除编辑资料/我的页面数据二次加载跳动)
+// -----------------------------------------------------------------------------
+
+export interface WarmUserProfileModel {
+  id: number;
+  userCode?: string;
+  tenantId: number;
+  tenantCode: string;
+  tenantName?: string;
+  username: string;
+  nickname: string;
+  mobile?: string;
+  email?: string;
+  avatarFileId?: number | null;
+  avatarUrl?: string | null;
+  gender?: string;
+  bio?: string;
+  workLocation?: string;
+  extContact?: string;
+  userType: string;
+  status: string;
+  passwordDaysRemaining?: number;
+  roles: string[];
+  employeeInfo?: {
+    employeeNo?: string;
+    employeeName?: string;
+    deptName?: string;
+    deptFullPath?: string;
+    positionName?: string;
+    hireDate?: string;
+  } | null;
+}
+
+export const WARM_USER_PROFILE: WarmUserProfileModel = {
+  id: 1,
+  userCode: "EMP-0001",
+  tenantId: 1,
+  tenantCode: "platform",
+  tenantName: "平台空间",
+  username: "admin",
+  nickname: "平台管理员",
+  mobile: "13800000000",
+  email: "admin@saasbasics.local",
+  avatarFileId: null,
+  avatarUrl: null,
+  gender: "MALE",
+  bio: "全栈架构师 · 个人资料完整度测试",
+  workLocation: "杭州研发中心 T3-1808",
+  extContact: "企业微信 (分机 8001)",
+  userType: "SUPER_ADMIN",
+  status: "ACTIVE",
+  passwordDaysRemaining: 89,
+  roles: ["SUPER_ADMIN"],
+  employeeInfo: {
+    employeeNo: "EMP-0001",
+    employeeName: "平台管理员",
+    deptName: "平台研发部",
+    deptFullPath: "技术架构中心 · 平台研发部",
+    positionName: "系统架构师 / 研发总监"
+  }
+};
+
+export function getCachedUserProfile(): WarmUserProfileModel {
+  const profile = getCachedData<WarmUserProfileModel>("USER_PROFILE", WARM_USER_PROFILE);
+  try {
+    const raw = uni.getStorageSync("sb_current_user");
+    if (raw) {
+      const u = typeof raw === "string" ? JSON.parse(raw) : raw;
+      return {
+        ...profile,
+        nickname: u.nickname || profile.nickname,
+        mobile: u.mobile || profile.mobile,
+        email: u.email || profile.email,
+        workLocation: u.workLocation !== undefined ? u.workLocation : profile.workLocation,
+        extContact: u.extContact !== undefined ? u.extContact : profile.extContact,
+        bio: u.bio !== undefined ? u.bio : profile.bio,
+        avatarUrl: u.avatarUrl !== undefined ? u.avatarUrl : profile.avatarUrl
+      };
+    }
+  } catch {}
+  return profile;
+}
+
+export function setCachedUserProfile(data: Partial<WarmUserProfileModel>): void {
+  const current = getCachedUserProfile();
+  const merged: WarmUserProfileModel = {
+    ...current,
+    ...data,
+    employeeInfo: data.employeeInfo !== undefined ? data.employeeInfo : current.employeeInfo
+  };
+  setCachedData("USER_PROFILE", merged);
+  try {
+    const raw = uni.getStorageSync("sb_current_user");
+    const u = raw ? (typeof raw === "string" ? JSON.parse(raw) : raw) : {};
+    uni.setStorageSync("sb_current_user", JSON.stringify({
+      ...u,
+      id: merged.id,
+      username: merged.username,
+      nickname: merged.nickname,
+      mobile: merged.mobile,
+      email: merged.email,
+      workLocation: merged.workLocation,
+      extContact: merged.extContact,
+      bio: merged.bio,
+      avatarUrl: merged.avatarUrl
+    }));
+  } catch {}
+}
+

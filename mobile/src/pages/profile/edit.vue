@@ -140,30 +140,25 @@ import {
   type MobileStorageStatus
 } from "../../api/profile";
 import { resolveMobileFileUrl } from "../../utils/request";
+import {
+  getCachedUserProfile,
+  setCachedUserProfile,
+  type WarmUserProfileModel
+} from "../../utils/warm-cache";
 
 const saving = ref(false);
-const profileData = ref<MobileProfileData | null>(null);
+const warmProfile = getCachedUserProfile();
+const profileData = ref<MobileProfileData | WarmUserProfileModel>(warmProfile);
 const storageStatus = ref<MobileStorageStatus | null>(null);
 
-function getCachedUser() {
-  try {
-    const raw = uni.getStorageSync("sb_current_user");
-    return raw ? (typeof raw === "string" ? JSON.parse(raw) : raw) : {};
-  } catch {
-    return {};
-  }
-}
-
-const cachedUser = getCachedUser();
-
 const editForm = reactive({
-  nickname: cachedUser.nickname || cachedUser.username || "平台管理员",
-  mobile: cachedUser.mobile || "13800000000",
-  email: cachedUser.email || "admin@tianshu.cloud",
+  nickname: warmProfile.nickname || warmProfile.username || "平台管理员",
+  mobile: warmProfile.mobile || "13800000000",
+  email: warmProfile.email || "admin@saasbasics.local",
   confirmPassword: "",
-  workLocation: cachedUser.workLocation || "研发总部 A座 502",
-  extContact: cachedUser.extContact || "企业微信 (分机 8001)",
-  bio: cachedUser.bio || "全栈架构师 · 个人资料完整度测试"
+  workLocation: warmProfile.workLocation || "杭州研发中心 T3-1808",
+  extContact: warmProfile.extContact || "企业微信 (分机 8001)",
+  bio: warmProfile.bio || "全栈架构师 · 个人资料完整度测试"
 });
 
 const originalMobile = ref(editForm.mobile);
@@ -197,12 +192,13 @@ async function loadProfile() {
     if (res.status === "fulfilled" && res.value) {
       const d = res.value;
       profileData.value = d;
-      if (d.nickname) editForm.nickname = d.nickname;
-      if (d.mobile) editForm.mobile = d.mobile;
-      if (d.email) editForm.email = d.email;
-      if (d.workLocation) editForm.workLocation = d.workLocation;
-      if (d.extContact) editForm.extContact = d.extContact;
-      if (d.bio) editForm.bio = d.bio;
+      setCachedUserProfile(d);
+      if (d.nickname !== undefined && d.nickname !== null) editForm.nickname = d.nickname;
+      if (d.mobile !== undefined && d.mobile !== null) editForm.mobile = d.mobile;
+      if (d.email !== undefined && d.email !== null) editForm.email = d.email;
+      if (d.workLocation !== undefined && d.workLocation !== null) editForm.workLocation = d.workLocation;
+      if (d.extContact !== undefined && d.extContact !== null) editForm.extContact = d.extContact;
+      if (d.bio !== undefined && d.bio !== null) editForm.bio = d.bio;
       originalMobile.value = (editForm.mobile || "").trim();
       originalEmail.value = (editForm.email || "").trim();
     }
@@ -232,6 +228,7 @@ function handleAvatarTap() {
       try {
         const updated = await apiUploadProfileAvatar(path);
         profileData.value = updated;
+        setCachedUserProfile(updated);
         uni.showToast({ title: "头像更新成功", icon: "success" });
       } catch (err: any) {
         uni.showToast({ title: err?.message || "上传头像失败", icon: "none" });
@@ -271,6 +268,7 @@ async function submitEditProfile() {
     });
 
     profileData.value = updated;
+    setCachedUserProfile(updated);
     uni.showToast({ title: "资料保存成功", icon: "success" });
     setTimeout(() => {
       goBack();

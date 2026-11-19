@@ -54,37 +54,23 @@
           <text class="info-cell-k">担任岗位</text>
           <text class="info-cell-v font-semibold">{{ profileData?.employeeInfo?.positionName || '系统架构师 / 研发总监' }}</text>
         </view>
+        <view class="info-cell-row">
+          <text class="info-cell-k">办公地点</text>
+          <text class="info-cell-v">{{ profileData?.workLocation || '杭州研发中心 T3-1808' }}</text>
+        </view>
+        <view class="info-cell-row">
+          <text class="info-cell-k">联系电话</text>
+          <text class="info-cell-v">{{ profileData?.mobile || '13800000000' }}</text>
+        </view>
+        <view class="info-cell-row">
+          <text class="info-cell-k">工作邮箱</text>
+          <text class="info-cell-v">{{ profileData?.email || 'admin@saasbasics.local' }}</text>
+        </view>
       </view>
     </view>
 
-    <!-- 3. 账号与安全设置 (干净整齐的 iOS 单元格分组) -->
+    <!-- 3. 账号与安全设置 (干净整齐的 iOS 单元格分组，杜绝编辑资料冗余入口) -->
     <view class="setting-list">
-      <view class="setting-item" @click="goToEdit">
-        <view class="item-left">
-          <view class="setting-icon-box bg-blue">
-            <AppIcon name="phone" :size="14" color="#2563eb" />
-          </view>
-          <text class="item-title">联系手机</text>
-        </view>
-        <view class="item-right">
-          <text class="item-val">{{ profileData?.mobile || "13800000000" }}</text>
-          <text class="item-arrow">&gt;</text>
-        </view>
-      </view>
-
-      <view class="setting-item" @click="goToEdit">
-        <view class="item-left">
-          <view class="setting-icon-box bg-cyan">
-            <AppIcon name="mail" :size="14" color="#0284c7" />
-          </view>
-          <text class="item-title">绑定邮箱</text>
-        </view>
-        <view class="item-right">
-          <text class="item-val">{{ profileData?.email || "admin@tianshu.cloud" }}</text>
-          <text class="item-arrow">&gt;</text>
-        </view>
-      </view>
-
       <view class="setting-item" @click="goToSessions">
         <view class="item-left">
           <view class="setting-icon-box bg-emerald">
@@ -144,16 +130,22 @@ import {
   type MobileStorageStatus
 } from "../../api/profile";
 import { resolveMobileFileUrl } from "../../utils/request";
+import {
+  getCachedUserProfile,
+  setCachedUserProfile,
+  type WarmUserProfileModel
+} from "../../utils/warm-cache";
 
-const profileData = ref<MobileProfileData | null>(null);
+const warmProfile = getCachedUserProfile();
+const profileData = ref<MobileProfileData | WarmUserProfileModel>(warmProfile);
 const storageStatus = ref<MobileStorageStatus | null>(null);
 
-const userName = ref("用户");
-const userAccount = ref("admin");
-const userCodeLabel = ref("#1");
-const userRole = ref("企业成员");
-const tenantCode = ref(uni.getStorageSync("sb_tenant_code") || "platform");
-const currentTenantName = ref(uni.getStorageSync("sb_tenant_name") || "当前租户空间");
+const userName = ref(warmProfile.nickname || warmProfile.username || "平台管理员");
+const userAccount = ref(warmProfile.username || "admin");
+const userCodeLabel = ref(warmProfile.userCode || "#1");
+const userRole = ref(resolveUserTypeLabel(warmProfile.userType));
+const tenantCode = ref(warmProfile.tenantCode || uni.getStorageSync("sb_tenant_code") || "platform");
+const currentTenantName = ref(warmProfile.tenantName || uni.getStorageSync("sb_tenant_name") || "平台空间");
 
 const avatarDisplayUrl = computed(() => resolveMobileFileUrl(profileData.value?.avatarUrl));
 
@@ -173,25 +165,13 @@ function resolveUserTypeLabel(userType?: string): string {
 }
 
 function hydrateLocalUserCache(data: MobileProfileData) {
-  userName.value = data.nickname || data.username;
-  userAccount.value = data.username;
+  userName.value = data.nickname || data.username || "平台管理员";
+  userAccount.value = data.username || "admin";
   userCodeLabel.value = data.userCode || `#${data.id}`;
   userRole.value = resolveUserTypeLabel(data.userType);
   tenantCode.value = data.tenantCode || tenantCode.value;
   currentTenantName.value = data.tenantName || data.tenantCode || currentTenantName.value;
-  try {
-    const raw = uni.getStorageSync("sb_current_user");
-    const cached = raw ? (typeof raw === "string" ? JSON.parse(raw) : raw) : {};
-    uni.setStorageSync("sb_current_user", JSON.stringify({
-      ...cached,
-      nickname: data.nickname,
-      mobile: data.mobile,
-      email: data.email,
-      avatarUrl: data.avatarUrl
-    }));
-  } catch {
-    // ignore storage sync error
-  }
+  setCachedUserProfile(data);
 }
 
 async function loadProfile() {
