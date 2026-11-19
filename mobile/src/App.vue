@@ -351,6 +351,8 @@ body:has(.login-box) uni-tabbar {
   -webkit-overflow-scrolling: touch;
   padding: 6px 14px 10px;
   box-sizing: border-box;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .ios27-chip-scroll::-webkit-scrollbar {
@@ -387,7 +389,8 @@ body:has(.login-box) uni-tabbar {
     inset 0 1px 1px rgba(255, 255, 255, 0.95),
     0 2px 6px rgba(15, 23, 42, 0.04);
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  /* 杜绝初次渲染全属性过渡引起的背景色及阴影跳动，仅保留触摸即时弹性 */
+  transition: transform 0.08s ease, opacity 0.08s ease;
 }
 
 .ios27-chip:active {

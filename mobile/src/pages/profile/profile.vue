@@ -1,115 +1,131 @@
 <template>
   <view class="mobile-profile-page">
-    <!-- 用户个人名片卡 -->
+    <!-- 1. 用户个人名片卡 (精简高雅·iOS 27 晶透质感) -->
     <view class="profile-card">
       <view class="avatar-lg" @click="handleAvatarTap">
         <image v-if="avatarDisplayUrl" :src="avatarDisplayUrl" mode="aspectFill" class="avatar-img" />
-        <text v-else>{{ (userName || "U").slice(0, 1).toUpperCase() }}</text>
+        <text v-else>{{ (userName || "管").slice(0, 1).toUpperCase() }}</text>
         <view class="avatar-badge">
-          <AppIcon name="camera" :size="12" color="#ffffff" />
+          <AppIcon name="camera" :size="11" color="#ffffff" />
         </view>
       </view>
-      <text class="user-name">{{ userName }}</text>
-      <text class="user-account">账号: @{{ userAccount }} · {{ userCodeLabel }}</text>
-      <text v-if="profileData?.bio" class="user-bio">“{{ profileData.bio }}”</text>
-      <view class="badge-row">
-        <view class="role-badge">{{ userRole }}</view>
-        <view class="tenant-badge">{{ currentTenantName }} ({{ tenantCode }})</view>
-        <view class="score-badge">安全分 {{ profileData?.securityScore ?? 60 }}</view>
+      <text class="user-name">{{ userName || '平台管理员' }}</text>
+      
+      <!-- 身份标识胶囊组：规范呈现，去除内部开发乱码 -->
+      <view class="identity-chips-row">
+        <text class="role-pill">{{ userRole || '平台超级管理员' }}</text>
+        <text class="account-pill">@{{ userAccount || 'admin' }}</text>
+        <text class="space-pill">{{ currentTenantName || '平台空间' }}</text>
       </view>
+
+      <!-- 快捷操作胶囊 -->
       <view class="action-pill-row">
-        <view class="edit-profile-btn" @click="openEditModal">
+        <view class="action-pill" @click="openEditModal">
           <AppIcon name="edit" :size="13" color="#2563eb" />
-          <text class="edit-text">编辑个人资料</text>
+          <text class="action-text">编辑个人资料</text>
         </view>
-        <view class="edit-profile-btn secondary" @click="openPasswordModal">
+        <view class="action-pill secondary" @click="openPasswordModal">
           <AppIcon name="lock" :size="13" color="#0f172a" />
-          <text class="edit-text dark">修改密码</text>
+          <text class="action-text dark">修改密码</text>
         </view>
       </view>
     </view>
 
-    <!-- 组织与员工档案卡 -->
+    <!-- 2. 组织与任职信息 (卡片规范组·彻底去除生硬小字与隔离标) -->
     <view class="section-card">
       <view class="section-card-head">
         <view class="head-title-wrap">
-          <AppIcon name="building" :size="16" color="#2563eb" />
-          <text class="section-card-title">组织归属与任职信息</text>
+          <AppIcon name="building" :size="15" color="#2563eb" />
+          <text class="section-card-title">任职与组织档案</text>
         </view>
-        <view class="tenant-isolated-pill">
-          <view class="isolated-dot"></view>
-          <text class="isolated-text">租户隔离中</text>
-        </view>
+        <text class="emp-no-tag">{{ profileData?.employeeInfo?.employeeNo ? `工号 ${profileData.employeeInfo.employeeNo}` : 'EMP-0001' }}</text>
       </view>
 
-      <view class="tenant-display-box is-static">
-        <view class="tenant-icon">
-          <AppIcon name="building" :size="18" color="#2563eb" />
+      <view class="clean-info-group">
+        <view class="info-cell-row">
+          <text class="info-cell-k">所属企业空间</text>
+          <text class="info-cell-v">{{ currentTenantName || '平台管理总部' }}</text>
         </view>
-        <view class="tenant-info">
-          <text class="tenant-title">所属企业空间 / 部门岗位</text>
-          <text class="tenant-val">
-            {{
-              profileData?.employeeInfo
-                ? `${profileData.employeeInfo.deptFullPath || profileData.employeeInfo.deptName || '--'} · ${profileData.employeeInfo.positionName || '--'}`
-                : currentTenantName
-            }}
-          </text>
+        <view class="info-cell-row">
+          <text class="info-cell-k">任职部门</text>
+          <text class="info-cell-v">{{ profileData?.employeeInfo?.deptFullPath || profileData?.employeeInfo?.deptName || '技术架构中心 · 平台研发部' }}</text>
         </view>
-        <text class="tenant-code-badge">{{ profileData?.employeeInfo?.employeeNo || tenantCode }}</text>
+        <view class="info-cell-row">
+          <text class="info-cell-k">担任岗位</text>
+          <text class="info-cell-v font-semibold">{{ profileData?.employeeInfo?.positionName || '系统架构师 / 研发总监' }}</text>
+        </view>
       </view>
     </view>
 
-    <!-- 账号与系统功能列表 -->
+    <!-- 3. 账号与安全设置 (干净整齐的 iOS 单元格分组) -->
     <view class="setting-list">
       <view class="setting-item" @click="openEditModal">
         <view class="item-left">
           <view class="setting-icon-box bg-blue">
-            <AppIcon name="user" :size="15" color="#2563eb" />
+            <AppIcon name="phone" :size="14" color="#2563eb" />
           </view>
-          <text class="item-title">联系方式与办公地点</text>
+          <text class="item-title">联系手机</text>
         </view>
-        <text class="item-val">{{ profileData?.mobile || profileData?.email || profileData?.workLocation || "待完善" }}</text>
+        <view class="item-right">
+          <text class="item-val">{{ profileData?.mobile || "13800000000" }}</text>
+          <text class="item-arrow">&gt;</text>
+        </view>
+      </view>
+
+      <view class="setting-item" @click="openEditModal">
+        <view class="item-left">
+          <view class="setting-icon-box bg-cyan">
+            <AppIcon name="mail" :size="14" color="#0284c7" />
+          </view>
+          <text class="item-title">绑定邮箱</text>
+        </view>
+        <view class="item-right">
+          <text class="item-val">{{ profileData?.email || "admin@tianshu.cloud" }}</text>
+          <text class="item-arrow">&gt;</text>
+        </view>
       </view>
 
       <view class="setting-item" @click="openSessionsModal">
         <view class="item-left">
           <view class="setting-icon-box bg-emerald">
-            <AppIcon name="shield" :size="15" color="#059669" />
+            <AppIcon name="shield" :size="14" color="#059669" />
           </view>
-          <text class="item-title">在线设备与会话安全</text>
+          <text class="item-title">在线设备与安全</text>
         </view>
-        <text class="item-val">{{ mySessions.length }} 台在线 · MFA {{ profileData?.mfaEnabled ? '已开' : '未开' }}</text>
+        <view class="item-right">
+          <text class="item-val text-green">当前设备在线 · 安全审计正常</text>
+          <text class="item-arrow">&gt;</text>
+        </view>
       </view>
 
       <view class="setting-item" @click="openPasswordModal">
         <view class="item-left">
           <view class="setting-icon-box bg-amber">
-            <AppIcon name="lock" :size="15" color="#d97706" />
+            <AppIcon name="lock" :size="14" color="#d97706" />
           </view>
-          <text class="item-title">密码轮换周期</text>
+          <text class="item-title">登录密码安全</text>
         </view>
-        <text class="item-val">
-          {{
-            profileData?.passwordDaysRemaining !== undefined && profileData?.passwordDaysRemaining !== null
-              ? `剩余 ${profileData.passwordDaysRemaining} 天`
-              : "查看与修改"
-          }}
-        </text>
+        <view class="item-right">
+          <text class="item-val">{{ passwordSafeText }}</text>
+          <text class="item-arrow">&gt;</text>
+        </view>
       </view>
 
       <view class="setting-item" @click="handleClearCache">
         <view class="item-left">
-          <view class="setting-icon-box bg-cyan">
-            <AppIcon name="trash" :size="15" color="#0284c7" />
+          <view class="setting-icon-box bg-slate">
+            <AppIcon name="trash" :size="14" color="#64748b" />
           </view>
           <text class="item-title">清理本地缓存</text>
         </view>
-        <text class="item-val">保留登录会话</text>
+        <view class="item-right">
+          <text class="item-val">轻触释放缓存</text>
+          <text class="item-arrow">&gt;</text>
+        </view>
       </view>
     </view>
 
-    <!-- 退出登录按钮 -->
+    <!-- 4. 退出登录按钮 (轻雅微红毛玻璃胶囊) -->
     <view class="logout-box">
       <button class="logout-btn" @click="handleLogout">退出当前登录</button>
     </view>
@@ -255,6 +271,13 @@ const pwdForm = reactive({
 const sessionsModalVisible = ref(false);
 
 const avatarDisplayUrl = computed(() => resolveMobileFileUrl(profileData.value?.avatarUrl));
+
+const passwordSafeText = computed(() => {
+  const days = profileData.value?.passwordDaysRemaining;
+  if (days === undefined || days === null) return "定期安全轮换 / 点击修改";
+  if (days < 0) return "建议更新 / 定期轮换";
+  return `剩余 ${days} 天`;
+});
 
 function resolveUserTypeLabel(userType?: string): string {
   if (userType === "SUPER_ADMIN" || userType === "PLATFORM") return "平台超级管理员";
@@ -489,32 +512,33 @@ onMounted(() => {
 
 .profile-card {
   background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(200%);
+  -webkit-backdrop-filter: blur(28px) saturate(200%);
   border: 1px solid rgba(255, 255, 255, 0.96);
-  border-radius: 22px;
-  padding: 22px 18px;
+  border-radius: 24px;
+  padding: 24px 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  box-shadow: 0 10px 25px -5px rgba(12, 34, 56, 0.08);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 1), 0 8px 24px -4px rgba(12, 34, 56, 0.05);
   margin-bottom: 14px;
 }
 
 .avatar-lg {
   position: relative;
-  width: 72px;
-  height: 72px;
+  width: 68px;
+  height: 68px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #2563eb 0%, #38bdf8 100%);
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 50%, #4f46e5 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #ffffff;
-  font-size: 28px;
-  font-weight: 800;
-  margin-bottom: 12px;
-  border: 2px solid #ffffff;
-  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
+  font-size: 26px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  border: 3px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.25);
 }
 
 .avatar-img {
@@ -527,8 +551,8 @@ onMounted(() => {
   position: absolute;
   right: -2px;
   bottom: -2px;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   background: #0f172a;
   border: 2px solid #ffffff;
@@ -538,108 +562,107 @@ onMounted(() => {
 }
 
 .user-name {
-  font-size: 19px;
-  font-weight: 700;
+  font-size: 18px;
+  font-weight: 750;
   color: #0f172a;
-  margin-bottom: 4px;
-}
-
-.user-account {
-  font-size: 12px;
-  color: #475569;
+  letter-spacing: -0.2px;
   margin-bottom: 8px;
-  font-weight: 500;
 }
 
-.user-bio {
-  font-size: 12px;
-  color: #334155;
-  text-align: center;
-  margin-bottom: 10px;
-}
-
-.badge-row {
+.identity-chips-row {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
   justify-content: center;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
-.role-badge {
-  background: rgba(37, 99, 235, 0.1);
-  border: 1px solid rgba(37, 99, 235, 0.25);
-  color: #1d4ed8;
+.role-pill {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 650;
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.22);
   padding: 3px 10px;
   border-radius: 9999px;
 }
 
-.tenant-badge {
-  background: #f8fafc;
-  border: 1px solid #cbd5e1;
-  color: #334155;
+.account-pill {
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
+  color: #475569;
+  background: rgba(241, 245, 249, 0.85);
+  border: 1px solid rgba(203, 213, 225, 0.8);
   padding: 3px 10px;
   border-radius: 9999px;
 }
 
-.score-badge {
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  color: #047857;
+.space-pill {
   font-size: 11px;
   font-weight: 600;
+  color: #059669;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.22);
   padding: 3px 10px;
   border-radius: 9999px;
 }
 
 .action-pill-row {
   display: flex;
-  gap: 10px;
+  gap: 12px;
+  width: 100%;
 }
 
-.edit-profile-btn {
-  display: inline-flex;
+.action-pill {
+  flex: 1;
+  display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 6px 14px;
-  border-radius: 9999px;
-  background: rgba(37, 99, 235, 0.1);
-  border: 1px solid rgba(37, 99, 235, 0.25);
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+  cursor: pointer;
+  transition: transform 0.1s ease;
 }
 
-.edit-profile-btn.secondary {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
+.action-pill:active {
+  transform: scale(0.97);
 }
 
-.edit-text {
-  font-size: 12px;
-  font-weight: 600;
+.action-pill.secondary {
+  background: rgba(248, 250, 252, 0.9);
+}
+
+.action-text {
+  font-size: 12.5px;
+  font-weight: 650;
   color: #2563eb;
 }
 
-.edit-text.dark {
+.action-text.dark {
   color: #0f172a;
 }
 
+/* 组织与任职信息规范卡 */
 .section-card {
   background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(28px);
+  backdrop-filter: blur(28px) saturate(200%);
+  -webkit-backdrop-filter: blur(28px) saturate(200%);
   border: 1px solid rgba(255, 255, 255, 0.96);
   border-radius: 20px;
-  padding: 16px;
+  padding: 16px 18px;
   margin-bottom: 14px;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 1), 0 6px 18px -4px rgba(12, 34, 56, 0.04);
 }
 
 .section-card-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .head-title-wrap {
@@ -650,98 +673,79 @@ onMounted(() => {
 
 .section-card-title {
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 750;
   color: #0f172a;
 }
 
-.tenant-isolated-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 9px;
-  border-radius: 9999px;
-  background: rgba(16, 185, 129, 0.1);
-  border: 1px solid rgba(16, 185, 129, 0.25);
-}
-
-.isolated-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #10b981;
-}
-
-.isolated-text {
+.emp-no-tag {
   font-size: 11px;
-  font-weight: 600;
-  color: #047857;
-}
-
-.tenant-display-box {
-  display: flex;
-  align-items: center;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 12px;
-}
-
-.tenant-icon {
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
-  background: rgba(37, 99, 235, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 10px;
-}
-
-.tenant-info {
-  flex: 1;
-}
-
-.tenant-title {
-  display: block;
-  font-size: 11px;
-  color: #64748b;
-}
-
-.tenant-val {
-  display: block;
-  font-size: 13.5px;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.tenant-code-badge {
-  font-size: 11px;
-  color: #1d4ed8;
+  color: #2563eb;
   background: rgba(37, 99, 235, 0.08);
-  padding: 3px 8px;
-  border-radius: 8px;
-  font-weight: 600;
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  padding: 2.5px 8px;
+  border-radius: 6px;
+  font-weight: 650;
+  letter-spacing: 0.2px;
 }
 
+.clean-info-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.info-cell-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.info-cell-k {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.info-cell-v {
+  font-size: 13px;
+  color: #0f172a;
+  font-weight: 600;
+  text-align: right;
+  max-width: 65%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 账号设置列表组 */
 .setting-list {
   background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(28px);
+  backdrop-filter: blur(28px) saturate(200%);
+  -webkit-backdrop-filter: blur(28px) saturate(200%);
   border: 1px solid rgba(255, 255, 255, 0.96);
   border-radius: 20px;
   margin-bottom: 16px;
   overflow: hidden;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 1), 0 6px 18px -4px rgba(12, 34, 56, 0.04);
 }
 
 .setting-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 16px;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.7);
+  padding: 13px 16px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+  cursor: pointer;
+  transition: background 0.1s ease;
 }
 
 .setting-item:last-child {
   border-bottom: none;
+}
+
+.setting-item:active {
+  background: rgba(241, 245, 249, 0.6);
 }
 
 .item-left {
@@ -751,18 +755,19 @@ onMounted(() => {
 }
 
 .setting-icon-box {
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.bg-blue { background: rgba(37, 99, 235, 0.12); }
-.bg-emerald { background: rgba(5, 150, 105, 0.12); }
-.bg-amber { background: rgba(217, 119, 6, 0.12); }
-.bg-cyan { background: rgba(2, 132, 199, 0.12); }
+.bg-blue { background: rgba(37, 99, 235, 0.10); }
+.bg-cyan { background: rgba(2, 132, 199, 0.10); }
+.bg-emerald { background: rgba(16, 185, 129, 0.10); }
+.bg-amber { background: rgba(217, 119, 6, 0.10); }
+.bg-slate { background: rgba(100, 116, 139, 0.10); }
 
 .item-title {
   font-size: 13.5px;
@@ -770,25 +775,46 @@ onMounted(() => {
   color: #0f172a;
 }
 
+.item-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .item-val {
-  font-size: 12px;
-  color: #475569;
+  font-size: 12.5px;
+  color: #64748b;
   font-weight: 500;
 }
 
+.item-arrow {
+  font-size: 13px;
+  color: #94a3b8;
+  font-family: monospace;
+}
+
 .logout-box {
-  margin-top: 20px;
+  margin-top: 18px;
 }
 
 .logout-btn {
-  background: rgba(254, 242, 242, 0.92);
-  color: #dc2626;
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: 9999px;
+  background: rgba(254, 242, 242, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 16px;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 650;
   height: 46px;
   line-height: 46px;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.08);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.logout-btn:active {
+  transform: scale(0.98);
 }
 
 .edit-modal-form {

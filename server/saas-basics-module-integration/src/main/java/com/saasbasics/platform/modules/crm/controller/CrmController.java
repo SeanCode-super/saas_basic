@@ -204,4 +204,16 @@ public class CrmController {
     public ApiResponse<CrmFollowUpRecordResponse> addFollowUpRecord(@RequestBody CrmFollowUpRecordSaveRequest req) {
         return ApiResponse.success(crmService.addFollowUpRecord(req));
     }
+
+    // 8. 快捷常用跟进纪要短语配置 (支持 PC 控制台动态配置)
+    @GetMapping("/quick-phrases")
+    public ApiResponse<List<String>> getQuickPhrases() {
+        return ApiResponse.success(crmService.getQuickPhrases());
+    }
+
+    @PutMapping("/quick-phrases")
+    public ApiResponse<List<String>> updateQuickPhrases(@RequestBody Map<String, List<String>> payload) {
+        List<String> phrases = payload != null ? payload.get("phrases") : null;
+        return ApiResponse.success(crmService.updateQuickPhrases(phrases));
+    }
 }

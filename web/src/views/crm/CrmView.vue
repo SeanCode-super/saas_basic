@@ -4,6 +4,7 @@ import { useRoute } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
   Calendar,
+  ChatRound,
   Check,
   Close,
   Delete,
@@ -38,6 +39,7 @@ import {
   deleteCrmContract,
   deleteCrmCustomer,
   deleteCrmReceivable,
+  getCrmQuickPhrases,
   getCrmStatistics,
   listCrmBusinesses,
   listCrmClues,
@@ -47,7 +49,8 @@ import {
   listCrmReceivables,
   returnCustomerToPool,
   toggleCustomerLock,
-  updateCrmBusinessStage
+  updateCrmBusinessStage,
+  updateCrmQuickPhrases
 } from "@/api/modules/crm";
 import type {
   CrmBusinessRow,
@@ -214,6 +217,50 @@ const followUpForm = reactive({
   content: "",
   nextContactTime: ""
 });
+
+// 7. 外勤快捷常用语配置
+const phrasesDialogVisible = ref(false);
+const savingPhrases = ref(false);
+const configuredPhrases = ref<string[]>([]);
+
+async function openPhrasesConfigModal() {
+  phrasesDialogVisible.value = true;
+  try {
+    const res = await getCrmQuickPhrases();
+    configuredPhrases.value = res.data && res.data.length > 0 ? [...res.data] : [
+      "完成现场产品功能演示，信息化负责人对多部门协同流程评价良好",
+      "已同步二期项目方案及商务报价单，待采购委员会例会审核",
+      "拜访业务部门主管，就日常物资申领与审批流转完成需求调研",
+      "系统上线试运行回访，各部门操作顺畅，无异常工单留存"
+    ];
+  } catch {
+    configuredPhrases.value = [
+      "完成现场产品功能演示，信息化负责人对多部门协同流程评价良好",
+      "已同步二期项目方案及商务报价单，待采购委员会例会审核",
+      "拜访业务部门主管，就日常物资申领与审批流转完成需求调研",
+      "系统上线试运行回访，各部门操作顺畅，无异常工单留存"
+    ];
+  }
+}
+
+async function handleSavePhrases() {
+  const valid = configuredPhrases.value.map(s => s.trim()).filter(Boolean);
+  if (valid.length === 0) {
+    ElMessage.warning("请至少保留一条常用纪要");
+    return;
+  }
+  savingPhrases.value = true;
+  try {
+    const res = await updateCrmQuickPhrases(valid);
+    configuredPhrases.value = res.data || valid;
+    ElMessage.success("外勤常用跟进纪要已保存并下发至移动端");
+    phrasesDialogVisible.value = false;
+  } catch (err: any) {
+    ElMessage.error(err.message || "保存配置失败");
+  } finally {
+    savingPhrases.value = false;
+  }
+}
 
 // 加载统计
 async function loadStats() {
@@ -740,6 +787,7 @@ onMounted(() => {
               <el-button type="primary" :icon="RefreshRight" @click="loadCustomers" style="margin-left: 8px">查询</el-button>
             </div>
             <div class="right-actions">
+              <el-button :icon="ChatRound" @click="openPhrasesConfigModal">外勤快捷话术配置</el-button>
               <el-button type="primary" :icon="Plus" @click="customerDialogVisible = true">新建客户</el-button>
             </div>
           </div>
@@ -1270,6 +1318,22 @@ onMounted(() => {
         </div>
       </div>
     </el-drawer>
+
+    <!-- 弹窗 7：外勤快捷常用语配置 -->
+    <WorkspacePanel v-model="phrasesDialogVisible" title="移动外勤常用纪要配置" width="650px">
+      <div style="margin-bottom: 14px; font-size: 13px; color: #64748b; line-height: 1.6;">
+        此处配置的快捷常用语将实时同步下发至移动端「客户跟进留痕」页面，外勤员工轻触即可快速填充拜访沟通纪要。
+      </div>
+      <div v-for="(p, idx) in configuredPhrases" :key="idx" style="display: flex; gap: 8px; margin-bottom: 10px; align-items: center;">
+        <el-input v-model="configuredPhrases[idx]" placeholder="输入常用拜访纪要或商务沟通模板..." />
+        <el-button type="danger" link :icon="Delete" @click="configuredPhrases.splice(idx, 1)" />
+      </div>
+      <el-button type="primary" link :icon="Plus" @click="configuredPhrases.push('')">添加常用短语</el-button>
+      <template #footer>
+        <el-button @click="phrasesDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="savingPhrases" @click="handleSavePhrases">保存并下发移动端</el-button>
+      </template>
+    </WorkspacePanel>
 
     <ExportDialog
       v-model:visible="exportDialogVisible"

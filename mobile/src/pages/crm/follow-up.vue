@@ -57,10 +57,10 @@
         <text class="word-counter">{{ form.content.length }}/500</text>
       </view>
 
-      <!-- 快捷标签推荐 -->
+      <!-- 快捷标签推荐 (横向轻盈滑动，杜绝纵向挤压畸变) -->
       <view class="quick-chips-row">
-        <text class="quick-lbl">快捷常用纪要：</text>
-        <scroll-view scroll-x class="chips-scroll" :show-scrollbar="false">
+        <text class="quick-lbl">快捷常用纪要 (轻触即填)：</text>
+        <view class="chips-scroll">
           <view class="chips-wrap">
             <view
               v-for="(chip, idx) in quickChips"
@@ -68,10 +68,10 @@
               class="quick-chip"
               @click="appendQuickChip(chip)"
             >
-              <text>+ {{ chip }}</text>
+              <text class="quick-chip-text">+ {{ chip }}</text>
             </view>
           </view>
-        </scroll-view>
+        </view>
       </view>
 
       <button class="submit-btn" :loading="submitting" @click="handleSubmit">
@@ -129,8 +129,9 @@ import { onMounted, reactive, ref } from "vue";
 import AppIcon from "../../components/ui/AppIcon.vue";
 import AppSkeleton from "../../components/ui/AppSkeleton.vue";
 import AppEmpty from "../../components/ui/AppEmpty.vue";
-import { apiGetFollowUpRecords, apiCreateFollowUpRecord } from "../../api/crm";
+import { apiGetFollowUpRecords, apiCreateFollowUpRecord, apiGetCrmQuickPhrases } from "../../api/crm";
 import { formatUserDisplayName } from "../../utils/dict";
+import { getCachedData, setCachedData } from "../../utils/warm-cache";
 
 const customerId = ref<number | null>(null);
 const customerName = ref("");
@@ -146,12 +147,25 @@ const contactTypes = [
   { key: "MAIL", label: "商务邮件", icon: "✉️" }
 ];
 
-const quickChips = [
+const defaultPhrases = [
   "完成现场产品功能演示，信息化负责人对多部门协同流程评价良好",
   "已同步二期项目方案及商务报价单，待采购委员会例会审核",
   "拜访业务部门主管，就日常物资申领与审批流转完成需求调研",
   "系统上线试运行回访，各部门操作顺畅，无异常工单留存"
 ];
+
+// 核心优化：支持 PC 控制台动态配置下发，同时搭载温热缓存
+const quickChips = ref<string[]>(getCachedData("CRM_QUICK_PHRASES", defaultPhrases));
+
+async function loadQuickPhrases() {
+  try {
+    const res = await apiGetCrmQuickPhrases();
+    if (Array.isArray(res) && res.length > 0) {
+      quickChips.value = res;
+      setCachedData("CRM_QUICK_PHRASES", res);
+    }
+  } catch {}
+}
 
 const form = reactive({
   contactType: "VISIT" as "VISIT" | "PHONE" | "WECHAT" | "MAIL",
@@ -276,6 +290,7 @@ async function handleSubmit() {
 
 onMounted(() => {
   loadRecords();
+  loadQuickPhrases();
 });
 </script>
 
@@ -461,27 +476,51 @@ onMounted(() => {
 .chips-scroll {
   white-space: nowrap;
   width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.chips-scroll::-webkit-scrollbar {
+  display: none !important;
 }
 
 .chips-wrap {
   display: flex;
   gap: 8px;
-  padding-bottom: 4px;
+  padding-bottom: 6px;
+  width: max-content;
 }
 
 .quick-chip {
-  padding: 5px 12px;
-  background: rgba(37, 99, 235, 0.08);
-  border: 1px solid rgba(37, 99, 235, 0.20);
-  border-radius: 9999px;
-  font-size: 11.5px;
-  color: #2563eb;
-  font-weight: 550;
-  white-space: nowrap;
+  flex-shrink: 0 !important;
+  white-space: nowrap !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  height: 32px !important;
+  line-height: 32px !important;
+  padding: 0 14px !important;
+  background: rgba(37, 99, 235, 0.08) !important;
+  border: 1px solid rgba(37, 99, 235, 0.20) !important;
+  border-radius: 9999px !important;
+  font-size: 12px !important;
+  color: #2563eb !important;
+  font-weight: 550 !important;
+  cursor: pointer;
+  max-width: 360px;
+  box-sizing: border-box;
+}
+
+.quick-chip-text {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
 }
 
 .quick-chip:active {
-  background: rgba(37, 99, 235, 0.18);
+  background: rgba(37, 99, 235, 0.18) !important;
+  transform: scale(0.96);
 }
 
 .submit-btn {

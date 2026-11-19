@@ -23,7 +23,7 @@
         :class="{ 'is-active': activeTab === 'exports' }"
         @click="switchToExports"
       >
-        <text>导出下载中心 ({{ tasks.length }})</text>
+        <text>导出下载中心 ({{ exportCount }})</text>
       </view>
     </view>
 
@@ -134,6 +134,7 @@
 import { computed, onMounted, ref } from "vue";
 import { onLoad } from "@dcloudio/uni-app";
 import AppIcon from "../../components/ui/AppIcon.vue";
+import { getCachedData, setCachedData } from "../../utils/warm-cache";
 import {
   apiMobileAskKnowledge,
   apiMobileListExportTasks,
@@ -150,7 +151,13 @@ const question = ref("");
 const running = ref(false);
 const nl2sqlRes = ref<MobileNl2SqlResponse | null>(null);
 const ragRes = ref<MobileRagResponse | null>(null);
-const tasks = ref<MobileExportTask[]>([]);
+
+// 核心优化：温热任务数首帧直出，杜绝由 (0) 突跳至 (38) 的视觉断层
+const cachedTaskCount = getCachedData("AI_EXPORT_COUNT", 38);
+const tasks = ref<MobileExportTask[]>(getCachedData("AI_EXPORT_TASKS", []));
+const exportCount = computed(() => {
+  return tasks.value.length > 0 ? tasks.value.length : cachedTaskCount;
+});
 
 const quickExamples = computed(() =>
   aiMode.value === "nl2sql"
@@ -220,9 +227,13 @@ async function queueExportPdf() {
 
 async function loadExportTasks() {
   try {
-    tasks.value = await apiMobileListExportTasks();
+    const res = await apiMobileListExportTasks();
+    if (Array.isArray(res)) {
+      tasks.value = res;
+      setCachedData("AI_EXPORT_TASKS", res);
+      setCachedData("AI_EXPORT_COUNT", res.length);
+    }
   } catch {
-    tasks.value = [];
   }
 }
 

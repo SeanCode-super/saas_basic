@@ -237,4 +237,14 @@ export async function deleteCrmReceivable(id: number): Promise<ApiResponse<boole
   return res.data;
 }
 
+export async function getCrmQuickPhrases(): Promise<ApiResponse<string[]>> {
+  const res = await http.get<ApiResponse<string[]>>("/crm/quick-phrases");
+  return res.data;
+}
+
+export async function updateCrmQuickPhrases(phrases: string[]): Promise<ApiResponse<string[]>> {
+  const res = await http.put<ApiResponse<string[]>>("/crm/quick-phrases", { phrases });
+  return res.data;
+}
+
 

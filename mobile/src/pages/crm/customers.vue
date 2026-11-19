@@ -69,10 +69,12 @@
         <view class="card-head">
           <view class="name-block">
             <text class="customer-name">{{ item.name }}</text>
+          </view>
+          <view class="head-tags">
             <text v-if="item.inPool" class="pool-tag">公海池</text>
             <text v-else class="mine-tag">在跟进</text>
+            <text class="level-badge">{{ item.level || '重点商机客户' }}</text>
           </view>
-          <text class="level-badge">{{ item.level || 'A 级客户' }}</text>
         </view>
 
         <view class="card-meta">
@@ -566,41 +568,62 @@ onMounted(() => {
 
 .card-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 10px;
   margin-bottom: 12px;
 }
 
 .name-block {
-  display: flex;
-  align-items: center;
-  gap: 8px;
   flex: 1;
+  min-width: 0;
 }
 
 .customer-name {
-  font-size: 15.5px;
+  font-size: 15px;
   font-weight: 750;
   color: #0f172a;
   letter-spacing: -0.2px;
+  line-height: 1.45;
+  word-break: break-all;
+}
+
+.head-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding-top: 2px;
+}
+
+.pool-tag,
+.mine-tag,
+.level-badge {
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
 }
 
 .pool-tag {
-  font-size: 10px;
+  font-size: 11px;
   background: rgba(245, 158, 11, 0.12);
-  border: 1px solid rgba(245, 158, 11, 0.25);
+  border: 1px solid rgba(245, 158, 11, 0.28);
   color: #d97706;
-  padding: 2px 6px;
+  padding: 3.5px 7px;
   border-radius: 6px;
   font-weight: 650;
 }
 
 .mine-tag {
-  font-size: 10px;
+  font-size: 11px;
   background: rgba(16, 185, 129, 0.12);
-  border: 1px solid rgba(16, 185, 129, 0.25);
+  border: 1px solid rgba(16, 185, 129, 0.28);
   color: #059669;
-  padding: 2px 6px;
+  padding: 3.5px 7px;
   border-radius: 6px;
   font-weight: 650;
 }
@@ -610,8 +633,8 @@ onMounted(() => {
   font-weight: 650;
   color: #2563eb;
   background: rgba(37, 99, 235, 0.10);
-  border: 1px solid rgba(37, 99, 235, 0.22);
-  padding: 2px 8px;
+  border: 1px solid rgba(37, 99, 235, 0.25);
+  padding: 3.5px 8px;
   border-radius: 6px;
 }
 

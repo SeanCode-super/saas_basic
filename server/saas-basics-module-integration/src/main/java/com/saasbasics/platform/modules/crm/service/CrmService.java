@@ -40,6 +40,34 @@ public class CrmService {
     private final CrmFollowUpRecordMapper followUpRecordMapper;
     private final ObjectProvider<CurrentDepartmentResolver> departmentResolverProvider;
 
+    private static final List<String> DEFAULT_QUICK_PHRASES = List.of(
+            "完成现场产品功能演示，信息化负责人对多部门协同流程评价良好",
+            "已同步二期项目方案及商务报价单，待采购委员会例会审核",
+            "拜访业务部门主管，就日常物资申领与审批流转完成需求调研",
+            "系统上线试运行回访，各部门操作顺畅，无异常工单留存"
+    );
+
+    private final java.util.concurrent.ConcurrentHashMap<Long, List<String>> tenantQuickPhrases = new java.util.concurrent.ConcurrentHashMap<>();
+
+    public List<String> getQuickPhrases() {
+        Long tenantId = getCurrentTenantId();
+        return tenantQuickPhrases.computeIfAbsent(tenantId, tid -> new java.util.concurrent.CopyOnWriteArrayList<>(DEFAULT_QUICK_PHRASES));
+    }
+
+    public List<String> updateQuickPhrases(List<String> phrases) {
+        Long tenantId = getCurrentTenantId();
+        if (phrases == null || phrases.isEmpty()) {
+            tenantQuickPhrases.put(tenantId, new java.util.concurrent.CopyOnWriteArrayList<>(DEFAULT_QUICK_PHRASES));
+        } else {
+            List<String> cleaned = phrases.stream()
+                    .filter(s -> s != null && !s.trim().isEmpty())
+                    .map(String::trim)
+                    .collect(Collectors.toList());
+            tenantQuickPhrases.put(tenantId, new java.util.concurrent.CopyOnWriteArrayList<>(cleaned.isEmpty() ? DEFAULT_QUICK_PHRASES : cleaned));
+        }
+        return getQuickPhrases();
+    }
+
     public CrmService(
             CrmClueMapper clueMapper,
             CrmCustomerMapper customerMapper,

@@ -13,8 +13,8 @@
       </view>
     </view>
 
-    <!-- 部门横向滚动选择胶囊 (YouTube 同款 iOS 27 晶透标签) -->
-    <scroll-view class="ios27-chip-scroll" scroll-x :show-scrollbar="false" style="padding-left: 0; padding-right: 0; margin-bottom: 12px;">
+    <!-- 部门横向滚动选择胶囊 (原生无损极速滚动，杜绝动态计算跳动) -->
+    <view class="ios27-chip-scroll" style="padding-left: 0; padding-right: 0; margin-bottom: 12px;">
       <view class="ios27-chip-group">
         <view
           v-for="dept in depts"
@@ -26,7 +26,7 @@
           <text>{{ dept }}</text>
         </view>
       </view>
-    </scroll-view>
+    </view>
 
     <!-- 骨架屏加载态 -->
     <view v-if="loading" class="state-view">

@@ -120,3 +120,19 @@ export function apiCreateFollowUpRecord(payload: {
     }
   });
 }
+
+export function apiGetCrmQuickPhrases() {
+  return request<string[]>({
+    url: "/api/crm/quick-phrases",
+    method: "GET",
+    silent: true
+  });
+}
+
+export function apiUpdateCrmQuickPhrases(phrases: string[]) {
+  return request<string[]>({
+    url: "/api/crm/quick-phrases",
+    method: "PUT",
+    data: { phrases }
+  });
+}
