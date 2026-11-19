@@ -1,11 +1,13 @@
 <template>
   <view class="mobile-ai-page">
-    <view class="top-bar">
-      <view class="back-btn" @click="goBack">
-        <text>&lt; 返回</text>
+    <!-- iOS 27 沉浸式顶栏返回导航 -->
+    <view class="ios-nav-bar">
+      <view class="ios-nav-back-pill" @click="goBack">
+        <AppIcon name="chevron-left" :size="16" color="#0f172a" />
+        <text class="ios-nav-back-text">返回</text>
       </view>
-      <text class="page-title">AI 智能工作台与导出下载</text>
-      <view style="width: 48px;" />
+      <text class="ios-nav-title">AI 智能工作台与导出</text>
+      <view class="ios-nav-placeholder" />
     </view>
 
     <view class="segment-tabs">
@@ -131,6 +133,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { onLoad } from "@dcloudio/uni-app";
+import AppIcon from "../../components/ui/AppIcon.vue";
 import {
   apiMobileAskKnowledge,
   apiMobileListExportTasks,
@@ -261,35 +264,21 @@ onMounted(() => {
 <style scoped>
 .mobile-ai-page {
   min-height: 100vh;
-  background: #f1f5f9;
-  padding-bottom: 32px;
-}
-
-.top-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px;
-  background: #0f172a;
-  color: #f8fafc;
-}
-
-.back-btn {
-  font-size: 14px;
-  color: #93c5fd;
-}
-
-.page-title {
-  font-size: 16px;
-  font-weight: 600;
+  background-color: transparent;
+  padding: calc(14px + env(safe-area-inset-top)) 14px calc(32px + env(safe-area-inset-bottom));
+  box-sizing: border-box;
 }
 
 .segment-tabs {
   display: flex;
-  margin: 12px 14px;
-  background: #e2e8f0;
-  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   padding: 4px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.95), 0 4px 14px rgba(12, 34, 56, 0.03);
+  margin-bottom: 14px;
 }
 
 .seg-item {
@@ -297,47 +286,62 @@ onMounted(() => {
   text-align: center;
   padding: 8px 0;
   font-size: 13px;
-  color: #475569;
-  border-radius: 8px;
+  color: #64748b;
+  font-weight: 550;
+  border-radius: 9999px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
 }
 
 .seg-item.is-active {
   background: #ffffff;
   color: #2563eb;
-  font-weight: 600;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
 }
 
 .tab-body {
-  padding: 0 14px;
+  padding: 0;
 }
 
 .mode-switch {
   display: flex;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .mode-pill {
-  padding: 6px 12px;
-  border-radius: 999px;
+  padding: 6px 14px;
+  border-radius: 9999px;
   font-size: 12px;
-  background: #e2e8f0;
-  color: #334155;
+  background: rgba(255, 255, 255, 0.85);
+  color: #475569;
+  font-weight: 550;
+  border: 1px solid rgba(226, 232, 240, 0.90);
+  transition: all 0.15s ease;
+  cursor: pointer;
 }
 
 .mode-pill.is-selected {
-  background: #2563eb;
+  background: #0f172a;
   color: #ffffff;
+  border-color: #0f172a;
+  font-weight: 650;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.2);
 }
 
 .ask-card,
 .result-card,
 .export-task-card,
 .empty-card {
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 14px;
-  margin-bottom: 12px;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(28px) saturate(200%);
+  -webkit-backdrop-filter: blur(28px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 1), 0 8px 24px -4px rgba(12, 34, 56, 0.04);
+  margin-bottom: 14px;
 }
 
 .ask-input {
@@ -346,9 +350,9 @@ onMounted(() => {
   padding: 10px;
   box-sizing: border-box;
   border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  font-size: 14px;
-  background: #f8fafc;
+  border-radius: 10px;
+  font-size: 13.5px;
+  background: rgba(248, 250, 252, 0.8);
 }
 
 .example-row {
@@ -364,17 +368,26 @@ onMounted(() => {
   border-radius: 6px;
   background: #eff6ff;
   color: #1d4ed8;
+  cursor: pointer;
 }
 
 .primary-btn {
   width: 100%;
-  height: 40px;
-  line-height: 40px;
-  border-radius: 8px;
-  background: #2563eb;
+  height: 42px;
+  line-height: 42px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 55%, #4f46e5 100%);
   color: #ffffff;
   font-size: 14px;
-  border: none;
+  font-weight: 650;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 6px 20px -3px rgba(37, 99, 235, 0.35);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.primary-btn:active {
+  transform: scale(0.98);
 }
 
 .result-head {

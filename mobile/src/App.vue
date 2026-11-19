@@ -55,6 +55,66 @@ page {
   -moz-osx-font-smoothing: grayscale;
   color: #0f172a;
   box-sizing: border-box;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  overscroll-behavior-y: contain;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* 页面切换平滑微动效，硬件加速淡入，杜绝顿挫与卡顿 */
+uni-page {
+  animation: iosPageFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity, transform;
+}
+
+@keyframes iosPageFadeIn {
+  from {
+    opacity: 0.88;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 全局可交互元素极致丝滑触感即时反馈 (Snappy Haptic Response) */
+button,
+uni-button,
+.btn,
+.ios-nav-back-pill,
+.ios27-chip,
+.kpi-card,
+.task-card,
+.grid-item,
+.mode-pill,
+.seg-item,
+.tab-btn {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  cursor: pointer;
+  transition: transform 0.14s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.14s ease, box-shadow 0.14s ease;
+}
+
+button:active,
+uni-button:active,
+.btn:active,
+.ios-nav-back-pill:active,
+.ios27-chip:active,
+.kpi-card:active,
+.task-card:active,
+.grid-item:active,
+.mode-pill:active,
+.seg-item:active,
+.tab-btn:active {
+  transform: scale(0.965) !important;
+  opacity: 0.88 !important;
+  transition: transform 0.06s ease, opacity 0.06s ease !important;
 }
 
 /* #ifdef H5 */
@@ -210,8 +270,10 @@ uni-tabbar .uni-tabbar__item {
   border-radius: 9999px !important;
   padding: 0 !important;
   margin: 0 2px !important;
-  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  transition: transform 0.12s ease, background 0.15s ease !important;
   cursor: pointer !important;
+  -webkit-tap-highlight-color: transparent !important;
+  touch-action: manipulation !important;
 }
 
 uni-tabbar .uni-tabbar__bd {
@@ -266,7 +328,8 @@ uni-tabbar .uni-tabbar__item:has(img[src*="-active"]) .uni-tabbar__label {
 
 /* 触摸下压弹性动效 */
 uni-tabbar .uni-tabbar__item:active {
-  transform: scale(0.90) !important;
+  transform: scale(0.92) !important;
+  transition: transform 0.06s ease !important;
 }
 
 /* 登录页屏蔽底部 TabBar */
