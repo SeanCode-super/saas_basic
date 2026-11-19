@@ -330,13 +330,34 @@ uni-tabbar .uni-tabbar__item:active {
   transition: transform 0.06s ease !important;
 }
 
-/* 登录页屏蔽底部 TabBar，弹窗打开时隐藏底部 TabBar 杜绝遮挡遮罩与操作按钮 */
+/* 登录页、模态弹窗以及所有二级页面（带 .ios-nav-bar）一律彻底屏蔽底部 TabBar，杜绝遮挡操作按钮 */
 body:has(.mobile-login-page) uni-tabbar,
 body:has(.mobile-login-shell) uni-tabbar,
 body:has(.login-card) uni-tabbar,
 body:has(.login-box) uni-tabbar,
-body:has(.modal-overlay) uni-tabbar {
+body:has(.modal-overlay) uni-tabbar,
+body:has(.ios-nav-bar) uni-tabbar,
+body:has(.mobile-edit-page) uni-tabbar,
+body:has(.mobile-password-page) uni-tabbar,
+body:has(.mobile-sessions-page) uni-tabbar,
+body:has(.follow-up-page) uni-tabbar,
+body:has(.workflow-apply-page) uni-tabbar,
+body:has(.ai-page) uni-tabbar,
+body:has(.notify-page) uni-tabbar,
+body:has(.inventory-page) uni-tabbar,
+body:has(uni-page[data-page*="profile/edit"]) uni-tabbar,
+body:has(uni-page[data-page*="profile/password"]) uni-tabbar,
+body:has(uni-page[data-page*="profile/sessions"]) uni-tabbar,
+body:has(uni-page[data-page*="crm/follow-up"]) uni-tabbar,
+body:has(uni-page[data-page*="workflow/apply"]) uni-tabbar,
+body:has(uni-page[data-page*="erp/inventory"]) uni-tabbar,
+body:has(uni-page[data-page*="notify/index"]) uni-tabbar,
+body:has(uni-page[data-page*="ai/index"]) uni-tabbar {
   display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  height: 0 !important;
+  overflow: hidden !important;
 }
 
 /* =============================================================================

@@ -129,6 +129,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
+import { onShow } from "@dcloudio/uni-app";
 import AppIcon from "../../components/ui/AppIcon.vue";
 import {
   apiGetProfile,
@@ -271,7 +272,12 @@ async function submitEditProfile() {
 }
 
 onMounted(() => {
+  uni.hideTabBar({ animation: false });
   void loadProfile();
+});
+
+onShow(() => {
+  uni.hideTabBar({ animation: false });
 });
 </script>
 

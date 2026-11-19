@@ -78,6 +78,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import { onShow } from "@dcloudio/uni-app";
 import AppIcon from "../../components/ui/AppIcon.vue";
 import {
   apiGetMySessions,
@@ -173,7 +174,12 @@ async function kickAllOthers() {
 }
 
 onMounted(() => {
+  uni.hideTabBar({ animation: false });
   void loadSessions();
+});
+
+onShow(() => {
+  uni.hideTabBar({ animation: false });
 });
 </script>
 

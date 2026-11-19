@@ -280,6 +280,7 @@ onMounted(() => {
 });
 
 onShow(() => {
+  uni.showTabBar({ animation: false });
   void loadProfile();
 });
 </script>
