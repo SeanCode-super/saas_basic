@@ -363,23 +363,23 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 14px;
-  background: rgba(255, 255, 255, 0.68);
+  background: rgba(255, 255, 255, 0.86);
   backdrop-filter: blur(28px) saturate(200%);
   -webkit-backdrop-filter: blur(28px) saturate(200%);
-  border: 1px solid rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.95);
   border-radius: 18px;
   padding: 14px 16px;
-  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), 0 8px 24px -4px rgba(12, 34, 56, 0.05);
+  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 1), 0 6px 20px -4px rgba(12, 34, 56, 0.04);
 }
 
 .tenant-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: rgba(255, 255, 255, 0.65);
+  background: rgba(255, 255, 255, 0.80);
   padding: 4px 10px;
   border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(226, 232, 240, 0.85);
   margin-bottom: 5px;
   box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.9);
 }
@@ -464,14 +464,14 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(255, 255, 255, 0.62);
+  background: rgba(255, 255, 255, 0.82);
   backdrop-filter: blur(24px) saturate(190%);
   -webkit-backdrop-filter: blur(24px) saturate(190%);
-  border: 1px solid rgba(255, 255, 255, 0.90);
+  border: 1px solid rgba(255, 255, 255, 0.95);
   border-radius: 14px;
   padding: 9px 12px;
   margin-bottom: 14px;
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.95), 0 4px 14px rgba(12, 34, 56, 0.04);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.95), 0 4px 14px rgba(12, 34, 56, 0.03);
 }
 
 .notice-tag {
@@ -506,37 +506,37 @@ onMounted(() => {
   border-radius: 18px;
   padding: 16px 14px;
   position: relative;
-  background: rgba(255, 255, 255, 0.68);
+  background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(28px) saturate(200%);
   -webkit-backdrop-filter: blur(28px) saturate(200%);
-  border: 1px solid rgba(255, 255, 255, 0.92);
-  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), 0 8px 24px -4px rgba(12, 34, 56, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 1), 0 6px 20px -4px rgba(12, 34, 56, 0.04);
   transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .kpi-card:active {
   transform: scale(0.98);
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.95);
 }
 
 .bg-blue {
-  background: linear-gradient(145deg, rgba(239, 246, 255, 0.75) 0%, rgba(219, 234, 254, 0.55) 100%);
-  border-color: rgba(191, 219, 254, 0.85);
+  background: linear-gradient(145deg, rgba(239, 246, 255, 0.88) 0%, rgba(219, 234, 254, 0.70) 100%);
+  border-color: rgba(191, 219, 254, 0.90);
 }
 
 .bg-indigo {
-  background: linear-gradient(145deg, rgba(245, 243, 255, 0.75) 0%, rgba(224, 231, 255, 0.55) 100%);
-  border-color: rgba(199, 210, 254, 0.85);
+  background: linear-gradient(145deg, rgba(245, 243, 255, 0.88) 0%, rgba(224, 231, 255, 0.70) 100%);
+  border-color: rgba(199, 210, 254, 0.90);
 }
 
 .bg-amber {
-  background: linear-gradient(145deg, rgba(255, 251, 235, 0.75) 0%, rgba(254, 243, 199, 0.55) 100%);
-  border-color: rgba(253, 230, 138, 0.85);
+  background: linear-gradient(145deg, rgba(255, 251, 235, 0.88) 0%, rgba(254, 243, 199, 0.70) 100%);
+  border-color: rgba(253, 230, 138, 0.90);
 }
 
 .bg-emerald {
-  background: linear-gradient(145deg, rgba(240, 253, 244, 0.75) 0%, rgba(209, 250, 229, 0.55) 100%);
-  border-color: rgba(167, 243, 208, 0.85);
+  background: linear-gradient(145deg, rgba(240, 253, 244, 0.88) 0%, rgba(209, 250, 229, 0.70) 100%);
+  border-color: rgba(167, 243, 208, 0.90);
 }
 
 .kpi-num {
@@ -572,13 +572,13 @@ onMounted(() => {
 
 /* 金刚区应用中心 (8宫格) */
 .app-hub-section {
-  background: rgba(255, 255, 255, 0.68);
+  background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(28px) saturate(200%);
   -webkit-backdrop-filter: blur(28px) saturate(200%);
   border-radius: 20px;
   padding: 18px 16px;
-  border: 1px solid rgba(255, 255, 255, 0.92);
-  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), 0 10px 25px -5px rgba(12, 34, 56, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 1), 0 8px 24px -4px rgba(12, 34, 56, 0.04);
   margin-bottom: 16px;
 }
 
@@ -649,13 +649,13 @@ onMounted(() => {
 
 /* 近期审批待办专区 */
 .recent-tasks-section {
-  background: rgba(255, 255, 255, 0.68);
+  background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(28px) saturate(200%);
   -webkit-backdrop-filter: blur(28px) saturate(200%);
   border-radius: 20px;
   padding: 18px 16px;
-  border: 1px solid rgba(255, 255, 255, 0.92);
-  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), 0 10px 25px -5px rgba(12, 34, 56, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 1), 0 8px 24px -4px rgba(12, 34, 56, 0.04);
 }
 
 .more-link {
@@ -685,13 +685,13 @@ onMounted(() => {
 }
 
 .task-item {
-  background: rgba(255, 255, 255, 0.55);
+  background: rgba(248, 250, 252, 0.85);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-radius: 14px;
   padding: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(226, 232, 240, 0.90);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.95), 0 2px 6px rgba(12, 34, 56, 0.02);
   transition: all 0.16s ease;
 }
 

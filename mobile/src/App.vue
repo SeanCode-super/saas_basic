@@ -20,13 +20,13 @@ onHide(() => {
    ============================================================================= */
 
 :root {
-  --ios-glass-bg: rgba(255, 255, 255, 0.68);
-  --ios-glass-bg-subtle: rgba(255, 255, 255, 0.52);
-  --ios-glass-bg-elevated: rgba(255, 255, 255, 0.85);
-  --ios-glass-border: rgba(255, 255, 255, 0.92);
-  --ios-glass-border-subtle: rgba(255, 255, 255, 0.70);
-  --ios-glass-shadow: inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98), 0 10px 25px -5px rgba(12, 34, 56, 0.06);
-  --ios-glass-shadow-sm: inset 0 1px 1px 0 rgba(255, 255, 255, 0.95), 0 4px 14px rgba(12, 34, 56, 0.04);
+  --ios-glass-bg: rgba(255, 255, 255, 0.88);
+  --ios-glass-bg-subtle: rgba(255, 255, 255, 0.72);
+  --ios-glass-bg-elevated: rgba(255, 255, 255, 0.98);
+  --ios-glass-border: rgba(255, 255, 255, 0.95);
+  --ios-glass-border-subtle: rgba(226, 232, 240, 0.80);
+  --ios-glass-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.98), 0 8px 24px -4px rgba(12, 34, 56, 0.04), 0 2px 6px -1px rgba(12, 34, 56, 0.02);
+  --ios-glass-shadow-sm: inset 0 1px 1px 0 rgba(255, 255, 255, 0.95), 0 4px 12px rgba(12, 34, 56, 0.03);
   --ios-text-primary: #0f172a;
   --ios-text-secondary: #475569;
   --ios-text-tertiary: #94a3b8;
@@ -42,9 +42,11 @@ page {
   min-height: 100vh;
   background-color: #f1f5f9;
   background-image:
-    radial-gradient(ellipse 90% 60% at 50% -10%, rgba(191, 219, 254, 0.45), transparent 75%),
-    url("/static/ios27-liquid-glass-bg.jpg");
-  background-size: cover;
+    radial-gradient(circle at 14% 10%, rgba(99, 102, 241, 0.12) 0%, transparent 48%),
+    radial-gradient(circle at 86% 14%, rgba(14, 165, 233, 0.10) 0%, transparent 46%),
+    radial-gradient(circle at 50% 88%, rgba(168, 85, 247, 0.07) 0%, transparent 52%),
+    linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  background-size: 100% 100%;
   background-position: center top;
   background-attachment: fixed;
   background-repeat: no-repeat;
