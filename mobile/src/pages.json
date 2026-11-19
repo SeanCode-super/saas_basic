@@ -35,6 +35,24 @@
       }
     },
     {
+      "path": "pages/profile/edit",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/profile/password",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/profile/sessions",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/workflow/apply",
       "style": {
         "navigationStyle": "custom"

@@ -751,7 +751,7 @@ onMounted(() => {
 
 .float-btn {
   position: fixed;
-  right: 20px;
+  right: calc(50% - 200px);
   bottom: calc(88px + env(safe-area-inset-bottom));
   background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0284c7 100%);
   color: #ffffff;
@@ -764,6 +764,12 @@ onMounted(() => {
   box-shadow: inset 0 1px 1.5px rgba(255, 255, 255, 0.4), 0 8px 24px rgba(37, 99, 235, 0.35);
   z-index: 99;
   transition: transform 0.15s ease;
+}
+
+@media screen and (max-width: 440px) {
+  .float-btn {
+    right: 18px;
+  }
 }
 
 .float-btn:active {

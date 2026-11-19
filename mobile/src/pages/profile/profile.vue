@@ -20,11 +20,11 @@
 
       <!-- 快捷操作胶囊 -->
       <view class="action-pill-row">
-        <view class="action-pill" @click="openEditModal">
+        <view class="action-pill" @click="goToEdit">
           <AppIcon name="edit" :size="13" color="#2563eb" />
           <text class="action-text">编辑个人资料</text>
         </view>
-        <view class="action-pill secondary" @click="openPasswordModal">
+        <view class="action-pill secondary" @click="goToPassword">
           <AppIcon name="lock" :size="13" color="#0f172a" />
           <text class="action-text dark">修改密码</text>
         </view>
@@ -59,7 +59,7 @@
 
     <!-- 3. 账号与安全设置 (干净整齐的 iOS 单元格分组) -->
     <view class="setting-list">
-      <view class="setting-item" @click="openEditModal">
+      <view class="setting-item" @click="goToEdit">
         <view class="item-left">
           <view class="setting-icon-box bg-blue">
             <AppIcon name="phone" :size="14" color="#2563eb" />
@@ -72,7 +72,7 @@
         </view>
       </view>
 
-      <view class="setting-item" @click="openEditModal">
+      <view class="setting-item" @click="goToEdit">
         <view class="item-left">
           <view class="setting-icon-box bg-cyan">
             <AppIcon name="mail" :size="14" color="#0284c7" />
@@ -85,7 +85,7 @@
         </view>
       </view>
 
-      <view class="setting-item" @click="openSessionsModal">
+      <view class="setting-item" @click="goToSessions">
         <view class="item-left">
           <view class="setting-icon-box bg-emerald">
             <AppIcon name="shield" :size="14" color="#059669" />
@@ -98,7 +98,7 @@
         </view>
       </view>
 
-      <view class="setting-item" @click="openPasswordModal">
+      <view class="setting-item" @click="goToPassword">
         <view class="item-left">
           <view class="setting-icon-box bg-amber">
             <AppIcon name="lock" :size="14" color="#d97706" />
@@ -129,108 +129,17 @@
     <view class="logout-box">
       <button class="logout-btn" @click="handleLogout">退出当前登录</button>
     </view>
-
-    <!-- 编辑个人资料弹窗 -->
-    <AppModal
-      v-model:visible="editModalVisible"
-      title="编辑个人资料"
-      confirm-text="保存资料"
-      :loading="savingProfile"
-      @confirm="submitEditProfile"
-    >
-      <view class="edit-modal-form">
-        <view class="form-row">
-          <text class="form-lbl">用户昵称</text>
-          <input class="edit-input" v-model="editForm.nickname" placeholder="请输入用户昵称" />
-        </view>
-        <view class="form-row">
-          <text class="form-lbl">手机号码</text>
-          <input class="edit-input" v-model="editForm.mobile" placeholder="请输入11位手机号" />
-        </view>
-        <view class="form-row">
-          <text class="form-lbl">电子邮箱</text>
-          <input class="edit-input" v-model="editForm.email" placeholder="请输入工作电子邮箱" />
-        </view>
-        <view v-if="needsConfirmPassword()" class="form-row">
-          <text class="form-lbl warn-lbl">安全核验：修改已绑定手机/邮箱需输入登录密码</text>
-          <input class="edit-input" v-model="editForm.confirmPassword" password placeholder="请输入当前登录密码" />
-        </view>
-        <view class="form-row">
-          <text class="form-lbl">办公地点 / 工位</text>
-          <input class="edit-input" v-model="editForm.workLocation" placeholder="如 研发中心 A座" />
-        </view>
-        <view class="form-row">
-          <text class="form-lbl">备用联系 / 分机</text>
-          <input class="edit-input" v-model="editForm.extContact" placeholder="如 企业微信或内线" />
-        </view>
-        <view class="form-row">
-          <text class="form-lbl">个人签名</text>
-          <textarea class="edit-textarea" v-model="editForm.bio" placeholder="输入个人简介或工作签名..." />
-        </view>
-      </view>
-    </AppModal>
-
-    <!-- 修改登录密码弹窗 -->
-    <AppModal
-      v-model:visible="pwdModalVisible"
-      title="修改登录密码"
-      confirm-text="确认修改"
-      :loading="savingPassword"
-      @confirm="submitChangePassword"
-    >
-      <view class="edit-modal-form">
-        <view class="form-row">
-          <text class="form-lbl">当前密码</text>
-          <input class="edit-input" v-model="pwdForm.oldPassword" password placeholder="请输入当前登录密码" />
-        </view>
-        <view class="form-row">
-          <text class="form-lbl">新密码（不少于8位）</text>
-          <input class="edit-input" v-model="pwdForm.newPassword" password placeholder="请输入新密码" />
-        </view>
-        <view class="form-row">
-          <text class="form-lbl">确认新密码</text>
-          <input class="edit-input" v-model="pwdForm.confirmPassword" password placeholder="请再次输入新密码" />
-        </view>
-      </view>
-    </AppModal>
-
-    <!-- 在线设备与安全会话弹窗 -->
-    <AppModal
-      v-model:visible="sessionsModalVisible"
-      title="我的在线设备会话"
-      :confirm-text="mySessions.length > 1 ? '一键踢出其他设备' : '关闭'"
-      @confirm="handleSessionModalAction"
-    >
-      <view class="session-list-box">
-        <view v-for="s in mySessions" :key="s.sessionNo" class="session-row">
-          <view class="session-info">
-            <text class="session-ua">{{ formatSessionUa(s.userAgent) }}</text>
-            <text class="session-meta">IP: {{ s.loginIp || '--' }} · {{ (s.lastAccessAt || s.loginTime || '').slice(0, 16).replace('T', ' ') }}</text>
-          </view>
-          <view v-if="s.isCurrent" class="current-tag">本机当前</view>
-          <view v-else class="kick-btn" @click="handleKickSession(s.sessionNo)">下线</view>
-        </view>
-        <view v-if="mySessions.length === 0" class="empty-sessions">暂无在线设备记录</view>
-      </view>
-    </AppModal>
   </view>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from "vue";
-import { onPullDownRefresh } from "@dcloudio/uni-app";
+import { computed, onMounted, ref } from "vue";
+import { onPullDownRefresh, onShow } from "@dcloudio/uni-app";
 import AppIcon from "../../components/ui/AppIcon.vue";
-import AppModal from "../../components/ui/AppModal.vue";
 import {
-  apiGetMySessions,
   apiGetProfile,
   apiGetStorageStatus,
-  apiRevokeMySession,
-  apiRevokeOtherMySessions,
-  apiUpdatePassword,
-  apiUpdateProfile,
   apiUploadProfileAvatar,
-  type MobileOnlineSession,
   type MobileProfileData,
   type MobileStorageStatus
 } from "../../api/profile";
@@ -238,7 +147,6 @@ import { resolveMobileFileUrl } from "../../utils/request";
 
 const profileData = ref<MobileProfileData | null>(null);
 const storageStatus = ref<MobileStorageStatus | null>(null);
-const mySessions = ref<MobileOnlineSession[]>([]);
 
 const userName = ref("用户");
 const userAccount = ref("admin");
@@ -246,29 +154,6 @@ const userCodeLabel = ref("#1");
 const userRole = ref("企业成员");
 const tenantCode = ref(uni.getStorageSync("sb_tenant_code") || "platform");
 const currentTenantName = ref(uni.getStorageSync("sb_tenant_name") || "当前租户空间");
-
-const editModalVisible = ref(false);
-const savingProfile = ref(false);
-const editForm = reactive({
-  nickname: "",
-  mobile: "",
-  email: "",
-  gender: "UNKNOWN",
-  workLocation: "",
-  extContact: "",
-  bio: "",
-  confirmPassword: ""
-});
-
-const pwdModalVisible = ref(false);
-const savingPassword = ref(false);
-const pwdForm = reactive({
-  oldPassword: "",
-  newPassword: "",
-  confirmPassword: ""
-});
-
-const sessionsModalVisible = ref(false);
 
 const avatarDisplayUrl = computed(() => resolveMobileFileUrl(profileData.value?.avatarUrl));
 
@@ -311,10 +196,9 @@ function hydrateLocalUserCache(data: MobileProfileData) {
 
 async function loadProfile() {
   try {
-    const [profileRes, statusRes, sessionsRes] = await Promise.allSettled([
+    const [profileRes, statusRes] = await Promise.allSettled([
       apiGetProfile(),
-      apiGetStorageStatus("USER_AVATAR"),
-      apiGetMySessions()
+      apiGetStorageStatus("USER_AVATAR")
     ]);
     if (profileRes.status === "fulfilled" && profileRes.value) {
       profileData.value = profileRes.value;
@@ -322,9 +206,6 @@ async function loadProfile() {
     }
     if (statusRes.status === "fulfilled") {
       storageStatus.value = statusRes.value;
-    }
-    if (sessionsRes.status === "fulfilled") {
-      mySessions.value = sessionsRes.value || [];
     }
   } finally {
     uni.stopPullDownRefresh();
@@ -362,119 +243,16 @@ function handleAvatarTap() {
   });
 }
 
-function openEditModal() {
-  const p = profileData.value;
-  editForm.nickname = p?.nickname || userName.value;
-  editForm.mobile = p?.mobile || "";
-  editForm.email = p?.email || "";
-  editForm.gender = p?.gender || "UNKNOWN";
-  editForm.workLocation = p?.workLocation || "";
-  editForm.extContact = p?.extContact || "";
-  editForm.bio = p?.bio || "";
-  editForm.confirmPassword = "";
-  editModalVisible.value = true;
+function goToEdit() {
+  uni.navigateTo({ url: "/pages/profile/edit" });
 }
 
-function needsConfirmPassword(): boolean {
-  const p = profileData.value;
-  if (!p) return false;
-  const om = (p.mobile || "").trim();
-  const nm = (editForm.mobile || "").trim();
-  const oe = (p.email || "").trim();
-  const ne = (editForm.email || "").trim();
-  return (Boolean(om) && om !== nm) || (Boolean(oe) && oe !== ne);
+function goToPassword() {
+  uni.navigateTo({ url: "/pages/profile/password" });
 }
 
-async function submitEditProfile() {
-  if (!editForm.nickname.trim()) {
-    uni.showToast({ title: "昵称不能为空", icon: "none" });
-    return;
-  }
-  if (needsConfirmPassword() && !editForm.confirmPassword.trim()) {
-    uni.showToast({ title: "修改已绑定手机或邮箱需输入登录密码", icon: "none" });
-    return;
-  }
-  savingProfile.value = true;
-  try {
-    const updated = await apiUpdateProfile({
-      nickname: editForm.nickname.trim(),
-      mobile: editForm.mobile.trim() || undefined,
-      email: editForm.email.trim() || undefined,
-      gender: editForm.gender,
-      workLocation: editForm.workLocation.trim() || undefined,
-      extContact: editForm.extContact.trim() || undefined,
-      bio: editForm.bio.trim() || undefined,
-      confirmPassword: editForm.confirmPassword || undefined
-    });
-    profileData.value = updated;
-    hydrateLocalUserCache(updated);
-    uni.showToast({ title: "个人资料已保存", icon: "success" });
-    editModalVisible.value = false;
-  } finally {
-    savingProfile.value = false;
-  }
-}
-
-function openPasswordModal() {
-  pwdForm.oldPassword = "";
-  pwdForm.newPassword = "";
-  pwdForm.confirmPassword = "";
-  pwdModalVisible.value = true;
-}
-
-async function submitChangePassword() {
-  if (!pwdForm.oldPassword || !pwdForm.newPassword) {
-    uni.showToast({ title: "请输入原密码和新密码", icon: "none" });
-    return;
-  }
-  if (pwdForm.newPassword.length < 8) {
-    uni.showToast({ title: "新密码至少需要 8 位字符", icon: "none" });
-    return;
-  }
-  if (pwdForm.newPassword !== pwdForm.confirmPassword) {
-    uni.showToast({ title: "两次输入的新密码不一致", icon: "none" });
-    return;
-  }
-  savingPassword.value = true;
-  try {
-    await apiUpdatePassword({
-      oldPassword: pwdForm.oldPassword,
-      newPassword: pwdForm.newPassword
-    });
-    uni.showToast({ title: "密码修改成功", icon: "success" });
-    pwdModalVisible.value = false;
-    void loadProfile();
-  } finally {
-    savingPassword.value = false;
-  }
-}
-
-async function openSessionsModal() {
-  mySessions.value = await apiGetMySessions().catch(() => []);
-  sessionsModalVisible.value = true;
-}
-
-async function handleKickSession(sessionNo: string) {
-  await apiRevokeMySession(sessionNo);
-  uni.showToast({ title: "设备已下线", icon: "success" });
-  mySessions.value = await apiGetMySessions().catch(() => []);
-}
-
-async function handleSessionModalAction() {
-  if (mySessions.value.length > 1) {
-    const res = await apiRevokeOtherMySessions();
-    uni.showToast({ title: `已下线 ${res.revokedCount} 台其他设备`, icon: "success" });
-    mySessions.value = await apiGetMySessions().catch(() => []);
-  } else {
-    sessionsModalVisible.value = false;
-  }
-}
-
-function formatSessionUa(ua?: string): string {
-  if (!ua) return "未知终端";
-  if (ua.includes("Mobile") || ua.includes("Android") || ua.includes("iPhone")) return "移动端设备";
-  if (ua.includes("Chrome")) return "Chrome 桌面端";
-  return ua.slice(0, 26);
+function goToSessions() {
+  uni.navigateTo({ url: "/pages/profile/sessions" });
 }
 
 function handleClearCache() {
@@ -498,6 +276,10 @@ function handleLogout() {
 }
 
 onMounted(() => {
+  void loadProfile();
+});
+
+onShow(() => {
   void loadProfile();
 });
 </script>
@@ -815,102 +597,5 @@ onMounted(() => {
 
 .logout-btn:active {
   transform: scale(0.98);
-}
-
-.edit-modal-form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 6px 0;
-}
-
-.form-row {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.form-lbl {
-  font-size: 12px;
-  font-weight: 600;
-  color: #334155;
-}
-
-.warn-lbl {
-  color: #dc2626;
-}
-
-.edit-input,
-.edit-textarea {
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 13px;
-  color: #0f172a;
-}
-
-.edit-textarea {
-  min-height: 70px;
-}
-
-.session-list-box {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-height: 320px;
-  overflow-y: auto;
-}
-
-.session-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 12px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-}
-
-.session-info {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.session-ua {
-  font-size: 13px;
-  font-weight: 600;
-  color: #0f172a;
-}
-
-.session-meta {
-  font-size: 11px;
-  color: #64748b;
-}
-
-.current-tag {
-  font-size: 11px;
-  font-weight: 600;
-  color: #047857;
-  background: #ecfdf5;
-  padding: 3px 8px;
-  border-radius: 6px;
-}
-
-.kick-btn {
-  font-size: 12px;
-  font-weight: 600;
-  color: #dc2626;
-  padding: 4px 10px;
-  border: 1px solid rgba(220, 38, 38, 0.3);
-  border-radius: 6px;
-}
-
-.empty-sessions {
-  text-align: center;
-  padding: 20px;
-  font-size: 12px;
-  color: #64748b;
 }
 </style>

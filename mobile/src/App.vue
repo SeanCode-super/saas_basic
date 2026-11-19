@@ -66,20 +66,18 @@ page {
   touch-action: manipulation;
 }
 
-/* 页面切换平滑微动效，硬件加速淡入，杜绝顿挫与卡顿 */
+/* 页面切换平滑微动效，硬件加速淡入，杜绝顿挫与卡顿 (绝不在 uni-page 施加 transform，避免劫持 fixed 容器导致悬浮按钮随页面滚动) */
 uni-page {
-  animation: iosPageFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  will-change: opacity, transform;
+  animation: iosPageFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity;
 }
 
 @keyframes iosPageFadeIn {
   from {
     opacity: 0.88;
-    transform: translateY(6px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -332,11 +330,12 @@ uni-tabbar .uni-tabbar__item:active {
   transition: transform 0.06s ease !important;
 }
 
-/* 登录页屏蔽底部 TabBar */
+/* 登录页屏蔽底部 TabBar，弹窗打开时隐藏底部 TabBar 杜绝遮挡遮罩与操作按钮 */
 body:has(.mobile-login-page) uni-tabbar,
 body:has(.mobile-login-shell) uni-tabbar,
 body:has(.login-card) uni-tabbar,
-body:has(.login-box) uni-tabbar {
+body:has(.login-box) uni-tabbar,
+body:has(.modal-overlay) uni-tabbar {
   display: none !important;
 }
 

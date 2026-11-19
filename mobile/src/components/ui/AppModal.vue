@@ -117,11 +117,19 @@ function handleConfirm() {
   background: rgba(15, 23, 42, 0.45);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  z-index: 999;
+  z-index: 10001;
   display: flex;
   align-items: center;
   justify-content: center;
   animation: fadeIn 0.2s ease-out;
+}
+
+@media screen and (min-width: 640px) {
+  .modal-overlay {
+    max-width: 430px;
+    left: 50% !important;
+    transform: translateX(-50%);
+  }
 }
 
 @keyframes fadeIn {
