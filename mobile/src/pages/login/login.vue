@@ -1,15 +1,179 @@
 <template>
   <view class="mobile-login-shell">
-    <!-- 背景流光与环境光晕 -->
-    <view class="ambient-glow ambient-glow--top" />
-    <view class="ambient-glow ambient-glow--bottom" />
+    <!-- 1. PC 同款宏观宇宙微光背景 (环境光晕、宇宙网格、微星矩阵) -->
+    <view class="universe-aurora" aria-hidden="true">
+      <view class="aurora-orb orb-primary" />
+      <view class="aurora-orb orb-secondary" />
+      <view class="aurora-orb orb-core" />
+      <view class="aurora-orb orb-bottom" />
+      <view class="universe-grid" />
+      <view class="universe-stars" />
+    </view>
 
-    <!-- 居中高定玻璃登录卡片 -->
+    <!-- 2. PC 同款天体仪动态星轨 (按移动端视口缩放适配并呈现纵深景深) -->
+    <view class="cosmic-astrolabe-zone" aria-hidden="true">
+      <svg viewBox="0 0 640 640" fill="none" xmlns="http://www.w3.org/2000/svg" class="grand-astrolabe">
+        <defs>
+          <radialGradient :id="`cosmos-nebula-${svgUid}`" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" :stop-color="astroPalette.nebulaCenter" stop-opacity="0.34" />
+            <stop offset="44%" :stop-color="astroPalette.nebulaMid" stop-opacity="0.20" />
+            <stop offset="100%" :stop-color="astroPalette.nebulaEdge" stop-opacity="0" />
+          </radialGradient>
+          <radialGradient :id="`cosmos-core-aura-${svgUid}`" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" :stop-color="astroPalette.coreAuraCenter" stop-opacity="0.56" />
+            <stop offset="46%" :stop-color="astroPalette.coreAuraMid" stop-opacity="0.24" />
+            <stop offset="100%" :stop-color="astroPalette.nebulaEdge" stop-opacity="0" />
+          </radialGradient>
+          <linearGradient :id="`orbit-grad-a-${svgUid}`" x1="56" y1="420" x2="584" y2="220" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" :stop-color="astroPalette.orbitStart" stop-opacity="0.22" />
+            <stop offset="50%" :stop-color="astroPalette.orbitMid" stop-opacity="0.96" />
+            <stop offset="100%" :stop-color="astroPalette.orbitEnd" stop-opacity="0.26" />
+          </linearGradient>
+          <linearGradient :id="`orbit-grad-b-${svgUid}`" x1="88" y1="200" x2="552" y2="440" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" :stop-color="astroPalette.orbitMid" stop-opacity="0.18" />
+            <stop offset="50%" :stop-color="astroPalette.orbitStart" stop-opacity="0.82" />
+            <stop offset="100%" :stop-color="astroPalette.orbitMid" stop-opacity="0.22" />
+          </linearGradient>
+          <linearGradient :id="`orbit-grad-c-${svgUid}`" x1="200" y1="110" x2="440" y2="530" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" :stop-color="astroPalette.orbitMid" stop-opacity="0.12" />
+            <stop offset="50%" :stop-color="astroPalette.orbitEnd" stop-opacity="0.50" />
+            <stop offset="100%" :stop-color="astroPalette.orbitMid" stop-opacity="0.14" />
+          </linearGradient>
+          <linearGradient :id="`star-prism-${svgUid}`" x1="240" y1="236" x2="400" y2="404" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" :stop-color="astroPalette.starTop" />
+            <stop offset="48%" :stop-color="astroPalette.starMid" />
+            <stop offset="100%" :stop-color="astroPalette.starBottom" />
+          </linearGradient>
+          <linearGradient :id="`radar-cone-${svgUid}`" x1="320" y1="320" x2="520" y2="112" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" :stop-color="astroPalette.orbitMid" stop-opacity="0.22" />
+            <stop offset="65%" :stop-color="astroPalette.orbitEnd" stop-opacity="0.06" />
+            <stop offset="100%" :stop-color="astroPalette.orbitMid" stop-opacity="0" />
+          </linearGradient>
+        </defs>
+
+        <circle cx="320" cy="320" r="280" :fill="`url(#cosmos-nebula-${svgUid})`" />
+        <circle cx="320" cy="320" r="170" :fill="`url(#cosmos-core-aura-${svgUid})`" />
+
+        <circle
+          cx="320"
+          cy="320"
+          r="276"
+          :stroke="astroPalette.ringOuter"
+          stroke-width="1.2"
+          stroke-dasharray="2 10"
+          class="astro-ring-outer"
+        />
+        <circle
+          cx="320"
+          cy="320"
+          r="228"
+          :stroke="astroPalette.ringMiddle"
+          stroke-width="1.15"
+          stroke-dasharray="18 10 2 10"
+          class="astro-ring-middle"
+        />
+        <circle cx="320" cy="320" r="164" :stroke="astroPalette.ringInner" stroke-width="1" />
+        <circle cx="320" cy="320" r="104" :stroke="astroPalette.ringInnerDash" stroke-width="1" stroke-dasharray="3 6" />
+
+        <path d="M320 320 L320 44 A276 276 0 0 1 528 138 Z" :fill="`url(#radar-cone-${svgUid})`" class="astro-radar-sweep" />
+
+        <ellipse
+          cx="320"
+          cy="320"
+          rx="210"
+          ry="62"
+          transform="rotate(-68 320 320)"
+          :stroke="`url(#orbit-grad-c-${svgUid})`"
+          stroke-width="1.35"
+        />
+
+        <ellipse
+          cx="320"
+          cy="320"
+          rx="252"
+          ry="78"
+          transform="rotate(28 320 320)"
+          :stroke="`url(#orbit-grad-b-${svgUid})`"
+          stroke-width="1.6"
+        />
+        <ellipse
+          cx="320"
+          cy="320"
+          rx="252"
+          ry="78"
+          transform="rotate(28 320 320)"
+          :stroke="astroPalette.pulseSecondary"
+          stroke-width="2.2"
+          stroke-dasharray="36 440"
+          class="astro-pulse-track-rev"
+        />
+
+        <ellipse
+          cx="320"
+          cy="320"
+          rx="268"
+          ry="86"
+          transform="rotate(-24 320 320)"
+          :stroke="`url(#orbit-grad-a-${svgUid})`"
+          stroke-width="2"
+        />
+        <ellipse
+          cx="320"
+          cy="320"
+          rx="268"
+          ry="86"
+          transform="rotate(-24 320 320)"
+          :stroke="astroPalette.pulsePrimary"
+          stroke-width="2.6"
+          stroke-dasharray="48 460"
+          class="astro-pulse-track"
+        />
+
+        <circle
+          cx="320"
+          cy="320"
+          r="56"
+          :stroke="astroPalette.resonanceStroke"
+          stroke-width="1.5"
+          stroke-opacity="0.48"
+          class="astro-resonance-ring"
+        />
+
+        <g class="astro-core-star">
+          <path
+            d="M320 232L341 299L408 320L341 341L320 408L299 341L232 320L299 299Z"
+            :fill="`url(#star-prism-${svgUid})`"
+          />
+          <path
+            d="M320 232L341 299L320 320L232 320L299 299Z"
+            fill="#FFFFFF"
+            :fill-opacity="astroPalette.starHighlightOpacity"
+          />
+          <path d="M320 292L348 320L320 348L292 320Z" :fill="astroPalette.starCorePivot" fill-opacity="0.72" />
+          <circle cx="320" cy="320" r="12" :fill="astroPalette.orbitMid" fill-opacity="0.34" />
+          <circle cx="320" cy="320" r="6" :fill="astroPalette.starCenterDot" />
+        </g>
+
+        <g class="astro-satellites">
+          <circle cx="142" cy="238" r="9" :fill="astroPalette.sat1" fill-opacity="0.22" />
+          <circle cx="142" cy="238" r="4.2" :fill="astroPalette.sat1" />
+          <circle cx="498" cy="242" r="10" :fill="astroPalette.sat2" fill-opacity="0.24" />
+          <circle cx="498" cy="242" r="4.5" :fill="astroPalette.sat2" />
+          <circle cx="204" cy="424" r="8.5" :fill="astroPalette.sat3" fill-opacity="0.24" />
+          <circle cx="204" cy="424" r="3.8" :fill="astroPalette.sat3" />
+          <circle cx="462" cy="398" r="9" :fill="astroPalette.sat4" fill-opacity="0.22" />
+          <circle cx="462" cy="398" r="4" :fill="astroPalette.sat4" />
+          <circle cx="358" cy="146" r="7.5" :fill="astroPalette.sat5" fill-opacity="0.24" />
+          <circle cx="358" cy="146" r="3.4" :fill="astroPalette.sat5" />
+        </g>
+      </svg>
+    </view>
+
+    <!-- 3. 悬浮微晶玻璃登录卡片 (纯账号密码登录、免除验证、无第三方干扰) -->
     <view class="login-card">
-      <!-- 1. 品牌头部：徽标与平台名称对齐 (与 Web 统一) -->
       <view class="brand-header">
         <view class="logo-wrap">
-          <TianshuLogo :size="40" />
+          <TianshuLogo :size="38" />
         </view>
         <view class="brand-text-col">
           <text class="brand-name">{{ isTenantPortal ? (portal?.clientName || currentTenantTitle) : '天枢协同云平台' }}</text>
@@ -20,9 +184,8 @@
         </view>
       </view>
 
-      <!-- 2. 表单输入区 -->
       <view class="form-body">
-        <!-- 账号 -->
+        <!-- 账号输入 -->
         <view class="input-cell" :class="{ 'is-focused': focusField === 'username' }">
           <view class="cell-icon">
             <AppIcon name="user" :size="17" color="#64748b" />
@@ -37,7 +200,7 @@
           />
         </view>
 
-        <!-- 密码 -->
+        <!-- 密码输入 -->
         <view class="input-cell" :class="{ 'is-focused': focusField === 'password' }">
           <view class="cell-icon">
             <AppIcon name="lock" :size="17" color="#64748b" />
@@ -58,51 +221,22 @@
           </view>
         </view>
 
-        <!-- 3. 天枢智盾安全核验卡片 (与 Web 完美一致) -->
-        <view class="shield-badge-card">
-          <view class="shield-left">
-            <view class="check-squircle">
-              <AppIcon name="check" :size="11" color="#ffffff" :stroke-width="3" />
-            </view>
-            <text class="shield-title">安全环境自动核验通过</text>
-          </view>
-          <view class="shield-right">
-            <text class="shield-tag">天枢智盾</text>
-          </view>
-        </view>
-
-        <!-- 4. 辅助操作 -->
+        <!-- 辅助操作 -->
         <view class="sub-actions-row">
           <text class="forgot-btn" @click="handleForgotPassword">忘记密码？</text>
         </view>
 
-        <!-- 5. 登录主按钮 (浅色高质感微玻质感) -->
+        <!-- 浅色珠光轻玻登录按钮 (与 PC 端统一质感) -->
         <button class="login-submit-btn" :loading="loading" :disabled="loading" @click="handleLogin">
           <text class="submit-text">登 录</text>
           <text class="submit-arrow">→</text>
         </button>
-
-        <!-- 6. 快捷接入生态渠道圆圈按钮 (与 Web 一致) -->
-        <view class="channels-row">
-          <view class="channel-circle" @click="quickChannelLogin('wecom')" title="企业微信">
-            <AppIcon name="chat" :size="18" color="#64748b" />
-          </view>
-          <view class="channel-circle" @click="quickChannelLogin('fast')" title="极速免密">
-            <AppIcon name="lightning" :size="18" color="#64748b" />
-          </view>
-          <view class="channel-circle" @click="quickChannelLogin('feishu')" title="飞书协同">
-            <AppIcon name="paper-plane" :size="17" color="#64748b" />
-          </view>
-          <view class="channel-circle" @click="quickChannelLogin('cert')" title="数字证书">
-            <AppIcon name="key" :size="17" color="#64748b" />
-          </view>
-        </view>
       </view>
     </view>
 
-    <!-- 底部端到端安全提示 -->
+    <!-- 4. 底部安全背书 -->
     <view class="login-footer-security">
-      <text class="footer-tip-text">端到端链路加密传输 · 天枢智盾安全防护已开启</text>
+      <text class="footer-tip-text">端到端链路加密传输 · 账号安全策略已防护</text>
     </view>
   </view>
 </template>
@@ -118,6 +252,37 @@ const loading = ref(false);
 const showPassword = ref(false);
 const focusField = ref<"username" | "password" | null>(null);
 const portal = ref<PortalEntry | null>(null);
+const svgUid = "ts-mobile";
+
+// 完美继承 PC 端明亮模式下的天体轨调色盘
+const astroPalette = {
+  nebulaCenter: "#38BDF8",
+  nebulaMid: "#6366F1",
+  nebulaEdge: "#EEF2FF",
+  coreAuraCenter: "#FFFFFF",
+  coreAuraMid: "#60A5FA",
+  ringOuter: "rgba(79, 70, 229, 0.24)",
+  ringMiddle: "rgba(37, 99, 235, 0.28)",
+  ringInner: "rgba(2, 132, 199, 0.26)",
+  ringInnerDash: "rgba(79, 70, 229, 0.30)",
+  orbitStart: "#4F46E5",
+  orbitMid: "#0284C7",
+  orbitEnd: "#2563EB",
+  pulsePrimary: "#0284C7",
+  pulseSecondary: "#4F46E5",
+  starTop: "#E0F2FE",
+  starMid: "#3B82F6",
+  starBottom: "#3730A3",
+  starHighlightOpacity: "0.96",
+  starCorePivot: "#0F172A",
+  starCenterDot: "#FFFFFF",
+  resonanceStroke: "#2563EB",
+  sat1: "#0284C7",
+  sat2: "#4F46E5",
+  sat3: "#059669",
+  sat4: "#2563EB",
+  sat5: "#0891B2"
+};
 
 const form = reactive({
   tenantCode: "",
@@ -223,19 +388,6 @@ function handleForgotPassword() {
   });
 }
 
-function quickChannelLogin(type: string) {
-  const names: Record<string, string> = {
-    wecom: "企业微信单点免密登录",
-    fast: "生物识别 / 极速指纹验证",
-    feishu: "飞书开放平台协同登录",
-    cert: "企业私有 CA 硬件证书校验"
-  };
-  uni.showToast({
-    title: `正在调用${names[type] || "快捷接入"}...`,
-    icon: "none"
-  });
-}
-
 async function handleLogin() {
   if (loading.value) return;
   if (!form.username || !form.password) {
@@ -284,66 +436,205 @@ async function handleLogin() {
   flex-direction: column;
   justify-content: space-between;
   align-items: center;
-  padding: calc(30px + max(var(--status-bar-height, 0px), env(safe-area-inset-top, 0px))) 20px
-    calc(24px + env(safe-area-inset-bottom, 0px));
+  padding: calc(16px + max(var(--status-bar-height, 0px), env(safe-area-inset-top, 0px))) 20px
+    calc(20px + env(safe-area-inset-bottom, 0px));
   background-color: #f8fafc;
-  background-image:
-    radial-gradient(ellipse 90% 50% at 50% -5%, rgba(191, 219, 254, 0.55), transparent 70%),
-    radial-gradient(circle at 90% 90%, rgba(224, 231, 255, 0.45), transparent 60%);
+  background: radial-gradient(circle at 50% 25%, #dbeafe 0%, #eef2ff 50%, #f8fafc 100%);
   overflow-x: hidden;
 }
 
-/* 环境背景光晕 */
-.ambient-glow {
+/* =============================================================================
+   1. PC 端同款宇宙微光背景 (适配移动端垂直流)
+   ============================================================================= */
+.universe-aurora {
   position: absolute;
+  inset: 0;
+  overflow: hidden;
   pointer-events: none;
-  border-radius: 9999px;
-  filter: blur(60px);
   z-index: 0;
 }
 
-.ambient-glow--top {
-  width: 260px;
-  height: 260px;
-  background: rgba(56, 189, 248, 0.15);
-  top: -40px;
-  left: 20%;
+.aurora-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
 }
 
-.ambient-glow--bottom {
-  width: 280px;
+.orb-primary {
+  top: -80px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 380px;
+  height: 380px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.22) 0%, transparent 70%);
+}
+
+.orb-secondary {
+  right: -80px;
+  bottom: 120px;
+  width: 340px;
+  height: 340px;
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.20) 0%, transparent 70%);
+}
+
+.orb-core {
+  top: 30%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.16) 0%, transparent 72%);
+}
+
+.orb-bottom {
+  bottom: -40px;
+  left: 10%;
+  width: 360px;
   height: 280px;
-  background: rgba(99, 102, 241, 0.12);
-  bottom: 40px;
-  right: 10%;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
 }
 
-/* 核心悬浮微晶玻璃卡片 */
+.universe-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(79, 70, 229, 0.055) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(79, 70, 229, 0.055) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse 90% 80% at 50% 40%, #000 30%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 90% 80% at 50% 40%, #000 30%, transparent 100%);
+}
+
+.universe-stars {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(1.5px 1.5px at 15% 14%, rgba(79, 70, 229, 0.40), transparent),
+    radial-gradient(1.5px 1.5px at 82% 18%, rgba(2, 132, 199, 0.42), transparent),
+    radial-gradient(1.2px 1.2px at 28% 42%, rgba(99, 102, 241, 0.35), transparent),
+    radial-gradient(1.5px 1.5px at 76% 78%, rgba(2, 132, 199, 0.32), transparent),
+    radial-gradient(1.2px 1.2px at 18% 86%, rgba(79, 70, 229, 0.35), transparent);
+}
+
+/* =============================================================================
+   2. PC 端同款全息天体仪 (尺寸适配移动端 + 精致空间层次)
+   ============================================================================= */
+.cosmic-astrolabe-zone {
+  position: absolute;
+  top: calc(24px + max(var(--status-bar-height, 0px), env(safe-area-inset-top, 0px)));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(84vw, 320px);
+  height: min(84vw, 320px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  user-select: none;
+  z-index: 1;
+  opacity: 0.90;
+}
+
+.grand-astrolabe {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* 动效系统：与 PC 端完全一致的流畅动态 */
+.astro-ring-outer {
+  transform-origin: 320px 320px;
+  animation: astroRotate 70s linear infinite;
+}
+
+.astro-ring-middle {
+  transform-origin: 320px 320px;
+  animation: astroRotateReverse 48s linear infinite;
+}
+
+.astro-radar-sweep {
+  transform-origin: 320px 320px;
+  animation: astroRotate 14s linear infinite;
+}
+
+.astro-pulse-track {
+  animation: astroTrackFlow 8s linear infinite;
+}
+
+.astro-pulse-track-rev {
+  animation: astroTrackFlowRev 7s linear infinite;
+}
+
+.astro-core-star {
+  transform-origin: 320px 320px;
+  animation: astroStarFloat 4s ease-in-out infinite;
+}
+
+.astro-resonance-ring {
+  transform-origin: 320px 320px;
+  animation: astroResonance 3.2s cubic-bezier(0.2, 0.8, 0.4, 1) infinite;
+}
+
+@keyframes astroRotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes astroRotateReverse {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+
+@keyframes astroTrackFlow {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: -508; }
+}
+
+@keyframes astroTrackFlowRev {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: 476; }
+}
+
+@keyframes astroStarFloat {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+@keyframes astroResonance {
+  0% { opacity: 0.55; transform: scale(0.92); }
+  100% { opacity: 0; transform: scale(1.65); }
+}
+
+/* =============================================================================
+   3. 悬浮微晶玻璃登录舱 (仅保留账号密码登录与辅助重置)
+   ============================================================================= */
 .login-card {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   width: 100%;
   max-width: 380px;
-  margin: auto 0;
-  background: rgba(255, 255, 255, 0.82);
+  /* 优雅纵向下沉：天体仪与星芒充分舒展呼吸，卡片下沉至黄金触控操作区，消除底部空荡 */
+  margin-top: calc(min(84vw, 320px) * 0.95 + max(var(--status-bar-height, 0px), env(safe-area-inset-top, 0px)) + 24px);
+  margin-bottom: auto;
+  background: rgba(255, 255, 255, 0.86);
   backdrop-filter: blur(32px) saturate(200%);
   -webkit-backdrop-filter: blur(32px) saturate(200%);
   border: 1px solid rgba(255, 255, 255, 0.98);
-  border-radius: 26px;
-  padding: 28px 22px 24px;
+  border-radius: 24px;
+  padding: 26px 20px 22px;
   box-sizing: border-box;
   box-shadow:
     inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.99),
-    0 16px 40px -8px rgba(15, 23, 42, 0.08),
-    0 4px 12px rgba(15, 23, 42, 0.03);
+    0 20px 48px -12px rgba(15, 23, 42, 0.09),
+    0 4px 14px rgba(15, 23, 42, 0.04);
 }
 
-/* 头部品牌行 */
+/* 品牌头部 */
 .brand-header {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 24px;
+  margin-bottom: 22px;
 }
 
 .logo-wrap {
@@ -362,7 +653,7 @@ async function handleLogin() {
 }
 
 .brand-name {
-  font-size: 19px;
+  font-size: 18.5px;
   font-weight: 750;
   color: #0f172a;
   letter-spacing: -0.3px;
@@ -408,7 +699,7 @@ async function handleLogin() {
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 50px;
+  height: 48px;
   padding: 0 14px;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.65);
@@ -455,63 +746,12 @@ async function handleLogin() {
   cursor: pointer;
 }
 
-/* 天枢智盾安全核验卡片 (与 Web 统一) */
-.shield-badge-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 44px;
-  padding: 0 12px;
-  border-radius: 13px;
-  background: rgba(236, 253, 245, 0.85);
-  border: 1px solid rgba(167, 243, 208, 0.95);
-  box-sizing: border-box;
-  margin-bottom: 10px;
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.9);
-}
-
-.shield-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.check-squircle {
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
-  background: #10b981;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.3);
-}
-
-.shield-title {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: #065f46;
-  letter-spacing: 0.1px;
-}
-
-.shield-right {
-  display: flex;
-  align-items: center;
-}
-
-.shield-tag {
-  font-size: 11.5px;
-  font-weight: 700;
-  color: #059669;
-  letter-spacing: 0.2px;
-}
-
-/* 辅助跳转行 */
+/* 忘记密码 */
 .sub-actions-row {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
   padding: 0 2px;
 }
 
@@ -526,7 +766,7 @@ async function handleLogin() {
   color: #4338ca;
 }
 
-/* 浅色高质感微玻登录提交按钮 */
+/* 浅色高质感微玻登录提交按钮 (PC 端同款高对比度明亮质感) */
 .login-submit-btn {
   position: relative;
   width: 100%;
@@ -546,7 +786,6 @@ async function handleLogin() {
   gap: 6px;
   box-sizing: border-box;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  margin-bottom: 22px;
 }
 
 .login-submit-btn::after {
@@ -580,41 +819,14 @@ async function handleLogin() {
   transform: translateX(3px);
 }
 
-/* 底部 4 个快捷登录渠道圆圈 (与 Web 统一) */
-.channels-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  padding-top: 4px;
-}
-
-.channel-circle {
-  width: 44px;
-  height: 44px;
-  border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.85);
-  border: 1px solid rgba(226, 232, 240, 0.85);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
-  cursor: pointer;
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.channel-circle:active {
-  transform: scale(0.92);
-  background: #f1f5f9;
-  border-color: #cbd5e1;
-}
-
-/* 底部安全脚注 */
+/* =============================================================================
+   4. 底部安全背书
+   ============================================================================= */
 .login-footer-security {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   text-align: center;
-  padding-top: 12px;
+  padding-top: 14px;
 }
 
 .footer-tip-text {

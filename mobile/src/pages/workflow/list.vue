@@ -93,15 +93,16 @@
           <text class="comment-text">{{ task.comment }}</text>
         </view>
 
-        <!-- 悬浮指令流光栏：主次非对称黄金比例未来感胶囊 -->
+        <!-- 悬浮指令流光栏：精工连续曲率微圆角·量子极光未来感控制条 -->
         <view v-if="activeTab === 'pending'" class="card-actions" @click.stop>
           <button class="btn btn-reject" @click="openActionModal(task, 'REJECT')">
-            <AppIcon name="close" :size="12" color="#64748b" :stroke-width="2.4" />
+            <AppIcon name="close" :size="13" color="#64748b" :stroke-width="2.2" />
             <text class="btn-label">驳回退回</text>
           </button>
           <button class="btn btn-agree" @click="openActionModal(task, 'AGREE')">
-            <AppIcon name="check" :size="13" color="#ffffff" :stroke-width="2.6" />
+            <AppIcon name="check" :size="14" color="#ffffff" :stroke-width="2.6" />
             <text class="btn-label">同意核准</text>
+            <text class="btn-arrow">→</text>
           </button>
         </view>
       </view>
@@ -473,7 +474,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .no-wrap {
@@ -487,21 +488,25 @@ onMounted(() => {
   height: 6px;
   border-radius: 9999px;
   background: #38bdf8;
-  box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.7);
 }
 
 .instance-no {
-  font-size: 11.5px;
-  color: #64748b;
-  font-family: monospace;
+  font-size: 11px;
+  color: #475569;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-weight: 600;
-  letter-spacing: -0.2px;
+  letter-spacing: 0.1px;
+  background: rgba(241, 245, 249, 0.85);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  padding: 2px 7px;
+  border-radius: 6px;
 }
 
 .node-badge {
   font-size: 11px;
-  padding: 3px 10px;
-  border-radius: 9999px;
+  padding: 3px 9px;
+  border-radius: 8px;
   font-weight: 650;
   letter-spacing: 0.2px;
 }
@@ -521,26 +526,29 @@ onMounted(() => {
 
 .instance-title {
   display: block;
-  font-size: 15.5px;
+  font-size: 16px;
   font-weight: 750;
   color: #0f172a;
-  line-height: 1.45;
-  margin-top: 4px;
-  margin-bottom: 14px;
+  line-height: 1.5;
+  margin-top: 6px;
+  margin-bottom: 24px;
+  letter-spacing: -0.2px;
 }
 
-/* 全新轻盈赛博元数据流：呼吸感充盈，彻底替代内嵌方块 */
+/* 全新轻盈赛博元数据流：呼吸感充盈，空间舒展，彻底告别压抑拥挤 */
 .card-meta-flow {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
-  background: rgba(248, 250, 252, 0.75);
+  background: rgba(248, 250, 252, 0.70);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border: 1px solid rgba(255, 255, 255, 0.95);
   border-radius: 12px;
-  padding: 8px 12px;
-  margin-bottom: 15px;
+  padding: 9px 14px;
+  margin-bottom: 22px;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.8), 0 2px 8px rgba(12, 34, 56, 0.03);
 }
 
 .meta-item {
@@ -550,19 +558,20 @@ onMounted(() => {
 }
 
 .meta-avatar {
-  width: 20px;
-  height: 20px;
-  border-radius: 9999px;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
   background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
   color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
 }
 
 .avatar-letter {
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 10.5px;
+  font-weight: 750;
   line-height: 1;
 }
 
@@ -574,8 +583,8 @@ onMounted(() => {
 
 .meta-val {
   font-size: 12px;
-  color: #1e293b;
-  font-weight: 600;
+  color: #0f172a;
+  font-weight: 650;
 }
 
 .meta-sep {
@@ -598,7 +607,7 @@ onMounted(() => {
   border: 1px solid rgba(191, 219, 254, 0.75);
   border-radius: 10px;
   padding: 6px 10px;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .comment-icon {
@@ -613,20 +622,20 @@ onMounted(() => {
   line-height: 1.4;
 }
 
-/* 悬浮指令流光栏：主次非对称黄金比例未来感胶囊 */
+/* 悬浮指令控制栏：精工连续曲率微圆角·量子极光未来感控制条，告别老旧土味药丸 */
 .card-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding-top: 14px;
-  margin-top: 4px;
+  gap: 10px;
+  padding-top: 16px;
+  margin-top: 2px;
   border-top: 1px solid rgba(226, 232, 240, 0.70);
 }
 
 .btn {
-  height: 40px;
-  line-height: 40px;
-  border-radius: 9999px;
+  height: 42px;
+  line-height: 42px;
+  border-radius: 13px;
   border: none;
   display: flex;
   align-items: center;
@@ -647,38 +656,39 @@ onMounted(() => {
   transform: scale(0.975);
 }
 
-/* 驳回退回：38% 黄金辅助比例，高端雾面半透轻玻 + 悬停微霓虹，告别死板粉色大块 */
+/* 驳回退回：35% 黄金辅助比例，极光钛灰雾面半透轻玻，高雅冷峻，告别低质感粉块 */
 .btn-reject {
-  flex: 0 0 38%;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.90) 100%);
+  flex: 0 0 35%;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   color: #475569;
   border: 1px solid rgba(226, 232, 240, 0.95);
   box-shadow:
     inset 0 1px 1px 0 #ffffff,
-    0 2px 8px rgba(15, 23, 42, 0.04);
+    0 2px 6px rgba(15, 23, 42, 0.04);
 }
 
 .btn-reject:active {
-  background: linear-gradient(135deg, rgba(255, 241, 242, 0.95) 0%, rgba(254, 226, 226, 0.90) 100%);
+  background: rgba(255, 241, 242, 0.95);
   color: #e11d48;
-  border-color: rgba(254, 205, 211, 0.90);
+  border-color: rgba(254, 205, 211, 0.95);
 }
 
-/* 同意核准：62% 黄金主导比例，赛博流光量子极光，高对比度立体悬浮 */
+/* 同意核准：65% 黄金主控比例，深邃赛博极光渐变，微晶高光倒角，未来感科技流 */
 .btn-agree {
   flex: 1;
-  background: linear-gradient(135deg, #06b6d4 0%, #2563eb 50%, #4f46e5 100%);
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 55%, #4f46e5 100%);
   color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.38);
   box-shadow:
-    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.65),
-    inset 0 -1.5px 2px 0 rgba(15, 23, 42, 0.22),
-    0 8px 24px -4px rgba(6, 182, 212, 0.42),
-    0 4px 12px -2px rgba(37, 99, 235, 0.35);
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 6px 20px -3px rgba(37, 99, 235, 0.42),
+    0 2px 6px -1px rgba(2, 132, 199, 0.30);
 }
 
 .btn-agree:active {
-  background: linear-gradient(135deg, #0891b2 0%, #1d4ed8 50%, #4338ca 100%);
+  background: linear-gradient(135deg, #0369a1 0%, #1d4ed8 55%, #4338ca 100%);
   box-shadow:
     inset 0 1px 2px 0 rgba(0, 0, 0, 0.25),
     0 4px 12px -2px rgba(37, 99, 235, 0.35);
@@ -686,8 +696,17 @@ onMounted(() => {
 
 .btn-label {
   font-size: 13.5px;
+  font-weight: 650;
+  letter-spacing: 0.6px;
+}
+
+.btn-arrow {
+  font-size: 15px;
   font-weight: 700;
-  letter-spacing: 0.5px;
+  margin-left: 2px;
+  line-height: 1;
+  opacity: 0.9;
+  transition: transform 0.15s ease;
 }
 
 /* 审批操作弹窗内样式 */
