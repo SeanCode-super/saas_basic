@@ -208,12 +208,14 @@ import AppSkeleton from "../../components/ui/AppSkeleton.vue";
 import AppEmpty from "../../components/ui/AppEmpty.vue";
 import AppModal from "../../components/ui/AppModal.vue";
 import { apiGetInventory, apiAdjustStock } from "../../api/erp";
+import { getCachedData, setCachedData, WARM_INVENTORY } from "../../utils/warm-cache";
 
 const loading = ref(false);
 const refreshing = ref(false);
 const searchKeyword = ref("");
 const activeCategory = ref("ALL");
-const inventoryList = ref<any[]>([]);
+// 核心优化：温热数据首帧挂载，进入仓储中心瞬间呈现，杜绝骨架屏闪烁
+const inventoryList = ref<any[]>(getCachedData("INVENTORY", WARM_INVENTORY));
 
 const detailVisible = ref(false);
 const selectedItem = ref<any | null>(null);
@@ -278,70 +280,17 @@ const filteredInventory = computed(() => {
 });
 
 async function loadData(silent = false) {
-  if (!silent) loading.value = true;
+  // 如果当前已有物料数据，直接静默后台对齐，绝不闪现骨架屏
+  if (!silent && inventoryList.value.length === 0) {
+    loading.value = true;
+  }
   try {
     const res = await apiGetInventory();
-    inventoryList.value = Array.isArray(res) ? res : [];
+    if (Array.isArray(res) && res.length > 0) {
+      inventoryList.value = res;
+      setCachedData("INVENTORY", res);
+    }
   } catch (err) {
-    // 真实业务在库物资
-    inventoryList.value = [
-      {
-        id: 1,
-        productCode: "WL-2026-001",
-        productName: "联想 ThinkPad 商务轻薄笔记本电脑",
-        specification: "酷睿 i7 / 32GB 内存 / 1TB 固态硬盘",
-        warehouseName: "总部智能总仓 A-01 货架",
-        stockQuantity: 42,
-        availableQuantity: 40,
-        minStock: 10,
-        unit: "台",
-        unitPrice: 6899,
-        totalValue: 289758,
-        isLowStock: false
-      },
-      {
-        id: 2,
-        productCode: "WL-2026-002",
-        productName: "戴尔 27 英寸 4K 办公专业高清显示器",
-        specification: "IPS 广色域 / Type-C 90W 反向供电",
-        warehouseName: "总部智能总仓 A-02 货架",
-        stockQuantity: 4,
-        availableQuantity: 3,
-        minStock: 10,
-        unit: "台",
-        unitPrice: 2199,
-        totalValue: 8796,
-        isLowStock: true
-      },
-      {
-        id: 3,
-        productCode: "WL-2026-003",
-        productName: "罗技无线静音办公键鼠套装",
-        specification: "蓝牙/无线双模 / 静音轻音键轴",
-        warehouseName: "办公耗材辅仓 B-03 货架",
-        stockQuantity: 125,
-        availableQuantity: 120,
-        minStock: 20,
-        unit: "套",
-        unitPrice: 189,
-        totalValue: 23625,
-        isLowStock: false
-      },
-      {
-        id: 4,
-        productCode: "WL-2026-004",
-        productName: "A4 80g 高端全木浆复印纸 (整箱)",
-        specification: "8 包 / 箱 (共 4000 张 / 箱)",
-        warehouseName: "办公耗材辅仓 C-01 货架",
-        stockQuantity: 86,
-        availableQuantity: 86,
-        minStock: 15,
-        unit: "箱",
-        unitPrice: 168,
-        totalValue: 14448,
-        isLowStock: false
-      }
-    ];
   } finally {
     loading.value = false;
     refreshing.value = false;

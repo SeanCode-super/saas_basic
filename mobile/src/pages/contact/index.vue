@@ -135,11 +135,14 @@ import AppSkeleton from "../../components/ui/AppSkeleton.vue";
 import AppEmpty from "../../components/ui/AppEmpty.vue";
 import AppModal from "../../components/ui/AppModal.vue";
 import { apiGetContactUsers, type ContactUser } from "../../api/contact";
+import { getCachedData, setCachedData, WARM_CONTACTS } from "../../utils/warm-cache";
+import { onShow } from "@dcloudio/uni-app";
 
 const keyword = ref("");
 const activeDept = ref("全部");
 const loading = ref(false);
-const users = ref<ContactUser[]>([]);
+// 核心优化：温热数据首帧挂载，点击 Tab 瞬间呈现，杜绝骨架屏闪烁
+const users = ref<any[]>(getCachedData("CONTACTS", WARM_CONTACTS));
 
 // 名片抽屉
 const cardModalVisible = ref(false);
@@ -178,26 +181,31 @@ async function loadUsers(isRefresh = false) {
   }
   try {
     const list = await apiGetContactUsers();
-    users.value = (Array.isArray(list) ? list : []).map((u) => ({
-      ...u,
-      phone: u.phone || u.mobile || "13800138000",
-      nickname: u.nickname || (u.username === "user" ? "体验员工" : (u.username === "admin" ? "平台管理员" : u.username)),
-      positionName: (u.positionName || "业务工程师").replace("CTO", "研发总监").replace("SRE", "高级运维").replace("高级系统工程师", "高级工程师"),
-      deptName: u.deptName || "综合管理部"
-    }));
+    if (Array.isArray(list) && list.length > 0) {
+      const mapped = list.map((u) => ({
+        ...u,
+        phone: u.phone || u.mobile || "13800138000",
+        nickname: u.nickname || (u.username === "user" ? "体验员工" : (u.username === "admin" ? "平台管理员" : u.username)),
+        positionName: (u.positionName || "业务工程师").replace("CTO", "研发总监").replace("SRE", "高级运维").replace("高级系统工程师", "高级工程师"),
+        deptName: u.deptName || "综合管理部"
+      }));
+      users.value = mapped;
+      setCachedData("CONTACTS", mapped);
+    }
   } catch {
-    users.value = [
-      { id: 1, username: "admin", nickname: "平台管理员", phone: "13800138000", email: "admin@tianshu.cloud", deptName: "技术研发部", positionName: "研发总监" },
-      { id: 2, username: "zhidan", nickname: "沈志丹", phone: "13911223344", email: "shenzhidan@tianshu.cloud", deptName: "平台架构部", positionName: "资深系统架构师" },
-      { id: 3, username: "sales_lead", nickname: "王敏", phone: "13766778899", email: "wangmin@tianshu.cloud", deptName: "商务销售部", positionName: "销售总监" },
-      { id: 4, username: "crm_support", nickname: "李欣", phone: "13699887711", email: "lixin@tianshu.cloud", deptName: "客户服务部", positionName: "大客户经理" },
-      { id: 5, username: "dev_ops", nickname: "赵强", phone: "13522334455", email: "zhaoqiang@tianshu.cloud", deptName: "系统保障部", positionName: "系统运维工程师" }
-    ];
   } finally {
     loading.value = false;
     uni.stopPullDownRefresh();
   }
 }
+
+onMounted(() => {
+  loadUsers(true);
+});
+
+onShow(() => {
+  loadUsers(true);
+});
 
 onPullDownRefresh(() => {
   loadUsers(true);

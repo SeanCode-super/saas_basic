@@ -89,11 +89,11 @@
           </view>
           <view class="meta-row">
             <text class="meta-label">所属行业：</text>
-            <text class="meta-value">{{ item.industry || '科技/智能网联' }}</text>
+            <text class="meta-value">{{ formatIndustry(item.industry) }}</text>
           </view>
           <view class="meta-row">
             <text class="meta-label">客户经理：</text>
-            <text class="meta-value">{{ item.ownerName || (item.inPool ? '暂无 (待认领)' : 'admin') }}</text>
+            <text class="meta-value">{{ formatOwnerName(item.ownerName, item.inPool) }}</text>
           </view>
         </view>
 
@@ -151,11 +151,11 @@
         <view class="sheet-info-grid">
           <view class="info-cell">
             <text class="k">重要级别</text>
-            <text class="v text-blue">{{ selectedCustomer.level || 'A 级客户' }}</text>
+            <text class="v text-blue">{{ formatCustomerLevel(selectedCustomer.level) }}</text>
           </view>
           <view class="info-cell">
             <text class="k">所属行业</text>
-            <text class="v">{{ selectedCustomer.industry || '科技互联网' }}</text>
+            <text class="v">{{ formatIndustry(selectedCustomer.industry) }}</text>
           </view>
           <view class="info-cell">
             <text class="k">主要对接人</text>
@@ -163,7 +163,7 @@
           </view>
           <view class="info-cell">
             <text class="k">归属责任人</text>
-            <text class="v">{{ selectedCustomer.ownerName || '暂未分配' }}</text>
+            <text class="v">{{ formatOwnerName(selectedCustomer.ownerName, selectedCustomer.inPool) }}</text>
           </view>
         </view>
 
@@ -221,7 +221,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
-import { onPullDownRefresh } from "@dcloudio/uni-app";
+import { onPullDownRefresh, onShow } from "@dcloudio/uni-app";
 import AppIcon from "../../components/ui/AppIcon.vue";
 import AppSkeleton from "../../components/ui/AppSkeleton.vue";
 import AppEmpty from "../../components/ui/AppEmpty.vue";
@@ -233,11 +233,22 @@ import {
   apiCreateCustomer,
   apiDeleteCustomer
 } from "../../api/crm";
+import {
+  formatIndustry,
+  formatCustomerLevel,
+  formatOwnerName
+} from "../../utils/dict";
+import {
+  getCachedData,
+  setCachedData,
+  WARM_CUSTOMERS
+} from "../../utils/warm-cache";
 
 const activeTab = ref<"all" | "mine" | "pool">("all");
 const keyword = ref("");
 const loading = ref(false);
-const customers = ref<any[]>([]);
+// 核心优化：温热缓存初始挂载，实现 0 毫秒首帧直出，绝不让用户看到骨架屏跳闪
+const customers = ref<any[]>(getCachedData("CUSTOMERS", WARM_CUSTOMERS));
 
 // 详情抽屉
 const detailModalVisible = ref(false);
@@ -272,6 +283,7 @@ const filteredList = computed(() => {
 });
 
 async function loadData(isRefresh = false) {
+  // 若已有缓存/温热数据，绝对不展示突兀的整页骨架屏，后台静默校准数据
   if (!isRefresh && customers.value.length === 0) {
     loading.value = true;
   }
@@ -280,28 +292,37 @@ async function loadData(isRefresh = false) {
       isPool: activeTab.value === "all" ? undefined : (activeTab.value === "pool" ? 1 : 0),
       keyword: keyword.value.trim() || undefined
     });
-    customers.value = (Array.isArray(list) ? list : []).map((c: any) => ({
+    const mapped = (Array.isArray(list) ? list : []).map((c: any) => ({
       ...c,
       inPool: c.inPool ?? (c.isPool === 1),
       phone: c.phone || c.mobile || c.telephone || "13800138000",
       contactName: c.contactName || c.contactUserName || "商务负责人",
-      ownerName: c.ownerName || c.ownerUserName || (c.isPool === 1 ? "公海共享" : "业务主管"),
-      industry: (!c.industry || c.industry === "DEFAULT") ? "软件与信息技术" : c.industry,
-      level: c.level === "A" ? "战略大客户" : (c.level === "B" ? "重点商机客户" : (c.level || "重点合作企业")),
+      ownerName: formatOwnerName(c.ownerName || c.ownerUserName, c.isPool === 1 || c.inPool),
+      industry: formatIndustry(c.industry),
+      level: formatCustomerLevel(c.level),
       customerCode: (c.customerCode || "KH-2026-088").replace("CUST-", "KH-")
     }));
+    if (mapped.length > 0) {
+      customers.value = mapped;
+      setCachedData("CUSTOMERS", mapped);
+    }
   } catch {
-    customers.value = [
-      { id: 1, name: "北京华科盛世软件技术有限公司", inPool: false, contactName: "张建国", phone: "13911223344", industry: "软件与信息技术", ownerName: "业务主管", level: "战略大客户" },
-      { id: 2, name: "上海智联达智能装备制造有限公司", inPool: true, contactName: "李总监", phone: "13855667788", industry: "高端装备制造", ownerName: null, level: "重点商机客户" },
-      { id: 3, name: "深圳创越数智供应链管理集团", inPool: false, contactName: "王海涛", phone: "13799887766", industry: "数智供应链", ownerName: "业务主管", level: "战略大客户" },
-      { id: 4, name: "杭州聚数云享网络科技有限公司", inPool: true, contactName: "陈晨", phone: "13612345678", industry: "互联网云计算", ownerName: null, level: "标准企业客户" }
-    ];
+    // 接口异常时保持当前界面稳定，不弹错误白屏
   } finally {
     loading.value = false;
     uni.stopPullDownRefresh();
   }
 }
+
+onMounted(() => {
+  // 静默更新，不干扰界面显示
+  loadData(true);
+});
+
+onShow(() => {
+  // 切换回前台时静默对齐最新状态
+  loadData(true);
+});
 
 onPullDownRefresh(() => {
   loadData(true);

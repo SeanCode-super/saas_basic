@@ -130,6 +130,7 @@ import AppIcon from "../../components/ui/AppIcon.vue";
 import AppSkeleton from "../../components/ui/AppSkeleton.vue";
 import AppEmpty from "../../components/ui/AppEmpty.vue";
 import { apiGetFollowUpRecords, apiCreateFollowUpRecord } from "../../api/crm";
+import { formatUserDisplayName } from "../../utils/dict";
 
 const customerId = ref<number | null>(null);
 const customerName = ref("");
@@ -184,7 +185,7 @@ function fillDemoRecord() {
 }
 
 async function loadRecords(silent = false) {
-  if (!silent) loading.value = true;
+  if (!silent && records.value.length === 0) loading.value = true;
   try {
     const params: any = customerId.value
       ? { customerId: customerId.value, bizType: "CUSTOMER", bizId: customerId.value }
@@ -193,7 +194,7 @@ async function loadRecords(silent = false) {
     records.value = (Array.isArray(list) ? list : []).map((r: any) => ({
       ...r,
       contactType: r.contactType || r.followType || "VISIT",
-      creatorName: r.creatorName || r.contactUserName || "业务主管",
+      creatorName: formatUserDisplayName(r.creatorName || r.contactUserName, "平台管理员"),
       createdAt: r.createdAt ? String(r.createdAt).replace("T", " ").substring(0, 16) : "刚刚"
     }));
   } catch {
@@ -203,7 +204,7 @@ async function loadRecords(silent = false) {
         contactType: "VISIT",
         content: "前往客户办公园区与信息化负责人深入交流，明确了多部门审批流转与物资领用需求，客户意向良好，进入商务合同阶段。",
         createdAt: "2026-10-26 15:30",
-        creatorName: "业务部主管",
+        creatorName: "平台管理员",
         nextFollowTime: "2026-10-30"
       },
       {

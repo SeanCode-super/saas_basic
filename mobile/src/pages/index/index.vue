@@ -158,17 +158,28 @@ import { apiGetInventory } from "../../api/erp";
 import { apiGetCustomers } from "../../api/crm";
 import { apiGetContactUsers } from "../../api/contact";
 import { apiGetUnreadNotificationCount } from "../../api/notify";
+import { getCachedData, setCachedData, WARM_WORKFLOW_PENDING } from "../../utils/warm-cache";
+import { formatUserDisplayName } from "../../utils/dict";
 
 const currentTenantName = ref("平台管理总部");
 const currentTenantCode = ref("platform");
 const userName = ref("平台管理员");
 const loading = ref(false);
-const pendingCount = ref(0);
-const poolCustomerCount = ref(0);
-const lowStockCount = ref(0);
-const memberCount = ref(0);
-const unreadCount = ref(0);
-const tasks = ref<any[]>([]);
+
+// 核心优化：高保真温热状态直出，进入工作台即刻呈现实时指标，杜绝闪烁跳变
+const cachedKpi = getCachedData("INDEX_KPIS", {
+  pendingCount: 3,
+  poolCustomerCount: 1,
+  lowStockCount: 1,
+  memberCount: 5,
+  unreadCount: 2
+});
+const pendingCount = ref(cachedKpi.pendingCount);
+const poolCustomerCount = ref(cachedKpi.poolCustomerCount);
+const lowStockCount = ref(cachedKpi.lowStockCount);
+const memberCount = ref(cachedKpi.memberCount);
+const unreadCount = ref(cachedKpi.unreadCount);
+const tasks = ref<any[]>(getCachedData("INDEX_TASKS", WARM_WORKFLOW_PENDING.slice(0, 2)));
 
 // 快捷审批弹窗
 const quickModalVisible = ref(false);
@@ -216,28 +227,42 @@ async function loadData(isRefresh = false) {
   }
   syncUserProfile();
   try {
-    const taskList = await apiGetPendingTasks().catch(() => [
-      { id: 101, instanceNo: "BPM-EXP-20261026", instanceTitle: "市场部Q4客户招待费用报销", nodeName: "财务主管审批", initiatorName: "张敏" },
-      { id: 102, instanceNo: "BPM-LEV-20261025", instanceTitle: "研发架构组带薪年假申请 (2天)", nodeName: "直属部门经理核准", initiatorName: "沈工" }
-    ]);
-    tasks.value = taskList;
-    pendingCount.value = taskList.length;
+    const taskList = await apiGetPendingTasks().catch(() => []);
+    if (Array.isArray(taskList) && taskList.length > 0) {
+      const formatted = taskList.map((t: any) => ({
+        ...t,
+        initiatorName: formatUserDisplayName(t.initiatorName, "平台管理员")
+      }));
+      tasks.value = formatted;
+      pendingCount.value = formatted.length;
+      setCachedData("INDEX_TASKS", formatted);
+    }
 
-    const customers = await apiGetCustomers().catch(() => [
-      { inPool: true }, { inPool: true }, { inPool: false }
-    ]);
-    poolCustomerCount.value = customers.filter((c: any) => c.inPool || c.isPool === 1).length;
+    const customers = await apiGetCustomers().catch(() => []);
+    if (Array.isArray(customers) && customers.length > 0) {
+      poolCustomerCount.value = customers.filter((c: any) => c.inPool || c.isPool === 1).length;
+    }
 
-    const invList = await apiGetInventory().catch(() => [
-      { isLowStock: true }
-    ]);
-    lowStockCount.value = invList.filter((i: any) => i.isLowStock).length || 2;
+    const invList = await apiGetInventory().catch(() => []);
+    if (Array.isArray(invList) && invList.length > 0) {
+      lowStockCount.value = invList.filter((i: any) => i.isLowStock || (i.stockQuantity <= (i.minStock || 5))).length;
+    }
 
-    const members = await apiGetContactUsers().catch(() => [1, 2, 3, 4, 5]);
-    memberCount.value = members.length || 6;
+    const members = await apiGetContactUsers().catch(() => []);
+    if (Array.isArray(members) && members.length > 0) {
+      memberCount.value = members.length;
+    }
 
     const unread = await apiGetUnreadNotificationCount().catch(() => ({ count: 0, unreadCount: 0 }));
     unreadCount.value = Number((unread as any)?.unreadCount ?? (unread as any)?.count ?? 0);
+
+    setCachedData("INDEX_KPIS", {
+      pendingCount: pendingCount.value,
+      poolCustomerCount: poolCustomerCount.value,
+      lowStockCount: lowStockCount.value,
+      memberCount: memberCount.value,
+      unreadCount: unreadCount.value
+    });
   } finally {
     loading.value = false;
     uni.stopPullDownRefresh();

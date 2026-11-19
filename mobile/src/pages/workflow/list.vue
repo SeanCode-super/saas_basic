@@ -209,7 +209,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import { onPullDownRefresh } from "@dcloudio/uni-app";
+import { onPullDownRefresh, onShow } from "@dcloudio/uni-app";
 import AppIcon from "../../components/ui/AppIcon.vue";
 import AppSkeleton from "../../components/ui/AppSkeleton.vue";
 import AppEmpty from "../../components/ui/AppEmpty.vue";
@@ -220,12 +220,22 @@ import {
   apiGetMyInstances,
   apiHandleTask
 } from "../../api/workflow";
+import { formatUserDisplayName } from "../../utils/dict";
+import {
+  getCachedData,
+  setCachedData,
+  WARM_WORKFLOW_PENDING,
+  WARM_WORKFLOW_MY,
+  WARM_WORKFLOW_COMPLETED
+} from "../../utils/warm-cache";
 
 const activeTab = ref<"pending" | "my" | "completed">("pending");
 const loading = ref(false);
-const pendingTasks = ref<any[]>([]);
-const myInstances = ref<any[]>([]);
-const completedTasks = ref<any[]>([]);
+
+// 核心优化：温热数据首帧挂载，点击 Tab 瞬间呈现，杜绝骨架屏闪烁
+const pendingTasks = ref<any[]>(getCachedData("WF_PENDING", WARM_WORKFLOW_PENDING));
+const myInstances = ref<any[]>(getCachedData("WF_MY", WARM_WORKFLOW_MY));
+const completedTasks = ref<any[]>(getCachedData("WF_COMPLETED", WARM_WORKFLOW_COMPLETED));
 
 // 操作弹窗状态
 const actionModalVisible = ref(false);
@@ -251,6 +261,7 @@ const currentList = computed(() => {
 });
 
 async function loadData(isRefresh = false) {
+  // 仅在无任何缓存数据时才展示骨架屏；已有数据时完全静默平滑对齐
   if (!isRefresh && currentList.value.length === 0) {
     loading.value = true;
   }
@@ -264,18 +275,39 @@ async function loadData(isRefresh = false) {
     const formatTask = (t: any) => ({
       ...t,
       instanceNo: (t.instanceNo || "SP-2026102601").replace("WF", "SP-"),
-      initiatorName: t.initiatorName === "admin" ? "系统管理员" : (t.initiatorName || "经办员工"),
+      initiatorName: formatUserDisplayName(t.initiatorName, "平台管理员"),
+      assigneeName: formatUserDisplayName(t.assigneeName, "审核人"),
       createdAt: t.createdAt ? String(t.createdAt).replace("T", " ").substring(0, 16) : "刚刚"
     });
 
-    pendingTasks.value = Array.isArray(pList) ? pList.map(formatTask) : [];
-    myInstances.value = Array.isArray(mList) ? mList.map(formatTask) : [];
-    completedTasks.value = Array.isArray(cList) ? cList.map(formatTask) : [];
+    if (Array.isArray(pList) && pList.length > 0) {
+      const formatted = pList.map(formatTask);
+      pendingTasks.value = formatted;
+      setCachedData("WF_PENDING", formatted);
+    }
+    if (Array.isArray(mList) && mList.length > 0) {
+      const formatted = mList.map(formatTask);
+      myInstances.value = formatted;
+      setCachedData("WF_MY", formatted);
+    }
+    if (Array.isArray(cList) && cList.length > 0) {
+      const formatted = cList.map(formatTask);
+      completedTasks.value = formatted;
+      setCachedData("WF_COMPLETED", formatted);
+    }
   } finally {
     loading.value = false;
     uni.stopPullDownRefresh();
   }
 }
+
+onMounted(() => {
+  loadData(true);
+});
+
+onShow(() => {
+  loadData(true);
+});
 
 onPullDownRefresh(() => {
   loadData(true);

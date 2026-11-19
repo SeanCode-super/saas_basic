@@ -107,6 +107,22 @@ const customerPoolFilter = ref<number>(0); // 0: 我的客户, 1: 公海池
 const customerSearch = ref("");
 const customerLevelFilter = ref("");
 const customerDialogVisible = ref(false);
+const industryMap: Record<string, string> = {
+  NEW_ENERGY: "新能源动力科技",
+  INTERNET: "互联网/信息技术",
+  MANUFACTURING: "高端智能装备制造",
+  SUPPLY_CHAIN: "现代数智供应链",
+  TELECOM: "通信与数字网络",
+  FINANCE: "金融科技与服务",
+  HEALTHCARE: "医疗健康与生物",
+  DEFAULT: "软件与信息技术"
+};
+
+function formatIndustry(val?: string) {
+  if (!val || val === "DEFAULT") return "软件与信息技术";
+  return industryMap[val.toUpperCase()] || val;
+}
+
 const customerForm = reactive({
   name: "",
   industry: "互联网高科技",
@@ -743,7 +759,11 @@ onMounted(() => {
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="industry" label="所属行业" min-width="136" show-overflow-tooltip />
+            <el-table-column prop="industry" label="所属行业" min-width="136" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span>{{ formatIndustry(row.industry) }}</span>
+              </template>
+            </el-table-column>
             <el-table-column prop="mobile" label="联系电话" width="122" />
             <el-table-column prop="dealStatus" label="成交状态" width="90" align="center">
               <template #default="{ row }">

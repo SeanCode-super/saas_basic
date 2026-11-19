@@ -132,10 +132,12 @@ import AppSkeleton from "../../components/ui/AppSkeleton.vue";
 import AppEmpty from "../../components/ui/AppEmpty.vue";
 import AppModal from "../../components/ui/AppModal.vue";
 import { apiGetMyNotifications, apiMarkNotificationRead } from "../../api/notify";
+import { getCachedData, setCachedData, WARM_NOTIFY } from "../../utils/warm-cache";
 
 const activeCategory = ref("ALL");
 const loading = ref(false);
-const messages = ref<any[]>([]);
+// 核心优化：温热数据首帧挂载，进入通知中心瞬间呈现，杜绝骨架屏闪烁
+const messages = ref<any[]>(getCachedData("NOTIFY", WARM_NOTIFY));
 
 const detailVisible = ref(false);
 const selectedMsg = ref<any | null>(null);
@@ -186,41 +188,21 @@ function getModalActionText(cat?: string) {
 }
 
 async function loadData(silent = false) {
-  if (!silent) loading.value = true;
+  if (!silent && messages.value.length === 0) {
+    loading.value = true;
+  }
   try {
     const list = await apiGetMyNotifications();
-    messages.value = (Array.isArray(list) ? list : []).map((m: any) => ({
-      ...m,
-      read: m.read ?? (m.readStatus === 1),
-      createdAt: m.createdAt ? String(m.createdAt).replace("T", " ").substring(0, 16) : "刚刚"
-    }));
+    if (Array.isArray(list) && list.length > 0) {
+      const mapped = list.map((m: any) => ({
+        ...m,
+        read: m.read ?? (m.readStatus === 1),
+        createdAt: m.createdAt ? String(m.createdAt).replace("T", " ").substring(0, 16) : "刚刚"
+      }));
+      messages.value = mapped;
+      setCachedData("NOTIFY", mapped);
+    }
   } catch {
-    messages.value = [
-      {
-        id: 1,
-        title: "您有一条新的差旅费用报销待审批",
-        content: "商务部张敏提交了【华东重点客户拓展差旅交通费用报销申请】，请及时审批办理。",
-        category: "WORKFLOW",
-        read: false,
-        createdAt: "10分钟前"
-      },
-      {
-        id: 2,
-        title: "账号登录安全提醒",
-        content: "检测到管理员账号在新的设备成功登录，会话审计与安全校验已留痕。",
-        category: "SECURITY",
-        read: true,
-        createdAt: "2小时前"
-      },
-      {
-        id: 3,
-        title: "企业协同平台维护升级公告",
-        content: "全平台协同办公与移动端服务已完成平滑优化升级，各项业务功能保持正常运行。",
-        category: "SYSTEM",
-        read: true,
-        createdAt: "昨天"
-      }
-    ];
   } finally {
     loading.value = false;
     uni.stopPullDownRefresh();
