@@ -235,11 +235,33 @@ async function submitPassword() {
   background: #ffffff;
   border: 1px solid #cbd5e1;
   border-radius: 12px;
-  padding: 11px 14px;
-  font-size: 13.5px;
+  height: 44px;
+  line-height: 44px;
+  padding: 0 14px;
+  font-size: 14px;
   color: #0f172a;
   box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.03);
+  box-sizing: border-box;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.glass-input input,
+.glass-input :deep(input),
+.glass-input :deep(.uni-input-input) {
+  height: 44px !important;
+  line-height: 44px !important;
+  font-size: 14px !important;
+  color: #0f172a !important;
+  display: block !important;
+  opacity: 1 !important;
+}
+
+.glass-input :deep(.uni-input-placeholder),
+.glass-input .uni-input-placeholder,
+.glass-input .input-placeholder {
+  color: #94a3b8 !important;
+  font-size: 13.5px !important;
+  line-height: 44px !important;
 }
 
 .glass-input:focus {

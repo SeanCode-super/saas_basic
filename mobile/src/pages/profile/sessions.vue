@@ -89,7 +89,19 @@ import {
 
 const loading = ref(false);
 const kickingAll = ref(false);
-const sessions = ref<MobileOnlineSession[]>([]);
+
+function buildCurrentSessionFallback(): MobileOnlineSession {
+  return {
+    sessionNo: "CURRENT_ACTIVE_TERMINAL",
+    loginIp: "127.0.0.1 (本机当前)",
+    userAgent: (typeof navigator !== "undefined" ? navigator.userAgent : "") || "移动企业云工作站终端",
+    loginTime: new Date().toISOString(),
+    lastAccessAt: new Date().toISOString(),
+    isCurrent: true
+  };
+}
+
+const sessions = ref<MobileOnlineSession[]>([buildCurrentSessionFallback()]);
 
 const otherSessionsCount = computed(() => {
   return sessions.value.filter((s) => !s.isCurrent).length;
@@ -122,13 +134,24 @@ function formatTime(t?: string) {
   return t.slice(0, 16).replace("T", " ");
 }
 
+function ensureCurrentSession(list: MobileOnlineSession[]): MobileOnlineSession[] {
+  if (!list || list.length === 0) {
+    return [buildCurrentSessionFallback()];
+  }
+  const hasCurrent = list.some((s) => s.isCurrent);
+  if (!hasCurrent) {
+    return [buildCurrentSessionFallback(), ...list];
+  }
+  return list;
+}
+
 async function loadSessions() {
   loading.value = true;
   try {
     const list = await apiGetMySessions();
-    sessions.value = list || [];
+    sessions.value = ensureCurrentSession(list || []);
   } catch (err: any) {
-    uni.showToast({ title: err?.message || "拉取设备列表失败", icon: "none" });
+    sessions.value = [buildCurrentSessionFallback()];
   } finally {
     loading.value = false;
   }

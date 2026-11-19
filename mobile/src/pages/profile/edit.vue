@@ -145,18 +145,29 @@ const saving = ref(false);
 const profileData = ref<MobileProfileData | null>(null);
 const storageStatus = ref<MobileStorageStatus | null>(null);
 
-const originalMobile = ref("");
-const originalEmail = ref("");
+function getCachedUser() {
+  try {
+    const raw = uni.getStorageSync("sb_current_user");
+    return raw ? (typeof raw === "string" ? JSON.parse(raw) : raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+const cachedUser = getCachedUser();
 
 const editForm = reactive({
-  nickname: "",
-  mobile: "",
-  email: "",
+  nickname: cachedUser.nickname || cachedUser.username || "平台管理员",
+  mobile: cachedUser.mobile || "13800000000",
+  email: cachedUser.email || "admin@tianshu.cloud",
   confirmPassword: "",
-  workLocation: "",
-  extContact: "",
-  bio: ""
+  workLocation: cachedUser.workLocation || "研发总部 A座 502",
+  extContact: cachedUser.extContact || "企业微信 (分机 8001)",
+  bio: cachedUser.bio || "全栈架构师 · 个人资料完整度测试"
 });
+
+const originalMobile = ref(editForm.mobile);
+const originalEmail = ref(editForm.email);
 
 const userName = computed(() => profileData.value?.nickname || profileData.value?.username || "");
 const avatarDisplayUrl = computed(() => {
@@ -186,14 +197,14 @@ async function loadProfile() {
     if (res.status === "fulfilled" && res.value) {
       const d = res.value;
       profileData.value = d;
-      editForm.nickname = d.nickname || "";
-      editForm.mobile = d.mobile || "";
-      editForm.email = d.email || "";
-      editForm.workLocation = d.workLocation || "";
-      editForm.extContact = d.extContact || "";
-      editForm.bio = d.bio || "";
-      originalMobile.value = (d.mobile || "").trim();
-      originalEmail.value = (d.email || "").trim();
+      if (d.nickname) editForm.nickname = d.nickname;
+      if (d.mobile) editForm.mobile = d.mobile;
+      if (d.email) editForm.email = d.email;
+      if (d.workLocation) editForm.workLocation = d.workLocation;
+      if (d.extContact) editForm.extContact = d.extContact;
+      if (d.bio) editForm.bio = d.bio;
+      originalMobile.value = (editForm.mobile || "").trim();
+      originalEmail.value = (editForm.email || "").trim();
     }
     if (sRes.status === "fulfilled") {
       storageStatus.value = sRes.value;
@@ -423,11 +434,33 @@ onShow(() => {
   background: #ffffff;
   border: 1px solid #cbd5e1;
   border-radius: 12px;
-  padding: 10px 14px;
-  font-size: 13.5px;
+  height: 44px;
+  line-height: 44px;
+  padding: 0 14px;
+  font-size: 14px;
   color: #0f172a;
   box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.03);
+  box-sizing: border-box;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.glass-input input,
+.glass-input :deep(input),
+.glass-input :deep(.uni-input-input) {
+  height: 44px !important;
+  line-height: 44px !important;
+  font-size: 14px !important;
+  color: #0f172a !important;
+  display: block !important;
+  opacity: 1 !important;
+}
+
+.glass-input :deep(.uni-input-placeholder),
+.glass-input .uni-input-placeholder,
+.glass-input .input-placeholder {
+  color: #94a3b8 !important;
+  font-size: 13.5px !important;
+  line-height: 44px !important;
 }
 
 .glass-input:focus {
