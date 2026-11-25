@@ -1,7 +1,13 @@
 package com.saasbasics.platform.modules.tenant.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.fasterxml.jackson.core.type.TypeReference;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
+import java.util.ArrayList;
+import java.security.DigestOutputStream;
+import org.springframework.util.StreamUtils;
+import org.springframework.transaction.annotation.Isolation;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -22,10 +28,7 @@ import com.saasbasics.platform.modules.tenant.mapper.PlatTenantMeteringMapper;
 import com.saasbasics.platform.modules.tenant.mapper.TenantMapper;
 import com.saasbasics.platform.modules.tenant.mapper.TenantQuotaMapper;
 import com.saasbasics.platform.modules.tenant.mapper.TenantSnapshotRecordMapper;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -37,71 +40,45 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
  * 租户计量计费与灾备快照服务：
- * 基于真实业务库统计 API 调用、文件存储与活跃席位，支持标准多表 ZIP 快照导出、SHA-256 完整性校验与还原核验。
+ * 基于真实业务库统计 API 调用、文件存储与活跃席位，支持快照校验和租户业务表事务恢复。
  */
 @Service
 public class TenantMeteringService {
 
-    private static final Logger log = LoggerFactory.getLogger(TenantMeteringService.class);
-    private static final List<String> SNAPSHOT_TABLES = List.of(
-            "plat_tenant",
-            "iam_user",
-            "iam_role",
-            "iam_department",
-            "iam_employee",
-            "sys_config",
-            "sys_dict_type",
-            "plat_tenant_quota",
-            "plat_tenant_bill",
-            "plat_tenant_metering_log"
-    );
-
+    private static final String FORMAT = "TianshuSaaS-Tenant-DR-Zip-v3";
     private final PlatTenantMeteringMapper meteringMapper;
     private final PlatTenantBillMapper billMapper;
     private final TenantMapper tenantMapper;
-    private final ObjectProvider<TenantQuotaMapper> quotaMapperProvider;
-    private final ObjectProvider<TenantSnapshotRecordMapper> snapshotRecordMapperProvider;
-    private final ObjectProvider<JdbcTemplate> jdbcTemplateProvider;
+    private final TenantQuotaMapper quotaMapper;
+    private final TenantSnapshotRecordMapper snapshotRecords;
+    private final TenantBusinessSnapshot business;
     private final ObjectMapper objectMapper;
     private final Path snapshotRootDir;
 
     public TenantMeteringService(
             PlatTenantMeteringMapper meteringMapper,
             PlatTenantBillMapper billMapper,
-            TenantMapper tenantMapper) {
-        this(meteringMapper, billMapper, tenantMapper, null, null, null, null);
-    }
-
-    @Autowired
-    public TenantMeteringService(
-            PlatTenantMeteringMapper meteringMapper,
-            PlatTenantBillMapper billMapper,
             TenantMapper tenantMapper,
-            ObjectProvider<TenantQuotaMapper> quotaMapperProvider,
-            ObjectProvider<TenantSnapshotRecordMapper> snapshotRecordMapperProvider,
-            ObjectProvider<JdbcTemplate> jdbcTemplateProvider,
+            TenantQuotaMapper quotaMapper,
+            TenantSnapshotRecordMapper snapshotRecords,
+            TenantBusinessSnapshot business,
             ObjectMapper objectMapper) {
         this.meteringMapper = meteringMapper;
         this.billMapper = billMapper;
         this.tenantMapper = tenantMapper;
-        this.quotaMapperProvider = quotaMapperProvider;
-        this.snapshotRecordMapperProvider = snapshotRecordMapperProvider;
-        this.jdbcTemplateProvider = jdbcTemplateProvider;
-        this.objectMapper = (objectMapper != null ? objectMapper : new ObjectMapper())
+        this.quotaMapper = quotaMapper;
+        this.snapshotRecords = snapshotRecords;
+        this.business = business;
+        this.objectMapper = objectMapper
                 .copy()
+                .setSerializationInclusion(JsonInclude.Include.ALWAYS)
                 .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         this.snapshotRootDir = Path.of(System.getProperty("java.io.tmpdir"), "saas-basics-snapshots");
     }
@@ -109,40 +86,27 @@ public class TenantMeteringService {
     public TenantMeteringSummaryResponse getSummary() {
         Long tenantId = getTenantId();
 
-        int activeSeats = (int) safeCount("SELECT COUNT(*) FROM iam_user WHERE tenant_id = ?", tenantId, 1L);
-        long storageUsed = safeCount("SELECT COALESCE(SUM(file_size), 0) FROM file_object WHERE tenant_id = ?", tenantId, 0L);
-        long auditCalls = safeCount("SELECT COUNT(*) FROM audit_operation_log WHERE tenant_id = ?", tenantId, 0L);
-        long todayAuditCalls = safeCount(
-                "SELECT COUNT(*) FROM audit_operation_log WHERE tenant_id = ? AND created_at >= CURDATE()",
-                tenantId,
-                0L
-        );
-
-        Long loggedTotalCalls = queryLoggedMetricSum(tenantId, "API_CALL", false);
-        Long loggedTodayCalls = queryLoggedMetricSum(tenantId, "API_CALL", true);
+        int activeSeats = meteringMapper.countActiveSeats(tenantId);
+        long storageUsed = meteringMapper.sumStorageUsed(tenantId);
+        long auditCalls = meteringMapper.countAuditCalls(tenantId);
+        long todayAuditCalls = meteringMapper.countTodayAuditCalls(tenantId);
+        long loggedTotalCalls = meteringMapper.sumUsage(tenantId, "API_CALL", false);
+        long loggedTodayCalls = meteringMapper.sumUsage(tenantId, "API_CALL", true);
 
         long totalCalls = Math.max(auditCalls, loggedTotalCalls);
         long todayCalls = Math.max(todayAuditCalls, loggedTodayCalls);
 
-        int seatQuota = 100;
-        long storageQuota = 10_737_418_240L; // 10 GB default
-        TenantQuotaMapper quotaMapper = quotaMapperProvider != null ? quotaMapperProvider.getIfAvailable() : null;
-        if (quotaMapper != null) {
-            List<TenantQuotaEntity> quotas = quotaMapper.selectList(new LambdaQueryWrapper<TenantQuotaEntity>()
-                    .eq(TenantQuotaEntity::getTenantId, tenantId));
-            for (TenantQuotaEntity q : quotas) {
-                String code = q.getQuotaCode() != null ? q.getQuotaCode().toUpperCase() : "";
-                if (code.contains("USER") || code.contains("SEAT")) {
-                    if (q.getQuotaValue() != null && q.getQuotaValue() > 0) {
-                        seatQuota = q.getQuotaValue().intValue();
-                    }
-                } else if (code.contains("STORAGE") || code.contains("DISK") || code.contains("FILE")) {
-                    if (q.getQuotaValue() != null && q.getQuotaValue() > 0) {
-                        storageQuota = q.getQuotaValue() * 1024L * 1024L;
-                    }
-                }
-            }
+        Map<String, Long> limits = new LinkedHashMap<>();
+        for (var quota : quotaMapper.selectList(new LambdaQueryWrapper<TenantQuotaEntity>()
+                .eq(TenantQuotaEntity::getTenantId, tenantId)
+                .in(TenantQuotaEntity::getQuotaCode, "USER_COUNT", "STORAGE_MB"))) {
+            limits.put(quota.getQuotaCode(), quota.getQuotaValue());
         }
+        if (limits.get("USER_COUNT") == null || limits.get("STORAGE_MB") == null) {
+            throw new BizException("TENANT_QUOTA_NOT_CONFIGURED", "租户的账号席位或文件存储配额尚未配置");
+        }
+        int seatQuota = Math.toIntExact(limits.get("USER_COUNT"));
+        long storageQuota = Math.multiplyExact(limits.get("STORAGE_MB"), 1024L * 1024L);
 
         double estCost = Math.round((activeSeats * 29.0 + (storageUsed / 1_073_741_824.0) * 1.5 + totalCalls * 0.002) * 100.0) / 100.0;
 
@@ -151,9 +115,9 @@ public class TenantMeteringService {
                 totalCalls,
                 todayCalls,
                 storageUsed,
-                Math.max(storageQuota, storageUsed),
+                storageQuota,
                 activeSeats,
-                Math.max(seatQuota, activeSeats),
+                seatQuota,
                 estCost
         );
     }
@@ -183,7 +147,9 @@ public class TenantMeteringService {
     @Transactional(rollbackFor = Exception.class)
     public void recordUsage(Long tenantId, String type, long value) {
         PlatTenantMeteringEntity entity = new PlatTenantMeteringEntity();
-        entity.setTenantId(tenantId != null ? tenantId : getTenantId());
+        long current = getTenantId();
+        if (tenantId != null && tenantId != current) throw new BizException("TENANT_ACCESS_DENIED", "无权为其他租户写入用量");
+        entity.setTenantId(current);
         entity.setMeteringType(type != null ? type.toUpperCase() : "API_CALL");
         entity.setMetricValue(value);
         entity.setRecordTime(LocalDateTime.now());
@@ -191,16 +157,13 @@ public class TenantMeteringService {
         meteringMapper.insert(entity);
     }
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.REPEATABLE_READ)
     public TenantSnapshotResponse generateTenantSnapshot(Long tenantId) {
-        Long currentTenantId = getTenantId();
+        AuthPrincipal principal = requiredPrincipal();
+        Long currentTenantId = principal.tenantId();
         Long effectiveTenantId = tenantId != null ? tenantId : currentTenantId;
-        AuthPrincipal principal = AuthContext.get();
-        if (principal != null) {
-            boolean isPlatformSuperAdmin = principal.isSuperAdmin() && "PLATFORM".equalsIgnoreCase(principal.userType());
-            if (tenantId != null && !tenantId.equals(principal.tenantId()) && !isPlatformSuperAdmin) {
-                throw new BizException("TENANT_ACCESS_DENIED", "无权跨租户导出灾备快照");
-            }
+        if (tenantId != null && !tenantId.equals(currentTenantId) && !isPlatformAdministrator(principal)) {
+            throw new BizException("TENANT_ACCESS_DENIED", "无权跨租户导出灾备快照");
         }
         TenantEntity tenant = tenantMapper.selectById(effectiveTenantId);
         if (tenant == null) {
@@ -213,24 +176,28 @@ public class TenantMeteringService {
         Map<String, Long> entityCounts = new LinkedHashMap<>();
         Map<String, String> tableHashes = new LinkedHashMap<>();
 
-        byte[] zipBytes;
+        Path targetPath = resolveSafeSnapshotPath(fileName);
         try {
             Files.createDirectories(snapshotRootDir);
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            try (ZipOutputStream zos = new ZipOutputStream(baos, StandardCharsets.UTF_8)) {
-                for (String table : SNAPSHOT_TABLES) {
-                    List<Map<String, Object>> rows = exportTableRows(table, effectiveTenantId);
-                    entityCounts.put(table, (long) rows.size());
-                    byte[] tableJson = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(rows);
-                    tableHashes.put(table, sha256Hex(tableJson));
-
+            try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(targetPath), StandardCharsets.UTF_8)) {
+                var budget = new TenantSnapshotArchive.Budget();
+                var schema = business.schema(effectiveTenantId);
+                List<String> tables = new ArrayList<>(TenantBusinessSnapshot.BASE_TABLES);
+                tables.addAll(schema.keySet());
+                for (String table : tables) {
                     zos.putNextEntry(new ZipEntry("tables/" + table + ".json"));
-                    zos.write(tableJson);
+                    MessageDigest hash = MessageDigest.getInstance("SHA-256");
+                    var sink = new DigestOutputStream(budget.limit(StreamUtils.nonClosing(zos)), hash);
+                    try (var json = objectMapper.createGenerator(sink)) {
+                        entityCounts.put(table, business.exportRows(table, schema.get(table), effectiveTenantId, json));
+                    }
+                    tableHashes.put(table, HexFormat.of().formatHex(hash.digest()));
                     zos.closeEntry();
                 }
 
                 Map<String, Object> manifest = new LinkedHashMap<>();
-                manifest.put("format", "TianshuSaaS-Tenant-DR-Zip-v2");
+                manifest.put("format", FORMAT);
+                manifest.put("businessSchema", schema);
                 manifest.put("snapshotId", snapshotId);
                 manifest.put("tenantId", effectiveTenantId);
                 manifest.put("tenantCode", tenantCode);
@@ -240,103 +207,92 @@ public class TenantMeteringService {
 
                 byte[] manifestBytes = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(manifest);
                 zos.putNextEntry(new ZipEntry("manifest.json"));
-                zos.write(manifestBytes);
+                budget.limit(zos).write(manifestBytes);
                 zos.closeEntry();
             }
-            zipBytes = baos.toByteArray();
-            Path targetPath = resolveSafeSnapshotPath(fileName);
-            Files.write(targetPath, zipBytes);
-
-            String archiveChecksum = sha256Hex(zipBytes);
+            long fileSize = Files.size(targetPath);
+            if (fileSize > TenantSnapshotArchive.MAX_BYTES) throw TenantBusinessSnapshot.invalid("快照文件超出 500 MB");
+            String archiveChecksum = TenantSnapshotArchive.sha256(Files.newInputStream(targetPath));
             LocalDateTime now = LocalDateTime.now();
 
-            TenantSnapshotRecordMapper recMapper = snapshotRecordMapperProvider != null
-                    ? snapshotRecordMapperProvider.getIfAvailable()
-                    : null;
-            if (recMapper != null) {
-                TenantSnapshotRecordEntity record = new TenantSnapshotRecordEntity();
-                record.setTenantId(effectiveTenantId);
-                record.setSnapshotId(snapshotId);
-                record.setTenantCode(tenantCode);
-                record.setFileName(fileName);
-                record.setFileSizeBytes((long) zipBytes.length);
-                record.setChecksumSha256(archiveChecksum);
-                record.setStoragePath(targetPath.toAbsolutePath().toString());
-                record.setTableCountsJson(objectMapper.writeValueAsString(entityCounts));
-                record.setStatus("COMPLETED");
-                AuthPrincipal p = AuthContext.get();
-                record.setCreatedBy(p != null && p.username() != null ? p.username() : "system");
-                record.setCreatedAt(now);
-                recMapper.insert(record);
-            }
+            TenantSnapshotRecordEntity record = new TenantSnapshotRecordEntity();
+            record.setTenantId(effectiveTenantId);
+            record.setSnapshotId(snapshotId);
+            record.setTenantCode(tenantCode);
+            record.setFileName(fileName);
+            record.setFileSizeBytes(fileSize);
+            record.setChecksumSha256(archiveChecksum);
+            record.setStoragePath(targetPath.toAbsolutePath().toString());
+            record.setTableCountsJson(objectMapper.writeValueAsString(entityCounts));
+            record.setStatus("COMPLETED");
+            record.setCreatedBy(principal.username());
+            record.setCreatedAt(now);
+            snapshotRecords.insert(record);
 
             return new TenantSnapshotResponse(
                     effectiveTenantId,
                     tenantCode,
                     snapshotId,
                     archiveChecksum,
-                    (long) zipBytes.length,
+                    fileSize,
                     entityCounts,
                     now,
                     "/api/tenant/snapshot/download/" + snapshotId
             );
-        } catch (BizException ex) {
-            throw ex;
         } catch (Exception ex) {
+            try { Files.deleteIfExists(targetPath); } catch (IOException cleanup) { ex.addSuppressed(cleanup); }
+            if (ex instanceof BizException biz) throw biz;
             throw new BizException("SNAPSHOT_EXPORT_FAILED", "生成租户灾备归档失败: " + ex.getMessage());
         }
     }
 
-    public byte[] loadSnapshotArchive(String snapshotId) {
+    public Resource snapshotResource(String snapshotId) {
         if (snapshotId == null || !snapshotId.matches("^[A-Za-z0-9_-]{4,80}$")) {
             throw new BizException("INVALID_SNAPSHOT_ID", "非法的快照编号格式");
         }
-        Long currentTenantId = getTenantId();
-        AuthPrincipal principal = AuthContext.get();
-        TenantSnapshotRecordMapper recMapper = snapshotRecordMapperProvider != null
-                ? snapshotRecordMapperProvider.getIfAvailable()
-                : null;
+        AuthPrincipal principal = requiredPrincipal();
         Path targetPath = resolveSafeSnapshotPath(snapshotId + ".zip");
-        if (recMapper != null) {
-            TenantSnapshotRecordEntity record = recMapper.selectOne(new LambdaQueryWrapper<TenantSnapshotRecordEntity>()
-                    .eq(TenantSnapshotRecordEntity::getSnapshotId, snapshotId)
-                    .last("LIMIT 1"));
-            if (record == null) {
-                throw new BizException("SNAPSHOT_NOT_FOUND", "灾备快照记录不存在: " + snapshotId);
-            }
-            if (principal != null) {
-                boolean isPlatformSuperAdmin = principal.isSuperAdmin() && "PLATFORM".equalsIgnoreCase(principal.userType());
-                if (!isPlatformSuperAdmin && !record.getTenantId().equals(principal.tenantId())) {
-                    throw new BizException("TENANT_ACCESS_DENIED", "无权下载其他租户的灾备快照");
-                }
-            }
-            if (record.getStoragePath() != null) {
-                Path dbPath = Path.of(record.getStoragePath()).normalize();
-                if (dbPath.startsWith(snapshotRootDir.normalize()) && Files.exists(dbPath)) {
-                    targetPath = dbPath;
-                }
+        TenantSnapshotRecordEntity record = snapshotRecords.selectOne(new LambdaQueryWrapper<TenantSnapshotRecordEntity>()
+                .eq(TenantSnapshotRecordEntity::getSnapshotId, snapshotId)
+                .last("LIMIT 1"));
+        if (record == null) {
+            throw new BizException("SNAPSHOT_NOT_FOUND", "灾备快照记录不存在: " + snapshotId);
+        }
+        if (!record.getTenantId().equals(principal.tenantId()) && !isPlatformAdministrator(principal)) {
+            throw new BizException("TENANT_ACCESS_DENIED", "无权下载其他租户的灾备快照");
+        }
+        if (record.getStoragePath() != null) {
+            Path dbPath = Path.of(record.getStoragePath()).normalize();
+            if (dbPath.startsWith(snapshotRootDir.normalize()) && Files.exists(dbPath)) {
+                targetPath = dbPath;
             }
         }
         if (!Files.exists(targetPath)) {
             throw new BizException("SNAPSHOT_NOT_FOUND", "灾备快照文件不存在或已清理: " + snapshotId);
         }
-        try {
-            return Files.readAllBytes(targetPath);
+        return new FileSystemResource(targetPath);
+    }
+
+    public byte[] loadSnapshotArchive(String snapshotId) {
+        try (var in = snapshotResource(snapshotId).getInputStream()) {
+            return in.readAllBytes();
         } catch (IOException ex) {
-            throw new BizException("SNAPSHOT_READ_FAILED", "读取快照文件失败: " + ex.getMessage());
+            throw new BizException("SNAPSHOT_READ_FAILED", "读取归档失败：" + ex.getMessage());
         }
     }
 
     @Transactional(rollbackFor = Exception.class)
     public TenantSnapshotRestoreResponse restoreTenantSnapshot(MultipartFile file, Long targetTenantId) {
-        Long currentTenantId = getTenantId();
+        return restoreTenantSnapshot(file, targetTenantId, false);
+    }
+
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.REPEATABLE_READ)
+    public TenantSnapshotRestoreResponse restoreTenantSnapshot(MultipartFile file, Long targetTenantId, boolean apply) {
+        AuthPrincipal principal = requiredPrincipal();
+        Long currentTenantId = principal.tenantId();
         Long tenantId = targetTenantId != null ? targetTenantId : currentTenantId;
-        AuthPrincipal principal = AuthContext.get();
-        if (principal != null) {
-            boolean isPlatformSuperAdmin = principal.isSuperAdmin() && "PLATFORM".equalsIgnoreCase(principal.userType());
-            if (targetTenantId != null && !targetTenantId.equals(principal.tenantId()) && !isPlatformSuperAdmin) {
-                throw new BizException("TENANT_ACCESS_DENIED", "无权跨租户恢复灾备快照");
-            }
+        if (targetTenantId != null && !targetTenantId.equals(currentTenantId) && !isPlatformAdministrator(principal)) {
+            throw new BizException("TENANT_ACCESS_DENIED", "无权跨租户恢复灾备快照");
         }
         TenantEntity tenant = tenantMapper.selectById(tenantId);
         if (tenant == null) {
@@ -349,67 +305,80 @@ public class TenantMeteringService {
         if (filename == null || (!filename.endsWith(".json") && !filename.endsWith(".zip"))) {
             throw new BizException("INVALID_FILE_TYPE", "仅支持平台导出的 .zip 或 .json 灾备归档文件");
         }
-        if (file.getSize() > 500L * 1024 * 1024) {
-            throw new BizException("FILE_TOO_LARGE", "快照文件超出 500MB 限制");
+        if (file.getSize() > TenantSnapshotArchive.MAX_BYTES) {
+            throw new BizException("FILE_TOO_LARGE", "快照文件超出 500 MB 限制");
         }
 
         try {
-            byte[] bytes = file.getBytes();
             Map<String, Long> restoredCounts = new LinkedHashMap<>();
             String snapshotId = filename.replaceAll("\\.[^.]+$", "");
 
             if (filename.endsWith(".zip")) {
-                Map<String, byte[]> entries = new LinkedHashMap<>();
-                try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(bytes), StandardCharsets.UTF_8)) {
-                    ZipEntry entry;
-                    while ((entry = zis.getNextEntry()) != null) {
-                        if (entry.getName().contains("..")) {
-                            throw new BizException("SNAPSHOT_UNSAFE_ENTRY", "检测到非法压缩路径，已拒绝恢复");
+                try (var archive = new TenantSnapshotArchive()) {
+                    archive.unpack(file.getInputStream());
+                    Map<String, Path> entries = archive.entries;
+                    Path manifestFile = entries.remove("manifest.json");
+                    if (manifestFile == null) throw TenantBusinessSnapshot.invalid("归档缺少 manifest.json");
+                    JsonNode manifest = objectMapper.readTree(manifestFile.toFile());
+                    snapshotId = manifest.path("snapshotId").asText();
+                    if (snapshotId.isBlank() || !tenant.getTenantCode().equals(manifest.path("tenantCode").asText())
+                            || tenantId != manifest.path("tenantId").asLong(-1)) {
+                        throw TenantBusinessSnapshot.invalid("归档与当前租户不匹配");
+                    }
+                    JsonNode hashes = manifest.path("tableChecksums");
+                    JsonNode counts = manifest.path("entityCounts");
+                    if (!hashes.isObject() || hashes.isEmpty() || entries.size() != hashes.size() || counts.size() != hashes.size()) {
+                        throw TenantBusinessSnapshot.invalid("归档表清单不完整");
+                    }
+                    if (apply) {
+                        if (!FORMAT.equals(manifest.path("format").asText())) throw TenantBusinessSnapshot.invalid("旧版归档仅支持校验");
+                        verifyRegisteredArchive(tenantId, snapshotId, TenantSnapshotArchive.sha256(file.getInputStream()));
+                        tenantMapper.selectOne(new LambdaQueryWrapper<TenantEntity>()
+                                .eq(TenantEntity::getId, tenantId)
+                                .last("FOR UPDATE"));
+                    }
+                    var schema = apply ? business.schema(tenantId) : Map.<String, List<TenantBusinessSnapshot.Column>>of();
+                    JsonNode archivedSchema = manifest.path("businessSchema");
+                    if (apply) {
+                        if (!archivedSchema.isObject() || archivedSchema.isEmpty()) throw TenantBusinessSnapshot.invalid("归档没有可恢复的业务表");
+                        Map<String, List<TenantBusinessSnapshot.Column>> selected = new LinkedHashMap<>();
+                        for (var it = archivedSchema.fieldNames(); it.hasNext();) {
+                            String name = it.next();
+                            if (!hashes.has(name) || !schema.containsKey(name) || !archivedSchema.get(name).equals(objectMapper.valueToTree(schema.get(name)))) {
+                                throw TenantBusinessSnapshot.invalid("业务表结构已变化或缺失：" + name);
+                            }
+                            selected.put(name, schema.get(name));
                         }
-                        if (!entry.isDirectory()) {
-                            entries.put(entry.getName(), zis.readAllBytes());
+                        business.checkRestoreTables(selected);
+                    }
+                    for (var it = hashes.fieldNames(); it.hasNext();) {
+                        String table = it.next();
+                        Path entry = entries.get("tables/" + table + ".json");
+                        if (entry == null || !TenantSnapshotArchive.sha256(Files.newInputStream(entry)).equals(hashes.get(table).asText())) {
+                            throw TenantBusinessSnapshot.invalid("归档表校验失败：" + table);
                         }
-                        zis.closeEntry();
+                        boolean write = apply && archivedSchema.has(table);
+                        long count;
+                        try (var input = objectMapper.createParser(entry.toFile())) {
+                            count = write ? business.replace(table, schema.get(table), input, objectMapper, tenantId)
+                                    : TenantBusinessSnapshot.readRows(input, objectMapper, null);
+                        }
+                        if (count != counts.path(table).asLong(-1)) throw TenantBusinessSnapshot.invalid("归档表行数不匹配：" + table);
+                        if (!apply || write) restoredCounts.put(table, count);
                     }
-                }
-                byte[] manifestBytes = entries.get("manifest.json");
-                if (manifestBytes == null) {
-                    throw new BizException("SNAPSHOT_MANIFEST_MISSING", "归档缺少 manifest.json 清单，无法通过校验");
-                }
-                JsonNode manifest = objectMapper.readTree(manifestBytes);
-                snapshotId = manifest.path("snapshotId").asText(snapshotId);
-                String manifestTenantCode = manifest.path("tenantCode").asText("");
-                if (!manifestTenantCode.isBlank() && !manifestTenantCode.equalsIgnoreCase(tenant.getTenantCode())) {
-                    throw new BizException("TENANT_SNAPSHOT_MISMATCH",
-                            "快照归属租户 (" + manifestTenantCode + ") 与目标租户 (" + tenant.getTenantCode() + ") 不匹配");
-                }
-
-                JsonNode checksumsNode = manifest.path("tableChecksums");
-                for (Map.Entry<String, byte[]> e : entries.entrySet()) {
-                    if (!e.getKey().startsWith("tables/") || !e.getKey().endsWith(".json")) {
-                        continue;
-                    }
-                    String table = e.getKey().substring("tables/".length(), e.getKey().length() - ".json".length());
-                    String expectedHash = checksumsNode.path(table).asText("");
-                    String actualHash = sha256Hex(e.getValue());
-                    if (!expectedHash.isBlank() && !expectedHash.equalsIgnoreCase(actualHash)) {
-                        throw new BizException("SNAPSHOT_CHECKSUM_MISMATCH",
-                                "数据表 " + table + " SHA-256 完整性校验失败，归档可能已损坏");
-                    }
-                    List<Map<String, Object>> tableRows = objectMapper.readValue(
-                            e.getValue(), new TypeReference<>() {});
-                    restoredCounts.put(table, (long) tableRows.size());
                 }
             } else {
-                JsonNode root = objectMapper.readTree(bytes);
-                if (root.has("snapshotId")) {
-                    snapshotId = root.get("snapshotId").asText(snapshotId);
+                if (apply) throw TenantBusinessSnapshot.invalid("JSON 清单仅支持核对记录数");
+                JsonNode root;
+                try (var in = file.getInputStream()) { root = objectMapper.readTree(in); }
+                JsonNode counts = root.path("entityCounts");
+                if (!counts.isObject() || counts.isEmpty() || !root.hasNonNull("snapshotId")) throw TenantBusinessSnapshot.invalid("无效的快照清单");
+                if ((root.has("tenantId") && root.path("tenantId").asLong(-1) != tenantId)
+                        || (root.has("tenantCode") && !tenant.getTenantCode().equals(root.path("tenantCode").asText()))) {
+                    throw TenantBusinessSnapshot.invalid("归档与当前租户不匹配");
                 }
-                if (root.has("entityCounts") && root.get("entityCounts").isObject()) {
-                    root.get("entityCounts").fields().forEachRemaining(f -> restoredCounts.put(f.getKey(), f.getValue().asLong()));
-                } else {
-                    restoredCounts.put("manifest", 1L);
-                }
+                snapshotId = root.get("snapshotId").asText();
+                counts.fields().forEachRemaining(e -> restoredCounts.put(e.getKey(), e.getValue().asLong()));
             }
 
             String restoreBatchNo = "RESTORE_" + System.currentTimeMillis() + "_" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
@@ -418,11 +387,10 @@ public class TenantMeteringService {
                     tenant.getTenantCode(),
                     snapshotId,
                     restoreBatchNo,
-                    "SUCCESS",
+                    apply ? "RESTORED" : "VALIDATED",
                     restoredCounts,
                     LocalDateTime.now(),
-                    "租户「" + tenant.getTenantName() + "」灾备归档已完成 SHA-256 签名核验与多表结构预检还原（共 "
-                            + restoredCounts.size() + " 张数据表）"
+                    apply ? "已恢复 " + restoredCounts.size() + " 张业务表" : "归档已校验，未写入数据"
             );
         } catch (BizException ex) {
             throw ex;
@@ -431,48 +399,11 @@ public class TenantMeteringService {
         }
     }
 
-    private List<Map<String, Object>> exportTableRows(String tableName, long tenantId) {
-        JdbcTemplate jdbc = jdbcTemplateProvider != null ? jdbcTemplateProvider.getIfAvailable() : null;
-        if (jdbc == null) {
-            return List.of();
-        }
-        String sql = "plat_tenant".equals(tableName)
-                ? "SELECT * FROM `plat_tenant` WHERE id = ?"
-                : "SELECT * FROM `" + tableName + "` WHERE tenant_id = ? LIMIT 5000";
-        try {
-            return jdbc.queryForList(sql, tenantId);
-        } catch (Exception ex) {
-            log.debug("[TenantSnapshot] 跳过表 {} 导出: {}", tableName, ex.getMessage());
-            return List.of();
-        }
-    }
-
-    private long safeCount(String sql, Long tenantId, long fallback) {
-        JdbcTemplate jdbc = jdbcTemplateProvider != null ? jdbcTemplateProvider.getIfAvailable() : null;
-        if (jdbc == null) {
-            return fallback;
-        }
-        try {
-            Long res = jdbc.queryForObject(sql, Long.class, tenantId);
-            return res != null ? res : 0L;
-        } catch (Exception ex) {
-            return fallback;
-        }
-    }
-
-    private long queryLoggedMetricSum(Long tenantId, String type, boolean todayOnly) {
-        try {
-            LambdaQueryWrapper<PlatTenantMeteringEntity> wrapper = new LambdaQueryWrapper<PlatTenantMeteringEntity>()
-                    .eq(PlatTenantMeteringEntity::getTenantId, tenantId)
-                    .eq(PlatTenantMeteringEntity::getMeteringType, type);
-            if (todayOnly) {
-                wrapper.ge(PlatTenantMeteringEntity::getRecordTime, LocalDateTime.now().toLocalDate().atStartOfDay());
-            }
-            return meteringMapper.selectList(wrapper).stream()
-                    .mapToLong(e -> e.getMetricValue() != null ? e.getMetricValue() : 0L)
-                    .sum();
-        } catch (Exception ex) {
-            return 0L;
+    private void verifyRegisteredArchive(long tenantId, String snapshotId, String checksum) throws Exception {
+        TenantSnapshotRecordEntity record = snapshotRecords.selectOne(new LambdaQueryWrapper<TenantSnapshotRecordEntity>()
+                .eq(TenantSnapshotRecordEntity::getTenantId, tenantId).eq(TenantSnapshotRecordEntity::getSnapshotId, snapshotId));
+        if (record == null || !checksum.equals(record.getChecksumSha256())) {
+            throw TenantBusinessSnapshot.invalid("归档与本租户的备份登记不一致");
         }
     }
 
@@ -485,13 +416,19 @@ public class TenantMeteringService {
         return resolved;
     }
 
-    private static String sha256Hex(byte[] data) throws Exception {
-        byte[] digest = MessageDigest.getInstance("SHA-256").digest(data);
-        return HexFormat.of().formatHex(digest);
+    private static boolean isPlatformAdministrator(AuthPrincipal principal) {
+        return principal.isPlatformTenant() && principal.isSuperAdmin() && "PLATFORM".equalsIgnoreCase(principal.userType());
     }
 
     private Long getTenantId() {
-        AuthPrincipal p = AuthContext.get();
-        return p != null && p.tenantId() != null ? p.tenantId() : 1L;
+        return requiredPrincipal().tenantId();
+    }
+
+    private AuthPrincipal requiredPrincipal() {
+        AuthPrincipal principal = AuthContext.get();
+        if (principal == null || principal.tenantId() == null) {
+            throw new BizException("AUTH_UNAUTHORIZED", "租户操作需要登录");
+        }
+        return principal;
     }
 }

@@ -39,7 +39,7 @@ class TenantAppServiceTest {
         appService = new TenantAppService(
                 beanFactory.getBeanProvider(TenantAppMapper.class),
                 featureProvider,
-                auditTrailService
+                auditTrailService, mock(ExtensionInstallations.class)
         );
     }
 

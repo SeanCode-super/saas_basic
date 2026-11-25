@@ -37,6 +37,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -201,8 +202,9 @@ public class FileController {
 
     @PostMapping("/upload-sessions")
     @RequirePermission("file:storage:write")
-    public ApiResponse<FileUploadSessionResponse> createUploadSession(@Valid @RequestBody FileUploadSessionCreateRequest request) {
-        return ApiResponse.success(fileUploadSessionService.createSession(request));
+    public ApiResponse<FileUploadSessionResponse> createUploadSession(@Valid @RequestBody FileUploadSessionCreateRequest request,
+            @RequestHeader(value = "Idempotency-Key", required = false) String requestKey) {
+        return ApiResponse.success(fileUploadSessionService.createSession(request, requestKey));
     }
 
     @PostMapping("/upload-sessions/{id}/complete")

@@ -1,0 +1,19 @@
+{
+  "code": "matrix_push",
+  "name": "矩阵发",
+  "description": "查看最近 20 条有权查看的发布任务及其进度和结果。",
+  "revision": 1,
+  "kind": "NATIVE",
+  "pc": true,
+  "mobile": true,
+  "columns": [
+    { "key": "task_no", "label": "任务编号", "type": "text", "required": true },
+    { "key": "title", "label": "发布标题", "type": "text", "required": false },
+    { "key": "status", "label": "发布状态", "type": "text", "required": true },
+    { "key": "progress", "label": "进度（%）", "type": "number", "required": false },
+    { "key": "finished_at", "label": "完成时间", "type": "text", "required": false }
+  ],
+  "actions": [
+    { "key": "query", "label": "查看发布结果", "fields": [] }
+  ]
+}

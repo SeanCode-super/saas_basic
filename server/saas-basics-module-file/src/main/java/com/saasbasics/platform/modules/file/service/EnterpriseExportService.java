@@ -44,8 +44,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.support.StaticListableBeanFactory;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -67,66 +65,45 @@ public class EnterpriseExportService {
     private final ExportDatasetCatalogService datasetCatalogService;
     private final ExportRendererService rendererService;
     private final FileClientFactory fileClientFactory;
+    private final PlatformFileStorageGatewayImpl exportStorage;
+    private final FileObjectService fileObjects;
+    private final FileStorageService storages;
     private final ObjectProvider<ExportTaskMapper> taskMapperProvider;
     private final ObjectProvider<ExportTemplateMapper> templateMapperProvider;
     private final ObjectProvider<ReportScheduleMapper> scheduleMapperProvider;
     private final ObjectProvider<AuditRecorder> auditRecorderProvider;
     private final ObjectProvider<PlatformWebSocketSessionManager> wsManagerProvider;
     private final ObjectProvider<DataPermissionProvider> dataPermissionProviderProvider;
-    private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
-
-    public EnterpriseExportService(
-            ExportDatasetCatalogService datasetCatalogService,
-            ExportRendererService rendererService,
-            FileClientFactory fileClientFactory,
-            ObjectProvider<ExportTaskMapper> taskMapperProvider,
-            ObjectProvider<ExportTemplateMapper> templateMapperProvider,
-            ObjectProvider<ReportScheduleMapper> scheduleMapperProvider,
-            ObjectProvider<AuditRecorder> auditRecorderProvider,
-            ObjectProvider<PlatformWebSocketSessionManager> wsManagerProvider,
-            JdbcTemplate jdbcTemplate,
-            ObjectMapper objectMapper
-    ) {
-        this(
-                datasetCatalogService,
-                rendererService,
-                fileClientFactory,
-                taskMapperProvider,
-                templateMapperProvider,
-                scheduleMapperProvider,
-                auditRecorderProvider,
-                wsManagerProvider,
-                new StaticListableBeanFactory().getBeanProvider(DataPermissionProvider.class),
-                jdbcTemplate,
-                objectMapper
-        );
-    }
 
     @Autowired
     public EnterpriseExportService(
             ExportDatasetCatalogService datasetCatalogService,
             ExportRendererService rendererService,
             FileClientFactory fileClientFactory,
+            PlatformFileStorageGatewayImpl exportStorage,
+            FileObjectService fileObjects,
+            FileStorageService storages,
             ObjectProvider<ExportTaskMapper> taskMapperProvider,
             ObjectProvider<ExportTemplateMapper> templateMapperProvider,
             ObjectProvider<ReportScheduleMapper> scheduleMapperProvider,
             ObjectProvider<AuditRecorder> auditRecorderProvider,
             ObjectProvider<PlatformWebSocketSessionManager> wsManagerProvider,
             ObjectProvider<DataPermissionProvider> dataPermissionProviderProvider,
-            JdbcTemplate jdbcTemplate,
             ObjectMapper objectMapper
     ) {
         this.datasetCatalogService = datasetCatalogService;
         this.rendererService = rendererService;
         this.fileClientFactory = fileClientFactory;
+        this.exportStorage = exportStorage;
+        this.fileObjects = fileObjects;
+        this.storages = storages;
         this.taskMapperProvider = taskMapperProvider;
         this.templateMapperProvider = templateMapperProvider;
         this.scheduleMapperProvider = scheduleMapperProvider;
         this.auditRecorderProvider = auditRecorderProvider;
         this.wsManagerProvider = wsManagerProvider;
         this.dataPermissionProviderProvider = dataPermissionProviderProvider;
-        this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
     }
 
@@ -508,8 +485,7 @@ public class EnterpriseExportService {
         if (!isAdminUser(principal) && !Objects.equals(task.getOperatorUserId(), currentUserId())) {
             throw new BizException("EXPORT_DOWNLOAD_FORBIDDEN", "无权访问或下载其他用户的导出文件");
         }
-        FileClient client = fileClientFactory.getDefaultClient();
-        byte[] bytes = client.download(task.getObjectKey());
+        byte[] bytes = exportStorage.downloadObject(tenantId, task.getObjectKey());
         String ext = switch (task.getExportFormat().toUpperCase(Locale.ROOT)) {
             case "CSV" -> "csv";
             case "PDF" -> "pdf";
@@ -550,14 +526,16 @@ public class EnterpriseExportService {
             throw new BizException("EXPORT_TASK_NOT_FOUND", "导出记录不存在");
         }
         if (task.getObjectKey() != null && !task.getObjectKey().isBlank()) {
-            try {
-                fileClientFactory.getDefaultClient().delete(task.getObjectKey());
-            } catch (Exception ignored) {
-            }
+            var object = fileObjects.findByObjectKey(tenantId, task.getObjectKey());
+            FileClient client = object == null ? fileClientFactory.getDefaultClient()
+                    : fileClientFactory.getClient(storages.findActiveStorageById(tenantId, object.getStorageId()));
+            client.delete(task.getObjectKey());
+            if (object != null) fileObjects.deleteFileRegistration(object.getId());
         }
-        task.setDeleted(1);
         task.setDeletedAt(LocalDateTime.now());
-        mapper.updateById(task);
+        if (mapper.updateById(task) == 0 || mapper.deleteById(task.getId()) == 0) {
+            throw new BizException("EXPORT_TASK_CONFLICT", "导出任务已由其他操作修改");
+        }
     }
 
     public List<ExportTemplateDTO> listTemplates(String sourceCode) {
@@ -724,10 +702,8 @@ public class EnterpriseExportService {
     }
 
     private String storeExportFile(Long tenantId, String fileName, byte[] bytes, String contentType) {
-        String dateDir = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
-        String objectKey = "exports/t" + tenantId + "/" + dateDir + "/" + fileName;
-        fileClientFactory.getDefaultClient().upload(bytes, objectKey, contentType);
-        return objectKey;
+        return exportStorage.uploadBytes(tenantId, "REPORT_EXPORT", fileName, contentType, bytes,
+                FileUploadAccounting.fingerprint("export", fileName)).objectKey();
     }
 
     private void notifyUserExportCompleted(Long tenantId, Long userId, String title, Long taskId,
@@ -735,11 +711,7 @@ public class EnterpriseExportService {
         try {
             String msgTitle = "【导出完成】" + title;
             String msgContent = "您的异步导出任务已完成，共处理 " + rowCount + " 行数据，追溯编码 " + traceCode + "，可前往「下载中心」获取文件。";
-            jdbcTemplate.update("""
-                INSERT INTO system_notify_message
-                  (tenant_id, user_id, category, title, content, read_status, biz_type, biz_id, created_at)
-                VALUES (?, ?, 'SYSTEM', ?, ?, 0, 'EXPORT_TASK', ?, NOW())
-            """, tenantId, userId, msgTitle, msgContent, String.valueOf(taskId));
+            taskMapperProvider.getObject().notifyCompleted(tenantId, userId, msgTitle, msgContent, String.valueOf(taskId));
 
             PlatformWebSocketSessionManager ws = wsManagerProvider.getIfAvailable();
             if (ws != null) {
@@ -883,15 +855,7 @@ public class EnterpriseExportService {
     }
 
     private static boolean isAdminUser(AuthPrincipal principal) {
-        if (principal == null) return false;
-        String userType = principal.userType();
-        if ("SUPER_ADMIN".equalsIgnoreCase(userType) || "TENANT_ADMIN".equalsIgnoreCase(userType)) {
-            return true;
-        }
-        if (principal.roleIds() != null && principal.roleIds().contains(1L)) {
-            return true;
-        }
-        return principal.permissions() != null && principal.permissions().contains("*");
+        return principal != null && principal.isSuperAdmin();
     }
 
     private ExportTemplateDTO toTemplateDto(ExportTemplateEntity e) {

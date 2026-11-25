@@ -4,7 +4,7 @@ import com.saasbasics.platform.common.api.ApiResponse;
 import com.saasbasics.platform.common.auth.RequirePermission;
 import com.saasbasics.platform.common.auth.RequirePlatformTenant;
 import com.saasbasics.platform.outbox.PlatformOutboxService;
-import com.saasbasics.platform.outbox.PlatformOutboxService.OutboxEventRecordView;
+import com.saasbasics.platform.outbox.OutboxEventRecordView;
 import java.util.List;
 import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.saasbasics.platform.modules.scheduler.mapper.JobLogMapper">
+    <select id="selectLogList" resultType="com.saasbasics.platform.modules.scheduler.dto.JobLogResponse">
+        SELECT
+          id,
+          tenant_id AS tenantId,
+          job_id AS jobId,
+          execution_no AS executionNo,
+          executor_id AS executorId,
+          started_at AS startedAt,
+          finished_at AS finishedAt,
+          run_status AS runStatus,
+          success,
+          retry_count AS retryCount,
+          error_message AS errorMessage,
+          trace_id AS traceId
+        FROM sched_job_log
+        ORDER BY id DESC
+    </select>
+</mapper>

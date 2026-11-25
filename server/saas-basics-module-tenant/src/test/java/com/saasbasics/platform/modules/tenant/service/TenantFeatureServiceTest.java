@@ -56,8 +56,8 @@ class TenantFeatureServiceTest {
 
         assertThat(featureService.hasFeature(1L, "workflow")).isTrue();
         assertThat(featureService.hasFeature(1L, "crm")).isTrue();
-        assertThat(featureService.hasFeature(0L, "any_random_feature")).isTrue();
-        assertThat(featureService.getEffectiveFeatures(0L)).contains("*");
+        assertThat(featureService.hasFeature(0L, "any_random_feature")).isFalse();
+        assertThat(featureService.getEffectiveFeatures(0L)).isEmpty();
         assertThat(featureService.getEffectiveFeatures(1L)).contains("crm", "workflow");
     }
 
@@ -78,7 +78,7 @@ class TenantFeatureServiceTest {
 
         assertThat(featureService.hasFeature(2L, "dashboard")).isTrue();
         assertThat(featureService.hasFeature(2L, "iam")).isTrue();
-        assertThat(featureService.hasFeature(2L, "tenant")).isTrue();
+        assertThat(featureService.hasFeature(2L, "tenant")).isFalse();
         assertThat(featureService.hasFeature(2L, "workflow")).isFalse();
         assertThat(featureService.hasFeature(2L, "crm")).isFalse();
         assertThat(featureService.hasFeature(2L, "erp")).isFalse();

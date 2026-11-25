@@ -8,6 +8,12 @@ import java.time.LocalDateTime;
 @TableName("plat_tenant_app")
 public class TenantAppEntity extends BaseTenantEntity {
 
+    @TableField("installed_revision")
+    private Integer installedRevision;
+
+    public Integer getInstalledRevision() { return installedRevision; }
+    public void setInstalledRevision(Integer installedRevision) { this.installedRevision = installedRevision; }
+
     @TableField("app_code")
     private String appCode;
 
@@ -20,7 +26,7 @@ public class TenantAppEntity extends BaseTenantEntity {
     @TableField("opened_at")
     private LocalDateTime openedAt;
 
-    @TableField("expired_at")
+    @TableField(value = "expired_at", updateStrategy = com.baomidou.mybatisplus.annotation.FieldStrategy.ALWAYS)
     private LocalDateTime expiredAt;
 
     @TableField("config_json")

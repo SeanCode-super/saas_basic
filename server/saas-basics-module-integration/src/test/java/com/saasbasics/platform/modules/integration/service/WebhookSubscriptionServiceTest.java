@@ -25,11 +25,17 @@ import org.springframework.beans.factory.ObjectProvider;
 
 class WebhookSubscriptionServiceTest {
 
-    @SuppressWarnings("unchecked")
     private static <T> ObjectProvider<T> providerOf(T instance) {
-        ObjectProvider<T> provider = mock(ObjectProvider.class);
-        when(provider.getIfAvailable()).thenReturn(instance);
-        return provider;
+        return new ObjectProvider<>() {
+            @Override
+            public T getObject(Object... args) { return instance; }
+            @Override
+            public T getIfAvailable() { return instance; }
+            @Override
+            public T getIfUnique() { return instance; }
+            @Override
+            public T getObject() { return instance; }
+        };
     }
 
     @Test

@@ -3,6 +3,7 @@ package com.saasbasics.platform.modules.tenant.controller;
 import com.saasbasics.platform.common.api.ApiResponse;
 import com.saasbasics.platform.common.api.PageResponse;
 import com.saasbasics.platform.common.auth.RequirePermission;
+import com.saasbasics.platform.modules.tenant.dto.TenantCreateResponse;
 import com.saasbasics.platform.modules.tenant.dto.TenantIsolationUpdateRequest;
 import com.saasbasics.platform.modules.tenant.dto.TenantPlanUpdateRequest;
 import com.saasbasics.platform.modules.tenant.dto.TenantQuotaOverviewResponse;
@@ -11,6 +12,8 @@ import com.saasbasics.platform.modules.tenant.dto.TenantSaveRequest;
 import com.saasbasics.platform.modules.tenant.dto.TenantStatusUpdateRequest;
 import com.saasbasics.platform.modules.tenant.service.TenantService;
 import jakarta.validation.Valid;
+import org.springframework.http.CacheControl;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -50,8 +53,10 @@ public class TenantController {
 
     @PostMapping
     @RequirePermission("tenant:write")
-    public ApiResponse<TenantResponse> create(@Valid @RequestBody TenantSaveRequest request) {
-        return ApiResponse.success(tenantService.createTenant(request));
+    public ResponseEntity<ApiResponse<TenantCreateResponse>> create(@Valid @RequestBody TenantSaveRequest request) {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(ApiResponse.success(tenantService.createTenant(request)));
     }
 
     @PutMapping("/{id}")

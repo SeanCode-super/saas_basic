@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.saasbasics.platform.modules.workflow.mapper.ProcessInstanceMapper">
+    <select id="lockByTask" resultType="com.saasbasics.platform.modules.workflow.entity.ProcessInstanceEntity">
+        SELECT i.* FROM wf_process_instance i
+        WHERE i.tenant_id = #{tenantId} AND i.deleted = 0 AND i.id = (
+            SELECT t.instance_id FROM wf_task t WHERE t.id = #{taskId} AND t.tenant_id = #{tenantId}
+        ) FOR UPDATE
+    </select>
+</mapper>

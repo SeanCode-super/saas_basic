@@ -13,6 +13,7 @@ public class ErpInventoryRecordEntity {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Long tenantId;
+    private Long purchaseItemId;
     private String recordNo;
     private String recordType;
     private Long productId;
@@ -30,6 +31,8 @@ public class ErpInventoryRecordEntity {
     private Long deptId;
     private LocalDateTime createdAt;
 
+    public Long getPurchaseItemId() { return purchaseItemId; }
+    public void setPurchaseItemId(Long purchaseItemId) { this.purchaseItemId = purchaseItemId; }
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public Long getTenantId() { return tenantId; }

@@ -5,6 +5,7 @@ import com.saasbasics.platform.common.auth.AuthPrincipal;
 import com.saasbasics.platform.common.auth.RequireTenantFeature;
 import com.saasbasics.platform.common.exception.BizException;
 import com.saasbasics.platform.common.tenant.TenantFeatureProvider;
+import com.saasbasics.platform.common.tenant.TenantAppAccess;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.ObjectProvider;
@@ -21,7 +22,11 @@ public class TenantFeatureGuardInterceptor implements HandlerInterceptor {
 
     private final ObjectProvider<TenantFeatureProvider> tenantFeatureProvider;
 
-    public TenantFeatureGuardInterceptor(ObjectProvider<TenantFeatureProvider> tenantFeatureProvider) {
+    private final ObjectProvider<TenantAppAccess> installations;
+
+    public TenantFeatureGuardInterceptor(ObjectProvider<TenantFeatureProvider> tenantFeatureProvider,
+                                         ObjectProvider<TenantAppAccess> installations) {
+        this.installations = installations;
         this.tenantFeatureProvider = tenantFeatureProvider;
     }
 
@@ -46,22 +51,20 @@ public class TenantFeatureGuardInterceptor implements HandlerInterceptor {
         }
 
         AuthPrincipal principal = AuthContext.get();
-        if (principal == null) {
-            return true;
-        }
-
-        // 平台超管 (Tenant 0 或 1) 直通
-        if (principal.isSuperAdmin() && (principal.tenantId() == null || principal.tenantId() <= 1L)) {
-            return true;
-        }
-
-        Long tenantId = principal.tenantId();
-        TenantFeatureProvider provider = tenantFeatureProvider.getIfAvailable();
-        if (provider != null && tenantId != null) {
-            boolean hasFeature = provider.hasFeature(tenantId, annotation.value());
-            if (!hasFeature) {
+        if (annotation.installedRevision() > 0) {
+            TenantAppAccess access = installations.getIfAvailable();
+            if (principal == null || principal.tenantId() == null || access == null
+                    || !access.isInstalled(principal.tenantId(), annotation.value(), annotation.installedRevision())) {
                 throw new BizException("TENANT_FEATURE_NOT_SUBSCRIBED", annotation.message());
             }
+            return true;
+        }
+        if (principal == null || principal.tenantId() == null || principal.tenantId() <= 0) {
+            throw new BizException("AUTH_FORBIDDEN", "缺少有效租户身份");
+        }
+        TenantFeatureProvider provider = tenantFeatureProvider.getIfAvailable();
+        if (provider == null || !provider.hasFeature(principal.tenantId(), annotation.value())) {
+            throw new BizException("TENANT_FEATURE_NOT_SUBSCRIBED", annotation.message());
         }
         return true;
     }

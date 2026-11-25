@@ -1,50 +1,34 @@
 package com.saasbasics.platform.modules.iam.mapper;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.saasbasics.platform.modules.iam.entity.PortalClientEntity;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Select;
-import org.apache.ibatis.annotations.Update;
 
 @Mapper
 public interface PortalClientMapper extends BaseMapper<PortalClientEntity> {
 
-    @Select("""
-            SELECT *
-            FROM iam_portal_client
-            WHERE client_id = #{clientId}
-              AND deleted = 0
-            LIMIT 1
-            """)
-    PortalClientEntity selectByClientId(@Param("clientId") String clientId);
+    default PortalClientEntity selectByClientId(String clientId) {
+        return selectOne(new LambdaQueryWrapper<PortalClientEntity>()
+                .eq(PortalClientEntity::getClientId, clientId)
+                .last("LIMIT 1"));
+    }
 
-    @Select("""
-            SELECT *
-            FROM iam_portal_client
-            WHERE tenant_code = #{tenantCode}
-              AND deleted = 0
-            ORDER BY is_default DESC, id ASC
-            LIMIT 1
-            """)
-    PortalClientEntity selectByTenantCode(@Param("tenantCode") String tenantCode);
+    default PortalClientEntity selectByTenantCode(String tenantCode) {
+        return selectOne(new LambdaQueryWrapper<PortalClientEntity>()
+                .eq(PortalClientEntity::getTenantCode, tenantCode)
+                .orderByDesc(PortalClientEntity::getIsDefault)
+                .orderByAsc(PortalClientEntity::getId)
+                .last("LIMIT 1"));
+    }
 
-    @Select("""
-            SELECT *
-            FROM iam_portal_client
-            WHERE is_default = 1
-              AND status = 'ENABLED'
-              AND deleted = 0
-            LIMIT 1
-            """)
-    PortalClientEntity selectDefaultClient();
+    default PortalClientEntity selectDefaultClient() {
+        return selectOne(new LambdaQueryWrapper<PortalClientEntity>()
+                .eq(PortalClientEntity::getIsDefault, true)
+                .eq(PortalClientEntity::getStatus, "ENABLED")
+                .last("LIMIT 1"));
+    }
 
-    @Update("""
-            UPDATE iam_portal_client
-            SET is_default = 0
-            WHERE is_default = 1
-              AND deleted = 0
-              AND (#{currentClientId} IS NULL OR id != #{currentClientId})
-            """)
     int clearDefaultClients(@Param("currentClientId") Long currentClientId);
 }

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.saasbasics.platform.modules.system.mapper.PlatformWorkflowMetricsMapper">
+    <select id="countWorkflowRecords" resultType="com.saasbasics.platform.modules.system.mapper.PlatformWorkflowMetricsMapper$Counts">
+        SELECT (SELECT COUNT(*) FROM wf_process_definition WHERE deleted = 0) AS definitions,
+               (SELECT COUNT(*) FROM wf_process_instance WHERE deleted = 0) AS instances,
+               COUNT(CASE WHEN status = 'PENDING' THEN 1 END) AS pending_tasks,
+               COUNT(*) AS total_tasks
+        FROM wf_task WHERE deleted = 0
+    </select>
+</mapper>

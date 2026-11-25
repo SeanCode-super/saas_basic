@@ -127,6 +127,11 @@ public final class AwsSigV4Signer {
             int expireSeconds,
             Instant now
     ) {
+        return presignUrl(method, uri, accessKey, secretKey, region, expireSeconds, now, null);
+    }
+
+    static String presignUrl(String method, URI uri, String accessKey, String secretKey, String region,
+                             int expireSeconds, Instant now, Long contentLength) {
         String effectiveRegion = (region == null || region.isBlank()) ? "us-east-1" : region.trim();
         int safeExpires = Math.min(Math.max(expireSeconds, 60), 604800);
         String amzDate = AMZ_DATE_FMT.format(now);
@@ -147,7 +152,8 @@ public final class AwsSigV4Signer {
         queryParams.put("X-Amz-Credential", urlEncode(accessKey + "/" + scope));
         queryParams.put("X-Amz-Date", urlEncode(amzDate));
         queryParams.put("X-Amz-Expires", String.valueOf(safeExpires));
-        queryParams.put("X-Amz-SignedHeaders", "host");
+        String signedHeaders = contentLength == null ? "host" : "content-length;host";
+        queryParams.put("X-Amz-SignedHeaders", urlEncode(signedHeaders));
 
         StringBuilder canonicalQuery = new StringBuilder();
         for (Map.Entry<String, String> entry : queryParams.entrySet()) {
@@ -160,8 +166,9 @@ public final class AwsSigV4Signer {
         String canonicalRequest = method.toUpperCase(Locale.ROOT) + "\n"
                 + normalizePath(uri.getRawPath()) + "\n"
                 + canonicalQuery + "\n"
+                + (contentLength == null ? "" : "content-length:" + contentLength + "\n")
                 + "host:" + hostHeader + "\n\n"
-                + "host\n"
+                + signedHeaders + "\n"
                 + "UNSIGNED-PAYLOAD";
 
         String stringToSign = ALGORITHM + "\n" + amzDate + "\n" + scope + "\n"

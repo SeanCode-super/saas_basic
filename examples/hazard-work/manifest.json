@@ -1,0 +1,99 @@
+{
+  "code": "hazard_work",
+  "name": "危险作业管理",
+  "description": "作业申请、审批及关闭记录",
+  "revision": 1,
+  "kind": "NATIVE",
+  "pc": true,
+  "mobile": true,
+  "columns": [
+    {
+      "key": "title",
+      "label": "作业名称",
+      "type": "text",
+      "required": true
+    },
+    {
+      "key": "area",
+      "label": "作业区域",
+      "type": "text",
+      "required": true
+    },
+    {
+      "key": "status",
+      "label": "状态",
+      "type": "text",
+      "required": true
+    },
+    {
+      "key": "id",
+      "label": "单据编号",
+      "type": "text",
+      "required": true
+    }
+  ],
+  "actions": [
+    {
+      "key": "query",
+      "label": "查看",
+      "fields": []
+    },
+    {
+      "key": "create",
+      "label": "新建申请",
+      "fields": [
+        {
+          "key": "title",
+          "label": "作业名称",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "area",
+          "label": "作业区域",
+          "type": "text",
+          "required": true
+        }
+      ]
+    },
+    {
+      "key": "approve",
+      "label": "批准",
+      "fields": [
+        {
+          "key": "id",
+          "label": "单据编号",
+          "type": "text",
+          "required": true
+        }
+      ],
+      "rowKey": "id"
+    },
+    {
+      "key": "reject",
+      "label": "驳回",
+      "fields": [
+        {
+          "key": "id",
+          "label": "单据编号",
+          "type": "text",
+          "required": true
+        }
+      ],
+      "rowKey": "id"
+    },
+    {
+      "key": "close",
+      "label": "关闭",
+      "fields": [
+        {
+          "key": "id",
+          "label": "单据编号",
+          "type": "text",
+          "required": true
+        }
+      ],
+      "rowKey": "id"
+    }
+  ]
+}

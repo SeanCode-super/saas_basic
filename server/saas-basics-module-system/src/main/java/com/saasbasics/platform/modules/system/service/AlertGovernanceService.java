@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.saasbasics.platform.common.tenant.TenantAccessContextHolder;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
@@ -163,7 +164,7 @@ public class AlertGovernanceService {
                 // Fallback when Redis unavailable
             }
         }
-        try {
+        try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openTenant(1L, "platform", 0L)) {
             evaluateAllRules(false);
         } catch (Exception ex) {
             log.warn("[AlertEngine] 定时巡检异常: {}", ex.getMessage());

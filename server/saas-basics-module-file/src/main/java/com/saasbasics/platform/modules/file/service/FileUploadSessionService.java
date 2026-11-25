@@ -18,14 +18,18 @@ import com.saasbasics.platform.modules.file.storage.FileClientFactory;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
+import com.saasbasics.platform.common.tenant.TenantAccessContext;
+import com.saasbasics.platform.common.tenant.TenantAccessContextHolder;
+import org.springframework.scheduling.annotation.Scheduled;
 import java.util.Map;
-import java.util.UUID;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
 public class FileUploadSessionService {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(FileUploadSessionService.class);
 
     private final ObjectProvider<FileUploadSessionMapper> sessionMapperProvider;
     private final ObjectProvider<FileObjectMapper> fileObjectMapperProvider;
@@ -34,14 +38,7 @@ public class FileUploadSessionService {
     private final FileUploadRouteService fileUploadRouteService;
     private final ObjectProvider<FileClientFactory> fileClientFactoryProvider;
 
-    public FileUploadSessionService(ObjectProvider<FileUploadSessionMapper> sessionMapperProvider,
-                                    ObjectProvider<FileObjectMapper> fileObjectMapperProvider,
-                                    FileAccessLogService fileAccessLogService,
-                                    FileStorageService fileStorageService,
-                                    FileUploadRouteService fileUploadRouteService) {
-        this(sessionMapperProvider, fileObjectMapperProvider, fileAccessLogService,
-                fileStorageService, fileUploadRouteService, null);
-    }
+    private final FileUploadAccounting accounting;
 
     @Autowired
     public FileUploadSessionService(ObjectProvider<FileUploadSessionMapper> sessionMapperProvider,
@@ -49,7 +46,9 @@ public class FileUploadSessionService {
                                     FileAccessLogService fileAccessLogService,
                                     FileStorageService fileStorageService,
                                     FileUploadRouteService fileUploadRouteService,
-                                    ObjectProvider<FileClientFactory> fileClientFactoryProvider) {
+                                    ObjectProvider<FileClientFactory> fileClientFactoryProvider,
+                                    FileUploadAccounting accounting) {
+        this.accounting = accounting;
         this.sessionMapperProvider = sessionMapperProvider;
         this.fileObjectMapperProvider = fileObjectMapperProvider;
         this.fileAccessLogService = fileAccessLogService;
@@ -66,8 +65,7 @@ public class FileUploadSessionService {
         return mapper.selectSessionList();
     }
 
-    public FileUploadSessionResponse createSession(FileUploadSessionCreateRequest request) {
-        FileUploadSessionMapper mapper = requiredMapper();
+    public FileUploadSessionResponse createSession(FileUploadSessionCreateRequest request, String requestKey) {
         String bizType = request.bizType() != null && !request.bizType().isBlank()
                 ? request.bizType().trim().toUpperCase(Locale.ROOT)
                 : "COMMON";
@@ -114,29 +112,68 @@ public class FileUploadSessionService {
         entity.setTenantId(request.tenantId());
         entity.setBucketId(request.bucketId() != null ? request.bucketId() : 1L);
         entity.setStorageId(activeStorage.getId());
-        entity.setSessionCode("UP-" + UUID.randomUUID().toString().replace("-", "").substring(0, 16).toUpperCase());
         entity.setObjectKey(resolvedObjectKey);
         entity.setFileName(safeFilename);
         entity.setFileSize(request.fileSize());
         entity.setUploadMode(uploadMode);
         entity.setPartCount(request.partCount());
         entity.setOwnerUserId(request.ownerUserId());
-        entity.setStatus("INIT");
-        entity.setExpireAt(LocalDateTime.now().plusHours(2));
-        mapper.insert(entity);
-        return mapper.selectSessionList().stream()
-                .filter(item -> item.id().equals(entity.getId()))
-                .findFirst()
-                .orElseThrow(() -> new BizException("FILE_UPLOAD_SESSION_NOT_FOUND", "Upload session not found"));
+        String fingerprint = requestKey == null ? null : FileUploadAccounting.fingerprint(
+                String.valueOf(request.bucketId()), String.valueOf(request.storageId()), request.objectKey(),
+                safeFilename, String.valueOf(request.fileSize()), uploadMode, String.valueOf(request.partCount()), bizType);
+        FileUploadSessionEntity session = accounting.reserve(entity, requestKey, fingerprint, false);
+        return new FileUploadSessionResponse(session.getId(), session.getTenantId(), session.getBucketId(),
+                session.getStorageId(), session.getSessionCode(), session.getObjectKey(), session.getFileName(),
+                session.getFileSize(), session.getUploadMode(), session.getPartCount(), session.getOwnerUserId(),
+                session.getStatus(), session.getExpireAt(), session.getCompletedAt());
     }
 
     public FileObjectResponse completeSession(Long sessionId, FileUploadSessionCompleteRequest request) {
-        FileUploadSessionMapper sessionMapper = requiredMapper();
-        FileUploadSessionEntity session = sessionMapper.selectById(sessionId);
-        if (session == null || (session.getDeleted() != null && session.getDeleted() == 1)) {
-            throw new BizException("FILE_UPLOAD_SESSION_NOT_FOUND", "Upload session not found");
+        FileUploadSessionEntity session = accounting.ownedSession(sessionId, request.tenantId());
+        if ("COMPLETED".equals(session.getStatus())) return response(accounting.completedObject(session));
+        if (!"INIT".equals(session.getStatus()) || !FileUploadAccounting.active(session)) {
+            throw new BizException("FILE_UPLOAD_SESSION_EXPIRED", "上传会话已失效");
         }
+        FileClient client = client(session);
+        if (client.size(session.getObjectKey()) != session.getFileSize()) {
+            // A still-valid signed URL may be retried. Keep the reservation until cancellation or expiry.
+            throw new BizException("FILE_UPLOAD_SIZE_MISMATCH", "对象实际大小与上传会话不一致");
+        }
+        FileObjectEntity file = accounting.finish(request.tenantId(), sessionId, () -> registerObject(session, request));
+        return response(file);
+    }
 
+    private FileObjectResponse response(FileObjectEntity file) {
+        return new FileObjectResponse(file.getId(), file.getTenantId(), file.getBucketId(), file.getStorageId(),
+                file.getObjectKey(), file.getFileName(), file.getFileExt(), file.getContentType(), file.getFileSize(),
+                file.getVisibility(), file.getBizType(), file.getVersionNo(), file.getStatus(), file.getStoragePath(),
+                file.getUploadMode(), file.getTargetDir(), "/api/file/raw-download/" + file.getObjectKey(), file.getRemark());
+    }
+
+    @Scheduled(fixedDelay = 60000, initialDelay = 60000)
+    public void cleanExpiredReservations() {
+        List<FileUploadSessionMapper.ExpiredSession> expired;
+        try (var scope = TenantAccessContextHolder.openSystemBypass(
+                TenantAccessContext.BypassOperation.SYSTEM_TASK_OR_ANNOTATION_IGNORE, "Find expired upload reservations")) {
+            expired = requiredMapper().listExpiredSessions();
+        }
+        for (var item : expired) {
+            try (var scope = TenantAccessContextHolder.openTenant(item.tenantId(), item.tenantCode(), 0L)) {
+                accounting.discard(item.tenantId(), item.id(), true,
+                        session -> client(session).delete(session.getObjectKey()));
+            } catch (RuntimeException ex) {
+                log.warn("Could not reconcile upload session {}", item.id(), ex);
+            }
+        }
+    }
+
+    private FileClient client(FileUploadSessionEntity session) {
+        FileStorageEntity storage = fileStorageService.findActiveStorageById(session.getTenantId(), session.getStorageId());
+        if (storage == null) throw new BizException("FILE_STORAGE_SOURCE_NOT_CONFIGURED", "上传会话的存储源不可用");
+        return fileClientFactoryProvider.getObject().getClient(storage);
+    }
+
+    private FileObjectEntity registerObject(FileUploadSessionEntity session, FileUploadSessionCompleteRequest request) {
         FileObjectMapper objectMapper = requiredFileObjectMapper();
         FileObjectEntity object = new FileObjectEntity();
         object.setTenantId(request.tenantId());
@@ -158,11 +195,6 @@ public class FileUploadSessionService {
         object.setRemark(request.remark());
         objectMapper.insert(object);
 
-        session.setStatus("COMPLETED");
-        session.setCompletedAt(LocalDateTime.now());
-        session.setRemark(request.remark());
-        sessionMapper.updateById(session);
-
         fileAccessLogService.createLog(new FileAccessLogCreateRequest(
                 request.tenantId(),
                 object.getId(),
@@ -173,10 +205,7 @@ public class FileUploadSessionService {
                 request.remark()
         ));
 
-        return objectMapper.selectObjectList().stream()
-                .filter(item -> item.id().equals(object.getId()))
-                .findFirst()
-                .orElseThrow(() -> new BizException("FILE_OBJECT_NOT_FOUND", "File object not found"));
+        return object;
     }
 
     public Map<String, Object> generatePresignedUrl(Long tenantId, Long storageId, String objectKey, String method, int expireSeconds) {
@@ -197,9 +226,16 @@ public class FileUploadSessionService {
         FileClient client = factory.getClient(activeStorage);
         String normalizedMethod = "GET".equalsIgnoreCase(method) ? "GET" : "PUT";
         int safeExpires = Math.min(Math.max(expireSeconds, 60), 86400);
-        String url = "GET".equals(normalizedMethod)
-                ? client.generatePresignedDownloadUrl(safeKey, safeExpires)
-                : client.generatePresignedUploadUrl(safeKey, safeExpires);
+        String url;
+        if ("GET".equals(normalizedMethod)) {
+            url = client.generatePresignedDownloadUrl(safeKey, safeExpires);
+        } else {
+            FileUploadSessionEntity reservation = accounting.pendingPut(tenantId, activeStorage.getId(), safeKey);
+            long remaining = java.time.Duration.between(LocalDateTime.now(), reservation.getExpireAt()).toSeconds();
+            if (remaining < 60) throw new BizException("FILE_UPLOAD_SESSION_EXPIRED", "上传会话即将过期");
+            safeExpires = (int) Math.min(safeExpires, remaining);
+            url = client.generatePresignedUploadUrl(safeKey, safeExpires, reservation.getFileSize());
+        }
         return Map.of(
                 "storageId", activeStorage.getId(),
                 "storageType", activeStorage.getStorageType(),

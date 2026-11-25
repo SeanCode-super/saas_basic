@@ -1,11 +1,13 @@
 package com.saasbasics.platform.modules.codegen.service;
 
+import com.saasbasics.platform.modules.codegen.domain.DynamicSchemaIdentifiers;
+
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.saasbasics.platform.common.auth.AuthContext;
-import com.saasbasics.platform.common.auth.AuthPrincipal;
 import com.saasbasics.platform.common.exception.BizException;
 import com.saasbasics.platform.modules.ai.api.AiGatewayFacade;
 import com.saasbasics.platform.modules.codegen.dto.*;
@@ -18,6 +20,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
+import com.saasbasics.platform.common.tenant.DynamicApplicationMenus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,7 +43,9 @@ public class AiAppBuilderService {
     private final ObjectProvider<DynamicFieldMapper> fieldMapperProvider;
     private final ObjectProvider<AiGatewayFacade> aiGatewayFacadeProvider;
     private final JdbcTemplate jdbcTemplate;
+    private final DynamicApplicationMenus menus;
     private final ObjectMapper objectMapper;
+    private final com.saasbasics.platform.modules.codegen.mapper.CodegenSchemaMapper schema;
 
     @Value("${saas.ai.api-key:}")
     private String apiKey;
@@ -50,12 +55,16 @@ public class AiAppBuilderService {
             ObjectProvider<DynamicFieldMapper> fieldMapperProvider,
             ObjectProvider<AiGatewayFacade> aiGatewayFacadeProvider,
             JdbcTemplate jdbcTemplate,
+            DynamicApplicationMenus menus,
+            com.saasbasics.platform.modules.codegen.mapper.CodegenSchemaMapper schema,
             ObjectMapper objectMapper
     ) {
         this.modelMapperProvider = modelMapperProvider;
         this.fieldMapperProvider = fieldMapperProvider;
         this.aiGatewayFacadeProvider = aiGatewayFacadeProvider;
         this.jdbcTemplate = jdbcTemplate;
+        this.menus = menus;
+        this.schema = schema;
         this.objectMapper = objectMapper;
     }
 
@@ -98,6 +107,15 @@ public class AiAppBuilderService {
         String modelCode = request.modelCode().trim().toLowerCase(Locale.ROOT);
         validateCode(modelCode);
 
+        Set<String> fieldCodes = new HashSet<>();
+        for (var field : request.fields()) {
+            if (field == null || field.fieldCode() == null || field.fieldName() == null || field.fieldName().isBlank()) {
+                throw new BizException("INVALID_FIELD", "业务字段编码和名称不能为空");
+            }
+            String code = field.fieldCode().trim().toLowerCase(Locale.ROOT);
+            DynamicSchemaIdentifiers.requireBusinessField(code);
+            if (!fieldCodes.add(code)) throw new BizException("DUPLICATE_FIELD", "业务字段编码重复：" + code);
+        }
         DynamicModelMapper modelMapper = modelMapperProvider.getIfAvailable();
         DynamicFieldMapper fieldMapper = fieldMapperProvider.getIfAvailable();
         if (modelMapper == null || fieldMapper == null) {
@@ -115,14 +133,20 @@ public class AiAppBuilderService {
         }
 
         String rawTableName = "biz_dyn_t" + tenantId + "_" + modelCode;
-        String tableName = rawTableName.length() > 64 ? rawTableName.substring(0, 64) : rawTableName;
+        // Keep long model codes distinct after MySQL's 64-character identifier limit.
+        String tableName = rawTableName;
+        if (rawTableName.length() > 64) {
+            String suffix = UUID.nameUUIDFromBytes(rawTableName.getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                    .toString().replace("-", "");
+            tableName = rawTableName.substring(0, 31) + "_" + suffix;
+        }
         validateCode(tableName);
 
         // 2. Physical DDL Execution: Create table in MySQL
         createPhysicalTable(tableName, request.fields());
 
         // 3. Insert Menu into iam_menu and bind to tenant admin role
-        Long menuId = createDynamicMenu(tenantId, modelCode, request.modelName(), request.icon());
+        Long menuId = menus.register(tenantId, modelCode, request.modelName(), request.icon(), userId);
 
         // 4. Save DynamicModelEntity
         DynamicModelEntity modelEntity = new DynamicModelEntity();
@@ -205,6 +229,72 @@ public class AiAppBuilderService {
         );
     }
 
+    public enum FieldKind {
+        TEXT("VARCHAR(255)", "String", "input"),
+        NUMBER("DECIMAL(18,4)", "BigDecimal", "number"),
+        DATE("DATE", "LocalDate", "date");
+
+        final String sqlType;
+        final String javaType;
+        final String component;
+
+        FieldKind(String sqlType, String javaType, String component) {
+            this.sqlType = sqlType;
+            this.javaType = javaType;
+            this.component = component;
+        }
+    }
+
+    @Transactional
+    public void appendField(long modelId, String code, String label, FieldKind kind) {
+        DynamicSchemaIdentifiers.requireBusinessField(code);
+        if (label == null || label.isBlank() || label.length() > 64 || kind == null) {
+            throw new BizException("INVALID_FIELD", "请提供字段名称和类型");
+        }
+        long tenant = currentTenantId();
+        var model = modelMapperProvider.getObject().lockPublished(tenant, modelId);
+        if (model == null) throw new BizException("MODEL_NOT_FOUND", "未找到已发布的模型");
+        String table = model.getTableName();
+        DynamicSchemaIdentifiers.requireTable(tenant, table);
+        var fields = fieldMapperProvider.getObject();
+        var existing = fields.selectOne(new LambdaQueryWrapper<DynamicFieldEntity>()
+                .eq(DynamicFieldEntity::getTenantId, tenant).eq(DynamicFieldEntity::getModelId, modelId)
+                .eq(DynamicFieldEntity::getFieldCode, code));
+        if (existing != null) {
+            if (label.trim().equals(existing.getFieldName()) && kind.sqlType.equalsIgnoreCase(existing.getColumnType())) return;
+            throw new BizException("FIELD_CONFLICT", "该字段编码已有不同定义");
+        }
+        // MySQL DDL commits implicitly. Use its own connection to keep the model row locked
+        // while publishing metadata. A retry can adopt a matching column left by an interrupted request.
+        try (var connection = java.util.Objects.requireNonNull(jdbcTemplate.getDataSource()).getConnection();
+             var statement = connection.createStatement()) {
+            statement.executeUpdate("ALTER TABLE `" + table + "` ADD COLUMN `" + code + "` " + kind.sqlType + " NULL");
+        } catch (java.sql.SQLException ex) {
+            if (ex.getErrorCode() != 1060) throw new IllegalStateException("未能新增业务列", ex);
+            boolean compatible = schema.selectDbColumns(table).stream().anyMatch(column ->
+                    code.equals(column.columnName()) && kind.sqlType.equalsIgnoreCase(column.columnType())
+                            && "YES".equalsIgnoreCase(column.isNullable()));
+            if (!compatible) throw new BizException("FIELD_CONFLICT", "已存在的业务列与本次字段定义不兼容");
+        }
+        var field = new DynamicFieldEntity();
+        field.setTenantId(tenant);
+        field.setModelId(modelId);
+        field.setFieldCode(code);
+        field.setFieldName(label.trim());
+        field.setColumnType(kind.sqlType);
+        field.setJavaType(kind.javaType);
+        field.setComponentType(kind.component);
+        field.setIsRequired(false);
+        field.setIsQuery(false);
+        var last = fields.selectOne(new LambdaQueryWrapper<DynamicFieldEntity>()
+                .eq(DynamicFieldEntity::getTenantId, tenant).eq(DynamicFieldEntity::getModelId, modelId)
+                .orderByDesc(DynamicFieldEntity::getSortNo).last("LIMIT 1"));
+        field.setSortNo(last == null || last.getSortNo() == null ? 10 : last.getSortNo() + 10);
+        field.setDeleted(0);
+        field.setCreatedAt(LocalDateTime.now());
+        fields.insert(field);
+    }
+
     public List<DynamicModelResponse> listPublishedModels() {
         Long tenantId = currentTenantId();
         DynamicModelMapper modelMapper = modelMapperProvider.getIfAvailable();
@@ -254,13 +344,14 @@ public class AiAppBuilderService {
         }
 
         // Soft delete model
-        model.setDeleted(1);
-        model.setDeletedAt(LocalDateTime.now());
-        modelMapper.updateById(model);
+        modelMapper.update(new LambdaUpdateWrapper<DynamicModelEntity>()
+                .eq(DynamicModelEntity::getId, id).eq(DynamicModelEntity::getTenantId, tenantId)
+                .set(DynamicModelEntity::getDeleted, 1).set(DynamicModelEntity::getDeletedAt, LocalDateTime.now())
+                .set(DynamicModelEntity::getUpdatedBy, currentUserId()));
 
         // Soft delete menu
         if (model.getMenuId() != null) {
-            jdbcTemplate.update("UPDATE iam_menu SET deleted = 1, deleted_at = NOW() WHERE id = ?", model.getMenuId());
+            menus.retire(tenantId, model.getMenuId(), currentUserId());
         }
     }
 
@@ -278,66 +369,26 @@ public class AiAppBuilderService {
         ddl.append("  `deleted_at` DATETIME(3) DEFAULT NULL,\n");
         ddl.append("  `version` INT UNSIGNED NOT NULL DEFAULT 0");
 
+        List<String> comments = new ArrayList<>();
         for (DynamicFieldDto f : fields) {
             String col = f.fieldCode().trim().toLowerCase(Locale.ROOT);
-            validateCode(col);
-            if ("tenant_id".equals(col) || "dept_id".equals(col) || "created_by".equals(col)
-                    || "updated_by".equals(col) || "deleted".equals(col) || "id".equals(col)) {
-                continue;
-            }
+            DynamicSchemaIdentifiers.requireBusinessField(col);
             String colType = sanitizeColumnType(f.columnType());
-            String comment = f.fieldName() != null ? f.fieldName().replace("'", "") : col;
+            comments.add(f.fieldName());
+            ddl.append(",\n  `").append(col).append("` ").append(colType).append(" DEFAULT NULL COMMENT ?");
 
-            ddl.append(",\n  `").append(col).append("` ").append(colType)
-                    .append(" DEFAULT NULL COMMENT '").append(comment).append("'");
         }
 
         ddl.append(",\n  INDEX `idx_tenant_deleted` (`tenant_id`, `deleted`),\n");
         ddl.append("  INDEX `idx_tenant_dept` (`tenant_id`, `dept_id`)\n");
         ddl.append(") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI动态业务表';");
 
-        jdbcTemplate.execute(ddl.toString());
-    }
-
-    private Long createDynamicMenu(Long tenantId, String modelCode, String modelName, String icon) {
-        String menuCode = "dyn_" + modelCode;
-        String routePath = "/dynamic/" + modelCode;
-        String compPath = "@/views/dynamic/DynamicDataView.vue";
-        String permCode = "dynamic:" + modelCode + ":query";
-        String menuIcon = icon != null && !icon.isBlank() ? icon : "Document";
-
-        // Check if menu already exists
-        List<Map<String, Object>> exist = jdbcTemplate.queryForList(
-                "SELECT id FROM iam_menu WHERE tenant_id = ? AND menu_code = ? AND deleted = 0",
-                tenantId, menuCode
-        );
-
-        Long menuId;
-        if (!exist.isEmpty()) {
-            menuId = ((Number) exist.get(0).get("id")).longValue();
-        } else {
-            jdbcTemplate.update("""
-                INSERT INTO iam_menu (
-                    tenant_id, parent_id, menu_type, menu_code, app_code, menu_name,
-                    route_path, component_path, permission_code, icon, sort_no,
-                    status, visible, keep_alive
-                ) VALUES (?, 0, 'MENU', ?, 'codegen', ?, ?, ?, ?, ?, 90, 'ENABLED', 1, 1)
-            """, tenantId, menuCode, modelName, routePath, compPath, permCode, menuIcon);
-
-            menuId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
-
-            // Grant to admin role (role_id = 1 or roles of current user)
-            if (menuId != null) {
-                jdbcTemplate.update("""
-                    INSERT IGNORE INTO iam_role_menu (tenant_id, role_id, menu_id)
-                    SELECT ?, id, ? FROM iam_role WHERE tenant_id = ? AND role_code = 'TENANT_ADMIN'
-                """, tenantId, menuId, tenantId);
-
-                // Fallback: also grant to role_id = 1
-                jdbcTemplate.update("INSERT IGNORE INTO iam_role_menu (tenant_id, role_id, menu_id) VALUES (?, 1, ?)", tenantId, menuId);
-            }
-        }
-        return menuId;
+        // MySQL Connector/J binds labels using the connection's quoting and character-set settings.
+        jdbcTemplate.execute(ddl.toString(), (org.springframework.jdbc.core.PreparedStatementCallback<Void>) statement -> {
+            for (int i = 0; i < comments.size(); i++) statement.setString(i + 1, comments.get(i));
+            statement.execute();
+            return null;
+        });
     }
 
     private void seedSampleData(String tableName, Long tenantId, Long userId, List<Map<String, Object>> samples, List<DynamicFieldDto> fields) {
@@ -817,12 +868,10 @@ public class AiAppBuilderService {
     }
 
     private Long currentTenantId() {
-        AuthPrincipal principal = AuthContext.get();
-        return principal != null && principal.tenantId() != null ? principal.tenantId() : 1L;
+        return AuthContext.requirePrincipal().tenantId();
     }
 
     private Long currentUserId() {
-        AuthPrincipal principal = AuthContext.get();
-        return principal != null && principal.userId() != null ? principal.userId() : 1L;
+        return AuthContext.requirePrincipal().userId();
     }
 }

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.saasbasics.platform.modules.scheduler.mapper.JobMapper">
+    <select id="selectJobList" resultType="com.saasbasics.platform.modules.scheduler.dto.JobResponse">
+        SELECT
+          id,
+          tenant_id AS tenantId,
+          job_code AS code,
+          job_name AS name,
+          job_type AS jobType,
+          executor_id AS executorId,
+          handler_name AS handlerName,
+          status,
+          remark
+        FROM sched_job
+        WHERE deleted = 0
+        ORDER BY id DESC
+    </select>
+
+    <select id="selectJobById" resultType="com.saasbasics.platform.modules.scheduler.dto.JobResponse">
+        SELECT
+          id,
+          tenant_id AS tenantId,
+          job_code AS code,
+          job_name AS name,
+          job_type AS jobType,
+          executor_id AS executorId,
+          handler_name AS handlerName,
+          status,
+          remark
+        FROM sched_job
+        WHERE id = #{id}
+          AND deleted = 0
+    </select>
+</mapper>

@@ -4,18 +4,16 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.saasbasics.platform.common.tenant.TenantAccessContext;
 import com.saasbasics.platform.common.tenant.TenantAccessContextHolder;
-import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
-import org.springframework.jdbc.core.JdbcTemplate;
+import com.saasbasics.platform.outbox.mapper.OutboxEventMapper;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -35,35 +33,17 @@ public class PlatformOutboxService {
             Long.class
     );
 
-    public record OutboxEventRecordView(
-            Long id,
-            String eventId,
-            String eventType,
-            String aggregateType,
-            String aggregateId,
-            Long tenantId,
-            String payloadJson,
-            String status,
-            int retryCount,
-            int maxRetries,
-            String lastError,
-            LocalDateTime nextRetryAt,
-            LocalDateTime processedAt,
-            LocalDateTime createdAt
-    ) {
-    }
-
-    private final ObjectProvider<JdbcTemplate> jdbcProvider;
+    private final ObjectProvider<OutboxEventMapper> mapperProvider;
     private final ObjectProvider<List<OutboxEventHandler>> handlersProvider;
     private final ObjectProvider<StringRedisTemplate> redisTemplateProvider;
     private final ObjectMapper objectMapper;
 
     public PlatformOutboxService(
-            ObjectProvider<JdbcTemplate> jdbcProvider,
+            ObjectProvider<OutboxEventMapper> mapperProvider,
             ObjectProvider<List<OutboxEventHandler>> handlersProvider,
             ObjectProvider<StringRedisTemplate> redisTemplateProvider,
             ObjectMapper objectMapper) {
-        this.jdbcProvider = jdbcProvider;
+        this.mapperProvider = mapperProvider;
         this.handlersProvider = handlersProvider;
         this.redisTemplateProvider = redisTemplateProvider;
         this.objectMapper = objectMapper;
@@ -78,32 +58,14 @@ public class PlatformOutboxService {
         } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Serialize outbox payload failed", ex);
         }
-        JdbcTemplate jdbc = jdbcProvider.getIfAvailable();
-        if (jdbc != null) {
-            LocalDateTime now = LocalDateTime.now();
-            jdbc.update("""
-                    INSERT INTO plat_outbox_event (
-                        event_id, event_type, aggregate_type, aggregate_id, scope_tenant_id,
-                        payload_json, status, retry_count, max_retries, next_retry_at, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, 'PENDING', 0, 5, ?, ?, ?)
-                    """,
-                    eventId,
-                    eventType,
-                    aggregateType,
-                    aggregateId,
-                    tenantId,
-                    json,
-                    Timestamp.valueOf(now),
-                    Timestamp.valueOf(now),
-                    Timestamp.valueOf(now));
-        }
+        mapperProvider.getObject().enqueue(eventId, eventType, aggregateType, aggregateId, tenantId, json);
         return eventId;
     }
 
     @Scheduled(fixedDelay = 10_000L, initialDelay = 12_000L)
     public void scheduledDispatch() {
         String lockToken = UUID.randomUUID().toString();
-        StringRedisTemplate redis = redisTemplateProvider != null ? redisTemplateProvider.getIfAvailable() : null;
+        StringRedisTemplate redis = redisTemplateProvider.getIfAvailable();
         boolean locked = false;
         if (redis != null) {
             try {
@@ -112,7 +74,9 @@ public class PlatformOutboxService {
                     return;
                 }
                 locked = true;
-            } catch (Exception ignored) {
+            } catch (org.springframework.dao.DataAccessException e) {
+                log.warn("Unable to acquire the outbox worker lock", e);
+                return;
             }
         }
         try {
@@ -123,141 +87,62 @@ public class PlatformOutboxService {
             if (locked && redis != null) {
                 try {
                     redis.execute(UNLOCK_SCRIPT, List.of(LOCK_KEY), lockToken);
-                } catch (Exception ignored) {
+                } catch (org.springframework.dao.DataAccessException e) {
+                    log.warn("Unable to release the outbox worker lock", e);
                 }
             }
         }
     }
 
     public int dispatchPendingEvents() {
-        JdbcTemplate jdbc = jdbcProvider.getIfAvailable();
-        if (jdbc == null) {
+        OutboxEventMapper mapper = mapperProvider.getIfAvailable();
+        if (mapper == null) {
             return 0;
         }
-        List<Map<String, Object>> rows;
-        try {
-            rows = jdbc.queryForList("""
-                    SELECT id, event_id, event_type, aggregate_type, aggregate_id, scope_tenant_id,
-                           payload_json, retry_count, max_retries
-                    FROM plat_outbox_event
-                    WHERE status IN ('PENDING', 'FAILED')
-                      AND next_retry_at <= NOW()
-                    ORDER BY id ASC
-                    LIMIT 30
-                    """);
-        } catch (Exception ex) {
-            return 0;
-        }
-
-        List<OutboxEventHandler> handlers = handlersProvider != null ? handlersProvider.getIfAvailable(List::of) : List.of();
+        List<OutboxEventHandler> handlers = handlersProvider.getIfAvailable(List::of);
         int dispatched = 0;
-        for (Map<String, Object> row : rows) {
-            long id = ((Number) row.get("id")).longValue();
-            String eventId = String.valueOf(row.get("event_id"));
-            String eventType = String.valueOf(row.get("event_type"));
-            String aggregateType = String.valueOf(row.get("aggregate_type"));
-            String aggregateId = String.valueOf(row.get("aggregate_id"));
-            Number tenantNum = (Number) row.get("scope_tenant_id");
-            Long tenantId = tenantNum != null ? tenantNum.longValue() : null;
-            String payloadJson = String.valueOf(row.get("payload_json"));
-            int retryCount = ((Number) row.get("retry_count")).intValue();
-            int maxRetries = ((Number) row.get("max_retries")).intValue();
-
-            OutboxEventPayload evt = new OutboxEventPayload(eventId, eventType, aggregateType, aggregateId, tenantId, payloadJson);
+        for (OutboxEventRecordView row : mapper.findPending()) {
+            Long tenantId = row.tenantId();
+            var evt = new OutboxEventPayload(row.eventId(), row.eventType(), row.aggregateType(),
+                    row.aggregateId(), tenantId, row.payloadJson());
             List<OutboxEventHandler> matched = handlers.stream()
-                    .filter(h -> eventType.equalsIgnoreCase(h.supportedEventType()))
+                    .filter(h -> row.eventType().equalsIgnoreCase(h.supportedEventType()))
                     .toList();
             try (TenantAccessContextHolder.Scope ignored = tenantId != null && tenantId > 0
                     ? TenantAccessContextHolder.openTenant(tenantId, "tenant-" + tenantId, 0L)
                     : TenantAccessContextHolder.openSystemBypass(
                             TenantAccessContext.BypassOperation.SYSTEM_TASK_OR_ANNOTATION_IGNORE,
                             "Platform Outbox worker dispatch")) {
+                if (matched.isEmpty()) throw new IllegalStateException("未注册该事件的处理器: " + row.eventType());
                 for (OutboxEventHandler h : matched) {
                     h.handle(evt);
                 }
-                jdbc.update("""
-                        UPDATE plat_outbox_event
-                        SET status = 'SENT', processed_at = NOW(), updated_at = NOW(), last_error = NULL
-                        WHERE id = ?
-                        """, id);
+                mapper.markSent(row.id());
                 dispatched++;
             } catch (Exception ex) {
-                int nextRetry = retryCount + 1;
-                String nextStatus = nextRetry >= maxRetries ? "DEAD_LETTER" : "FAILED";
+                int nextRetry = row.retryCount() + 1;
+                String nextStatus = nextRetry >= row.maxRetries() ? "DEAD_LETTER" : "FAILED";
                 long backoffSec = Math.min(300L, (long) Math.pow(2, nextRetry) * 5L);
                 String err = ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName();
                 if (err.length() > 480) {
                     err = err.substring(0, 480);
                 }
-                jdbc.update("""
-                        UPDATE plat_outbox_event
-                        SET status = ?, retry_count = ?, next_retry_at = ?, last_error = ?, updated_at = NOW()
-                        WHERE id = ?
-                        """,
-                        nextStatus,
-                        nextRetry,
-                        Timestamp.valueOf(LocalDateTime.now().plusSeconds(backoffSec)),
-                        err,
-                        id);
-                log.warn("[Outbox] 事件 {} 投递失败 (retry={}/{} -> {}): {}", eventId, nextRetry, maxRetries, nextStatus, err);
+                mapper.markFailure(row.id(), nextStatus, nextRetry, LocalDateTime.now().plusSeconds(backoffSec), err);
+                log.warn("[Outbox] 事件 {} 投递失败 (retry={}/{} -> {}): {}", row.eventId(), nextRetry, row.maxRetries(), nextStatus, err);
             }
         }
         return dispatched;
     }
 
     public List<OutboxEventRecordView> listRecentEvents(int limit) {
-        JdbcTemplate jdbc = jdbcProvider.getIfAvailable();
-        if (jdbc == null) {
-            return List.of();
-        }
         int safeLimit = Math.min(Math.max(limit, 1), 100);
-        try {
-            return jdbc.query("""
-                    SELECT id, event_id, event_type, aggregate_type, aggregate_id, scope_tenant_id,
-                           payload_json, status, retry_count, max_retries, last_error,
-                           next_retry_at, processed_at, created_at
-                    FROM plat_outbox_event
-                    ORDER BY id DESC
-                    LIMIT ?
-                    """,
-                    (rs, rowNum) -> {
-                        Timestamp nextTs = rs.getTimestamp("next_retry_at");
-                        Timestamp procTs = rs.getTimestamp("processed_at");
-                        Timestamp crtTs = rs.getTimestamp("created_at");
-                        long tId = rs.getLong("scope_tenant_id");
-                        return new OutboxEventRecordView(
-                                rs.getLong("id"),
-                                rs.getString("event_id"),
-                                rs.getString("event_type"),
-                                rs.getString("aggregate_type"),
-                                rs.getString("aggregate_id"),
-                                rs.wasNull() ? null : tId,
-                                rs.getString("payload_json"),
-                                rs.getString("status"),
-                                rs.getInt("retry_count"),
-                                rs.getInt("max_retries"),
-                                rs.getString("last_error"),
-                                nextTs != null ? nextTs.toLocalDateTime() : null,
-                                procTs != null ? procTs.toLocalDateTime() : null,
-                                crtTs != null ? crtTs.toLocalDateTime() : null
-                        );
-                    },
-                    safeLimit);
-        } catch (Exception ex) {
-            return List.of();
-        }
+        return mapperProvider.getObject().findRecent(safeLimit);
     }
 
     public int retryEvent(long id) {
-        JdbcTemplate jdbc = jdbcProvider.getIfAvailable();
-        if (jdbc == null) {
+        if (mapperProvider.getObject().reschedule(id) == 0) {
             return 0;
         }
-        jdbc.update("""
-                UPDATE plat_outbox_event
-                SET status = 'PENDING', next_retry_at = NOW(), updated_at = NOW()
-                WHERE id = ?
-                """, id);
         return dispatchPendingEvents();
     }
 }

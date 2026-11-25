@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.saasbasics.platform.common.trace.TraceContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -48,8 +49,26 @@ class Rfc9457ProblemDetailsTest {
                 .andExpect(jsonPath("$.instance").value("/probe/denied"));
     }
 
+    @Test
+    void databaseErrorsKeepStatementDetailsOutOfBothResponseFormats() throws Exception {
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(new SampleController())
+                .setControllerAdvice(new GlobalExceptionHandler()).build();
+        String message = "本次操作未能完成，请联系平台管理员。";
+        mvc.perform(get("/probe/database").header("Accept-Language", "zh-CN"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.message").value(message));
+        mvc.perform(get("/probe/database").header("Accept-Language", "zh-CN").accept(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.detail").value(message));
+    }
+
     @RestController
     static class SampleController {
+        @GetMapping("/probe/database")
+        public void databaseError() {
+            throw new DataAccessResourceFailureException("statement details for the server log");
+        }
+
         @GetMapping("/probe/denied")
         public void denied() {
             throw new BizException("TENANT_ACCESS_DENIED", "Cross-tenant operation denied");

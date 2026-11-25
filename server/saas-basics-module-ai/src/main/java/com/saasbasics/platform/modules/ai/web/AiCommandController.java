@@ -2,7 +2,6 @@ package com.saasbasics.platform.modules.ai.web;
 
 import com.saasbasics.platform.common.api.ApiResponse;
 import com.saasbasics.platform.common.auth.AuthContext;
-import com.saasbasics.platform.common.auth.AuthPrincipal;
 import com.saasbasics.platform.common.auth.RequirePermission;
 import com.saasbasics.platform.modules.ai.application.dto.AiCommandDtos.AiCommandHistoryDTO;
 import com.saasbasics.platform.modules.ai.application.dto.AiCommandDtos.AiCommandRequest;
@@ -64,8 +63,7 @@ public class AiCommandController {
 
     @GetMapping("/nl2sql/schemas")
     public ApiResponse<List<Nl2SqlSchemaTableDTO>> listSchemas() {
-        AuthPrincipal principal = AuthContext.get();
-        Long tenantId = principal != null && principal.tenantId() != null ? principal.tenantId() : 1L;
+        Long tenantId = AuthContext.requirePrincipal().tenantId();
         return ApiResponse.success(schemaCatalogService.listAllowedSchemas(tenantId));
     }
 }

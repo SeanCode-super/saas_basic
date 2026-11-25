@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.saasbasics.platform.modules.system.mapper.TrashMapper">
+    <select id="registeredModels" resultType="com.saasbasics.platform.modules.system.mapper.TrashMapper$RegisteredModel">
+        SELECT table_name, model_name, model_code FROM gen_dynamic_model WHERE tenant_id = #{tenantId} AND deleted = 0
+    </select>
+    <select id="resourceColumns" resultType="com.saasbasics.platform.modules.system.mapper.TrashMapper$SchemaColumn">
+        SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = DATABASE()
+          AND (table_name IN <foreach collection="names" item="name" open="(" separator="," close=")">#{name}</foreach>
+               OR LEFT(table_name, 4) IN ('erp_', 'crm_')
+               OR (LEFT(table_name, 4) = 'biz_' AND LEFT(table_name, 8) != 'biz_dyn_'))
+        ORDER BY table_name, ordinal_position
+    </select>
+    <sql id="tenantDeleted">tenant_id = #{tenantId} AND deleted = 1</sql>
+    <sql id="row">
+        id, `${target.title}` AS title, <choose><when test="target.dated">deleted_at</when><otherwise>NULL</otherwise></choose> AS deleted_at
+    </sql>
+    <select id="countDeleted" resultType="long">
+        SELECT COUNT(*) FROM `${target.table}` WHERE <include refid="tenantDeleted"/>
+    </select>
+    <select id="listDeleted" resultType="com.saasbasics.platform.modules.system.mapper.TrashMapper$DeletedRow">
+        SELECT <include refid="row"/> FROM `${target.table}` WHERE <include refid="tenantDeleted"/>
+        ORDER BY <if test="target.dated">deleted_at DESC,</if> id DESC LIMIT 50
+    </select>
+    <select id="lockDeleted" resultType="com.saasbasics.platform.modules.system.mapper.TrashMapper$DeletedRow">
+        SELECT <include refid="row"/> FROM `${target.table}` WHERE <include refid="tenantDeleted"/> AND id = #{id} FOR UPDATE
+    </select>
+    <sql id="selectedDeleted">
+        <include refid="tenantDeleted"/> AND `${target.key}` = #{id}
+        <if test="deletedAt != null">AND deleted_at = #{deletedAt}</if>
+    </sql>
+    <update id="restore">
+        UPDATE `${target.table}` SET deleted = 0
+        <if test="target.dated">, deleted_at = NULL</if>
+        <if test="target.updated">, updated_at = CURRENT_TIMESTAMP</if>
+        <if test="target.attributed">, updated_by = #{actor}</if>
+        WHERE <include refid="selectedDeleted"/>
+    </update>
+    <delete id="purge">DELETE FROM `${target.table}` WHERE <include refid="selectedDeleted"/></delete>
+</mapper>

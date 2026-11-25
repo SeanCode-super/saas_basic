@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.saasbasics.platform.modules.codegen.mapper.PublishedModelCatalogMapper">
+    <select id="listPublishedColumns" resultType="com.saasbasics.platform.modules.ai.api.PublishedModelCatalog$Column">
+        SELECT m.table_name, m.model_name, f.field_code, f.field_name, f.column_type
+        FROM gen_dynamic_model m
+        LEFT JOIN gen_dynamic_field f ON f.model_id = m.id AND f.tenant_id = m.tenant_id AND f.deleted = 0
+        WHERE m.tenant_id = #{tenantId} AND m.deleted = 0 AND m.status = 'PUBLISHED'
+        ORDER BY m.id, f.sort_no, f.id
+    </select>
+
+</mapper>

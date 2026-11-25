@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.saasbasics.platform.modules.dashboard.mapper.DashboardMetricMapper">
+    <select id="listMetrics" resultType="com.saasbasics.platform.modules.dashboard.dto.DashboardMetric">
+        SELECT 'activeTenants' AS `key`, '有效租户' AS label, CAST(COUNT(*) AS CHAR) AS value, 'live' AS trend
+        FROM plat_tenant WHERE deleted = 0 AND status = 'ACTIVE'
+        <if test="!platformAdmin">AND id = #{tenantId}</if>
+        UNION ALL SELECT 'datasources', '已登记数据源', CAST(COUNT(*) AS CHAR), 'live'
+        FROM int_datasource WHERE tenant_id = #{tenantId} AND deleted = 0
+        UNION ALL SELECT 'jobsToday', '今日启动任务', CAST(COUNT(*) AS CHAR), 'live'
+        FROM sched_job_log WHERE tenant_id = #{tenantId} AND started_at >= CURRENT_DATE
+            AND started_at &lt; CURRENT_DATE + INTERVAL 1 DAY
+        UNION ALL SELECT 'generatedModules', '已发布动态模型', CAST(COUNT(*) AS CHAR), 'live'
+        FROM gen_dynamic_model WHERE tenant_id = #{tenantId} AND deleted = 0 AND status = 'PUBLISHED'
+    </select>
+</mapper>

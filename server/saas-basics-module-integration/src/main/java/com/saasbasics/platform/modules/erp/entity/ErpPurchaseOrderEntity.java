@@ -14,6 +14,7 @@ public class ErpPurchaseOrderEntity {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Long tenantId;
+    private Long warehouseId;
     private String orderNo;
     private Long supplierId;
     private String supplierName;
@@ -28,6 +29,8 @@ public class ErpPurchaseOrderEntity {
     private Long updatedBy;
     private Integer deleted;
 
+    public Long getWarehouseId() { return warehouseId; }
+    public void setWarehouseId(Long warehouseId) { this.warehouseId = warehouseId; }
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public Long getTenantId() { return tenantId; }

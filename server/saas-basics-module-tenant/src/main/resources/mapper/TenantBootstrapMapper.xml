@@ -1,0 +1,576 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.saasbasics.platform.modules.tenant.mapper.TenantBootstrapMapper">
+    <insert id="cloneAllTenantApps">
+        INSERT INTO plat_tenant_app (tenant_id, app_code, app_name, status, remark, created_by, updated_by)
+        SELECT #{tenantId}, app_code, app_name, 'ENABLED', 'tenant bootstrap (all)', 1, 1
+        FROM plat_tenant_app
+        WHERE tenant_id = 1 AND deleted = 0 AND app_code != 'tenant'
+        ON DUPLICATE KEY UPDATE status = 'ENABLED'
+    </insert>
+
+    <select id="selectTemplateApps" resultType="map">
+        SELECT app_code, app_name
+        FROM plat_tenant_app
+        WHERE tenant_id = 1 AND deleted = 0 AND app_code != 'tenant'
+    </select>
+
+    <insert id="upsertPackageApp">
+        INSERT INTO plat_tenant_app (tenant_id, app_code, app_name, status, remark, created_by, updated_by)
+        VALUES (#{tenantId}, #{appCode}, #{appName}, #{status}, 'tenant bootstrap (package)', 1, 1)
+        ON DUPLICATE KEY UPDATE status = VALUES(status)
+    </insert>
+
+    <select id="selectPackageFeatures" resultType="map">
+        SELECT feature_flags_json
+        FROM plat_tenant_package
+        WHERE id = #{packageId} AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <insert id="cloneProcessDefinitions">
+        INSERT INTO wf_process_definition (
+            tenant_id, process_code, process_name, category, icon, color, description,
+            form_schema_json, flow_nodes_json, bpmn_xml, flowable_deployment_id, version, status, sort_no, created_by, updated_by, deleted
+        )
+        SELECT
+            #{tenantId}, process_code, process_name, category, icon, color, description,
+            form_schema_json, flow_nodes_json, bpmn_xml, flowable_deployment_id, version, status, sort_no, 1, 1, 0
+        FROM wf_process_definition
+        WHERE tenant_id = 1 AND deleted = 0 AND status = 'PUBLISHED'
+    </insert>
+
+    <select id="selectLoginTemplate" resultType="map">
+        SELECT allow_password_login, allow_sms_login, allow_email_login, allow_social_login,
+               force_mfa, session_timeout_minutes, max_failed_count, lock_minutes,
+               ip_allowlist_json, device_trust_days
+        FROM iam_login_policy
+        WHERE tenant_id IN (0, 1)
+          AND deleted = 0
+          AND status = 'ENABLED'
+        ORDER BY tenant_id DESC, id ASC
+        LIMIT 1
+    </select>
+
+    <insert id="insertLoginPolicy" useGeneratedKeys="true" keyProperty="key.id" keyColumn="id">
+        INSERT INTO iam_login_policy (
+          tenant_id, policy_code, policy_name, allow_password_login, allow_sms_login, allow_email_login,
+          allow_social_login, force_mfa, session_timeout_minutes, max_failed_count, lock_minutes,
+          ip_allowlist_json, device_trust_days, status, created_by, created_at, updated_by, updated_at,
+          deleted, version, remark
+        ) VALUES (
+            #{tenantId}, CONCAT(#{tenantCode}, '_default_login'), CONCAT(#{tenantName}, '默认登录策略'),
+            #{source.allow_password_login}, #{source.allow_sms_login}, #{source.allow_email_login},
+            #{source.allow_social_login}, #{source.force_mfa}, #{source.session_timeout_minutes},
+            #{source.max_failed_count}, #{source.lock_minutes}, #{source.ip_allowlist_json},
+            #{source.device_trust_days}, 'ENABLED', 1, NOW(3), 1, NOW(3), 0, 0, 'tenant bootstrap'
+        )
+    </insert>
+
+    <select id="selectPasswordTemplate" resultType="com.saasbasics.platform.modules.tenant.mapper.TenantBootstrapMapper$PasswordTemplate">
+        SELECT min_length, max_length, require_uppercase, require_lowercase,
+               require_number, require_special, password_history_limit, password_expire_days,
+               temp_password_expire_hours
+        FROM iam_password_policy
+        WHERE tenant_id IN (0, 1)
+          AND deleted = 0
+          AND status = 'ENABLED'
+        ORDER BY tenant_id DESC, id ASC
+        LIMIT 1
+    </select>
+
+    <insert id="insertPasswordPolicy" useGeneratedKeys="true" keyProperty="key.id" keyColumn="id">
+        INSERT INTO iam_password_policy (
+          tenant_id, policy_code, policy_name, min_length, max_length, require_uppercase, require_lowercase,
+          require_number, require_special, password_history_limit, password_expire_days, temp_password_expire_hours,
+          status, created_by, created_at, updated_by, updated_at, deleted, version, remark
+        ) VALUES (
+            #{tenantId}, CONCAT(#{tenantCode}, '_default_password'), CONCAT(#{tenantName}, '默认密码策略'),
+            #{source.minLength}, #{source.maxLength}, #{source.requireUppercase},
+            #{source.requireLowercase}, #{source.requireNumber}, #{source.requireSpecial},
+            #{source.passwordHistoryLimit}, #{source.passwordExpireDays},
+            #{source.tempPasswordExpireHours}, 'ENABLED', 1, NOW(3), 1, NOW(3), 0, 0, 'tenant bootstrap'
+        )
+    </insert>
+
+    <insert id="insertAdminRole" useGeneratedKeys="true" keyProperty="key.id" keyColumn="id">
+        INSERT INTO iam_role (
+          tenant_id, role_group_id, role_code, role_name, role_type, data_scope_type, status, is_system,
+          sort_no, created_by, created_at, updated_by, updated_at, deleted, version, remark
+        ) VALUES (
+            #{tenantId}, 0, CONCAT(#{tenantCode}, '_super_admin'), CONCAT(#{tenantName}, '管理员'), 'SYSTEM',
+            'ALL', 'ENABLED', 1, 1, 1, NOW(3), 1, NOW(3), 0, 0, 'tenant bootstrap'
+        )
+    </insert>
+
+    <insert id="cloneApiResources">
+        INSERT INTO iam_api_resource (
+          tenant_id, resource_code, resource_name, http_method, url_pattern, auth_required, status,
+          created_by, created_at, updated_by, updated_at, deleted, version, remark
+        )
+        SELECT #{tenantId}, resource_code, resource_name, http_method, url_pattern, auth_required, status,
+               1, NOW(3), 1, NOW(3), 0, 0, 'tenant bootstrap'
+        FROM iam_api_resource
+        WHERE tenant_id = 1
+          AND deleted = 0
+    </insert>
+
+    <insert id="assignRoleApis">
+        INSERT INTO iam_role_api (
+          tenant_id, role_id, api_resource_id, created_by, created_at, updated_by, updated_at, deleted, version, remark
+        )
+        SELECT #{tenantId}, #{roleId}, id, 1, NOW(3), 1, NOW(3), 0, 0, 'tenant bootstrap'
+        FROM iam_api_resource
+        WHERE tenant_id = #{tenantId}
+          AND deleted = 0
+    </insert>
+
+    <insert id="cloneMenus">
+        INSERT INTO iam_menu (
+          tenant_id, parent_id, menu_type, menu_code, app_code, menu_name, route_path, component_path, permission_code, icon,
+          visible, keep_alive, sort_no, status, meta_json, created_by, created_at, updated_by, updated_at, deleted, version, remark
+        )
+        SELECT #{tenantId}, 0, menu_type, menu_code, app_code,
+               CASE WHEN menu_code = 'dashboard' AND menu_name = '平台总览' THEN '工作台' ELSE menu_name END,
+               route_path, component_path, permission_code, icon,
+               visible, keep_alive, sort_no, status, meta_json, 1, NOW(3), 1, NOW(3), 0, 0, 'tenant bootstrap'
+        FROM iam_menu
+        WHERE tenant_id = 1
+          AND deleted = 0
+          AND menu_code NOT LIKE 'dyn\_%'
+          AND app_code != 'tenant'
+    </insert>
+
+    <update id="restoreMenuParents">
+        UPDATE iam_menu target
+        INNER JOIN iam_menu source
+          ON source.tenant_id = 1
+         AND source.menu_code = target.menu_code
+         AND source.deleted = 0
+        LEFT JOIN iam_menu source_parent
+          ON source_parent.id = source.parent_id
+         AND source_parent.tenant_id = 1
+         AND source_parent.deleted = 0
+        LEFT JOIN iam_menu target_parent
+          ON target_parent.tenant_id = #{tenantId}
+         AND target_parent.menu_code = source_parent.menu_code
+         AND target_parent.deleted = 0
+        SET target.parent_id = IFNULL(target_parent.id, 0)
+        WHERE target.tenant_id = #{tenantId}
+          AND target.deleted = 0
+    </update>
+
+    <insert id="assignMenuPermissions">
+        INSERT INTO iam_menu_permission (
+          tenant_id, menu_id, menu_code, subject_type, subject_value, button_codes_json, status,
+          created_by, created_at, updated_by, updated_at, deleted, version, remark
+        )
+        SELECT #{tenantId}, target.id, target.menu_code, 'ROLE', CAST(#{roleId} AS CHAR),
+               IFNULL((
+                 SELECT JSON_ARRAYAGG(btn.menu_code)
+                 FROM iam_menu btn
+                 WHERE btn.parent_id = target.id
+                   AND btn.tenant_id = target.tenant_id
+                   AND btn.menu_type = 'BUTTON'
+                   AND btn.deleted = 0
+               ), JSON_ARRAY()),
+               'ENABLED',
+               #{actorId}, NOW(3), #{actorId}, NOW(3), 0, 0, 'tenant bootstrap'
+        FROM iam_menu target
+        WHERE target.tenant_id = #{tenantId}
+          AND target.menu_type NOT IN ('BUTTON', 'DIRECTORY')
+          AND target.deleted = 0
+    </insert>
+
+    <insert id="assignRoleMenus">
+        INSERT IGNORE INTO iam_role_menu (
+          tenant_id, role_id, menu_id, created_by, updated_by, remark
+        )
+        SELECT #{tenantId}, #{roleId}, target.id, #{actorId}, #{actorId}, 'tenant bootstrap'
+        FROM iam_menu target
+        WHERE target.tenant_id = #{tenantId}
+          AND target.deleted = 0
+    </insert>
+
+    <insert id="insertDepartment" useGeneratedKeys="true" keyProperty="key.id" keyColumn="id">
+        INSERT INTO iam_department (
+          tenant_id, parent_id, dept_code, dept_name, dept_full_name, tree_path, leader_user_id, status,
+          sort_no, created_by, created_at, updated_by, updated_at, deleted, version, remark
+        ) VALUES (
+            #{tenantId}, 0, CONCAT(#{tenantCode}, '_hq'), CONCAT(#{tenantName}, '总部'),
+            CONCAT(#{tenantName}, '总部'), NULL, 0, 'ENABLED', 1, 1, NOW(3), 1, NOW(3), 0, 0, 'tenant bootstrap'
+        )
+    </insert>
+
+    <update id="updateDepartmentPath">
+        UPDATE iam_department SET tree_path = CONCAT('/', #{deptId}, '/') WHERE id = #{deptId} AND tenant_id = #{tenantId}
+    </update>
+
+    <insert id="insertPosition" useGeneratedKeys="true" keyProperty="key.id" keyColumn="id">
+        INSERT INTO iam_position (
+          tenant_id, position_code, position_name, position_level, status,
+          sort_no, created_by, created_at, updated_by, updated_at, deleted, version, remark
+        ) VALUES (
+            #{tenantId}, CONCAT(#{tenantCode}, '_admin_pos'), '系统管理员', 'M1', 'ENABLED', 1, 1, NOW(3), 1,
+            NOW(3), 0, 0, 'tenant bootstrap'
+        )
+    </insert>
+
+    <insert id="insertEmployee" useGeneratedKeys="true" keyProperty="key.id" keyColumn="id">
+        INSERT INTO iam_employee (
+          tenant_id, employee_no, employee_name, dept_id, position_id, employee_status,
+          created_by, created_at, updated_by, updated_at, deleted, version, remark
+        ) VALUES (
+            #{tenantId}, 'EMP-0001', CONCAT(#{tenantName}, '管理员'), #{deptId}, #{positionId}, 'ACTIVE', 1,
+            NOW(3), 1, NOW(3), 0, 0, 'tenant bootstrap'
+        )
+    </insert>
+
+    <insert id="insertDataPermissionRule">
+        INSERT INTO iam_data_permission_rule (
+          tenant_id, resource_code, resource_name, subject_type, subject_value, scope_type, config_json, status,
+          created_by, created_at, updated_by, updated_at, deleted, version, remark
+        ) VALUES (#{tenantId}, #{resource.code}, #{resource.name}, 'ROLE', CAST(#{roleId} AS CHAR), 'TENANT', JSON_OBJECT(), 'ENABLED',
+                  1, NOW(3), 1, NOW(3), 0, 0, 'tenant bootstrap')
+    </insert>
+
+    <insert id="insertAdminUser" useGeneratedKeys="true" keyProperty="key.id" keyColumn="id">
+        INSERT INTO iam_user (
+          tenant_id, public_id, user_code, username, nickname, employee_id, user_type, status, mobile, email,
+          last_login_at, last_login_ip, password_hash, password_changed_at, need_reset_password,
+          created_by, created_at, updated_by, updated_at, deleted, version, remark
+        ) VALUES (#{tenantId}, #{publicId}, 'TENANT_ADMIN', 'admin', CONCAT(#{tenantName}, '管理员'), #{employeeId}, 'STAFF', 'ENABLED', NULL, CONCAT('admin@', #{tenantCode}, '.local'),
+                  NULL, NULL, #{passwordHash}, NOW(3), 1, 1, NOW(3), 1, NOW(3), 0, 0, 'tenant bootstrap')
+    </insert>
+
+    <insert id="cloneDictTypes">
+        INSERT INTO sys_dict_type (
+          tenant_id, dict_code, dict_name, dict_scope, status, cacheable, ext_json, remark,
+          created_by, created_at, updated_by, updated_at, deleted, version
+        )
+        SELECT #{tenantId}, s.dict_code, s.dict_name, 'TENANT', s.status, s.cacheable, s.ext_json, s.remark,
+               1, NOW(3), 1, NOW(3), 0, 0
+        FROM sys_dict_type s
+        WHERE s.tenant_id = 1 AND s.deleted = 0
+          AND NOT EXISTS (
+            SELECT 1 FROM sys_dict_type t
+            WHERE t.tenant_id = #{tenantId} AND t.dict_code = s.dict_code AND t.deleted = 0
+          )
+    </insert>
+
+    <insert id="cloneDictItems">
+        INSERT INTO sys_dict_item (
+          tenant_id, dict_type_id, item_value, item_label, item_color, item_tag, parent_id, sort_no,
+          status, is_default, ext_json, remark, created_by, created_at, updated_by, updated_at, deleted, version
+        )
+        SELECT #{tenantId}, tgt_type.id, si.item_value, si.item_label, si.item_color, si.item_tag, 0, si.sort_no,
+               si.status, si.is_default, si.ext_json, si.remark, 1, NOW(3), 1, NOW(3), 0, 0
+        FROM sys_dict_item si
+        INNER JOIN sys_dict_type src_type ON src_type.id = si.dict_type_id AND src_type.tenant_id = 1 AND src_type.deleted = 0
+        INNER JOIN sys_dict_type tgt_type ON tgt_type.tenant_id = #{tenantId} AND tgt_type.dict_code = src_type.dict_code AND tgt_type.deleted = 0
+        WHERE si.tenant_id = 1 AND si.deleted = 0
+          AND NOT EXISTS (
+            SELECT 1 FROM sys_dict_item ti
+            WHERE ti.tenant_id = #{tenantId} AND ti.dict_type_id = tgt_type.id AND ti.item_value = si.item_value AND ti.deleted = 0
+          )
+    </insert>
+
+    <insert id="cloneSystemConfigs">
+        INSERT INTO sys_config (
+          tenant_id, config_group, config_key, config_name, config_value, value_type, encrypted, status, remark,
+          created_by, created_at, updated_by, updated_at, deleted, version
+        )
+        SELECT #{tenantId}, s.config_group, s.config_key, s.config_name, s.config_value, s.value_type, 0, s.status, s.remark,
+               1, NOW(3), 1, NOW(3), 0, 0
+        FROM sys_config s
+        WHERE s.tenant_id = 1 AND s.deleted = 0 AND s.encrypted = 0
+          AND NOT EXISTS (
+            SELECT 1 FROM sys_config t
+            WHERE t.tenant_id = #{tenantId} AND t.config_group = s.config_group AND t.config_key = s.config_key AND t.deleted = 0
+          )
+    </insert>
+
+    <insert id="cloneMessages">
+        INSERT INTO sys_i18n_message (
+          tenant_id, locale, message_group, message_key, message_value, remark,
+          created_by, created_at, updated_by, updated_at, deleted, version
+        )
+        SELECT #{tenantId}, s.locale, s.message_group, s.message_key, s.message_value, s.remark,
+               1, NOW(3), 1, NOW(3), 0, 0
+        FROM sys_i18n_message s
+        WHERE s.tenant_id = 1 AND s.deleted = 0
+          AND NOT EXISTS (
+            SELECT 1 FROM sys_i18n_message t
+            WHERE t.tenant_id = #{tenantId} AND t.locale = s.locale AND t.message_group = s.message_group
+              AND t.message_key = s.message_key AND t.deleted = 0
+          )
+    </insert>
+
+    <insert id="cloneDataScopes">
+        INSERT INTO iam_data_scope (
+          tenant_id, scope_code, scope_name, scope_type, scope_rule_json, status, remark,
+          created_by, created_at, updated_by, updated_at, deleted, version
+        )
+        SELECT #{tenantId}, s.scope_code, s.scope_name, s.scope_type, s.scope_rule_json, s.status, s.remark,
+               1, NOW(3), 1, NOW(3), 0, 0
+        FROM iam_data_scope s
+        WHERE s.tenant_id = 1 AND s.deleted = 0
+          AND NOT EXISTS (
+            SELECT 1 FROM iam_data_scope t
+            WHERE t.tenant_id = #{tenantId} AND t.scope_code = s.scope_code AND t.deleted = 0
+          )
+    </insert>
+
+    <insert id="cloneSequenceRules">
+        INSERT INTO sys_sequence_rule (
+          tenant_id, rule_code, rule_name, prefix, date_pattern, seq_length, step, current_value,
+          reset_cycle, status, remark, created_by, created_at, updated_by, updated_at, deleted, version
+        )
+        SELECT #{tenantId}, s.rule_code, s.rule_name, s.prefix, s.date_pattern, s.seq_length, s.step, 0,
+               s.reset_cycle, s.status, s.remark, 1, NOW(3), 1, NOW(3), 0, 0
+        FROM sys_sequence_rule s
+        WHERE s.tenant_id = 1 AND s.deleted = 0
+          AND NOT EXISTS (
+            SELECT 1 FROM sys_sequence_rule t
+            WHERE t.tenant_id = #{tenantId} AND t.rule_code = s.rule_code AND t.deleted = 0
+          )
+    </insert>
+
+    <insert id="cloneRiskRules">
+        INSERT INTO sec_risk_rule (
+          tenant_id, rule_code, rule_name, risk_type, rule_expr, action_json, status, remark,
+          created_by, created_at, updated_by, updated_at, deleted, version
+        )
+        SELECT #{tenantId}, s.rule_code, s.rule_name, s.risk_type, s.rule_expr, s.action_json, s.status, s.remark,
+               1, NOW(3), 1, NOW(3), 0, 0
+        FROM sec_risk_rule s
+        WHERE s.tenant_id = 1 AND s.deleted = 0
+          AND NOT EXISTS (
+            SELECT 1 FROM sec_risk_rule t
+            WHERE t.tenant_id = #{tenantId} AND t.rule_code = s.rule_code AND t.deleted = 0
+          )
+    </insert>
+
+    <insert id="cloneNotifyTemplates">
+        INSERT INTO system_notify_template (
+          tenant_id, template_code, template_name, template_type, title_template, content_template, status, remark, deleted
+        )
+        SELECT #{tenantId}, s.template_code, s.template_name, s.template_type, s.title_template, s.content_template, s.status, s.remark, 0
+        FROM system_notify_template s
+        WHERE s.tenant_id = 1 AND s.deleted = 0
+          AND NOT EXISTS (
+            SELECT 1 FROM system_notify_template t
+            WHERE t.tenant_id = #{tenantId} AND t.template_code = s.template_code AND t.deleted = 0
+          )
+    </insert>
+
+    <insert id="insertDefaultStorage">
+        INSERT INTO file_storage (
+          tenant_id, storage_code, storage_name, storage_type, endpoint, bucket_default, base_path,
+          default_folder, path_pattern, max_file_mb, public_base_url, status, is_default, upload_mode,
+          remark, created_by, updated_by, deleted
+        )
+        SELECT #{tenantId}, 'local_default', '本地高可用文件存储', 'LOCAL', './data/storage', 'local-disk', './data/storage',
+               'uploads', 't_{tenantId}/{folder}/{yyyy}/{MM}/{uuid}_{filename}', 100, '/api/file/raw-download',
+               'ENABLED', 1, 'DIRECT_SERVER', '租户默认本地存储源', 1, 1, 0
+        FROM dual
+        WHERE NOT EXISTS (
+          SELECT 1 FROM file_storage fs WHERE fs.tenant_id = #{tenantId} AND fs.deleted = 0
+        )
+    </insert>
+
+    <insert id="insertDefaultBucket">
+        INSERT INTO file_bucket (
+          tenant_id, storage_id, bucket_code, bucket_name, bucket_type, bucket_path, status, remark,
+          created_by, updated_by, deleted
+        )
+        SELECT #{tenantId}, #{storageId}, 'default_bucket', '默认文件桶', 'PRIVATE', CONCAT('/t_', #{tenantId}, '/default'),
+               'ENABLED', '租户默认文件桶', 1, 1, 0
+        FROM dual
+        WHERE NOT EXISTS (
+          SELECT 1 FROM file_bucket fb WHERE fb.tenant_id = #{tenantId} AND fb.bucket_code = 'default_bucket' AND fb.deleted = 0
+        )
+    </insert>
+
+    <insert id="cloneUploadRoutes">
+        INSERT INTO file_upload_route (
+          tenant_id, storage_id, biz_type, route_name, upload_mode, target_dir, path_pattern,
+          max_file_mb, allowed_exts, priority, status, remark, created_by, updated_by, deleted
+        )
+        SELECT #{tenantId}, NULL, s.biz_type, s.route_name, s.upload_mode, s.target_dir,
+               't_{tenantId}/{folder}/{yyyy}/{MM}/{uuid}_{filename}',
+               s.max_file_mb, s.allowed_exts, s.priority, s.status, s.remark, 1, 1, 0
+        FROM file_upload_route s
+        WHERE s.tenant_id = 1 AND s.deleted = 0
+          AND NOT EXISTS (
+            SELECT 1 FROM file_upload_route t WHERE t.tenant_id = #{tenantId} AND t.biz_type = s.biz_type AND t.deleted = 0
+          )
+    </insert>
+
+    <insert id="insertDefaultWarehouse">
+        INSERT INTO erp_warehouse (
+          tenant_id, warehouse_code, warehouse_name, status, created_by, updated_by, deleted
+        )
+        SELECT #{tenantId}, 'WH-DEFAULT', CONCAT(#{tenantName}, '默认中心总仓'), 'ENABLED', 1, 1, 0
+        FROM dual
+        WHERE NOT EXISTS (
+          SELECT 1 FROM erp_warehouse w WHERE w.tenant_id = #{tenantId} AND w.deleted = 0
+        )
+    </insert>
+
+    <insert id="insertDefaultExecutor">
+        INSERT INTO sched_executor (
+          tenant_id, executor_code, executor_name, executor_type, address, status, heartbeat_at,
+          remark, created_by, updated_by, deleted
+        )
+        SELECT #{tenantId}, 'local-default', '本地执行器', 'LOCAL', '127.0.0.1', 'ENABLED', NOW(3),
+               '租户默认本地任务执行器', 1, 1, 0
+        FROM dual
+        WHERE NOT EXISTS (
+          SELECT 1 FROM sched_executor se WHERE se.tenant_id = #{tenantId} AND se.executor_code = 'local-default' AND se.deleted = 0
+        )
+    </insert>
+
+    <insert id="cloneAiProviders">
+        INSERT INTO ai_provider (
+          tenant_id, provider_code, provider_name, provider_type, base_url, api_key,
+          status, is_default, sort_no, remark, created_by, updated_by, deleted
+        )
+        SELECT #{tenantId}, s.provider_code, s.provider_name, s.provider_type, s.base_url, '',
+               s.status, s.is_default, s.sort_no, s.remark, 1, 1, 0
+        FROM ai_provider s
+        WHERE s.tenant_id = 1 AND s.deleted = 0
+          AND NOT EXISTS (
+            SELECT 1 FROM ai_provider t WHERE t.tenant_id = #{tenantId} AND t.provider_code = s.provider_code AND t.deleted = 0
+          )
+    </insert>
+
+    <insert id="cloneAiModels">
+        INSERT INTO ai_model_config (
+          tenant_id, provider_id, model_id, model_name, category, context_window, max_tokens,
+          temperature, is_default, status, sort_no, created_by, updated_by, deleted
+        )
+        SELECT #{tenantId}, tgt_p.id, s.model_id, s.model_name, s.category, s.context_window, s.max_tokens,
+               s.temperature, s.is_default, s.status, s.sort_no, 1, 1, 0
+        FROM ai_model_config s
+        INNER JOIN ai_provider src_p ON src_p.id = s.provider_id AND src_p.tenant_id = 1 AND src_p.deleted = 0
+        INNER JOIN ai_provider tgt_p ON tgt_p.tenant_id = #{tenantId} AND tgt_p.provider_code = src_p.provider_code AND tgt_p.deleted = 0
+        WHERE s.tenant_id = 1 AND s.deleted = 0
+          AND NOT EXISTS (
+            SELECT 1 FROM ai_model_config t WHERE t.tenant_id = #{tenantId} AND t.model_id = s.model_id AND t.deleted = 0
+          )
+    </insert>
+
+    <insert id="cloneAiPrompts">
+        INSERT INTO ai_prompt (
+          tenant_id, prompt_code, prompt_name, category, active_version, status, remark,
+          created_by, updated_by, deleted
+        )
+        SELECT #{tenantId}, s.prompt_code, s.prompt_name, s.category, s.active_version, s.status, s.remark, 1, 1, 0
+        FROM ai_prompt s
+        WHERE s.tenant_id = 1 AND s.deleted = 0
+          AND NOT EXISTS (
+            SELECT 1 FROM ai_prompt t WHERE t.tenant_id = #{tenantId} AND t.prompt_code = s.prompt_code AND t.deleted = 0
+          )
+    </insert>
+
+    <insert id="cloneAiPromptVersions">
+        INSERT INTO ai_prompt_version (
+          tenant_id, prompt_id, version_no, system_prompt, user_template, variables_json,
+          model_hint, changelog, is_published, remark, created_by, updated_by, deleted
+        )
+        SELECT #{tenantId}, tgt_pr.id, s.version_no, s.system_prompt, s.user_template, s.variables_json,
+               s.model_hint, s.changelog, s.is_published, s.remark, 1, 1, 0
+        FROM ai_prompt_version s
+        INNER JOIN ai_prompt src_pr ON src_pr.id = s.prompt_id AND src_pr.tenant_id = 1 AND src_pr.deleted = 0
+        INNER JOIN ai_prompt tgt_pr ON tgt_pr.tenant_id = #{tenantId} AND tgt_pr.prompt_code = src_pr.prompt_code AND tgt_pr.deleted = 0
+        WHERE s.tenant_id = 1 AND s.deleted = 0
+          AND NOT EXISTS (
+            SELECT 1 FROM ai_prompt_version t
+            WHERE t.tenant_id = #{tenantId} AND t.prompt_id = tgt_pr.id AND t.version_no = s.version_no AND t.deleted = 0
+          )
+    </insert>
+
+    <insert id="cloneAiTools">
+        INSERT INTO ai_tool (
+          tenant_id, tool_code, tool_name, semantic_version, description, input_schema_json,
+          output_schema_json, permission_code, risk_level, adapter_type, mcp_server_id,
+          whitelisted, idempotent, timeout_ms, status, remark, created_by, updated_by, deleted
+        )
+        SELECT #{tenantId}, s.tool_code, s.tool_name, s.semantic_version, s.description, s.input_schema_json,
+               s.output_schema_json, s.permission_code, s.risk_level, s.adapter_type, NULL,
+               s.whitelisted, s.idempotent, s.timeout_ms, s.status, s.remark, 1, 1, 0
+        FROM ai_tool s
+        WHERE s.tenant_id = 1 AND s.deleted = 0
+          AND NOT EXISTS (
+            SELECT 1 FROM ai_tool t WHERE t.tenant_id = #{tenantId} AND t.tool_code = s.tool_code AND t.deleted = 0
+          )
+    </insert>
+
+    <insert id="bindUserRole">
+        INSERT INTO iam_user_role (
+          tenant_id, user_id, role_id, source_type, expire_at, created_by, created_at, updated_by, updated_at, deleted, version, remark
+        ) VALUES (
+            #{tenantId}, #{userId}, #{roleId}, 'MANUAL', NULL, 1, NOW(3), 1, NOW(3), 0, 0, 'tenant bootstrap'
+        )
+    </insert>
+
+    <select id="selectClientTemplate" resultType="map">
+        SELECT logo_url, theme_code, background_image_url, background_color,
+               filing_info, captcha_mode, slider_reserved
+        FROM iam_portal_client
+        WHERE tenant_id = 1
+          AND deleted = 0
+          AND status = 'ENABLED'
+        ORDER BY id ASC
+        LIMIT 1
+    </select>
+
+    <insert id="insertPortalClient" useGeneratedKeys="true" keyProperty="key.id" keyColumn="id">
+        INSERT INTO iam_portal_client (
+          tenant_id, client_id, tenant_code, client_name, portal_title, welcome_title, welcome_text,
+          logo_url, theme_code, background_image_url, background_color, filing_info, login_policy_id,
+          password_policy_id, captcha_mode, slider_reserved, status, created_by, created_at, updated_by, updated_at,
+          deleted, version, remark
+        ) VALUES (
+            #{tenantId}, CONCAT(#{tenantCode}, '-console'), #{tenantCode}, CONCAT(#{tenantName}, '控制台'),
+            CONCAT(#{tenantName}, '开发平台'), CONCAT(#{tenantName}, '统一入口'), CONCAT(#{tenantName}, '租户控制台登录入口'),
+            #{clientSource.logo_url}, #{clientSource.theme_code}, #{clientSource.background_image_url},
+            #{clientSource.background_color}, #{clientSource.filing_info}, #{loginPolicyId},
+            #{passwordPolicyId}, #{clientSource.captcha_mode}, #{clientSource.slider_reserved}, 'ENABLED', 1,
+            NOW(3), 1, NOW(3), 0, 0, 'tenant bootstrap'
+        )
+    </insert>
+
+    <select id="selectTerminalTemplate" resultType="map">
+        SELECT terminal_type, logo_url, theme_code, background_image_url,
+               background_color, captcha_mode, slider_reserved
+        FROM iam_portal_terminal
+        WHERE tenant_id = 1
+          AND terminal_code = 'web'
+          AND deleted = 0
+          AND status = 'ENABLED'
+        ORDER BY id ASC
+        LIMIT 1
+    </select>
+
+    <insert id="insertPortalTerminal">
+        INSERT INTO iam_portal_terminal (
+          tenant_id, portal_client_id, terminal_code, terminal_name, terminal_type, portal_title, logo_url,
+          theme_code, background_image_url, background_color, login_policy_id, password_policy_id,
+          captcha_mode, slider_reserved, is_default, status, created_by, created_at, updated_by, updated_at,
+          deleted, version, remark
+        ) VALUES (
+            #{tenantId}, #{portalClientId}, 'web', CONCAT(#{tenantName}, ' Web'),
+            #{terminalSource.terminal_type}, CONCAT(#{tenantName}, '开发平台'), #{terminalSource.logo_url},
+            #{terminalSource.theme_code}, #{terminalSource.background_image_url},
+            #{terminalSource.background_color}, #{loginPolicyId}, #{passwordPolicyId},
+            #{terminalSource.captcha_mode}, #{terminalSource.slider_reserved}, 1, 'ENABLED', 1, NOW(3), 1,
+            NOW(3), 0, 0, 'tenant bootstrap'
+        )
+    </insert>
+
+    <select id="selectDefaultStorageId" resultType="java.lang.Long">
+        SELECT id FROM file_storage WHERE tenant_id = #{tenantId} AND deleted = 0 ORDER BY is_default DESC, id ASC LIMIT 1
+    </select>
+</mapper>

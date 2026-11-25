@@ -42,7 +42,8 @@ class InfraPlatformAndRedisIsolationTest {
         ServerMonitorController serverController = new ServerMonitorController(
                 new ServerMonitorService(
                         beanFactory.getBeanProvider(DataSource.class),
-                        beanFactory.getBeanProvider(InfraMonitorService.class)
+                        beanFactory.getBeanProvider(InfraMonitorService.class),
+                        org.mockito.Mockito.mock(com.saasbasics.platform.modules.system.mapper.PlatformWorkflowMetricsMapper.class)
                 ),
                 beanFactory.getBeanProvider(PlatformTelemetryService.class)
         );

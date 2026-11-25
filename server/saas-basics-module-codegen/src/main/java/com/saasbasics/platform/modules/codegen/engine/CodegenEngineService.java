@@ -17,6 +17,7 @@ import java.util.zip.ZipOutputStream;
 public class CodegenEngineService {
 
     public List<CodegenPreviewFileResponse> generateFiles(CodegenTableDefinitionRequest request) {
+        boolean extension = "EXTENSION".equalsIgnoreCase(request.templateType());
         String basePkg = (request.basePackage() != null && !request.basePackage().isBlank())
                 ? request.basePackage()
                 : "com.saasbasics.platform.modules";
@@ -33,6 +34,20 @@ public class CodegenEngineService {
 
         List<CodegenColumnDefinition> cols = request.columns() != null ? request.columns() : List.of();
 
+        String table = request.tableName();
+        if (extension) {
+            if (!module.matches("[a-z][a-z0-9_]{0,39}") || !javax.lang.model.SourceVersion.isName(basePkg)
+                    || !javax.lang.model.SourceVersion.isName(basePkg + "." + module)
+                    || !javax.lang.model.SourceVersion.isIdentifier(className)
+                    || javax.lang.model.SourceVersion.isKeyword(className)) {
+                throw new IllegalArgumentException("应用编码、Java 包名或类名无效");
+            }
+            basePkg = basePkg.startsWith("com.saasbasics.platform") ? "com.saasbasics.extensions" : basePkg;
+            table = "biz_" + module + "_" + className.toLowerCase(java.util.Locale.ROOT);
+            if (table.length() > 64) throw new IllegalArgumentException("业务表名超过 64 个字符");
+            cols = ExtensionScaffold.tenantColumns(cols);
+        }
+
         List<CodegenPreviewFileResponse> files = new ArrayList<>();
 
         // 1. Entity
@@ -41,7 +56,7 @@ public class CodegenEngineService {
                 className + "Entity.java",
                 "Entity",
                 "java",
-                generateEntity(basePkg, module, className, request.tableName(), cols)
+                generateEntity(basePkg, module, className, table, cols)
         ));
 
         // 2. Mapper
@@ -50,7 +65,7 @@ public class CodegenEngineService {
                 className + "Mapper.java",
                 "Mapper",
                 "java",
-                generateMapper(basePkg, module, className)
+                generateMapper(basePkg, module, className, extension)
         ));
 
         // 3. Response DTO
@@ -95,7 +110,7 @@ public class CodegenEngineService {
                 className + "Controller.java",
                 "Controller",
                 "java",
-                generateController(basePkg, module, className, varName, bizName)
+                generateController(basePkg, module, className, varName, bizName, extension)
         ));
 
         // 8. Frontend TS API
@@ -104,7 +119,7 @@ public class CodegenEngineService {
                 module + ".ts",
                 "API (TS)",
                 "typescript",
-                generateFrontendApi(module, className)
+                generateFrontendApi(module, className, extension)
         ));
 
         // 9. Frontend Vue 3 ProTable & Drawer View
@@ -118,11 +133,11 @@ public class CodegenEngineService {
 
         // 10. Database Migration SQL
         files.add(new CodegenPreviewFileResponse(
-                String.format("sql/V1.0.0__%s_init.sql", module),
+                extension ? "server/src/main/resources/extensions/" + module + "/db/V1__init.sql" : String.format("sql/V1.0.0__%s_init.sql", module),
                 "V1.0.0__" + module + "_init.sql",
                 "SQL",
                 "sql",
-                generateSqlMigration(module, className, bizName, request.tableName(), cols)
+                generateSqlMigration(module, className, bizName, table, cols, extension)
         ));
 
         // 11. Optional Master-Detail / Tree architecture artifacts
@@ -150,7 +165,7 @@ public class CodegenEngineService {
                     subClass + "Mapper.java",
                     "Sub-Mapper",
                     "java",
-                    generateMapper(basePkg, module, subClass)
+                    generateMapper(basePkg, module, subClass, false)
             ));
 
             files.add(new CodegenPreviewFileResponse(
@@ -172,6 +187,21 @@ public class CodegenEngineService {
             ));
         }
 
+        if (extension) {
+            var fields = cols.stream().filter(c -> !Boolean.TRUE.equals(c.isPk()) && !"tenant_id".equals(c.columnName()))
+                    .map(c -> {
+                        String key = c.fieldName() != null && !c.fieldName().isBlank() ? c.fieldName() : toCamelCase(c.columnName(), false);
+                        String label = c.comment() != null && !c.comment().isBlank() ? c.comment() : key;
+                        String kind = switch (resolveJavaType(c.javaType(), c.columnType())) {
+                            case "Long", "Integer", "BigDecimal", "Double", "Float", "Short" -> "number";
+                            case "LocalDate" -> "date";
+                            default -> "text";
+                        };
+                        return "new WorkspaceField(" + ExtensionScaffold.literal(key) + ", " + ExtensionScaffold.literal(label)
+                                + ", " + ExtensionScaffold.literal(kind) + ", " + Boolean.TRUE.equals(c.isRequired()) + ")";
+                    }).collect(java.util.stream.Collectors.joining(",\n                "));
+            files.addAll(ExtensionScaffold.files(basePkg, module, className, bizName, fields));
+        }
         return files;
     }
 
@@ -257,7 +287,7 @@ public class CodegenEngineService {
         return sb.toString();
     }
 
-    private String generateMapper(String basePkg, String module, String className) {
+    private String generateMapper(String basePkg, String module, String className, boolean extension) {
         return String.format("""
                 package %s.%s.mapper;
 
@@ -268,17 +298,19 @@ public class CodegenEngineService {
                 /**
                  * %s 数据访问层 Mapper
                  */
-                @Mapper
+                %s@Mapper
                 public interface %sMapper extends BaseMapper<%sEntity> {
                 }
-                """, basePkg, module, basePkg, module, className, className, className, className);
+                """, basePkg, module, basePkg, module, className, className,
+                extension ? "@com.saasbasics.platform.common.auth.DataScope(resource = \"" + module + "\", orgColumn = \"\", unitColumn = \"dept_id\")\n" : "",
+                className, className);
     }
 
     private String generateResponseDto(String basePkg, String module, String className, List<CodegenColumnDefinition> cols) {
         StringBuilder sb = new StringBuilder();
         sb.append(String.format("package %s.%s.dto;\n\n", basePkg, module));
-        sb.append("import com.saasbasics.platform.common.desensitize.DataMask;\n");
-        sb.append("import com.saasbasics.platform.common.desensitize.DataMaskType;\n");
+        sb.append("import com.saasbasics.platform.mask.DataMask;\n");
+        sb.append("import com.saasbasics.platform.common.mask.DataMaskType;\n");
         sb.append("import java.io.Serializable;\n");
         sb.append("import java.math.BigDecimal;\n");
         sb.append("import java.time.LocalDate;\n");
@@ -289,14 +321,18 @@ public class CodegenEngineService {
         for (int i = 0; i < cols.size(); i++) {
             CodegenColumnDefinition col = cols.get(i);
             String javaType = resolveJavaType(col.javaType(), col.columnType());
+            if ("deleted".equalsIgnoreCase(col.columnName()) && cols.stream().anyMatch(c ->
+                    "tenant_id".equalsIgnoreCase(c.columnName()) || "created_at".equalsIgnoreCase(c.columnName()))) {
+                javaType = "Integer";
+            }
             String fieldName = col.fieldName() != null && !col.fieldName().isBlank() ? col.fieldName() : toCamelCase(col.columnName(), false);
 
             if (fieldName.toLowerCase().contains("mobile") || fieldName.toLowerCase().contains("phone")) {
-                sb.append("        @DataMask(DataMaskType.MOBILE)\n");
+                sb.append("        @DataMask(type = DataMaskType.MOBILE)\n");
             } else if (fieldName.toLowerCase().contains("email")) {
-                sb.append("        @DataMask(DataMaskType.EMAIL)\n");
+                sb.append("        @DataMask(type = DataMaskType.EMAIL)\n");
             } else if (fieldName.toLowerCase().contains("idcard")) {
-                sb.append("        @DataMask(DataMaskType.ID_CARD)\n");
+                sb.append("        @DataMask(type = DataMaskType.ID_CARD)\n");
             }
 
             sb.append(String.format("        %s %s%s\n", javaType, fieldName, (i < cols.size() - 1 ? "," : "")));
@@ -317,6 +353,8 @@ public class CodegenEngineService {
 
         List<CodegenColumnDefinition> saveCols = cols.stream()
                 .filter(c -> !Boolean.TRUE.equals(c.isPk())
+                        && !"tenant_id".equalsIgnoreCase(c.columnName())
+                        && !"deleted_at".equalsIgnoreCase(c.columnName())
                         && !"created_at".equalsIgnoreCase(c.columnName())
                         && !"updated_at".equalsIgnoreCase(c.columnName())
                         && !"created_by".equalsIgnoreCase(c.columnName())
@@ -353,12 +391,13 @@ public class CodegenEngineService {
         sb.append(String.format("/**\n * %s 分页查询请求 DTO\n */\n", className));
         sb.append(String.format("public record %sQueryRequest(\n", className));
         sb.append("        Integer pageNo,\n");
-        sb.append("        Integer pageSize,\n");
+        sb.append("        Integer pageSize");
 
         List<CodegenColumnDefinition> queryCols = cols.stream()
                 .filter(c -> Boolean.TRUE.equals(c.isQuery()))
                 .toList();
 
+        sb.append(queryCols.isEmpty() ? "\n" : ",\n");
         for (int i = 0; i < queryCols.size(); i++) {
             CodegenColumnDefinition col = queryCols.get(i);
             String javaType = resolveJavaType(col.javaType(), col.columnType());
@@ -461,6 +500,8 @@ public class CodegenEngineService {
         sb.append(String.format("    private void applySaveRequest(%sEntity entity, %sSaveRequest req) {\n", className, className));
         List<CodegenColumnDefinition> saveCols = cols.stream()
                 .filter(c -> !Boolean.TRUE.equals(c.isPk())
+                        && !"tenant_id".equalsIgnoreCase(c.columnName())
+                        && !"deleted_at".equalsIgnoreCase(c.columnName())
                         && !"created_at".equalsIgnoreCase(c.columnName())
                         && !"updated_at".equalsIgnoreCase(c.columnName())
                         && !"created_by".equalsIgnoreCase(c.columnName())
@@ -478,7 +519,8 @@ public class CodegenEngineService {
         return sb.toString();
     }
 
-    private String generateController(String basePkg, String module, String className, String varName, String bizName) {
+    private String generateController(String basePkg, String module, String className, String varName, String bizName, boolean extension) {
+        String queryScope = extension ? "" : "@DataScope(resource = \"" + module + "\")\n    ";
         return String.format("""
                 package %s.%s.controller;
 
@@ -495,7 +537,7 @@ public class CodegenEngineService {
                  * %s (%s) 控制器 API
                  */
                 @RestController
-                @RequestMapping("/api/%ss")
+                %s@RequestMapping("/api/%s")
                 public class %sController {
 
                     private final %sService %sService;
@@ -506,15 +548,13 @@ public class CodegenEngineService {
 
                     @GetMapping
                     @RequirePermission("biz_%s:query")
-                    @DataScope(resource = "%s")
-                    public ApiResponse<Page<%sResponse>> list(%sQueryRequest request) {
+                    %spublic ApiResponse<Page<%sResponse>> list(%sQueryRequest request) {
                         return ApiResponse.success(%sService.listPage(request));
                     }
 
                     @GetMapping("/{id}")
                     @RequirePermission("biz_%s:query")
-                    @DataScope(resource = "%s")
-                    public ApiResponse<%sResponse> detail(@PathVariable Long id) {
+                    %spublic ApiResponse<%sResponse> detail(@PathVariable Long id) {
                         return ApiResponse.success(%sService.getById(id));
                     }
 
@@ -542,22 +582,25 @@ public class CodegenEngineService {
                 basePkg, module,
                 basePkg, module, className,
                 bizName, className,
-                module,
+                extension ? "@com.saasbasics.platform.common.auth.RequireTenantFeature(value = \"" + module
+                        + "\", installedRevision = 1)\n" : "",
+                extension ? "apps/" + module : module + "s",
                 className,
                 className, varName,
                 className, className, varName,
                 varName, varName,
-                module, module, className, className, varName,
-                module, module, className, varName,
+                module, queryScope, className, className, varName,
+                module, queryScope, className, varName,
                 module, className, className, varName,
                 module, className, className, varName,
                 module, varName
         );
     }
 
-    private String generateFrontendApi(String module, String className) {
+    private String generateFrontendApi(String module, String className, boolean extension) {
+        String path = extension ? "apps/" + module : module + "s";
         return String.format("""
-                import request from "@/api/request";
+                import { http as request } from "@/api/http";
 
                 export interface %sRecord {
                   id: number;
@@ -576,31 +619,31 @@ public class CodegenEngineService {
                 }
 
                 export function list%ss(params: %sQueryParams) {
-                  return request.get("/api/%ss", { params });
+                  return request.get("/%s", { params }).then(r => r.data.data);
                 }
 
                 export function get%s(id: number) {
-                  return request.get(`/api/%ss/${id}`);
+                  return request.get(`/%s/${id}`).then(r => r.data.data);
                 }
 
                 export function create%s(data: %sSaveForm) {
-                  return request.post("/api/%ss", data);
+                  return request.post("/%s", data).then(r => r.data.data);
                 }
 
                 export function update%s(id: number, data: %sSaveForm) {
-                  return request.put(`/api/%ss/${id}`, data);
+                  return request.put(`/%s/${id}`, data).then(r => r.data.data);
                 }
 
                 export function delete%s(id: number) {
-                  return request.delete(`/api/%ss/${id}`);
+                  return request.delete(`/%s/${id}`).then(r => r.data.data);
                 }
                 """,
                 className, className, className,
-                className, className, module,
-                className, module,
-                className, className, module,
-                className, className, module,
-                className, module
+                className, className, path,
+                className, path,
+                className, className, path,
+                className, className, path,
+                className, path
         );
     }
 
@@ -609,7 +652,7 @@ public class CodegenEngineService {
         sb.append("<script setup lang=\"ts\">\n");
         sb.append("import { ref, reactive, onMounted } from \"vue\";\n");
         sb.append("import { ElMessage, ElMessageBox } from \"element-plus\";\n");
-        sb.append("import { Search, Refresh, Plus, Edit, Delete, Download } from \"@element-plus/icons-vue\";\n");
+        sb.append("import { Search, Refresh, Plus, Edit, Delete } from \"@element-plus/icons-vue\";\n");
         sb.append(String.format("import { list%ss, get%s, create%s, update%s, delete%s } from \"@/api/modules/%s\";\n\n",
                 className, className, className, className, className, module));
 
@@ -637,8 +680,8 @@ public class CodegenEngineService {
         sb.append("  loading.value = true;\n");
         sb.append("  try {\n");
         sb.append(String.format("    const res: any = await list%ss(queryParams);\n", className));
-        sb.append("    tableData.value = res?.data?.records || res?.records || [];\n");
-        sb.append("    total.value = res?.data?.total || res?.total || 0;\n");
+        sb.append("    tableData.value = res?.records || [];\n");
+        sb.append("    total.value = res?.total || 0;\n");
         sb.append("  } finally {\n");
         sb.append("    loading.value = false;\n");
         sb.append("  }\n");
@@ -671,7 +714,7 @@ public class CodegenEngineService {
         sb.append(String.format("  drawerTitle.value = \"编辑%s\";\n", bizName));
         sb.append("  try {\n");
         sb.append(String.format("    const res: any = await get%s(row.id);\n", className));
-        sb.append("    Object.assign(form, res?.data || res || row);\n");
+        sb.append("    Object.assign(form, res || row);\n");
         sb.append("    drawerVisible.value = true;\n");
         sb.append("  } catch (err: any) {\n");
         sb.append("    ElMessage.error(err?.message || \"获取详情失败\");\n");
@@ -772,6 +815,8 @@ public class CodegenEngineService {
         sb.append("      <el-form ref=\"formRef\" :model=\"form\" label-width=\"100px\">\n");
         List<CodegenColumnDefinition> formCols = cols.stream()
                 .filter(c -> !Boolean.TRUE.equals(c.isPk())
+                        && !"tenant_id".equalsIgnoreCase(c.columnName())
+                        && !"deleted_at".equalsIgnoreCase(c.columnName())
                         && !"created_at".equalsIgnoreCase(c.columnName())
                         && !"updated_at".equalsIgnoreCase(c.columnName())
                         && !"created_by".equalsIgnoreCase(c.columnName())
@@ -806,7 +851,7 @@ public class CodegenEngineService {
         return sb.toString();
     }
 
-    private String generateSqlMigration(String module, String className, String bizName, String tableName, List<CodegenColumnDefinition> cols) {
+    private String generateSqlMigration(String module, String className, String bizName, String tableName, List<CodegenColumnDefinition> cols, boolean extension) {
         StringBuilder sb = new StringBuilder();
         sb.append("-- -----------------------------------------------------\n");
         sb.append(String.format("-- %s (%s) 数据库 DDL 与权限菜单种子数据\n", bizName, className));
@@ -819,7 +864,7 @@ public class CodegenEngineService {
             String colType = c.columnType() != null ? c.columnType() : "VARCHAR(128)";
             String isNull = Boolean.TRUE.equals(c.isRequired()) ? "NOT NULL" : "DEFAULT NULL";
             String autoInc = Boolean.TRUE.equals(c.isPk()) ? "AUTO_INCREMENT" : "";
-            String comment = c.comment() != null ? String.format("COMMENT '%s'", c.comment()) : "";
+            String comment = c.comment() != null ? String.format("COMMENT '%s'", c.comment().replace("'", "''")) : "";
 
             sb.append(String.format("  `%s` %s %s %s %s,\n",
                     colName, colType, isNull, autoInc, comment));
@@ -842,15 +887,18 @@ public class CodegenEngineService {
             sb.append("  `remark` varchar(500) DEFAULT NULL COMMENT '备注',\n");
         }
 
+        if (extension) sb.append("  KEY idx_tenant_id (tenant_id, id),\n");
         cols.stream().filter(c -> Boolean.TRUE.equals(c.isPk())).findFirst().ifPresent(pk ->
                 sb.append(String.format("  PRIMARY KEY (`%s`)\n", pk.columnName()))
         );
-        sb.append(String.format(") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='%s';\n\n", bizName));
+        sb.append(String.format(") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='%s';\n\n", bizName.replace("'", "''")));
 
-        sb.append("-- 权限与菜单注册\n");
-        sb.append(String.format("INSERT INTO system_menu (parent_id, menu_name, router_path, component_path, permission_code, menu_type, sort_no, visible, status, icon)\n"));
-        sb.append(String.format("VALUES (1, '%s', '/%s', '@/views/%s/%sView.vue', 'biz_%s:query', 'MENU', 10, 1, 1, 'Document');\n",
-                bizName, module, module, className, module));
+        if (!extension) {
+            sb.append("-- 执行前设置 @tenant_id 为安装该菜单的租户。\n");
+            sb.append(String.format("INSERT INTO iam_menu (tenant_id, menu_code, menu_name, route_path, component_path, permission_code) "
+                    + "VALUES (@tenant_id, 'ext_%1$s', '%2$s', '/%1$s', '@/views/%1$s/%3$sView.vue', 'biz_%1$s:query');\n",
+                    module, bizName.replace("'", "''"), className));
+        }
 
         return sb.toString();
     }
@@ -872,6 +920,7 @@ public class CodegenEngineService {
     private String toCamelCase(String s, boolean capitalizeFirst) {
         if (s == null || s.isEmpty()) return "";
         StringBuilder sb = new StringBuilder();
+        if (s.equals(s.toUpperCase(java.util.Locale.ROOT))) s = s.toLowerCase(java.util.Locale.ROOT);
         boolean nextUpper = capitalizeFirst;
         for (char c : s.toCharArray()) {
             if (c == '_' || c == '-') {
@@ -881,7 +930,7 @@ public class CodegenEngineService {
                     sb.append(Character.toUpperCase(c));
                     nextUpper = false;
                 } else {
-                    sb.append(Character.toLowerCase(c));
+                    sb.append(sb.isEmpty() ? Character.toLowerCase(c) : c);
                 }
             }
         }

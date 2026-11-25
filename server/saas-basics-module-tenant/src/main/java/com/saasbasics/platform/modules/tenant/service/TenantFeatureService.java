@@ -61,19 +61,21 @@ public class TenantFeatureService implements TenantFeatureProvider {
 
     @Override
     public boolean hasFeature(Long tenantId, String feature) {
-        if (tenantId == null || tenantId <= 1L) {
-            return true;
+        if (tenantId == null || tenantId <= 0L) {
+            return false;
         }
         if (feature == null || feature.isBlank() || "dashboard".equalsIgnoreCase(feature.trim())) {
             return true;
         }
+
+        String target = feature.trim().toLowerCase(Locale.ROOT);
+        if (tenantId != 1L && (target.equals("tenant") || target.equals("saas.tenant") || target.startsWith("saas.tenant."))) return false;
 
         Set<String> effectiveFeatures = getEffectiveFeatures(tenantId);
         if (effectiveFeatures.contains("*")) {
             return true;
         }
 
-        String target = feature.trim().toLowerCase(Locale.ROOT);
         for (String eff : effectiveFeatures) {
             String low = eff.toLowerCase(Locale.ROOT);
             if ("*".equals(low)) {
@@ -94,13 +96,13 @@ public class TenantFeatureService implements TenantFeatureProvider {
 
     private static String buildRedisKey(Long tenantId) {
         long safeTenantId = (tenantId != null && tenantId > 0L) ? tenantId : 1L;
-        return "saas:t:" + safeTenantId + ":tenant:features";
+        return "saas:t:" + safeTenantId + ":tenant:features:catalog";
     }
 
     @Override
     public Set<String> getEffectiveFeatures(Long tenantId) {
         if (tenantId == null || tenantId <= 0L) {
-            return Set.of("*");
+            return Set.of();
         }
 
         // 1. Try Redis cache
@@ -160,7 +162,7 @@ public class TenantFeatureService implements TenantFeatureProvider {
     private Set<String> computeFeaturesFromDatabase(Long tenantId) {
         TenantMapper tenantMapper = tenantMapperProvider.getIfAvailable();
         if (tenantMapper == null) {
-            return Set.of("*");
+            return Set.of();
         }
 
         TenantEntity tenant = tenantMapper.selectById(tenantId);
@@ -173,7 +175,7 @@ public class TenantFeatureService implements TenantFeatureProvider {
 
         // Platform root tenant (tenantId == 1) defaults to having all system apps enabled unless explicitly disabled
         if (tenantId == 1L) {
-            for (String code : List.of("iam", "tenant", "workflow", "file", "crm", "erp", "scheduler", "audit", "integration", "system", "codegen", "dashboard", "report")) {
+            for (String code : TenantAppService.SYSTEM_APPS.stream().map(TenantAppService.SystemAppMeta::appCode).toList()) {
                 effective.add(code);
                 effective.add("saas." + code + ".basic");
                 effective.add("saas." + code + ".all");
@@ -227,16 +229,22 @@ public class TenantFeatureService implements TenantFeatureProvider {
         }
 
         // If wildcard "*" was present but specific apps were disabled, expand "*" into all known system apps so the rest remain enabled
-        if (effective.contains("*") && !disabled.isEmpty()) {
+        if (effective.contains("*")) {
             effective.remove("*");
-            for (String code : List.of("iam", "tenant", "workflow", "file", "crm", "erp", "scheduler", "audit", "integration", "system", "codegen", "dashboard")) {
+            for (String code : TenantAppService.SYSTEM_APPS.stream().map(TenantAppService.SystemAppMeta::appCode).toList()) {
                 effective.add(code);
                 effective.add("saas." + code + ".basic");
                 effective.add("saas." + code + ".all");
             }
         }
 
-        effective.removeAll(disabled);
+        effective.add("dashboard");
+        effective.removeIf(flag -> disabled.contains(flag) || disabled.stream()
+                .anyMatch(module -> flag.startsWith("saas." + module + ".")));
+        // Non-platform tenants (tenantId > 1) can never hold the platform-exclusive 'tenant' governance feature
+        if (tenantId != null && tenantId > 1L) {
+            effective.removeIf(f -> f.equals("tenant") || f.equals("saas.tenant") || f.startsWith("saas.tenant."));
+        }
         return Collections.unmodifiableSet(effective);
     }
 

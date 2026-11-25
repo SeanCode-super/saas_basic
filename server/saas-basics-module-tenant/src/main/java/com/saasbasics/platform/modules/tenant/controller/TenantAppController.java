@@ -45,6 +45,14 @@ public class TenantAppController {
         return ApiResponse.success(tenantAppService.subscribeApp(tenantId, request));
     }
 
+    @PutMapping("/extensions/{code}/revision/{revision}")
+    @RequirePermission("tenant:write")
+    public ApiResponse<Void> upgrade(@PathVariable String code, @PathVariable int revision,
+                                     @RequestParam(required = false) Long tenantId) {
+        tenantAppService.upgrade(resolveTenantId(tenantId), code, revision);
+        return ApiResponse.success(null);
+    }
+
     @PutMapping("/{id}/status")
     @RequirePermission("tenant:write")
     public ApiResponse<Void> updateStatus(@PathVariable("id") Long id,
@@ -95,9 +103,10 @@ public class TenantAppController {
 
     private Long resolveTenantId(Long queryTenantId) {
         AuthPrincipal principal = AuthContext.get();
-        if (queryTenantId != null && principal != null && principal.isSuperAdmin()) {
-            return queryTenantId;
-        }
-        return TenantAccessContextHolder.requiredTenantId();
+        Long current = TenantAccessContextHolder.requiredTenantId();
+        if (queryTenantId == null || queryTenantId.equals(current)) return current;
+        if (principal != null && principal.isPlatformTenant() && principal.isSuperAdmin()
+                && "PLATFORM".equalsIgnoreCase(principal.userType())) return queryTenantId;
+        throw new com.saasbasics.platform.common.exception.BizException("TENANT_ACCESS_DENIED", "无权管理该租户的应用");
     }
 }

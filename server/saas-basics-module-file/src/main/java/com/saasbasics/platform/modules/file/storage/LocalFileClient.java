@@ -101,13 +101,22 @@ public class LocalFileClient implements FileClient {
     }
 
     @Override
+    public long size(String path) {
+        try {
+            return Files.size(resolveSafeTargetPath(path));
+        } catch (IOException ex) {
+            throw new BizException("FILE_NOT_FOUND", "无法读取上传对象大小");
+        }
+    }
+
+    @Override
     public void delete(String path) {
         try {
             Path targetPath = resolveSafeTargetPath(path);
             Files.deleteIfExists(targetPath);
             log.info("File deleted locally: {}", path);
         } catch (IOException e) {
-            log.warn("Failed to delete local file: {}", e.getMessage());
+            throw new BizException("FILE_DELETE_FAILED", "删除本地文件失败");
         }
     }
 

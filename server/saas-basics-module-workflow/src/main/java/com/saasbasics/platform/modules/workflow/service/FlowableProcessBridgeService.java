@@ -25,7 +25,7 @@ import org.springframework.stereotype.Service;
 import java.util.*;
 
 /**
- * 工业级 Flowable 7 运行时桥接服务。
+ * 工业级 Flowable 8 运行时桥接服务。
  * 封装 Flowable ProcessEngine 核心运行时、任务与审计服务，
  * 提供真正的 OMG BPMN 2.0 部署、执行、审批流转与全链路历史审计能力。
  */
@@ -93,7 +93,7 @@ public class FlowableProcessBridgeService {
                     if (depId != null) {
                         def.setFlowableDeploymentId(depId);
                         mapper.updateById(def);
-                        log.info("Auto-deployed existing process definition [{}] to Flowable 7, deploymentId: {}", def.getProcessCode(), depId);
+                        log.info("Auto-deployed existing process definition [{}] to Flowable 8, deploymentId: {}", def.getProcessCode(), depId);
                     }
                 }
             }
@@ -186,6 +186,28 @@ public class FlowableProcessBridgeService {
             log.error("Failed to start Flowable ProcessInstance: {}", ex.getMessage(), ex);
             return null;
         }
+    }
+
+    public Task returnTo(String instanceId, String currentNode, String previousNode) {
+        requireApprovalTask(instanceId, currentNode);
+        runtimeServiceProvider.getObject().createChangeActivityStateBuilder().processInstanceId(instanceId)
+                .moveActivityIdTo(currentNode, previousNode).changeState();
+        return requireApprovalTask(instanceId, previousNode);
+    }
+
+    public void requireFinished(String instanceId) {
+        var history = historyServiceProvider.getIfAvailable();
+        if (history == null || history.createHistoricProcessInstanceQuery().processInstanceId(instanceId).finished().count() != 1) {
+            throw new com.saasbasics.platform.common.exception.BizException("WORKFLOW_ENGINE_MISMATCH", "引擎尚未确认流程结束");
+        }
+    }
+
+    public Task requireApprovalTask(String instanceId, String nodeId) {
+        var active = getActiveTasks(instanceId);
+        if (active.size() != 1 || !nodeId.equals(active.getFirst().getTaskDefinitionKey())) {
+            throw new com.saasbasics.platform.common.exception.BizException("WORKFLOW_ENGINE_MISMATCH", "引擎待办与审批节点不一致");
+        }
+        return active.getFirst();
     }
 
     /**

@@ -278,69 +278,8 @@ public class FinetuneStudioService {
 
     @Transactional
     public FinetuneJobDTO startTrainingJob(FinetuneJobCreateRequest req) {
-        AiFinetuneJobMapper mapper = jobMapperProvider.getIfAvailable();
-        AiFinetuneDatasetMapper dsMapper = datasetMapperProvider.getIfAvailable();
-        if (mapper == null || dsMapper == null) throw new IllegalStateException("微调引擎不可用");
-        if (req.jobName() == null || req.jobName().isBlank() || req.datasetId() == null) {
-            throw new IllegalArgumentException("任务名称和数据集不能为空");
-        }
-        Long tenantId = currentTenantId();
-        Long userId = currentUserId();
-        AiFinetuneDatasetEntity ds = dsMapper.selectOne(new LambdaQueryWrapper<AiFinetuneDatasetEntity>()
-                .eq(AiFinetuneDatasetEntity::getId, req.datasetId())
-                .eq(AiFinetuneDatasetEntity::getTenantId, tenantId)
-                .eq(AiFinetuneDatasetEntity::getDeleted, 0));
-        if (ds == null) throw new IllegalArgumentException("指定数据集不存在");
-
-        int epochs = req.epochs() != null ? Math.min(Math.max(1, req.epochs()), 20) : 3;
-        int approved = ds.getApprovedCount() != null ? ds.getApprovedCount() : 1;
-        double baseAcc = 0.8100;
-        double lift = Math.min(0.155, 0.065 + (approved * 0.008) + (epochs * 0.012));
-        double evalAcc = Math.round((baseAcc + lift) * 10000.0) / 10000.0;
-        double finalLoss = Math.max(0.11, Math.round((0.68 / Math.sqrt(epochs + 1) - (approved * 0.01)) * 10000.0) / 10000.0);
-
-        List<Double> lossCurve = List.of(
-                0.88,
-                Math.round((0.88 + finalLoss * 2) / 3 * 1000.0) / 1000.0,
-                Math.round((0.45 + finalLoss) / 2 * 1000.0) / 1000.0,
-                finalLoss
-        );
-        String jobCode = "ft-" + UUID.randomUUID().toString().substring(0, 8);
-        String baseModel = req.baseModel() != null && !req.baseModel().isBlank()
-                ? req.baseModel().trim() : "Qwen2.5-7B-Instruct";
-        String outModel = "ft:" + baseModel.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9.]+", "-") + ":" + jobCode;
-
-        Map<String, Object> metrics = new LinkedHashMap<>();
-        metrics.put("lossCurve", lossCurve);
-        metrics.put("baselineSqlValidRate", baseAcc);
-        metrics.put("tunedSqlValidRate", evalAcc);
-        metrics.put("approvedSampleCount", approved);
-        metrics.put("avgLatencyDeltaMs", -145);
-
-        AiFinetuneJobEntity job = new AiFinetuneJobEntity();
-        job.setTenantId(tenantId);
-        job.setJobCode(jobCode);
-        job.setJobName(req.jobName().trim());
-        job.setDatasetId(req.datasetId());
-        job.setBaseModel(baseModel);
-        job.setTuningMethod(req.tuningMethod() != null ? req.tuningMethod().trim().toUpperCase(Locale.ROOT) : "LORA");
-        job.setEpochs(epochs);
-        job.setLearningRate(req.learningRate() != null && !req.learningRate().isBlank() ? req.learningRate().trim() : "2e-4");
-        job.setLoraRank(req.loraRank() != null ? req.loraRank() : 16);
-        job.setStatus("COMPLETED");
-        job.setProgressPercent(100);
-        job.setTrainLoss(BigDecimal.valueOf(finalLoss).setScale(4, RoundingMode.HALF_UP));
-        job.setEvalAccuracy(BigDecimal.valueOf(evalAcc).setScale(4, RoundingMode.HALF_UP));
-        job.setBaselineAccuracy(BigDecimal.valueOf(baseAcc).setScale(4, RoundingMode.HALF_UP));
-        job.setOutputModelId(outModel);
-        job.setMetricsJson(toJsonSafe(metrics));
-        job.setCreatedBy(userId);
-        job.setUpdatedBy(userId);
-        job.setCreatedAt(LocalDateTime.now());
-        job.setUpdatedAt(LocalDateTime.now());
-        job.setDeleted(0);
-        mapper.insert(job);
-        return toJobDto(job);
+        throw new com.saasbasics.platform.common.exception.BizException(
+                "AI_TRAINING_PROVIDER_UNAVAILABLE", "当前没有可执行训练任务的服务，请导出已审核数据集");
     }
 
     private void recalcDatasetCounts(Long tenantId, Long datasetId) {

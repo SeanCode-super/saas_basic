@@ -42,10 +42,12 @@ public record AuthPrincipal(
     }
 
     public boolean isSuperAdmin() {
-        return Long.valueOf(1L).equals(userId)
-                || "admin".equalsIgnoreCase(username)
-                || (roleIds != null && roleIds.contains(1L))
-                || (permissions != null && (permissions.contains("*") || permissions.contains("*:*:*")));
+        return hasPlatformAdminRole(tenantId, roleIds)
+                || permissions != null && (permissions.contains("*") || permissions.contains("*:*:*"));
+    }
+
+    public static boolean hasPlatformAdminRole(Long tenantId, List<Long> roleIds) {
+        return Long.valueOf(1L).equals(tenantId) && roleIds != null && roleIds.contains(1L);
     }
 
     /**

@@ -1,6 +1,5 @@
 package com.saasbasics.platform.modules.iam.service;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.saasbasics.platform.common.exception.BizException;
 import com.saasbasics.platform.common.tenant.TenantAccessContext;
 import com.saasbasics.platform.common.tenant.TenantAccessContextHolder;
@@ -17,8 +16,7 @@ import com.saasbasics.platform.modules.iam.mapper.LoginPolicyMapper;
 import com.saasbasics.platform.modules.iam.mapper.PasswordPolicyMapper;
 import com.saasbasics.platform.modules.iam.mapper.PortalClientMapper;
 import com.saasbasics.platform.modules.iam.mapper.PortalTerminalMapper;
-import com.saasbasics.platform.modules.tenant.entity.TenantEntity;
-import com.saasbasics.platform.modules.tenant.mapper.TenantMapper;
+import com.saasbasics.platform.modules.tenant.api.PortalTenantDirectory;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -35,26 +33,18 @@ public class PortalEntryService {
     private final ObjectProvider<PortalTerminalMapper> portalTerminalMapperProvider;
     private final ObjectProvider<LoginPolicyMapper> loginPolicyMapperProvider;
     private final ObjectProvider<PasswordPolicyMapper> passwordPolicyMapperProvider;
-    private final ObjectProvider<TenantMapper> tenantMapperProvider;
+    private final PortalTenantDirectory tenantDirectory;
 
-    public PortalEntryService(ObjectProvider<PortalClientMapper> portalClientMapperProvider,
-                              ObjectProvider<PortalTerminalMapper> portalTerminalMapperProvider,
-                              ObjectProvider<LoginPolicyMapper> loginPolicyMapperProvider,
-                              ObjectProvider<PasswordPolicyMapper> passwordPolicyMapperProvider) {
-        this(portalClientMapperProvider, portalTerminalMapperProvider, loginPolicyMapperProvider, passwordPolicyMapperProvider, null);
-    }
-
-    @org.springframework.beans.factory.annotation.Autowired
     public PortalEntryService(ObjectProvider<PortalClientMapper> portalClientMapperProvider,
                               ObjectProvider<PortalTerminalMapper> portalTerminalMapperProvider,
                               ObjectProvider<LoginPolicyMapper> loginPolicyMapperProvider,
                               ObjectProvider<PasswordPolicyMapper> passwordPolicyMapperProvider,
-                              ObjectProvider<TenantMapper> tenantMapperProvider) {
+                              PortalTenantDirectory tenantDirectory) {
         this.portalClientMapperProvider = portalClientMapperProvider;
         this.portalTerminalMapperProvider = portalTerminalMapperProvider;
         this.loginPolicyMapperProvider = loginPolicyMapperProvider;
         this.passwordPolicyMapperProvider = passwordPolicyMapperProvider;
-        this.tenantMapperProvider = tenantMapperProvider;
+        this.tenantDirectory = tenantDirectory;
     }
 
     public PortalEntryResponse resolveEntry(String clientId, String terminalCode) {
@@ -73,23 +63,9 @@ public class PortalEntryService {
                 client = clientMapper.selectByTenantCode(normalizedTenantCode);
             }
             if (client == null) {
-                // If there's no dedicated client configured for this tenant, look up the tenant in plat_tenant
-                TenantEntity tenant = null;
-                TenantMapper tenantMapper = tenantMapperProvider != null ? tenantMapperProvider.getIfAvailable() : null;
-                if (tenantMapper != null) {
-                    try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openSystemBypass(
-                            TenantAccessContext.BypassOperation.PUBLIC_PORTAL_RESOLUTION,
-                            "Resolve tenant by tenant code globally")) {
-                        tenant = tenantMapper.selectOne(new LambdaQueryWrapper<TenantEntity>()
-                                .eq(TenantEntity::getTenantCode, normalizedTenantCode)
-                                .eq(TenantEntity::getDeleted, 0)
-                                .last("LIMIT 1"));
-                    }
-                }
-                if (tenant == null) {
-                    throw new BizException("TENANT_NOT_FOUND", "指定的企业空间不存在或已注销");
-                }
-                if ("DISABLED".equalsIgnoreCase(tenant.getStatus()) || "SUSPENDED".equalsIgnoreCase(tenant.getStatus())) {
+                var tenant = tenantDirectory.findByCode(normalizedTenantCode)
+                        .orElseThrow(() -> new BizException("TENANT_NOT_FOUND", "指定的企业空间不存在或已注销"));
+                if ("DISABLED".equalsIgnoreCase(tenant.status()) || "SUSPENDED".equalsIgnoreCase(tenant.status())) {
                     throw new BizException("TENANT_DISABLED", "该企业空间已暂停服务");
                 }
 
@@ -115,18 +91,18 @@ public class PortalEntryService {
                     client.setLoginPolicyId(defaultClient.getLoginPolicyId());
                     client.setPasswordPolicyId(defaultClient.getPasswordPolicyId());
                 } else {
-                    client.setClientId("tenant-" + tenant.getTenantCode());
+                    client.setClientId("tenant-" + tenant.code());
                     client.setThemeCode("TIANSHU_GLASS");
                     client.setBackgroundColor("#0b1f33");
                     client.setCaptchaMode("IMAGE");
                     client.setSliderReserved(true);
                 }
-                client.setTenantId(tenant.getId());
-                client.setTenantCode(tenant.getTenantCode());
-                client.setClientName(tenant.getTenantName() + " 专属门户");
-                client.setPortalTitle(tenant.getTenantName() + " · 企业控制台");
-                client.setWelcomeTitle("欢迎登录 " + tenant.getTenantName());
-                client.setWelcomeText("欢迎访问 " + tenant.getTenantName() + " 企业数字化协同与业务管理中心");
+                client.setTenantId(tenant.id());
+                client.setTenantCode(tenant.code());
+                client.setClientName(tenant.name() + " 专属门户");
+                client.setPortalTitle(tenant.name() + " · 企业控制台");
+                client.setWelcomeTitle("欢迎登录 " + tenant.name());
+                client.setWelcomeText("欢迎访问 " + tenant.name() + " 企业数字化协同与业务管理中心");
                 client.setStatus("ENABLED");
             }
         } else {

@@ -6,4 +6,6 @@ import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
 public interface DynamicModelMapper extends BaseMapper<DynamicModelEntity> {
+    DynamicModelEntity lockPublished(@org.apache.ibatis.annotations.Param("tenantId") long tenantId,
+                                     @org.apache.ibatis.annotations.Param("id") long id);
 }

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.saasbasics.platform.modules.file.mapper.FileLifecyclePolicyMapper">
+    <select id="selectPolicyList" resultType="com.saasbasics.platform.modules.file.dto.FileLifecyclePolicyResponse">
+        SELECT
+          id,
+          tenant_id AS tenantId,
+          policy_code AS policyCode,
+          policy_name AS policyName,
+          file_scope AS fileScope,
+          retention_days AS retentionDays,
+          archive_after_days AS archiveAfterDays,
+          delete_after_days AS deleteAfterDays,
+          deduplicate_enabled AS deduplicateEnabled,
+          version_retention_count AS versionRetentionCount,
+          status,
+          remark
+        FROM file_lifecycle_policy
+        WHERE deleted = 0
+        ORDER BY id DESC
+    </select>
+
+    <select id="selectPolicyById" resultType="com.saasbasics.platform.modules.file.dto.FileLifecyclePolicyResponse">
+        SELECT
+          id,
+          tenant_id AS tenantId,
+          policy_code AS policyCode,
+          policy_name AS policyName,
+          file_scope AS fileScope,
+          retention_days AS retentionDays,
+          archive_after_days AS archiveAfterDays,
+          delete_after_days AS deleteAfterDays,
+          deduplicate_enabled AS deduplicateEnabled,
+          version_retention_count AS versionRetentionCount,
+          status,
+          remark
+        FROM file_lifecycle_policy
+        WHERE id = #{id}
+          AND deleted = 0
+    </select>
+</mapper>

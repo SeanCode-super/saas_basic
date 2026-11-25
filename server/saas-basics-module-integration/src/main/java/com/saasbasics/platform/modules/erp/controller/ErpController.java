@@ -2,7 +2,11 @@ package com.saasbasics.platform.modules.erp.controller;
 
 import com.saasbasics.platform.common.api.ApiResponse;
 import com.saasbasics.platform.common.auth.RequireTenantFeature;
+import com.saasbasics.platform.common.auth.RequirePermission;
 import com.saasbasics.platform.modules.erp.dto.ErpInventoryRecordResponse;
+import com.saasbasics.platform.modules.erp.dto.ErpMasterDataOption;
+import com.saasbasics.platform.modules.erp.dto.ErpMasterDataRequest;
+import com.saasbasics.platform.modules.erp.dto.ErpStockAdjustmentRequest;
 import com.saasbasics.platform.modules.erp.dto.ErpInventoryResponse;
 import com.saasbasics.platform.modules.erp.dto.ErpProductResponse;
 import com.saasbasics.platform.modules.erp.dto.ErpProductSaveRequest;
@@ -46,8 +50,9 @@ public class ErpController {
     }
 
     @GetMapping("/inventory/records")
-    public ApiResponse<List<ErpInventoryRecordResponse>> listInventoryRecords() {
-        return ApiResponse.success(erpService.listInventoryRecords());
+    public ApiResponse<List<ErpInventoryRecordResponse>> listInventoryRecords(
+            @RequestParam(required = false) Long productId, @RequestParam(required = false) Long warehouseId) {
+        return ApiResponse.success(erpService.listInventoryRecords(productId, warehouseId));
     }
 
     @GetMapping("/purchase-orders")
@@ -67,13 +72,37 @@ public class ErpController {
     }
 
     @PostMapping("/inventory/adjust")
-    public ApiResponse<Void> adjustInventory(@RequestBody java.util.Map<String, Object> body) {
-        Long productId = Long.valueOf(body.get("productId").toString());
-        Long warehouseId = body.get("warehouseId") != null ? Long.valueOf(body.get("warehouseId").toString()) : 1L;
-        String type = body.getOrDefault("type", "IN").toString();
-        int delta = Integer.parseInt(body.getOrDefault("delta", "1").toString());
-        String remark = (String) body.get("remark");
-        erpService.adjustStock(productId, warehouseId, type, delta, remark);
+    public ApiResponse<Void> adjustInventory(@Valid @RequestBody ErpStockAdjustmentRequest request) {
+        erpService.adjustStock(request);
         return ApiResponse.success(null);
+    }
+
+    @PutMapping("/purchase-orders/{id}/confirmation")
+    @RequirePermission("erp:purchase:confirm")
+    public ApiResponse<ErpPurchaseOrderResponse> confirmLegacyOrder(@PathVariable Long id,
+            @Valid @RequestBody ErpPurchaseOrderSaveRequest request) {
+        return ApiResponse.success(erpService.confirmLegacyOrder(id, request));
+    }
+
+    @GetMapping("/suppliers")
+    public ApiResponse<List<ErpMasterDataOption>> listSuppliers() {
+        return ApiResponse.success(erpService.listSuppliers());
+    }
+
+    @PostMapping("/suppliers")
+    @RequirePermission("erp:supplier:create")
+    public ApiResponse<ErpMasterDataOption> createSupplier(@Valid @RequestBody ErpMasterDataRequest request) {
+        return ApiResponse.success(erpService.createSupplier(request));
+    }
+
+    @GetMapping("/warehouses")
+    public ApiResponse<List<ErpMasterDataOption>> listWarehouses() {
+        return ApiResponse.success(erpService.listWarehouses());
+    }
+
+    @PostMapping("/warehouses")
+    @RequirePermission("erp:warehouse:create")
+    public ApiResponse<ErpMasterDataOption> createWarehouse(@Valid @RequestBody ErpMasterDataRequest request) {
+        return ApiResponse.success(erpService.createWarehouse(request));
     }
 }

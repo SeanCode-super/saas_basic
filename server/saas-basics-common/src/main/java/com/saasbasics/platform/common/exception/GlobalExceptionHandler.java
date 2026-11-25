@@ -10,13 +10,16 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
@@ -113,9 +116,22 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.BAD_REQUEST, "PARAM_MISSING", msg, request);
     }
 
+    @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class})
+    public ResponseEntity<Object> handleMessageNotReadable(Exception exception, HttpServletRequest request) {
+        boolean english = isEnglishLocale(request);
+        String msg = english ? "Malformed request payload or parameter format" : "请求参数格式或报文格式不符合规范";
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, "PARAM_INVALID", msg, request);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Object> handleException(Exception exception, HttpServletRequest request) {
         log.error("Unhandled server exception: ", exception);
+        if (exception instanceof DataAccessException) {
+            String message = isEnglishLocale(request)
+                    ? "The operation could not be completed. Please contact your administrator."
+                    : "本次操作未能完成，请联系平台管理员。";
+            return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", message, request);
+        }
         String msg = exception.getMessage();
         if (msg == null || msg.isBlank()) {
             msg = exception.getClass().getSimpleName();
@@ -201,7 +217,8 @@ public class GlobalExceptionHandler {
                 || (exception.getCode() != null && exception.getCode().endsWith("_QUOTA_EXCEEDED"))) {
             return HttpStatus.TOO_MANY_REQUESTS;
         }
-        if ("AUTH_FORBIDDEN".equals(exception.getCode()) || "TENANT_ACCESS_DENIED".equals(exception.getCode())) {
+        if ("AUTH_FORBIDDEN".equals(exception.getCode()) || "TENANT_ACCESS_DENIED".equals(exception.getCode())
+                || "TENANT_BYPASS_FORBIDDEN".equals(exception.getCode())) {
             return HttpStatus.FORBIDDEN;
         }
         if (exception.getCode() != null && exception.getCode().startsWith("AUTH_")) {
@@ -210,7 +227,12 @@ public class GlobalExceptionHandler {
         if (exception.getCode() != null && exception.getCode().endsWith("_NOT_FOUND")) {
             return HttpStatus.NOT_FOUND;
         }
-        if (isConflict(exception.getCode())) {
+        if ("AI_PROVIDER_NOT_CONFIGURED".equals(exception.getCode())
+                || exception.getCode() != null && exception.getCode().endsWith("_UNAVAILABLE")) {
+            return HttpStatus.SERVICE_UNAVAILABLE;
+        }
+        if ("WORKFLOW_ENGINE_MISMATCH".equals(exception.getCode()) || "WORKFLOW_REVISION_UNKNOWN".equals(exception.getCode())
+                || isConflict(exception.getCode())) {
             return HttpStatus.CONFLICT;
         }
         return HttpStatus.BAD_REQUEST;

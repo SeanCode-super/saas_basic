@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.saasbasics.platform.modules.iam.mapper.DataPermissionRuleMapper">
+    <select id="selectRuleList" resultType="com.saasbasics.platform.modules.iam.dto.DataPermissionRuleResponse">
+        SELECT
+          id,
+          tenant_id AS tenantId,
+          resource_code AS resourceCode,
+          resource_name AS resourceName,
+          subject_type AS subjectType,
+          subject_value AS subjectValue,
+          scope_type AS scopeType,
+          CAST(config_json AS CHAR) AS configJson,
+          status,
+          remark
+        FROM iam_data_permission_rule
+        WHERE deleted = 0
+        ORDER BY id DESC
+    </select>
+
+    <select id="selectRuleById" resultType="com.saasbasics.platform.modules.iam.dto.DataPermissionRuleResponse">
+        SELECT
+          id,
+          tenant_id AS tenantId,
+          resource_code AS resourceCode,
+          resource_name AS resourceName,
+          subject_type AS subjectType,
+          subject_value AS subjectValue,
+          scope_type AS scopeType,
+          CAST(config_json AS CHAR) AS configJson,
+          status,
+          remark
+        FROM iam_data_permission_rule
+        WHERE id = #{id}
+          AND deleted = 0
+    </select>
+</mapper>

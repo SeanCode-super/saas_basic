@@ -38,6 +38,17 @@ public class ProcessInstanceEntity extends BaseTenantEntity {
     @TableField("initiator_dept_name")
     private String initiatorDeptName;
 
+    private String flowNodesSnapshot;
+    private String formSchemaSnapshot;
+    private Integer definitionRevision;
+
+    public String getFlowNodesSnapshot() { return flowNodesSnapshot; }
+    public void setFlowNodesSnapshot(String value) { flowNodesSnapshot = value; }
+    public String getFormSchemaSnapshot() { return formSchemaSnapshot; }
+    public void setFormSchemaSnapshot(String value) { formSchemaSnapshot = value; }
+    public Integer getDefinitionRevision() { return definitionRevision; }
+    public void setDefinitionRevision(Integer value) { definitionRevision = value; }
+
     @TableField("form_data_json")
     private String formDataJson;
 

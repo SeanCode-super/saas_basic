@@ -1,5 +1,7 @@
 package com.saasbasics.platform.modules.organization.internal.application;
 
+import org.springframework.transaction.annotation.Isolation;
+import com.saasbasics.platform.common.tenant.TenantMembershipCapacity;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -39,6 +41,7 @@ public class OrganizationStructureService {
     private static final String UNIT_RELATION_NOT_FOUND = "ORG_UNIT_RELATION_NOT_FOUND";
     private static final String POSITION_NOT_FOUND = "ORG_POSITION_NOT_FOUND";
 
+    private final TenantMembershipCapacity capacity;
     private final OrganizationMapperAccess mappers;
     private final OrganizationEntitySupport support;
     private final OrganizationCatalogService catalog;
@@ -47,7 +50,8 @@ public class OrganizationStructureService {
     public OrganizationStructureService(OrganizationMapperAccess mappers,
                                         OrganizationEntitySupport support,
                                         OrganizationCatalogService catalog,
-                                        AuditRecorder auditTrail) {
+                                        AuditRecorder auditTrail, TenantMembershipCapacity capacity) {
+        this.capacity = capacity;
         this.mappers = mappers;
         this.support = support;
         this.catalog = catalog;
@@ -141,7 +145,7 @@ public class OrganizationStructureService {
         return toUnitResponse(unit(publicId));
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public OrgUnitModels.Response createUnit(OrgUnitModels.CreateRequest request) {
         OrganizationEntity organization = catalog.organization(request.organizationPublicId());
         OrgUnitEntity parent = request.parentUnitPublicId() == null ? null : unit(request.parentUnitPublicId());
@@ -152,6 +156,7 @@ public class OrganizationStructureService {
             requireWithin(period, support.period(parent), "Organization unit");
         }
 
+        capacity.requireDepartment(organization.getTenantId());
         OrgUnitEntity entity = new OrgUnitEntity();
         entity.setOrganizationId(organization.getId());
         entity.setParentUnitId(parent == null ? null : parent.getId());

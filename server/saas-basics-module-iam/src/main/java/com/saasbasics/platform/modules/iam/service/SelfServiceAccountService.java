@@ -1,5 +1,7 @@
 package com.saasbasics.platform.modules.iam.service;
 
+import org.springframework.transaction.annotation.Isolation;
+import com.saasbasics.platform.common.tenant.TenantMembershipCapacity;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.saasbasics.platform.common.auth.AuthContext;
@@ -55,6 +57,7 @@ public class SelfServiceAccountService {
     private static final Logger log = LoggerFactory.getLogger(SelfServiceAccountService.class);
     private static final int OTP_TTL_SECONDS = 300;
 
+    private final TenantMembershipCapacity capacity;
     private final PasswordSecurityService passwordSecurityService;
     private final ObjectProvider<TenantInviteMapper> inviteMapperProvider;
     private final ObjectProvider<UserMapper> userMapperProvider;
@@ -78,8 +81,10 @@ public class SelfServiceAccountService {
             ObjectProvider<AuthSessionMapper> authSessionMapperProvider,
             ObjectProvider<UserRoleMapper> userRoleMapperProvider,
             ObjectProvider<StringRedisTemplate> redisTemplateProvider,
-            Environment environment
+            Environment environment,
+            TenantMembershipCapacity capacity
     ) {
+        this.capacity = capacity;
         this.passwordSecurityService = passwordSecurityService;
         this.inviteMapperProvider = inviteMapperProvider;
         this.userMapperProvider = userMapperProvider;
@@ -241,7 +246,7 @@ public class SelfServiceAccountService {
         return toInviteResponse(resolved.invite(), resolved.tenant());
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public TenantInviteResponse acceptInvite(String token, TenantInviteAcceptRequest request) {
         ResolvedInvite resolved = loadValidInvite(token);
         TenantInviteEntity invite = resolved.invite();
@@ -249,6 +254,10 @@ public class SelfServiceAccountService {
 
         try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openTenant(
                 tenant.getId(), tenant.getTenantCode(), invite.getInviterUserId())) {
+            capacity.requireSeat(tenant.getId());
+            // Another invite acceptance may have committed while this transaction waited for capacity.
+            invite = requiredInviteMapper().selectById(invite.getId());
+            validateInvite(invite);
             UserMapper userMapper = requiredUserMapper();
             String username = request.username().trim();
             UserEntity existing = userMapper.selectByTenantAndUsername(tenant.getId(), username);
@@ -319,6 +328,15 @@ public class SelfServiceAccountService {
                     .eq(TenantInviteEntity::getInviteToken, token.trim())
                     .last("LIMIT 1"));
         }
+        validateInvite(invite);
+        TenantEntity tenant = findTenantById(invite.getTenantId());
+        if (tenant == null || "DISABLED".equalsIgnoreCase(tenant.getStatus()) || "SUSPENDED".equalsIgnoreCase(tenant.getStatus())) {
+            throw new BizException("TENANT_DISABLED", "邀请所属租户不存在或已停用");
+        }
+        return new ResolvedInvite(invite, tenant);
+    }
+
+    private void validateInvite(TenantInviteEntity invite) {
         if (invite == null) {
             throw new BizException("INVITE_TOKEN_NOT_FOUND", "邀请链接不存在或已失效");
         }
@@ -333,11 +351,6 @@ public class SelfServiceAccountService {
         if (used >= maxUses) {
             throw new BizException("INVITE_TOKEN_EXHAUSTED", "邀请链接已达到最大使用次数");
         }
-        TenantEntity tenant = findTenantById(invite.getTenantId());
-        if (tenant == null || "DISABLED".equalsIgnoreCase(tenant.getStatus()) || "SUSPENDED".equalsIgnoreCase(tenant.getStatus())) {
-            throw new BizException("TENANT_DISABLED", "邀请所属租户不存在或已停用");
-        }
-        return new ResolvedInvite(invite, tenant);
     }
 
     private boolean matchesRegisteredContact(UserEntity user, String contact, boolean isProd) {

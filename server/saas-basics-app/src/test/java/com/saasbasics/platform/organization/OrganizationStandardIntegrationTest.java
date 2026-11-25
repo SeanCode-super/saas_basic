@@ -28,12 +28,18 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.jdbc.Sql;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-@SpringBootTest(classes = SaasBasicsApplication.class)
 @Testcontainers(disabledWithoutDocker = true)
+@Sql(statements = """
+        INSERT INTO plat_tenant_quota (tenant_id, quota_code, quota_name, quota_value)
+        VALUES (301, 'DEPT_COUNT', 'Departments', 20),
+                (302, 'DEPT_COUNT', 'Departments', 20);
+        """, executionPhase = Sql.ExecutionPhase.BEFORE_TEST_CLASS)
+@SpringBootTest(classes = SaasBasicsApplication.class)
 class OrganizationStandardIntegrationTest {
 
     private static final long TENANT_ALPHA = 301L;

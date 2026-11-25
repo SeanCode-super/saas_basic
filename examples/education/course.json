@@ -1,0 +1,21 @@
+{
+  "templateType": "EXTENSION",
+  "moduleName": "education",
+  "basePackage": "org.example",
+  "className": "Course",
+  "tableName": "biz_course",
+  "businessName": "课程",
+  "columns": [
+    {
+      "columnName": "course_name",
+      "fieldName": "courseName",
+      "columnType": "varchar(128)",
+      "javaType": "String",
+      "comment": "课程名称",
+      "isRequired": true,
+      "isQuery": true,
+      "queryType": "LIKE",
+      "componentType": "input"
+    }
+  ]
+}

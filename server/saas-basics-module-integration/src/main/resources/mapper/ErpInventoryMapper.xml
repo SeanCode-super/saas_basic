@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.saasbasics.platform.modules.erp.mapper.ErpInventoryMapper">
+    <insert id="ensureBalance">
+        INSERT INTO erp_inventory (tenant_id, product_id, warehouse_id, stock_quantity, locked_quantity)
+        VALUES (#{tenantId}, #{productId}, #{warehouseId}, 0, 0)
+        ON DUPLICATE KEY UPDATE stock_quantity = stock_quantity
+    </insert>
+    <select id="lockForUpdate" resultType="com.saasbasics.platform.modules.erp.entity.ErpInventoryEntity">
+        SELECT * FROM erp_inventory
+        WHERE tenant_id = #{tenantId} AND product_id = #{productId} AND warehouse_id = #{warehouseId}
+        FOR UPDATE
+    </select>
+</mapper>

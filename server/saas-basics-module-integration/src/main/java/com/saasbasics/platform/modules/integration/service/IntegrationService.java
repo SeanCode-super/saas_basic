@@ -13,6 +13,7 @@ import java.net.Socket;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
@@ -61,7 +62,7 @@ public class IntegrationService {
             throw new BizException("DATASOURCE_NOT_FOUND", "Datasource not found");
         }
         apply(entity, request);
-        mapper.updateById(entity);
+        updateChecked(mapper, entity);
         return getDatasource(id);
     }
 
@@ -96,7 +97,7 @@ public class IntegrationService {
         if (host.isEmpty()) {
             entity.setTestStatus("FAILED");
             entity.setLastTestedAt(testedAt);
-            mapper.updateById(entity);
+            updateChecked(mapper, entity);
             return new DatasourceProbeResultResponse(
                     entity.getId(), entity.getDatasourceCode(), entity.getDatasourceName(),
                     "FAILED", 0L, "未配置目标主机地址", testedAt
@@ -125,7 +126,7 @@ public class IntegrationService {
         long latencyMs = Math.max(1L, Math.round((System.nanoTime() - startNs) / 1_000_000.0));
         entity.setTestStatus(status);
         entity.setLastTestedAt(testedAt);
-        mapper.updateById(entity);
+        updateChecked(mapper, entity);
         return new DatasourceProbeResultResponse(
                 entity.getId(), entity.getDatasourceCode(), entity.getDatasourceName(),
                 status, latencyMs, message, testedAt
@@ -157,14 +158,23 @@ public class IntegrationService {
                 entity.getPort(),
                 entity.getDatabaseName(),
                 entity.getUsername(),
-                entity.getTestStatus(),
+                entity.getLastTestedAt() == null ? "UNTESTED" : entity.getTestStatus(),
                 entity.getStatus(),
-                entity.getRemark()
+                entity.getRemark(), entity.getLastTestedAt()
         );
     }
 
     private void apply(DatasourceEntity entity, DatasourceSaveRequest request) {
-        entity.setTenantId(request.tenantId());
+        Long tenant = com.saasbasics.platform.common.auth.AuthContext.requirePrincipal().tenantId();
+        if (!Objects.equals(request.tenantId(), tenant) || entity.getId() != null && !Objects.equals(entity.getTenantId(), tenant)) {
+            throw new BizException("TENANT_ACCESS_DENIED", "只能维护当前租户的数据源");
+        }
+        if (entity.getId() == null || !Objects.equals(entity.getHost(), request.host())
+                || !Objects.equals(entity.getPort(), request.port()) || !Objects.equals(entity.getDatasourceType(), request.type())) {
+            entity.setTestStatus("UNTESTED");
+            entity.setLastTestedAt(null);
+        }
+        entity.setTenantId(tenant);
         entity.setDatasourceCode(request.code());
         entity.setDatasourceName(request.name());
         entity.setDatasourceType(request.type());
@@ -173,9 +183,12 @@ public class IntegrationService {
         entity.setPort(request.port());
         entity.setDatabaseName(request.databaseName());
         entity.setUsername(request.username());
-        entity.setTestStatus(request.testStatus());
         entity.setStatus(request.status());
         entity.setRemark(request.remark());
+    }
+
+    private static void updateChecked(DatasourceMapper mapper, DatasourceEntity entity) {
+        if (mapper.updateById(entity) != 1) throw new BizException("DATASOURCE_CONFLICT", "数据源已变更，请刷新后重试");
     }
 
     private DatasourceMapper requiredMapper() {

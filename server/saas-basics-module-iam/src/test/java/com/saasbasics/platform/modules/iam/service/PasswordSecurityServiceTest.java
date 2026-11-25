@@ -3,6 +3,7 @@ package com.saasbasics.platform.modules.iam.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.saasbasics.platform.common.auth.InitialPasswordIssuer.Rules;
 import com.saasbasics.platform.common.exception.BizException;
 import com.saasbasics.platform.modules.iam.entity.PasswordPolicyEntity;
 import java.nio.charset.StandardCharsets;
@@ -30,6 +31,45 @@ class PasswordSecurityServiceTest {
         assertThat(service.matches("Legacy@123", legacyHex)).isTrue();
         assertThat(service.matches("Legacy@124", legacyHex)).isFalse();
         assertThat(service.needsRehash(legacyHex)).isTrue();
+    }
+
+    @Test
+    void issuesIndependentInitialPasswordsMatchingThePolicyAndStoredHash() {
+        var policy = new PasswordPolicyEntity();
+        policy.setMinLength(12);
+        policy.setMaxLength(64);
+        policy.setRequireUppercase(true);
+        policy.setRequireLowercase(true);
+        policy.setRequireNumber(true);
+        policy.setRequireSpecial(true);
+        Rules rules = new Rules(12, 64, true, true, true, true);
+        String first = service.generateInitialPassword(rules);
+        String second = service.generateInitialPassword(rules);
+
+        service.validate(first, policy);
+        service.validate(second, policy);
+        assertThat(first.equals(second)).isFalse();
+        String hash = service.hash(first);
+        assertThat(service.needsRehash(hash)).isFalse();
+        assertThat(service.matches(first, hash)).isTrue();
+        assertThat(service.matches(second, hash)).isFalse();
+    }
+
+    @Test
+    void followsTheTemplateLengthAndOnlyItsRequiredCharacterClasses() {
+        for (int length : new int[]{12, 32}) {
+            String issued = service.generateInitialPassword(new Rules(length, length, true, true, true, true));
+            assertThat(issued.length()).isEqualTo(length);
+            assertThat(issued.matches("(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^a-zA-Z0-9]).+")).isTrue();
+        }
+        String one = service.generateInitialPassword(new Rules(1, 1, false, false, true, false));
+        assertThat(one.matches("[0-9]")).isTrue();
+        for (Rules invalid : new Rules[]{new Rules(20, 12, false, false, false, false),
+                new Rules(1, 3, true, true, true, true)}) {
+            assertThatThrownBy(() -> service.generateInitialPassword(invalid))
+                    .isInstanceOfSatisfying(BizException.class,
+                            e -> assertThat(e.getCode()).isEqualTo("PASSWORD_POLICY_VIOLATION"));
+        }
     }
 
     @Test

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.saasbasics.platform.modules.codegen.mapper.CodegenSchemaMapper">
+    <select id="selectDbTables" resultType="com.saasbasics.platform.modules.codegen.dto.DbTableResponse">
+        SELECT
+          table_name AS tableName,
+          table_comment AS tableComment,
+          DATE_FORMAT(create_time, '%Y-%m-%d %H:%i:%s') AS createTime
+        FROM information_schema.tables
+        WHERE table_schema = DATABASE()
+        ORDER BY table_name ASC
+    </select>
+
+    <select id="selectDbColumns" resultType="com.saasbasics.platform.modules.codegen.dto.DbColumnResponse">
+        SELECT
+          column_name AS columnName,
+          data_type AS dataType,
+          column_type AS columnType,
+          column_comment AS columnComment,
+          is_nullable AS isNullable,
+          column_key AS columnKey,
+          extra AS extra
+        FROM information_schema.columns
+        WHERE table_schema = DATABASE()
+          AND table_name = #{tableName}
+        ORDER BY ordinal_position ASC
+    </select>
+</mapper>

@@ -1,0 +1,21 @@
+{
+  "templateType": "EXTENSION",
+  "moduleName": "field_ops",
+  "basePackage": "com.example.maintenance",
+  "className": "Inspection",
+  "tableName": "biz_inspection",
+  "businessName": "设备点检",
+  "columns": [
+    {
+      "columnName": "asset_code",
+      "fieldName": "assetCode",
+      "columnType": "varchar(64)",
+      "javaType": "String",
+      "comment": "设备编码",
+      "isRequired": true,
+      "isQuery": true,
+      "queryType": "EQ",
+      "componentType": "input"
+    }
+  ]
+}

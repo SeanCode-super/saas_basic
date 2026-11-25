@@ -9,9 +9,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.jdbc.core.JdbcTemplate;
+import com.saasbasics.platform.modules.ai.api.PublishedModelCatalog;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 /**
@@ -20,15 +19,14 @@ import org.springframework.stereotype.Service;
 @Service
 public class AiSchemaCatalogService {
 
-    private static final Logger log = LoggerFactory.getLogger(AiSchemaCatalogService.class);
     private static final Set<String> SENSITIVE_COLUMN_HINTS = Set.of(
             "mobile", "phone", "telephone", "contact_phone", "email", "id_card", "bank_card"
     );
 
-    private final JdbcTemplate jdbcTemplate;
+    private final ObjectProvider<PublishedModelCatalog> catalogs;
 
-    public AiSchemaCatalogService(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
+    public AiSchemaCatalogService(ObjectProvider<PublishedModelCatalog> catalogs) {
+        this.catalogs = catalogs;
     }
 
     public List<Nl2SqlSchemaTableDTO> listAllowedSchemas(Long tenantId) {
@@ -217,33 +215,18 @@ public class AiSchemaCatalogService {
     }
 
     private void registerDynamicSchemas(Map<String, Nl2SqlSchemaTableDTO> catalog, Long tenantId) {
-        try {
-            List<Map<String, Object>> models = jdbcTemplate.queryForList(
-                    "SELECT id, model_code, model_name, table_name FROM gen_dynamic_model WHERE tenant_id = ? AND deleted = 0 AND status = 'PUBLISHED'",
-                    tenantId
-            );
-            for (Map<String, Object> m : models) {
-                String tableName = String.valueOf(m.get("table_name")).toLowerCase(Locale.ROOT);
-                String modelName = String.valueOf(m.get("model_name"));
-                Long modelId = ((Number) m.get("id")).longValue();
-                List<Map<String, Object>> fieldRows = jdbcTemplate.queryForList(
-                        "SELECT field_code, field_name, column_type FROM gen_dynamic_field WHERE tenant_id = ? AND model_id = ? AND deleted = 0 ORDER BY sort_no ASC",
-                        tenantId, modelId
-                );
-                List<Nl2SqlSchemaColumnDTO> cols = new ArrayList<>();
-                cols.add(col("id", "记录ID", "BIGINT"));
-                for (Map<String, Object> f : fieldRows) {
-                    cols.add(col(
-                            String.valueOf(f.get("field_code")),
-                            String.valueOf(f.get("field_name")),
-                            String.valueOf(f.get("column_type"))
-                    ));
-                }
-                cols.add(col("created_at", "创建时间", "DATETIME"));
-                catalog.put(tableName, new Nl2SqlSchemaTableDTO(tableName, modelName + " (AI自建)", "DYNAMIC", true, cols));
+        var byTable = catalogs.orderedStream().flatMap(catalogProvider -> catalogProvider.columns(tenantId).stream()).collect(
+                Collectors.groupingBy(PublishedModelCatalog.Column::tableName, LinkedHashMap::new, Collectors.toList()));
+        for (var entry : byTable.entrySet()) {
+            var columns = new ArrayList<Nl2SqlSchemaColumnDTO>();
+            columns.add(col("id", "记录ID", "BIGINT"));
+            for (var field : entry.getValue()) {
+                if (field.fieldCode() != null) columns.add(col(field.fieldCode(), field.fieldName(), field.columnType()));
             }
-        } catch (Exception ex) {
-            log.debug("[AI SchemaCatalog] Dynamic model discovery skipped: {}", ex.getMessage());
+            columns.add(col("created_at", "创建时间", "DATETIME"));
+            String table = entry.getKey().toLowerCase(Locale.ROOT);
+            String label = entry.getValue().getFirst().modelName() + " (AI自建)";
+            catalog.put(table, new Nl2SqlSchemaTableDTO(table, label, "DYNAMIC", true, columns));
         }
     }
 

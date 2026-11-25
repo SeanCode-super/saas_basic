@@ -213,10 +213,8 @@ public class DataPermissionRuleService implements DataPermissionProvider {
             return DataPermissionSqlSpec.denyAll(tenantId);
         }
         UserEntity user = accessSubjectProfileService.findActiveUser(tenantId, userId);
-        boolean isSuperAdmin = user != null && (
-                "PLATFORM".equalsIgnoreCase(user.getUserType())
-                        || "SUPER_ADMIN".equalsIgnoreCase(user.getUserType())
-        );
+        boolean isSuperAdmin = user != null && AuthPrincipal.hasPlatformAdminRole(tenantId,
+                accessSubjectProfileService.load(tenantId, userId).roleIds());
         return resolveSpecForSubject(tenantId, userId, isSuperAdmin, resourceCode);
     }
 
@@ -238,10 +236,7 @@ public class DataPermissionRuleService implements DataPermissionProvider {
         }
 
         // 1. L1 平台管理员或通配符超管放行（并保持租户维度隔离）
-        boolean isSuperAdmin = "PLATFORM".equalsIgnoreCase(principal.userType())
-                || "SUPER_ADMIN".equalsIgnoreCase(principal.userType())
-                || (principal.permissions() != null && (principal.permissions().contains("*") || principal.permissions().contains("admin")));
-        return resolveSpecForSubject(principal.tenantId(), principal.userId(), isSuperAdmin, resourceCode);
+        return resolveSpecForSubject(principal.tenantId(), principal.userId(), principal.isSuperAdmin(), resourceCode);
     }
 
     private DataPermissionSqlSpec resolveSpecForSubject(Long tenantId,

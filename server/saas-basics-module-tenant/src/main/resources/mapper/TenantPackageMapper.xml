@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.saasbasics.platform.modules.tenant.mapper.TenantPackageMapper">
+
+    <select id="selectPackageList" resultType="com.saasbasics.platform.modules.tenant.dto.TenantPackageResponse">
+        SELECT
+          p.id,
+          p.package_code AS packageCode,
+          p.package_name AS packageName,
+          p.package_type AS packageType,
+          p.status,
+          p.max_user_count AS maxUserCount,
+          p.max_dept_count AS maxDeptCount,
+          p.max_storage_mb AS maxStorageMb,
+          p.max_api_per_minute AS maxApiPerMinute,
+          p.feature_flags_json AS featureFlagsJson,
+          p.sort_no AS sortNo,
+          p.remark,
+          (SELECT COUNT(*) FROM plat_tenant t WHERE t.package_id = p.id AND t.deleted = 0) AS activeTenantCount
+        FROM plat_tenant_package p
+        WHERE p.deleted = 0
+        ORDER BY p.sort_no ASC, p.id ASC
+    </select>
+
+    <select id="selectPackageById" resultType="com.saasbasics.platform.modules.tenant.dto.TenantPackageResponse">
+        SELECT
+          p.id,
+          p.package_code AS packageCode,
+          p.package_name AS packageName,
+          p.package_type AS packageType,
+          p.status,
+          p.max_user_count AS maxUserCount,
+          p.max_dept_count AS maxDeptCount,
+          p.max_storage_mb AS maxStorageMb,
+          p.max_api_per_minute AS maxApiPerMinute,
+          p.feature_flags_json AS featureFlagsJson,
+          p.sort_no AS sortNo,
+          p.remark,
+          (SELECT COUNT(*) FROM plat_tenant t WHERE t.package_id = p.id AND t.deleted = 0) AS activeTenantCount
+        FROM plat_tenant_package p
+        WHERE p.id = #{id} AND p.deleted = 0
+    </select>
+
+</mapper>

@@ -4,6 +4,7 @@ import com.saasbasics.platform.modules.system.dto.ServerMonitorResponse;
 import com.saasbasics.platform.modules.system.dto.ServerMonitorResponse.*;
 import com.saasbasics.platform.modules.system.dto.ThreadDumpItem;
 import com.saasbasics.platform.modules.system.infra.InfraMonitorService;
+import com.saasbasics.platform.modules.system.mapper.PlatformWorkflowMetricsMapper;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.HikariPoolMXBean;
 import org.slf4j.Logger;
@@ -38,6 +39,8 @@ public class ServerMonitorService {
     private final ObjectProvider<DataSource> dataSourceProvider;
     private final ObjectProvider<InfraMonitorService> infraMonitorServiceProvider;
 
+    private final PlatformWorkflowMetricsMapper workflowMetrics;
+
     // Cache previous ticks for CPU measurement to prevent long blocking
     private volatile long[] prevCpuTicks;
     private volatile long lastCpuSampleTime = 0;
@@ -47,7 +50,9 @@ public class ServerMonitorService {
     private volatile double cachedCpuIdle = 100.0;
 
     public ServerMonitorService(ObjectProvider<DataSource> dataSourceProvider,
-                                ObjectProvider<InfraMonitorService> infraMonitorServiceProvider) {
+                                ObjectProvider<InfraMonitorService> infraMonitorServiceProvider,
+                                PlatformWorkflowMetricsMapper workflowMetrics) {
+        this.workflowMetrics = workflowMetrics;
         this.dataSourceProvider = dataSourceProvider;
         this.infraMonitorServiceProvider = infraMonitorServiceProvider;
         SystemInfo si = null;
@@ -391,57 +396,33 @@ public class ServerMonitorService {
     }
 
     private AppStatusInfo collectAppStatus() {
-        long defCount = 0;
-        long instCount = 0;
-        long pendingCount = 0;
-        long totalCount = 0;
-
-        DataSource ds = dataSourceProvider.getIfAvailable();
-        if (ds != null) {
-            try (java.sql.Connection conn = ds.getConnection();
-                 java.sql.Statement stmt = conn.createStatement()) {
-                try (java.sql.ResultSet rs = stmt.executeQuery("SELECT count(*) FROM wf_process_definition WHERE deleted = 0")) {
-                    if (rs.next()) defCount = rs.getLong(1);
-                }
-                try (java.sql.ResultSet rs = stmt.executeQuery("SELECT count(*) FROM wf_process_instance WHERE deleted = 0")) {
-                    if (rs.next()) instCount = rs.getLong(1);
-                }
-                try (java.sql.ResultSet rs = stmt.executeQuery("SELECT count(*) FROM wf_task WHERE status = 'PENDING' AND deleted = 0")) {
-                    if (rs.next()) pendingCount = rs.getLong(1);
-                }
-                try (java.sql.ResultSet rs = stmt.executeQuery("SELECT count(*) FROM wf_task WHERE deleted = 0")) {
-                    if (rs.next()) totalCount = rs.getLong(1);
-                }
-            } catch (Exception e) {
-                log.warn("Failed to collect workflow metrics: {}", e.getMessage());
-            }
-        }
+        PlatformWorkflowMetricsMapper.Counts counts = workflowMetrics.countWorkflowRecords();
 
         AppStatusInfo.WorkflowEngineStatus wfStatus = new AppStatusInfo.WorkflowEngineStatus(
-                "HEALTHY",
-                "单体嵌入式进程 (Monolith In-Process)",
-                "v2.1.0 企业完整版 (Embedded Engine)",
-                "Spring 本地事务 (ACID 强一致性 / 0 网络开销)",
-                defCount,
-                instCount,
-                pendingCount,
-                totalCount
+                "DATA_AVAILABLE",
+                "流程数据库",
+                "Flowable",
+                "Spring 本地事务",
+                counts.definitions(),
+                counts.instances(),
+                counts.pendingTasks(),
+                counts.totalTasks()
         );
 
         List<AppStatusInfo.ModuleHealthItem> modules = List.of(
-                new AppStatusInfo.ModuleHealthItem("工作流与审批引擎", "workflow", "HEALTHY", "单体进程内驱动", "完整版轻量 BPMN 状态机，流程模型与流转任务全托管"),
-                new AppStatusInfo.ModuleHealthItem("IAM 身份与多租户权限", "iam", "HEALTHY", "单体进程内驱动", "多租户行级与数据范围过滤，双 Token 无感刷新与会话踢出"),
-                new AppStatusInfo.ModuleHealthItem("进销存 ERP 供应链中枢", "erp", "HEALTHY", "单体进程内驱动", "商品 SKU、多仓库存看板、采购单全流程履约与出入库台账"),
-                new AppStatusInfo.ModuleHealthItem("分布式定时任务中心", "scheduler", "HEALTHY", "单体进程内驱动", "Spring Task 线程池，支持 Cron 动态注册、即时触发与日志追踪"),
-                new AppStatusInfo.ModuleHealthItem("代码生成引擎 3.0", "codegen", "HEALTHY", "单体进程内驱动", "支持单表 CRUD、1:N 主子表与 Tree 树表全栈代码级联生成"),
-                new AppStatusInfo.ModuleHealthItem("审计日志与安全合规", "audit", "HEALTHY", "单体进程内驱动", "异步操作日志切面，高风险操作预警与 IP 黑名单阻断"),
-                new AppStatusInfo.ModuleHealthItem("消息网关与 WebSocket", "integration", "HEALTHY", "单体进程内驱动", "实时站内信广播、用户级审批通知推送与系统告警"),
-                new AppStatusInfo.ModuleHealthItem("文件对象存储中枢", "file", "HEALTHY", "单体进程内驱动", "本地磁盘与 MinIO/S3 兼容存储，支持分片与防盗链签名"),
-                new AppStatusInfo.ModuleHealthItem("多租户与套餐治理", "tenant", "HEALTHY", "单体进程内驱动", "租户开通、配额限制、租户数据隔离与套餐权限包"),
-                new AppStatusInfo.ModuleHealthItem("系统核心与字典服务", "system", "HEALTHY", "单体进程内驱动", "动态系统参数、多级语言字典、慢 SQL 拦截与全局监控")
+                new AppStatusInfo.ModuleHealthItem("工作流与审批引擎", "workflow", "UNVERIFIED", "应用模块", "完整版轻量 BPMN 状态机，流程模型与流转任务全托管"),
+                new AppStatusInfo.ModuleHealthItem("IAM 身份与多租户权限", "iam", "UNVERIFIED", "应用模块", "多租户行级与数据范围过滤，双 Token 无感刷新与会话踢出"),
+                new AppStatusInfo.ModuleHealthItem("进销存 ERP 供应链中枢", "erp", "UNVERIFIED", "应用模块", "商品 SKU、多仓库存看板、采购单全流程履约与出入库台账"),
+                new AppStatusInfo.ModuleHealthItem("分布式定时任务中心", "scheduler", "UNVERIFIED", "应用模块", "Spring Task 线程池，支持 Cron 动态注册、即时触发与日志追踪"),
+                new AppStatusInfo.ModuleHealthItem("代码生成引擎 3.0", "codegen", "UNVERIFIED", "应用模块", "支持单表 CRUD、1:N 主子表与 Tree 树表全栈代码级联生成"),
+                new AppStatusInfo.ModuleHealthItem("审计日志与安全合规", "audit", "UNVERIFIED", "应用模块", "异步操作日志切面，高风险操作预警与 IP 黑名单阻断"),
+                new AppStatusInfo.ModuleHealthItem("消息网关与 WebSocket", "integration", "UNVERIFIED", "应用模块", "实时站内信广播、用户级审批通知推送与系统告警"),
+                new AppStatusInfo.ModuleHealthItem("文件对象存储中枢", "file", "UNVERIFIED", "应用模块", "本地磁盘与 MinIO/S3 兼容存储，支持分片与防盗链签名"),
+                new AppStatusInfo.ModuleHealthItem("多租户与套餐治理", "tenant", "UNVERIFIED", "应用模块", "租户开通、配额限制、租户数据隔离与套餐权限包"),
+                new AppStatusInfo.ModuleHealthItem("系统核心与字典服务", "system", "UNVERIFIED", "应用模块", "动态系统参数、多级语言字典、慢 SQL 拦截与全局监控")
         );
 
-        return new AppStatusInfo("单体架构集成部署 (Monolith)", "ALL_SYSTEMS_OPERATIONAL", wfStatus, modules);
+        return new AppStatusInfo("单体架构集成部署 (Monolith)", "RESPONDING", wfStatus, modules);
     }
 
     public Map<String, Object> triggerAlarmTest(String webhookUrl, String channel) {

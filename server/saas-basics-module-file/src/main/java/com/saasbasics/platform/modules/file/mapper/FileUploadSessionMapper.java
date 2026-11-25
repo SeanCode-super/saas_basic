@@ -5,30 +5,29 @@ import com.saasbasics.platform.modules.file.dto.FileUploadSessionResponse;
 import com.saasbasics.platform.modules.file.entity.FileUploadSessionEntity;
 import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Param;
+import com.saasbasics.platform.common.auth.DataScope;
+import java.math.BigInteger;
 
 @Mapper
 public interface FileUploadSessionMapper extends BaseMapper<FileUploadSessionEntity> {
 
-    @Select("""
-            SELECT
-              id,
-              tenant_id AS tenantId,
-              bucket_id AS bucketId,
-              storage_id AS storageId,
-              session_code AS sessionCode,
-              object_key AS objectKey,
-              file_name AS fileName,
-              file_size AS fileSize,
-              upload_mode AS uploadMode,
-              part_count AS partCount,
-              owner_user_id AS ownerUserId,
-              status,
-              expire_at AS expireAt,
-              completed_at AS completedAt
-            FROM file_upload_session
-            WHERE deleted = 0
-            ORDER BY created_at DESC, id DESC
-            """)
+    @DataScope(ignore = true)
+    BigInteger allocatedBytes(@Param("tenantId") Long tenantId);
+
+    @DataScope(ignore = true)
+    long claimedObjectKey(@Param("tenantId") Long tenantId, @Param("storageId") Long storageId,
+                          @Param("objectKey") String objectKey);
+
+    record RestoreCandidate(Long storageId, String objectKey, long fileSize, long billedExportBytes) {}
+
+    @DataScope(ignore = true)
+    RestoreCandidate restoreCandidate(@Param("tenantId") Long tenantId, @Param("fileId") Long fileId);
+
+    record ExpiredSession(Long id, Long tenantId, String tenantCode) {}
+
+    @DataScope(ignore = true)
+    List<ExpiredSession> listExpiredSessions();
+
     List<FileUploadSessionResponse> selectSessionList();
 }

@@ -123,11 +123,10 @@ public class FlowableBpmnModelService {
                         prevElementId = nodeId;
                         currentX += 160;
                     } else if ("CC".equals(nodeType)) {
-                        // 抄送通知节点 (ServiceTask / UserTask 通知)
-                        UserTask ccTask = new UserTask();
+                        // 抄送由业务事务登记，流程本身自动通过。
+                        ManualTask ccTask = new ManualTask();
                         ccTask.setId(nodeId);
                         ccTask.setName("【抄送】" + nodeName);
-                        configureAssignee(ccTask, cursor);
                         process.addFlowElement(ccTask);
                         model.addGraphicInfo(nodeId, new GraphicInfo(currentX, startY, 80, 100));
 

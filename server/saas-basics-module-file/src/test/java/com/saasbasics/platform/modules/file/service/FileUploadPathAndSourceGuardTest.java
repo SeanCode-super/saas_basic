@@ -3,6 +3,8 @@ package com.saasbasics.platform.modules.file.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -35,6 +37,19 @@ class FileUploadPathAndSourceGuardTest {
         return provider;
     }
 
+    private FileUploadAccounting routingTestAccounting() {
+        FileUploadAccounting ledger = mock(FileUploadAccounting.class);
+        when(ledger.reserve(any(), nullable(String.class), nullable(String.class), anyBoolean())).thenAnswer(call -> {
+            var session = call.<com.saasbasics.platform.modules.file.entity.FileUploadSessionEntity>getArgument(0);
+            session.setId(7L);
+            session.setStatus("TRANSFERRING");
+            return session;
+        });
+        when(ledger.finish(any(), any(), any())).thenAnswer(call ->
+                call.<java.util.function.Supplier<FileObjectEntity>>getArgument(2).get());
+        return ledger;
+    }
+
     @Test
     void uploadFailsWithPromptWhenNoActiveStorageSourceConfigured() {
         FileStorageMapper storageMapper = mock(FileStorageMapper.class);
@@ -50,7 +65,7 @@ class FileUploadPathAndSourceGuardTest {
         FileAccessLogService logService = new FileAccessLogService(providerOf(null));
 
         PlatformFileStorageGatewayImpl gateway = new PlatformFileStorageGatewayImpl(
-                storageService, routeService, clientFactory, objectService, logService
+                storageService, routeService, clientFactory, objectService, logService, routingTestAccounting()
         );
 
         PlatformFileStorageGateway.StorageAvailability availability = gateway.checkAvailability(1L, "COMMON");
@@ -107,7 +122,7 @@ class FileUploadPathAndSourceGuardTest {
         FileAccessLogService logService = new FileAccessLogService(providerOf(null));
 
         PlatformFileStorageGatewayImpl gateway = new PlatformFileStorageGatewayImpl(
-                storageService, routeService, clientFactory, objectService, logService
+                storageService, routeService, clientFactory, objectService, logService, routingTestAccounting()
         );
 
         // 1) Unmapped bizType -> defaultFolder ("default-space")

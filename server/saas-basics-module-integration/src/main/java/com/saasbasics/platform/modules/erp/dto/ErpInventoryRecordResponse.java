@@ -7,6 +7,7 @@ public record ErpInventoryRecordResponse(
         Long tenantId,
         String recordNo,
         String recordType,
+        Long purchaseItemId,
         Long productId,
         String productName,
         Long warehouseId,

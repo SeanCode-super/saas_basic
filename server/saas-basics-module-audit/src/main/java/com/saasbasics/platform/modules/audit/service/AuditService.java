@@ -1,6 +1,7 @@
 package com.saasbasics.platform.modules.audit.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.saasbasics.platform.common.auth.AuthContext;
@@ -24,11 +25,11 @@ import com.saasbasics.platform.modules.audit.entity.LoginLogEntity;
 import com.saasbasics.platform.modules.audit.entity.OperationLogEntity;
 import com.saasbasics.platform.modules.audit.entity.RiskRuleEntity;
 import com.saasbasics.platform.modules.audit.entity.SecBlacklistEntity;
+import com.saasbasics.platform.modules.audit.mapper.AuditQueryMapper;
 import com.saasbasics.platform.modules.audit.mapper.LoginLogMapper;
 import com.saasbasics.platform.modules.audit.mapper.OperationLogMapper;
 import com.saasbasics.platform.modules.audit.mapper.RiskRuleMapper;
 import com.saasbasics.platform.modules.audit.mapper.SecBlacklistMapper;
-import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -42,48 +43,45 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ConcurrentLruCache;
 
 @Service
 public class AuditService implements SecurityBlacklistChecker {
 
     private static final Set<String> VALID_BLACKLIST_TYPES = Set.of("IP", "USER", "DEVICE", "TENANT");
+    private static final long PLATFORM_TENANT_ID = 1L;
+    private static final long PUBLIC_BLACKLIST_KEY = 0L;
     private static final long BLACKLIST_CACHE_TTL_MS = 5000L;
 
     private final ObjectProvider<LoginLogMapper> loginLogMapperProvider;
     private final ObjectProvider<OperationLogMapper> operationLogMapperProvider;
     private final ObjectProvider<RiskRuleMapper> riskRuleMapperProvider;
     private final ObjectProvider<SecBlacklistMapper> blacklistMapperProvider;
-    private final ObjectProvider<JdbcTemplate> jdbcTemplateProvider;
+    private final ObjectProvider<AuditQueryMapper> auditQueryMapperProvider;
     private final ObjectProvider<AuditTrailService> auditTrailServiceProvider;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    private volatile CachedBlacklistSnapshot blacklistSnapshot;
+    private final ConcurrentLruCache<Long, BlacklistCacheEntry> blacklistSnapshots =
+            new ConcurrentLruCache<>(256, key -> new BlacklistCacheEntry());
 
-    private record CachedBlacklistRow(Long tenantId, String blackType, String blackValue, String reason) {}
+    private record CachedBlacklistSnapshot(long expiresAtMs, boolean enabled, List<SecBlacklistEntity> rows) {}
 
-    private record CachedBlacklistSnapshot(long expiresAtMs, boolean enabled, List<CachedBlacklistRow> rows) {}
-
-    public AuditService(ObjectProvider<LoginLogMapper> loginLogMapperProvider,
-                        ObjectProvider<OperationLogMapper> operationLogMapperProvider,
-                        ObjectProvider<RiskRuleMapper> riskRuleMapperProvider) {
-        this(loginLogMapperProvider, operationLogMapperProvider, riskRuleMapperProvider, null, null, null);
+    private static final class BlacklistCacheEntry {
+        private volatile CachedBlacklistSnapshot snapshot;
     }
 
-    @Autowired
     public AuditService(ObjectProvider<LoginLogMapper> loginLogMapperProvider,
                         ObjectProvider<OperationLogMapper> operationLogMapperProvider,
                         ObjectProvider<RiskRuleMapper> riskRuleMapperProvider,
                         ObjectProvider<SecBlacklistMapper> blacklistMapperProvider,
-                        ObjectProvider<JdbcTemplate> jdbcTemplateProvider,
+                        ObjectProvider<AuditQueryMapper> auditQueryMapperProvider,
                         ObjectProvider<AuditTrailService> auditTrailServiceProvider) {
         this.loginLogMapperProvider = loginLogMapperProvider;
         this.operationLogMapperProvider = operationLogMapperProvider;
         this.riskRuleMapperProvider = riskRuleMapperProvider;
         this.blacklistMapperProvider = blacklistMapperProvider;
-        this.jdbcTemplateProvider = jdbcTemplateProvider;
+        this.auditQueryMapperProvider = auditQueryMapperProvider;
         this.auditTrailServiceProvider = auditTrailServiceProvider;
     }
 
@@ -241,7 +239,7 @@ public class AuditService implements SecurityBlacklistChecker {
         }
         entity.setStatus("ENABLED");
         mapper.insert(entity);
-        invalidateBlacklistCache();
+        invalidateBlacklistCache(tenantId);
         recordAudit("sec_blacklist", String.valueOf(entity.getId()), "BLOCK", type + ":" + value, entity.getReason());
 
         SecBlacklistEntity inserted = mapper.selectById(entity.getId());
@@ -258,39 +256,47 @@ public class AuditService implements SecurityBlacklistChecker {
             throw new BizException("BLACKLIST_NOT_FOUND", "黑名单记录不存在: " + id);
         }
         mapper.deleteById(id);
-        invalidateBlacklistCache();
+        invalidateBlacklistCache(existing.getTenantId());
         recordAudit("sec_blacklist", String.valueOf(id), "UNBLOCK", existing.getBlackValue(), "RELEASED");
     }
 
     @Override
     public void assertAllowed(Long tenantId, String username, String clientIp) {
-        CachedBlacklistSnapshot snapshot = loadBlacklistSnapshot();
-        if (snapshot == null || !snapshot.enabled() || snapshot.rows().isEmpty()) {
+        long currentTenant = TenantAccessContextHolder.requiredTenantId();
+        if (!Objects.equals(currentTenant, tenantId)) {
+            throw new BizException("TENANT_SCOPE_MISMATCH", "黑名单校验必须使用当前租户");
+        }
+        CachedBlacklistSnapshot shared = blacklistSnapshot(PUBLIC_BLACKLIST_KEY);
+        if (!shared.enabled()) {
             return;
         }
-        String normalizedUser = username != null ? username.trim().toLowerCase(Locale.ROOT) : "";
-        String normalizedIp = clientIp != null ? clientIp.trim() : "";
-        String tenantIdText = tenantId != null ? String.valueOf(tenantId) : "";
+        String normalizedUser = username == null ? "" : username.trim();
+        String normalizedIp = clientIp == null ? "" : clientIp.trim();
+        LocalDateTime now = LocalDateTime.now();
+        enforceBlacklist(shared, tenantId.toString(), normalizedUser, normalizedIp, now);
+        if (currentTenant != PLATFORM_TENANT_ID) {
+            enforceBlacklist(blacklistSnapshot(currentTenant), tenantId.toString(), normalizedUser, normalizedIp, now);
+        }
+    }
 
-        for (CachedBlacklistRow row : snapshot.rows()) {
-            boolean scopeMatches = Objects.equals(1L, row.tenantId())
-                    || Objects.equals(0L, row.tenantId())
-                    || (tenantId != null && Objects.equals(tenantId, row.tenantId()));
-            if (!scopeMatches) {
+    private void enforceBlacklist(CachedBlacklistSnapshot snapshot, String tenantIdText, String normalizedUser,
+                                  String normalizedIp, LocalDateTime now) {
+        for (SecBlacklistEntity row : snapshot.rows()) {
+            if (row.getExpiredAt() != null && !row.getExpiredAt().isAfter(now)) {
                 continue;
             }
-            String blackVal = row.blackValue() != null ? row.blackValue().trim() : "";
+            String blackVal = row.getBlackValue().trim();
             if (blackVal.isEmpty()) {
                 continue;
             }
-            boolean hit = switch (row.blackType()) {
+            boolean hit = switch (row.getBlackType().toUpperCase(Locale.ROOT)) {
                 case "IP" -> !normalizedIp.isEmpty() && blackVal.equalsIgnoreCase(normalizedIp);
                 case "USER" -> !normalizedUser.isEmpty() && blackVal.equalsIgnoreCase(normalizedUser);
                 case "TENANT" -> !tenantIdText.isEmpty() && blackVal.equalsIgnoreCase(tenantIdText);
                 default -> false;
             };
             if (hit) {
-                String reason = (row.reason() != null && !row.reason().isBlank()) ? row.reason() : "命中高危安全黑名单阻断规则";
+                String reason = (row.getReason() != null && !row.getReason().isBlank()) ? row.getReason() : "命中高危安全黑名单阻断规则";
                 throw new BizException("SECURITY_BLACKLIST_BLOCKED", "当前访问已被安全黑名单拦截: " + reason);
             }
         }
@@ -398,35 +404,11 @@ public class AuditService implements SecurityBlacklistChecker {
     }
 
     public List<HighRiskActionItemResponse> listHighRiskCatalog() {
-        JdbcTemplate jdbcTemplate = jdbcTemplateProvider != null ? jdbcTemplateProvider.getIfAvailable() : null;
-        if (jdbcTemplate == null) {
-            return List.of();
-        }
-        Long tenantId = currentTenantId();
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                """
-                SELECT resource_code, resource_name, http_method, url_pattern
-                FROM iam_api_resource
-                WHERE tenant_id = ?
-                  AND deleted = 0
-                  AND status = 'ENABLED'
-                  AND UPPER(http_method) <> 'GET'
-                ORDER BY id ASC
-                """,
-                tenantId
-        );
-        if (rows.isEmpty() && !Objects.equals(1L, tenantId)) {
-            rows = jdbcTemplate.queryForList(
-                    """
-                    SELECT resource_code, resource_name, http_method, url_pattern
-                    FROM iam_api_resource
-                    WHERE tenant_id = 1
-                      AND deleted = 0
-                      AND status = 'ENABLED'
-                      AND UPPER(http_method) <> 'GET'
-                    ORDER BY id ASC
-                    """
-            );
+        AuditQueryMapper queryMapper = required(auditQueryMapperProvider, "审计查询需要数据库连接");
+        long tenantId = TenantAccessContextHolder.requiredTenantId();
+        List<Map<String, Object>> rows = queryMapper.selectHighRiskCatalog(tenantId);
+        if (rows.isEmpty() && tenantId != PLATFORM_TENANT_ID) {
+            rows = queryMapper.selectPlatformHighRiskCatalog();
         }
         return rows.stream().map(this::toHighRiskCatalogItem).toList();
     }
@@ -626,88 +608,61 @@ public class AuditService implements SecurityBlacklistChecker {
         };
     }
 
-    private CachedBlacklistSnapshot loadBlacklistSnapshot() {
-        long nowMs = System.currentTimeMillis();
-        CachedBlacklistSnapshot cached = blacklistSnapshot;
-        if (cached != null && nowMs < cached.expiresAtMs()) {
+    private CachedBlacklistSnapshot blacklistSnapshot(long scope) {
+        BlacklistCacheEntry entry = blacklistSnapshots.get(scope);
+        CachedBlacklistSnapshot cached = entry.snapshot;
+        if (cached != null && cached.expiresAtMs() > System.currentTimeMillis()) {
             return cached;
         }
-        JdbcTemplate jdbcTemplate = jdbcTemplateProvider != null ? jdbcTemplateProvider.getIfAvailable() : null;
-        if (jdbcTemplate == null) {
-            return null;
+        synchronized (entry) {
+            cached = entry.snapshot;
+            if (cached == null || cached.expiresAtMs() <= System.currentTimeMillis()) {
+                cached = readBlacklistSnapshot(scope);
+                entry.snapshot = cached;
+            }
+            return cached;
         }
-        boolean enabled = isBlacklistEngineEnabled(jdbcTemplate);
-        List<CachedBlacklistRow> rows = new ArrayList<>();
+    }
+
+    private CachedBlacklistSnapshot readBlacklistSnapshot(long scope) {
+        AuditQueryMapper query = required(auditQueryMapperProvider, "审计查询需要数据库连接");
+        boolean shared = scope == PUBLIC_BLACKLIST_KEY;
+        String policy = shared ? query.selectPlatformAuditPolicyConfig() : query.selectAuditPolicyConfig(scope);
+        boolean enabled = isBlacklistEngineEnabled(policy);
+        List<SecBlacklistEntity> rows = List.of();
         if (enabled) {
-            LocalDateTime now = LocalDateTime.now();
-            List<Map<String, Object>> records = jdbcTemplate.queryForList(
-                    """
-                    SELECT tenant_id, black_type, black_value, reason, expired_at
-                    FROM sec_blacklist
-                    WHERE deleted = 0
-                      AND status = 'ENABLED'
-                    """
-            );
-            for (Map<String, Object> row : records) {
-                Object expObj = row.get("expired_at");
-                if (expObj instanceof Timestamp ts && ts.toLocalDateTime().isBefore(now)) {
-                    continue;
-                }
-                if (expObj instanceof LocalDateTime ldt && ldt.isBefore(now)) {
-                    continue;
-                }
-                Long tId = row.get("tenant_id") instanceof Number num ? num.longValue() : 1L;
-                String bType = row.get("black_type") != null ? String.valueOf(row.get("black_type")).toUpperCase(Locale.ROOT) : "";
-                String bVal = row.get("black_value") != null ? String.valueOf(row.get("black_value")) : "";
-                String reason = row.get("reason") != null ? String.valueOf(row.get("reason")) : "";
-                rows.add(new CachedBlacklistRow(tId, bType, bVal, reason));
-            }
+            rows = shared ? query.selectPublicBlacklist() : query.selectTenantBlacklist(scope);
         }
-        CachedBlacklistSnapshot refreshed = new CachedBlacklistSnapshot(nowMs + BLACKLIST_CACHE_TTL_MS, enabled, rows);
-        blacklistSnapshot = refreshed;
-        return refreshed;
+        return new CachedBlacklistSnapshot(System.currentTimeMillis() + BLACKLIST_CACHE_TTL_MS, enabled, rows);
     }
 
-    private boolean isBlacklistEngineEnabled(JdbcTemplate jdbcTemplate) {
+    private boolean isBlacklistEngineEnabled(String policy) {
+        if (policy == null) {
+            return true;
+        }
         try {
-            List<Map<String, Object>> configs = jdbcTemplate.queryForList(
-                    """
-                    SELECT config_value
-                    FROM sys_config
-                    WHERE config_key = 'audit.policy'
-                      AND deleted = 0
-                      AND status = 'ENABLED'
-                    ORDER BY tenant_id ASC
-                    LIMIT 1
-                    """
-            );
-            if (!configs.isEmpty() && configs.get(0).get("config_value") != null) {
-                JsonNode node = objectMapper.readTree(String.valueOf(configs.get(0).get("config_value")));
-                if (node.has("blacklistEnabled")) {
-                    return node.get("blacklistEnabled").asBoolean(true);
-                }
+            JsonNode node = objectMapper.readTree(policy);
+            if (node == null || !node.isObject()
+                    || (node.has("blacklistEnabled") && !node.get("blacklistEnabled").isBoolean())) {
+                throw new IllegalStateException("审计策略 blacklistEnabled 必须是布尔值");
             }
-        } catch (Exception ignored) {
+            return node.path("blacklistEnabled").asBoolean(true);
+        } catch (JsonProcessingException invalidPolicy) {
+            throw new IllegalStateException("审计策略必须是有效的 JSON 对象", invalidPolicy);
         }
-        return true;
     }
 
-    private void invalidateBlacklistCache() {
-        blacklistSnapshot = null;
+    private void invalidateBlacklistCache(Long tenantId) {
+        blacklistSnapshots.remove(tenantId <= PLATFORM_TENANT_ID ? PUBLIC_BLACKLIST_KEY : tenantId);
     }
 
     private Map<Long, String> resolveOperatorNames(List<Long> userIds) {
         Map<Long, String> result = new LinkedHashMap<>();
-        JdbcTemplate jdbcTemplate = jdbcTemplateProvider != null ? jdbcTemplateProvider.getIfAvailable() : null;
-        if (jdbcTemplate == null || userIds == null || userIds.isEmpty()) {
+        if (userIds == null || userIds.isEmpty()) {
             return result;
         }
-        String placeholders = String.join(",", userIds.stream().map(id -> "?").toList());
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                "SELECT id, username FROM iam_user WHERE id IN (" + placeholders + ")",
-                userIds.toArray()
-        );
-        for (Map<String, Object> row : rows) {
+        AuditQueryMapper queryMapper = required(auditQueryMapperProvider, "审计查询需要数据库连接");
+        for (Map<String, Object> row : queryMapper.selectUsernamesByIds(userIds)) {
             if (row.get("id") instanceof Number num && row.get("username") != null) {
                 result.put(num.longValue(), String.valueOf(row.get("username")));
             }

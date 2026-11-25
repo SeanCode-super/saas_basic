@@ -3,6 +3,7 @@ package com.saasbasics.platform.modules.system.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.saasbasics.platform.common.tenant.TenantAccessContextHolder;
 import com.saasbasics.platform.modules.system.dto.NotifyMessageResponse;
 import com.saasbasics.platform.modules.system.entity.SystemNotifyMessageEntity;
 import com.saasbasics.platform.modules.system.mapper.SystemNotifyMessageMapper;
@@ -23,12 +24,14 @@ public class SystemNotifyService {
 
     private final SystemNotifyMessageMapper messageMapper;
     private final PlatformWebSocketSessionManager webSocketSessionManager;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
     public SystemNotifyService(SystemNotifyMessageMapper messageMapper,
-                               PlatformWebSocketSessionManager webSocketSessionManager) {
+                               PlatformWebSocketSessionManager webSocketSessionManager,
+                               ObjectMapper objectMapper) {
         this.messageMapper = messageMapper;
         this.webSocketSessionManager = webSocketSessionManager;
+        this.objectMapper = objectMapper != null ? objectMapper : new ObjectMapper().findAndRegisterModules();
     }
 
     public List<NotifyMessageResponse> listMyMessages(Long tenantId, Long userId, String category, Boolean unreadOnly) {
@@ -83,35 +86,41 @@ public class SystemNotifyService {
     @Transactional
     public NotifyMessageResponse createAndSend(Long tenantId, Long userId, String category,
                                                String title, String content, String bizType, String bizId) {
-        SystemNotifyMessageEntity entity = new SystemNotifyMessageEntity();
-        entity.setTenantId(tenantId != null ? tenantId : 1L);
-        entity.setUserId(userId);
-        entity.setCategory(category != null ? category.toUpperCase() : "SYSTEM");
-        entity.setTitle(title);
-        entity.setContent(content);
-        entity.setReadStatus(0);
-        entity.setBizType(bizType);
-        entity.setBizId(bizId);
-        entity.setCreatedAt(LocalDateTime.now());
+        Long effTenantId = tenantId != null ? tenantId : 1L;
+        boolean hasTenant = TenantAccessContextHolder.current() != null;
+        try (TenantAccessContextHolder.Scope ignored = hasTenant
+                ? null
+                : TenantAccessContextHolder.openTenant(effTenantId, "platform", 0L)) {
+            SystemNotifyMessageEntity entity = new SystemNotifyMessageEntity();
+            entity.setTenantId(effTenantId);
+            entity.setUserId(userId);
+            entity.setCategory(category != null ? category.toUpperCase() : "SYSTEM");
+            entity.setTitle(title);
+            entity.setContent(content);
+            entity.setReadStatus(0);
+            entity.setBizType(bizType);
+            entity.setBizId(bizId);
+            entity.setCreatedAt(LocalDateTime.now());
 
-        messageMapper.insert(entity);
-        NotifyMessageResponse response = toResponse(entity);
+            messageMapper.insert(entity);
+            NotifyMessageResponse response = toResponse(entity);
 
-        // Push real-time event via WebSocket
-        try {
-            long unread = countUnread(tenantId, userId);
-            String pushJson = objectMapper.writeValueAsString(Map.of(
-                    "type", "NOTIFICATION_ARRIVED",
-                    "unreadCount", unread,
-                    "message", response,
-                    "timestamp", System.currentTimeMillis()
-            ));
-            webSocketSessionManager.sendToUser(userId, pushJson);
-        } catch (Exception ex) {
-            log.warn("Failed to push real-time WebSocket notification to userId {}: {}", userId, ex.getMessage());
+            // Push real-time event via WebSocket
+            try {
+                long unread = countUnread(effTenantId, userId);
+                String pushJson = objectMapper.writeValueAsString(Map.of(
+                        "type", "NOTIFICATION_ARRIVED",
+                        "unreadCount", unread,
+                        "message", response,
+                        "timestamp", System.currentTimeMillis()
+                ));
+                webSocketSessionManager.sendToUser(userId, pushJson);
+            } catch (Exception ex) {
+                log.warn("Failed to push real-time WebSocket notification to userId {}: {}", userId, ex.getMessage());
+            }
+
+            return response;
         }
-
-        return response;
     }
 
     private NotifyMessageResponse toResponse(SystemNotifyMessageEntity entity) {

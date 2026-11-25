@@ -115,15 +115,22 @@ public class WorkflowDefinitionService {
                 tenantId,
                 bpmnXml
         );
+        if (!StringUtils.hasText(deploymentId)) throw new BizException("WORKFLOW_DEPLOYMENT_FAILED", "审批引擎未确认部署，定义未创建");
         entity.setFlowableDeploymentId(deploymentId);
-
         definitionMapper.insert(entity);
         return toResponse(entity);
     }
 
     @Transactional
     public ProcessDefinitionResponse updateDefinition(Long id, ProcessDefinitionSaveRequest request) {
-        ProcessDefinitionEntity entity = getRequiredEntity(id);
+        // Hold the row through deployment and the versioned update in this transaction.
+        ProcessDefinitionEntity entity = definitionMapper.selectForUpdate(id, getTenantId());
+        if (entity == null) {
+            throw new BizException("NOT_FOUND", "流程定义不存在或已删除");
+        }
+        if (request.expectedVersion() != null && !request.expectedVersion().equals(entity.getVersion())) {
+            throw new BizException("CONCURRENT_CONFLICT", "流程定义已有新版本，请重新打开后编辑");
+        }
 
         entity.setProcessName(request.processName());
         if (StringUtils.hasText(request.category())) {
@@ -148,7 +155,6 @@ public class WorkflowDefinitionService {
         if (request.sortNo() != null) {
             entity.setSortNo(request.sortNo());
         }
-        entity.setVersion(entity.getVersion() + 1);
         entity.setUpdatedBy(getUserId());
 
         // 更新 BPMN 2.0 XML 并重新向 Flowable 部署新版本
@@ -164,11 +170,15 @@ public class WorkflowDefinitionService {
                 entity.getTenantId(),
                 bpmnXml
         );
-        if (deploymentId != null) {
-            entity.setFlowableDeploymentId(deploymentId);
+        if (deploymentId == null) {
+            throw new BizException("WORKFLOW_DEPLOYMENT_FAILED", "流程部署失败，修改未保存");
         }
+        entity.setFlowableDeploymentId(deploymentId);
 
-        definitionMapper.updateById(entity);
+        int rows = definitionMapper.updateById(entity);
+        if (rows == 0) {
+            throw new BizException("CONCURRENT_CONFLICT", "流程定义已被并发修改，请刷新后重试");
+        }
         return toResponse(entity);
     }
 

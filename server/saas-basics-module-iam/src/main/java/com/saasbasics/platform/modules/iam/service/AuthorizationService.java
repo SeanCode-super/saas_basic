@@ -1,6 +1,7 @@
 package com.saasbasics.platform.modules.iam.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.saasbasics.platform.common.auth.AuthContext;
 import com.saasbasics.platform.common.exception.BizException;
 import com.saasbasics.platform.modules.audit.service.AuditTrailService;
 import com.saasbasics.platform.modules.iam.dto.RoleApiAssignmentRequest;
@@ -24,6 +25,7 @@ import java.util.List;
 import java.util.Set;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AuthorizationService {
@@ -67,10 +69,11 @@ public class AuthorizationService {
         );
     }
 
+    @Transactional
     public UserRoleAssignmentResponse assignUserRoles(Long userId, UserRoleAssignmentRequest request) {
         UserRoleMapper mapper = requiredUserRoleMapper();
         List<Long> roleIds = validateRoleIds(request.tenantId(), normalize(request.roleIds()));
-        mapper.deleteAssignments(request.tenantId(), userId);
+        mapper.deleteAssignments(request.tenantId(), userId, AuthContext.getUserId());
 
         for (Long roleId : roleIds) {
             UserRoleEntity entity = new UserRoleEntity();
@@ -89,12 +92,13 @@ public class AuthorizationService {
         return new RoleApiAssignmentResponse(roleId, tenantId, mapper.selectApiResourceIdsByRoleId(tenantId, roleId));
     }
 
+    @Transactional
     public RoleApiAssignmentResponse assignRoleApis(Long roleId, RoleApiAssignmentRequest request) {
         RoleApiMapper mapper = requiredRoleApiMapper();
         List<Long> requestedIds = validateApiResourceIds(request.tenantId(), normalize(request.apiResourceIds()));
         List<Long> apiResourceIds = ensureRoleApiBaseline(roleId, request.tenantId(), requestedIds);
 
-        mapper.deleteAssignments(request.tenantId(), roleId);
+        mapper.deleteAssignments(request.tenantId(), roleId, AuthContext.getUserId());
 
         for (Long apiResourceId : apiResourceIds) {
             RoleApiEntity entity = new RoleApiEntity();
@@ -113,10 +117,11 @@ public class AuthorizationService {
         return new RoleUserAssignmentResponse(roleId, tenantId, userIds != null ? userIds : List.of());
     }
 
+    @Transactional
     public RoleUserAssignmentResponse assignRoleUsers(Long roleId, RoleUserAssignmentRequest request) {
         UserRoleMapper mapper = requiredUserRoleMapper();
         List<Long> userIds = normalize(request.userIds());
-        mapper.deleteRoleAssignments(request.tenantId(), roleId);
+        mapper.deleteRoleAssignments(request.tenantId(), roleId, AuthContext.getUserId());
 
         for (Long userId : userIds) {
             UserRoleEntity entity = new UserRoleEntity();

@@ -1,16 +1,11 @@
 package com.saasbasics.platform.modules.iam.entity;
 
-import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
-import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-import java.time.LocalDateTime;
+import com.saasbasics.platform.common.model.BaseEntity;
 
 @TableName("iam_role_menu")
-public class RoleMenuEntity {
-
-    @TableId(value = "id", type = IdType.AUTO)
-    private Long id;
+public class RoleMenuEntity extends BaseEntity {
 
     @TableField("tenant_id")
     private Long tenantId;
@@ -21,9 +16,6 @@ public class RoleMenuEntity {
     @TableField("menu_id")
     private Long menuId;
 
-    @TableField("created_at")
-    private LocalDateTime createdAt;
-
     public RoleMenuEntity() {
     }
 
@@ -31,15 +23,6 @@ public class RoleMenuEntity {
         this.tenantId = tenantId;
         this.roleId = roleId;
         this.menuId = menuId;
-        this.createdAt = LocalDateTime.now();
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
     }
 
     public Long getTenantId() {
@@ -66,11 +49,4 @@ public class RoleMenuEntity {
         this.menuId = menuId;
     }
 
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
 }

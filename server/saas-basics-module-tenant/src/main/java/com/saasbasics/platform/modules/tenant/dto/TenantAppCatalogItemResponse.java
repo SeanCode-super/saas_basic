@@ -15,6 +15,9 @@ public record TenantAppCatalogItemResponse(
         Long daysRemaining,
         Boolean isTrial,
         Boolean isIncludedInPlan,
-        Boolean canActivate
+        Boolean canActivate,
+        Integer installedRevision,
+        Integer latestRevision,
+        String entryPath
 ) {
 }

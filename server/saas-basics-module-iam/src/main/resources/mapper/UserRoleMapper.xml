@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.saasbasics.platform.modules.iam.mapper.UserRoleMapper">
+    <select id="selectRoleIdsByUserId" resultType="java.lang.Long">
+        SELECT ur.role_id
+        FROM iam_user_role ur
+        JOIN iam_role r ON r.id = ur.role_id AND r.tenant_id = ur.tenant_id
+        WHERE ur.tenant_id = #{tenantId} AND ur.user_id = #{userId}
+          AND ur.deleted = 0 AND r.deleted = 0 AND r.status = 'ENABLED'
+          AND (ur.expire_at IS NULL OR ur.expire_at &gt; #{now})
+        ORDER BY ur.id DESC
+    </select>
+
+    <update id="deleteAssignments">
+        UPDATE iam_user_role
+        SET deleted = 1, deleted_at = NOW(3), updated_at = NOW(3),
+            updated_by = COALESCE(#{actorId}, 0), version = version + 1
+        WHERE tenant_id = #{tenantId}
+          AND user_id = #{userId}
+          AND deleted = 0
+    </update>
+
+    <select id="selectUserIdsByRoleId" resultType="java.lang.Long">
+        SELECT user_id
+        FROM iam_user_role
+        WHERE tenant_id = #{tenantId}
+          AND role_id = #{roleId}
+          AND deleted = 0
+          AND (expire_at IS NULL OR expire_at &gt; #{now})
+        ORDER BY id DESC
+    </select>
+
+    <update id="deleteRoleAssignments">
+        UPDATE iam_user_role
+        SET deleted = 1, deleted_at = NOW(3), updated_at = NOW(3),
+            updated_by = COALESCE(#{actorId}, 0), version = version + 1
+        WHERE tenant_id = #{tenantId}
+          AND role_id = #{roleId}
+          AND deleted = 0
+    </update>
+</mapper>

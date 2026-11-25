@@ -1,5 +1,8 @@
 package com.saasbasics.platform.modules.iam.service;
 
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Isolation;
+import com.saasbasics.platform.common.tenant.TenantMembershipCapacity;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.saasbasics.platform.common.auth.AuthContext;
 import com.saasbasics.platform.common.auth.AuthPrincipal;
@@ -19,13 +22,15 @@ import org.springframework.stereotype.Service;
 @Service
 public class DepartmentService {
 
+    private final TenantMembershipCapacity capacity;
     private final ObjectProvider<DepartmentMapper> departmentMapperProvider;
     private final ObjectProvider<UserMapper> userMapperProvider;
     private final AuditTrailService auditTrailService;
 
     public DepartmentService(ObjectProvider<DepartmentMapper> departmentMapperProvider,
                              ObjectProvider<UserMapper> userMapperProvider,
-                             AuditTrailService auditTrailService) {
+                             AuditTrailService auditTrailService, TenantMembershipCapacity capacity) {
+        this.capacity = capacity;
         this.departmentMapperProvider = departmentMapperProvider;
         this.userMapperProvider = userMapperProvider;
         this.auditTrailService = auditTrailService;
@@ -39,9 +44,11 @@ public class DepartmentService {
         return response;
     }
 
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public DepartmentResponse createDepartment(DepartmentSaveRequest request) {
         DepartmentMapper mapper = requiredMapper();
         Long tenantId = requiredTenantId();
+        capacity.requireDepartment(tenantId);
         DepartmentEntity entity = new DepartmentEntity();
         apply(entity, request, tenantId, null);
         mapper.insert(entity);
@@ -72,6 +79,9 @@ public class DepartmentService {
     }
 
     private void apply(DepartmentEntity entity, DepartmentSaveRequest request, Long tenantId, Long currentId) {
+        if (!tenantId.equals(request.tenantId())) {
+            throw new BizException("TENANT_ACCESS_DENIED", "部门必须属于当前租户");
+        }
         Long parentId = request.parentId() == null ? 0L : request.parentId();
         DepartmentEntity parent = validateParent(tenantId, parentId, currentId);
         validateLeaderUser(tenantId, request.leaderUserId());

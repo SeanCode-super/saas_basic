@@ -27,7 +27,7 @@ class FlywayMigrationTest {
 
     @Test
     void migratesAnEmptyDatabaseAndIsRepeatable() {
-        Flyway beforeBindingPermissions = Flyway.configure()
+        Flyway beforeBindingPermissions = Flyway.configure().callbacks(new PaymentRemarkCompatibility(), new MenuPermissionHistoryCapture())
                 .dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
                 .locations("classpath:db/migration")
                 .target(MigrationVersion.fromVersion("29"))
@@ -38,7 +38,16 @@ class FlywayMigrationTest {
 
         seedExistingTenantBeforeBindingPermissions();
 
-        Flyway flyway = Flyway.configure()
+        Flyway beforeDirectoryCleanup = Flyway.configure()
+                .callbacks(new PaymentRemarkCompatibility(), new MenuPermissionHistoryCapture())
+                .dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
+                .locations("classpath:db/migration")
+                .target(MigrationVersion.fromVersion("82"))
+                .load();
+        assertThat(beforeDirectoryCleanup.migrate().success).isTrue();
+        seedDirectoryPermissionHistory();
+
+        Flyway flyway = Flyway.configure().callbacks(new PaymentRemarkCompatibility(), new MenuPermissionHistoryCapture())
                 .dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
                 .locations("classpath:db/migration")
                 .load();
@@ -47,10 +56,11 @@ class FlywayMigrationTest {
         MigrateResult secondRun = flyway.migrate();
 
         assertThat(firstRun.success).isTrue();
-        assertThat(firstRun.migrationsExecuted).isGreaterThanOrEqualTo(21);
+        assertThat(firstRun.migrationsExecuted).isGreaterThanOrEqualTo(2);
         assertThat(secondRun.success).isTrue();
         assertThat(secondRun.migrationsExecuted).isZero();
         assertThat(flyway.info().pending()).isEmpty();
+        assertDirectoryPermissionHistory();
         assertOrganizationSchema();
         assertOrganizationMigrationSchema();
         assertIdentityBindingSchema();
@@ -59,6 +69,50 @@ class FlywayMigrationTest {
         assertStandardMenuActionCatalog();
         assertStandardMenuResourceHierarchy();
         assertExistingTenantBindingPermissions();
+    }
+
+    private void seedDirectoryPermissionHistory() {
+        try (Connection connection = MYSQL.createConnection("");
+             PreparedStatement seed = connection.prepareStatement("""
+                     INSERT INTO iam_menu_permission
+                         (tenant_id,menu_id,menu_code,subject_type,subject_value,deleted,deleted_at,version)
+                     SELECT m.tenant_id, m.id, m.menu_code, 'ROLE', ?, ?, ?, 7
+                     FROM iam_menu m WHERE m.tenant_id=1 AND m.deleted=0 AND m.menu_type='DIRECTORY'
+                     ORDER BY m.id LIMIT 1
+                     """)) {
+            for (int revoked = 0; revoked <= 1; revoked++) {
+                seed.setString(1, "fixture-v83-" + revoked);
+                seed.setInt(2, revoked);
+                seed.setString(3, revoked == 0 ? null : "2020-01-01 00:00:00");
+                assertThat(seed.executeUpdate()).isOne();
+            }
+        } catch (SQLException error) {
+            throw new AssertionError(error);
+        }
+    }
+
+    private void assertDirectoryPermissionHistory() {
+        try (Connection connection = MYSQL.createConnection("");
+             PreparedStatement check = connection.prepareStatement("""
+                     SELECT a.deleted AS original_deleted, p.deleted, p.version,
+                            p.deleted_at = a.deleted_at AS original_time_preserved
+                     FROM iam_menu_permission_v83_archive a JOIN iam_menu_permission p ON p.id = a.id
+                     WHERE a.subject_value IN ('fixture-v83-0','fixture-v83-1')
+                     ORDER BY a.deleted
+                     """);
+             ResultSet rows = check.executeQuery()) {
+            assertThat(rows.next()).isTrue();
+            assertThat(rows.getInt("original_deleted")).isZero();
+            assertThat(rows.getInt("deleted")).isOne();
+            assertThat(rows.getInt("version")).isEqualTo(8);
+            assertThat(rows.next()).isTrue();
+            assertThat(rows.getInt("original_deleted")).isOne();
+            assertThat(rows.getBoolean("original_time_preserved")).isTrue();
+            assertThat(rows.getInt("version")).isEqualTo(7);
+            assertThat(rows.next()).isFalse();
+        } catch (SQLException error) {
+            throw new AssertionError(error);
+        }
     }
 
     private void seedExistingTenantBeforeBindingPermissions() {

@@ -38,12 +38,20 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.jdbc.Sql;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-@SpringBootTest(classes = SaasBasicsApplication.class)
 @Testcontainers(disabledWithoutDocker = true)
+@Sql(statements = """
+        INSERT INTO plat_tenant_quota (tenant_id, quota_code, quota_name, quota_value)
+        VALUES (4101, 'DEPT_COUNT', 'Departments', 20),
+                (4201, 'DEPT_COUNT', 'Departments', 20),
+                (4202, 'DEPT_COUNT', 'Departments', 20),
+                (4301, 'DEPT_COUNT', 'Departments', 20);
+        """, executionPhase = Sql.ExecutionPhase.BEFORE_TEST_CLASS)
+@SpringBootTest(classes = SaasBasicsApplication.class)
 class UserPersonBindingIntegrationTest {
 
     private static final long TENANT_BINDINGS = 4_101L;

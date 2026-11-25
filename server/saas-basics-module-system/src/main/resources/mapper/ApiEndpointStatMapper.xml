@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.saasbasics.platform.modules.system.mapper.ApiEndpointStatMapper">
+    <insert id="accumulateDelta">
+        INSERT INTO sys_api_endpoint_stat (
+            endpoint_key, http_method, path_pattern, module_code,
+            total_calls, encrypted_calls, plaintext_calls, rejected_calls, error_calls,
+            total_duration_ms, p95_latency_ms, p99_latency_ms, last_called_at_ms
+        ) VALUES (
+            #{endpointKey}, #{httpMethod}, #{pathPattern}, #{moduleCode},
+            #{totalDelta}, #{encDelta}, #{plainDelta}, #{rejDelta}, #{errDelta},
+            #{durDelta}, #{p95Ms}, #{p99Ms}, #{lastCalledAtMs}
+        )
+        ON DUPLICATE KEY UPDATE
+            total_calls = total_calls + VALUES(total_calls),
+            encrypted_calls = encrypted_calls + VALUES(encrypted_calls),
+            plaintext_calls = plaintext_calls + VALUES(plaintext_calls),
+            rejected_calls = rejected_calls + VALUES(rejected_calls),
+            error_calls = error_calls + VALUES(error_calls),
+            total_duration_ms = total_duration_ms + VALUES(total_duration_ms),
+            p95_latency_ms = IF(VALUES(p95_latency_ms) &gt; 0, VALUES(p95_latency_ms), p95_latency_ms),
+            p99_latency_ms = IF(VALUES(p99_latency_ms) &gt; 0, VALUES(p99_latency_ms), p99_latency_ms),
+            last_called_at_ms = GREATEST(last_called_at_ms, VALUES(last_called_at_ms))
+    </insert>
+</mapper>

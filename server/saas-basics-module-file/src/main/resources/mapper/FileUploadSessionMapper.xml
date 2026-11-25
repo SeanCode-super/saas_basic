@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.saasbasics.platform.modules.file.mapper.FileUploadSessionMapper">
+    <select id="allocatedBytes" resultType="java.math.BigInteger">
+        SELECT (SELECT COALESCE(SUM(file_size), 0) FROM plat_tenant_storage_sources WHERE tenant_id = #{tenantId})
+             + (SELECT COALESCE(SUM(file_size), 0) FROM file_upload_session
+                 WHERE tenant_id = #{tenantId} AND deleted = 0 AND (status = 'CLEANUP' OR
+                         (status IN ('INIT', 'TRANSFERRING') AND expire_at > CURRENT_TIMESTAMP)))
+    </select>
+    <select id="claimedObjectKey" resultType="long">
+        SELECT (SELECT COUNT(*) FROM file_object
+                 WHERE tenant_id = #{tenantId} AND storage_id = #{storageId} AND object_key = #{objectKey} AND deleted = 0)
+             + (SELECT COUNT(*) FROM file_upload_session
+                 WHERE tenant_id = #{tenantId} AND storage_id = #{storageId} AND object_key = #{objectKey}
+                   AND deleted = 0 AND status IN ('INIT','TRANSFERRING','CLEANUP'))
+    </select>
+    <select id="restoreCandidate" resultType="com.saasbasics.platform.modules.file.mapper.FileUploadSessionMapper$RestoreCandidate">
+        SELECT f.storage_id, f.object_key, f.file_size,
+               COALESCE((SELECT MAX(e.file_size) FROM sys_export_task e
+                          WHERE e.tenant_id = #{tenantId} AND e.deleted = 0 AND e.status = 'COMPLETED'
+                            AND CAST(e.object_key AS BINARY) = CAST(f.object_key AS BINARY)), 0) AS billed_export_bytes
+        FROM file_object f WHERE f.id = #{fileId} AND f.tenant_id = #{tenantId} AND f.deleted = 1
+    </select>
+    <select id="listExpiredSessions" resultType="com.saasbasics.platform.modules.file.mapper.FileUploadSessionMapper$ExpiredSession">
+        SELECT s.id, s.tenant_id, t.tenant_code
+        FROM file_upload_session s JOIN plat_tenant t ON t.id = s.tenant_id
+        WHERE s.quota_managed = 1 AND s.deleted = 0
+          AND ((s.status IN ('INIT', 'TRANSFERRING') AND s.expire_at &lt;= CURRENT_TIMESTAMP)
+               OR (s.status = 'CLEANUP' AND s.cleanup_after &lt;= CURRENT_TIMESTAMP))
+        ORDER BY COALESCE(s.cleanup_after, s.expire_at), s.id
+        LIMIT 100
+    </select>
+
+    <select id="selectSessionList" resultType="com.saasbasics.platform.modules.file.dto.FileUploadSessionResponse">
+        SELECT
+          id,
+          tenant_id AS tenantId,
+          bucket_id AS bucketId,
+          storage_id AS storageId,
+          session_code AS sessionCode,
+          object_key AS objectKey,
+          file_name AS fileName,
+          file_size AS fileSize,
+          upload_mode AS uploadMode,
+          part_count AS partCount,
+          owner_user_id AS ownerUserId,
+          status,
+          expire_at AS expireAt,
+          completed_at AS completedAt
+        FROM file_upload_session
+        WHERE deleted = 0
+        ORDER BY created_at DESC, id DESC
+    </select>
+</mapper>

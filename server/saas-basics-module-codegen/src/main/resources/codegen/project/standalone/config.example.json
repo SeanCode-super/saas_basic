@@ -1,0 +1,22 @@
+{
+  "publicOrigin": "http://127.0.0.1:9530",
+  "listenPort": 9530,
+  "origin": "http://127.0.0.1:18091",
+  "codeAt": "code",
+  "successCode": 0,
+  "auth": {
+    "loginPath": "/api/auth/login",
+    "usernameField": "username",
+    "passwordField": "password",
+    "tokenAt": "data.token",
+    "identityPath": "/api/auth/info",
+    "userAt": "data.userId",
+    "tenantAt": "data.tenantId",
+    "roleAt": "data.role",
+    "nameAt": "data.username",
+    "tenantNameAt": "data.tenantName"
+  },
+  "roles": {},
+  "inputScopes": {},
+  "displayValues": {}
+}

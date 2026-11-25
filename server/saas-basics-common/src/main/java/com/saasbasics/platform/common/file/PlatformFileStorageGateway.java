@@ -10,6 +10,12 @@ public interface PlatformFileStorageGateway {
 
     StoredUploadResult uploadBytes(Long tenantId, String bizType, String originalFilename, String contentType, byte[] content);
 
+    default StoredUploadResult uploadBytes(Long tenantId, String bizType, String originalFilename,
+                                           String contentType, byte[] content, String requestKey) {
+        if (requestKey != null) throw new UnsupportedOperationException("This storage gateway does not support request keys");
+        return uploadBytes(tenantId, bizType, originalFilename, contentType, content);
+    }
+
     byte[] downloadObject(Long tenantId, String objectKey);
 
     record StorageAvailability(

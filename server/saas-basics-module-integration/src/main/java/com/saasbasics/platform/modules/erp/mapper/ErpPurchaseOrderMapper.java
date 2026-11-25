@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.saasbasics.platform.common.auth.DataScope;
 import com.saasbasics.platform.modules.erp.entity.ErpPurchaseOrderEntity;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 /**
  * 采购订单数据访问层，绑定行级数据权限拦截器
@@ -11,4 +12,5 @@ import org.apache.ibatis.annotations.Mapper;
 @Mapper
 @DataScope(resource = "erp:order", orgColumn = "", unitColumn = "dept_id", userColumn = "created_by")
 public interface ErpPurchaseOrderMapper extends BaseMapper<ErpPurchaseOrderEntity> {
+    ErpPurchaseOrderEntity lockForUpdate(@Param("tenantId") Long tenantId, @Param("id") Long id);
 }

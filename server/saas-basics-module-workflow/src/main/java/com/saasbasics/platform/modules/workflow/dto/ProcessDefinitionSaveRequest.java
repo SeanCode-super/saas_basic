@@ -1,6 +1,7 @@
 package com.saasbasics.platform.modules.workflow.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.PositiveOrZero;
 
 public record ProcessDefinitionSaveRequest(
         @NotBlank(message = "流程编码不能为空")
@@ -17,6 +18,7 @@ public record ProcessDefinitionSaveRequest(
         String flowNodesJson,
         String bpmnXml,
         String status,
-        Integer sortNo
+        Integer sortNo,
+        @PositiveOrZero Integer expectedVersion
 ) {
 }

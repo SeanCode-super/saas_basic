@@ -31,6 +31,8 @@ public interface FileClient {
      */
     void delete(String path);
 
+    long size(String path);
+
     /**
      * 获取文件访问 URL
      *
@@ -42,8 +44,8 @@ public interface FileClient {
     /**
      * 生成客户端直传预签名 URL (PUT)
      */
-    default String generatePresignedUploadUrl(String path, int expireSeconds) {
-        return getPublicUrl(path);
+    default String generatePresignedUploadUrl(String path, int expireSeconds, long size) {
+        throw new com.saasbasics.platform.common.exception.BizException("FILE_SIGNED_PUT_UNAVAILABLE", "该存储源不支持预签名直传");
     }
 
     /**

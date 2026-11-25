@@ -3,70 +3,42 @@ package com.saasbasics.platform.modules.audit.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.saasbasics.platform.common.exception.BizException;
+import com.saasbasics.platform.common.tenant.TenantAccessContextHolder;
 import com.saasbasics.platform.modules.audit.dto.RiskEvaluateRequest;
 import com.saasbasics.platform.modules.audit.dto.RiskEvaluateResponse;
 import com.saasbasics.platform.modules.audit.entity.RiskRuleEntity;
+import com.saasbasics.platform.modules.audit.mapper.AuditQueryMapper;
 import com.saasbasics.platform.modules.audit.mapper.LoginLogMapper;
 import com.saasbasics.platform.modules.audit.mapper.OperationLogMapper;
 import com.saasbasics.platform.modules.audit.mapper.RiskRuleMapper;
 import com.saasbasics.platform.modules.audit.mapper.SecBlacklistMapper;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
-import org.springframework.jdbc.core.JdbcTemplate;
 
 class AuditGovernanceServiceTest {
 
     @Test
-    void enforcesActiveBlacklistEntriesAcrossIpAndUser() {
-        LoginLogMapper loginMapper = mock(LoginLogMapper.class);
-        OperationLogMapper opMapper = mock(OperationLogMapper.class);
-        RiskRuleMapper ruleMapper = mock(RiskRuleMapper.class);
-        SecBlacklistMapper blacklistMapper = mock(SecBlacklistMapper.class);
-        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
-        AuditTrailService auditTrail = mock(AuditTrailService.class);
-
-        when(jdbcTemplate.queryForList(org.mockito.ArgumentMatchers.contains("FROM sys_config")))
-                .thenReturn(List.of(Map.of("config_value", "{\"blacklistEnabled\":true}")));
-        when(jdbcTemplate.queryForList(org.mockito.ArgumentMatchers.contains("FROM sec_blacklist")))
-                .thenReturn(List.of(
-                        Map.of("tenant_id", 1L, "black_type", "IP", "black_value", "10.9.8.7", "reason", "暴力破解阻断"),
-                        Map.of("tenant_id", 2L, "black_type", "USER", "black_value", "locked_actor", "reason", "越权尝试")
-                ));
-
-        StaticListableBeanFactory bf = new StaticListableBeanFactory();
-        bf.addBean("l", loginMapper);
-        bf.addBean("o", opMapper);
-        bf.addBean("r", ruleMapper);
-        bf.addBean("b", blacklistMapper);
-        bf.addBean("j", jdbcTemplate);
-        bf.addBean("a", auditTrail);
-
+    void distinguishesMissingAuditMapperFromAnEmptyHighRiskCatalog() {
+        var beans = new StaticListableBeanFactory();
         AuditService service = new AuditService(
-                bf.getBeanProvider(LoginLogMapper.class),
-                bf.getBeanProvider(OperationLogMapper.class),
-                bf.getBeanProvider(RiskRuleMapper.class),
-                bf.getBeanProvider(SecBlacklistMapper.class),
-                bf.getBeanProvider(JdbcTemplate.class),
-                bf.getBeanProvider(AuditTrailService.class)
-        );
+                beans.getBeanProvider(LoginLogMapper.class),
+                beans.getBeanProvider(OperationLogMapper.class),
+                beans.getBeanProvider(RiskRuleMapper.class),
+                beans.getBeanProvider(SecBlacklistMapper.class),
+                beans.getBeanProvider(AuditQueryMapper.class),
+                beans.getBeanProvider(AuditTrailService.class));
 
-        assertThatThrownBy(() -> service.assertAllowed(2L, "alice", "10.9.8.7"))
-                .isInstanceOf(BizException.class)
-                .hasMessageContaining("暴力破解阻断");
-
-        assertThatThrownBy(() -> service.assertAllowed(2L, "locked_actor", "127.0.0.1"))
-                .isInstanceOf(BizException.class)
-                .hasMessageContaining("越权尝试");
-
-        // Different tenant user/IP not matching rules should pass
-        service.assertAllowed(3L, "locked_actor", "127.0.0.1");
+        assertThatThrownBy(service::listHighRiskCatalog).isInstanceOf(IllegalStateException.class);
+        var query = mock(AuditQueryMapper.class);
+        beans.addBean("auditQueryMapper", query);
+        when(query.selectHighRiskCatalog(1L)).thenReturn(List.of());
+        try (var scope = TenantAccessContextHolder.openTenant(1L, "platform", 21L)) {
+            assertThat(service.listHighRiskCatalog()).isEmpty();
+        }
     }
 
     @Test
@@ -75,7 +47,6 @@ class AuditGovernanceServiceTest {
         OperationLogMapper opMapper = mock(OperationLogMapper.class);
         RiskRuleMapper ruleMapper = mock(RiskRuleMapper.class);
         SecBlacklistMapper blacklistMapper = mock(SecBlacklistMapper.class);
-        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
 
         RiskRuleEntity rule = new RiskRuleEntity();
         rule.setId(1L);
@@ -95,14 +66,13 @@ class AuditGovernanceServiceTest {
         bf.addBean("o", opMapper);
         bf.addBean("r", ruleMapper);
         bf.addBean("b", blacklistMapper);
-        bf.addBean("j", jdbcTemplate);
 
         AuditService service = new AuditService(
                 bf.getBeanProvider(LoginLogMapper.class),
                 bf.getBeanProvider(OperationLogMapper.class),
                 bf.getBeanProvider(RiskRuleMapper.class),
                 bf.getBeanProvider(SecBlacklistMapper.class),
-                bf.getBeanProvider(JdbcTemplate.class),
+                bf.getBeanProvider(AuditQueryMapper.class),
                 bf.getBeanProvider(AuditTrailService.class)
         );
 

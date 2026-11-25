@@ -1,6 +1,10 @@
 package com.saasbasics.platform.modules.iam.controller;
 
 import com.saasbasics.platform.common.api.ApiResponse;
+import com.saasbasics.platform.common.exception.BizException;
+import com.saasbasics.platform.common.tenant.TenantAccessContext;
+import com.saasbasics.platform.common.tenant.TenantAccessContextHolder;
+import com.saasbasics.platform.modules.tenant.api.PortalTenantDirectory;
 import com.saasbasics.platform.common.auth.RequireDataPermission;
 import com.saasbasics.platform.common.auth.RequirePermission;
 import com.saasbasics.platform.common.excel.ExcelUtils;
@@ -28,7 +32,10 @@ public class UserController {
 
     private final UserService userService;
 
-    public UserController(UserService userService) {
+    private final PortalTenantDirectory tenantDirectory;
+
+    public UserController(UserService userService, PortalTenantDirectory tenantDirectory) {
+        this.tenantDirectory = tenantDirectory;
         this.userService = userService;
     }
 
@@ -66,7 +73,19 @@ public class UserController {
     @PostMapping
     @RequirePermission("iam:user:write")
     public ApiResponse<UserResponse> create(@Valid @RequestBody UserSaveRequest request) {
-        return ApiResponse.success(userService.createUser(request));
+        if (request.tenantId() == null || request.tenantId().equals(TenantAccessContextHolder.requiredTenantId())) {
+            return ApiResponse.success(userService.createUser(request));
+        }
+        // Resolve the target before the writer opens its transaction and selects the tenant data source.
+        try (var platform = TenantAccessContextHolder.openPlatformBypass("iam:user:write",
+                TenantAccessContext.BypassOperation.PLATFORM_TENANT_ADMINISTRATION, "Create member in target tenant")) {
+            var target = tenantDirectory.findById(request.tenantId())
+                    .orElseThrow(() -> new BizException("TENANT_NOT_FOUND", "目标租户不存在"));
+            try (var tenant = TenantAccessContextHolder.openTenant(target.id(), target.code(),
+                    TenantAccessContextHolder.current().actorId())) {
+                return ApiResponse.success(userService.createUser(request));
+            }
+        }
     }
 
     @PutMapping("/{id}")

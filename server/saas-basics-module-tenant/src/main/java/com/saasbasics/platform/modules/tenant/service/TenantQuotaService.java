@@ -2,38 +2,46 @@ package com.saasbasics.platform.modules.tenant.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.saasbasics.platform.common.exception.BizException;
+import com.saasbasics.platform.common.tenant.TenantAccessContext;
+import com.saasbasics.platform.common.tenant.TenantAccessContextHolder;
 import com.saasbasics.platform.modules.tenant.dto.TenantQuotaItemResponse;
 import com.saasbasics.platform.modules.tenant.dto.TenantQuotaOverviewResponse;
 import com.saasbasics.platform.modules.tenant.entity.TenantEntity;
 import com.saasbasics.platform.modules.tenant.entity.TenantPackageEntity;
 import com.saasbasics.platform.modules.tenant.entity.TenantQuotaEntity;
+import com.saasbasics.platform.modules.tenant.mapper.PlatTenantMeteringMapper;
 import com.saasbasics.platform.modules.tenant.mapper.TenantMapper;
 import com.saasbasics.platform.modules.tenant.mapper.TenantPackageMapper;
 import com.saasbasics.platform.modules.tenant.mapper.TenantQuotaMapper;
+import java.math.BigInteger;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
-import org.springframework.jdbc.core.JdbcTemplate;
+import java.util.Locale;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class TenantQuotaService {
 
+    private static final long BYTES_PER_MB = 1024L * 1024L;
+    private static final DateTimeFormatter EXPIRY_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
     private final TenantQuotaMapper quotaMapper;
     private final TenantPackageMapper packageMapper;
     private final TenantMapper tenantMapper;
-    private final JdbcTemplate jdbcTemplate;
+    private final PlatTenantMeteringMapper meteringMapper;
 
     public TenantQuotaService(TenantQuotaMapper quotaMapper,
                               TenantPackageMapper packageMapper,
                               TenantMapper tenantMapper,
-                              JdbcTemplate jdbcTemplate) {
+                              PlatTenantMeteringMapper meteringMapper) {
         this.quotaMapper = quotaMapper;
         this.packageMapper = packageMapper;
         this.tenantMapper = tenantMapper;
-        this.jdbcTemplate = jdbcTemplate;
+        this.meteringMapper = meteringMapper;
     }
 
     @Transactional
@@ -62,6 +70,17 @@ public class TenantQuotaService {
     }
 
     public TenantQuotaOverviewResponse getTenantQuotaOverview(Long tenantId) {
+        if (TenantAccessContextHolder.requiredTenantId().equals(tenantId)) {
+            return readQuotaOverview(tenantId);
+        }
+        try (var scope = TenantAccessContextHolder.openPlatformBypass("tenant:query",
+                TenantAccessContext.BypassOperation.PLATFORM_TENANT_ADMINISTRATION,
+                "Read quota configuration for tenant " + tenantId)) {
+            return readQuotaOverview(tenantId);
+        }
+    }
+
+    private TenantQuotaOverviewResponse readQuotaOverview(Long tenantId) {
         TenantEntity tenant = tenantMapper.selectById(tenantId);
         if (tenant == null) {
             throw new BizException("TENANT_NOT_FOUND", "租户不存在");
@@ -69,37 +88,17 @@ public class TenantQuotaService {
         TenantPackageEntity pkg = packageMapper.selectById(tenant.getPackageId());
         String packageName = pkg != null ? pkg.getPackageName() : "未分配套餐";
 
-        // Query real-time active users and depts
-        Integer liveUserCount = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM iam_user WHERE tenant_id = ? AND deleted = 0",
-                Integer.class, tenantId);
-        Integer liveDeptCount = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM iam_department WHERE tenant_id = ? AND deleted = 0",
-                Integer.class, tenantId);
+        List<TenantQuotaEntity> quotas = quotaMapper.selectList(new LambdaQueryWrapper<TenantQuotaEntity>()
+                .eq(TenantQuotaEntity::getTenantId, tenantId)
+                .orderByAsc(TenantQuotaEntity::getId));
 
-        List<TenantQuotaEntity> quotaEntities = quotaMapper.selectByTenantId(tenantId);
-        List<TenantQuotaItemResponse> items = new ArrayList<>();
-
-        for (TenantQuotaEntity q : quotaEntities) {
-            long used = q.getUsedValue() != null ? q.getUsedValue() : 0L;
-            if ("USER_COUNT".equalsIgnoreCase(q.getQuotaCode()) && liveUserCount != null) {
-                used = liveUserCount;
-            } else if ("DEPT_COUNT".equalsIgnoreCase(q.getQuotaCode()) && liveDeptCount != null) {
-                used = liveDeptCount;
+        List<TenantQuotaItemResponse> items = new ArrayList<>(quotas.size());
+        // Tenant-owned tables may be in the target's dedicated data source.
+        try (var scope = TenantAccessContextHolder.openTenant(tenantId, tenant.getTenantCode(),
+                TenantAccessContextHolder.current().actorId())) {
+            for (TenantQuotaEntity quota : quotas) {
+                items.add(readQuotaItem(tenantId, quota));
             }
-
-            long max = q.getQuotaValue() != null && q.getQuotaValue() > 0 ? q.getQuotaValue() : 1L;
-            double pct = Math.min(100.0, Math.round(((double) used / max) * 1000.0) / 10.0);
-            String status = pct >= 100.0 ? "DANGER" : (pct >= 80.0 ? "WARNING" : "NORMAL");
-
-            items.add(new TenantQuotaItemResponse(
-                    q.getQuotaCode(),
-                    q.getQuotaName(),
-                    max,
-                    used,
-                    pct,
-                    status
-            ));
         }
 
         // Calculate lifecycle
@@ -121,96 +120,61 @@ public class TenantQuotaService {
                 tenant.getTenantName(),
                 tenant.getPackageId(),
                 packageName,
-                expireAt != null ? expireAt.toString().replace("T", " ").substring(0, 19) : "永久有效",
+                expireAt != null ? expireAt.format(EXPIRY_FORMAT) : "永久有效",
                 daysRemaining,
                 lifecycleStatus,
                 items
         );
     }
 
-    public void checkUserQuota(Long tenantId) {
-        if (tenantId == null || tenantId <= 0) return;
-        List<TenantQuotaEntity> list = quotaMapper.selectList(new LambdaQueryWrapper<TenantQuotaEntity>()
-                .eq(TenantQuotaEntity::getTenantId, tenantId)
-                .eq(TenantQuotaEntity::getQuotaCode, "USER_COUNT")
-                .last("LIMIT 1"));
-        if (list.isEmpty()) return;
-
-        TenantQuotaEntity quota = list.get(0);
-        long max = quota.getQuotaValue() != null ? quota.getQuotaValue() : Long.MAX_VALUE;
-
-        Integer count = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM iam_user WHERE tenant_id = ? AND deleted = 0",
-                Integer.class, tenantId);
-        long current = count != null ? count : 0L;
-
-        if (current >= max) {
-            throw new BizException(
-                    "TENANT_USER_QUOTA_EXCEEDED",
-                    String.format("当前租户账号席位已达到套餐配额上限 (%d/%d)，无法继续创建新成员。请联系平台管理员升级套餐！", current, max)
-            );
-        }
-    }
-
-    public void checkDeptQuota(Long tenantId) {
-        if (tenantId == null || tenantId <= 0) return;
-        List<TenantQuotaEntity> list = quotaMapper.selectList(new LambdaQueryWrapper<TenantQuotaEntity>()
-                .eq(TenantQuotaEntity::getTenantId, tenantId)
-                .eq(TenantQuotaEntity::getQuotaCode, "DEPT_COUNT")
-                .last("LIMIT 1"));
-        if (list.isEmpty()) return;
-
-        TenantQuotaEntity quota = list.get(0);
-        long max = quota.getQuotaValue() != null ? quota.getQuotaValue() : Long.MAX_VALUE;
-
-        Integer count = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM iam_department WHERE tenant_id = ? AND deleted = 0",
-                Integer.class, tenantId);
-        long current = count != null ? count : 0L;
-
-        if (current >= max) {
-            throw new BizException(
-                    "TENANT_DEPT_QUOTA_EXCEEDED",
-                    String.format("当前租户部门数量已达到套餐配额上限 (%d/%d)，无法继续创建新部门。请升级套餐！", current, max)
-            );
-        }
+    private TenantQuotaItemResponse readQuotaItem(Long tenantId, TenantQuotaEntity quota) {
+        long quantity = switch (quota.getQuotaCode().toUpperCase(Locale.ROOT)) {
+            case "USER_COUNT" -> meteringMapper.countActiveSeats(tenantId);
+            case "DEPT_COUNT" -> quotaMapper.countActiveDepartments(tenantId);
+            case "STORAGE_MB" -> meteringMapper.sumStorageUsed(tenantId);
+            default -> quota.getUsedValue();
+        };
+        long unit = "STORAGE_MB".equalsIgnoreCase(quota.getQuotaCode()) ? BYTES_PER_MB : 1L;
+        long max = quota.getQuotaValue();
+        double usage = (double) quantity / unit;
+        double percent = max > 0 ? Math.min(100.0, usage / max * 100.0) : (quantity > 0 ? 100.0 : 0.0);
+        String status = percent >= 100 ? "DANGER" : (percent >= 80 ? "WARNING" : "NORMAL");
+        return new TenantQuotaItemResponse(quota.getQuotaCode(), quota.getQuotaName(), max,
+                quantity / unit, Math.round(percent * 10) / 10.0, status);
     }
 
     public void checkStorageQuota(Long tenantId, long additionalBytes) {
-        if (tenantId == null || tenantId <= 0) return;
-        List<TenantQuotaEntity> list = quotaMapper.selectList(new LambdaQueryWrapper<TenantQuotaEntity>()
-                .eq(TenantQuotaEntity::getTenantId, tenantId)
-                .eq(TenantQuotaEntity::getQuotaCode, "STORAGE_MB")
-                .last("LIMIT 1"));
-        if (list.isEmpty()) return;
+        if (!TenantAccessContextHolder.requiredTenantId().equals(tenantId)) {
+            throw new BizException("TENANT_ACCESS_DENIED", "文件配额必须在目标租户上下文中校验");
+        }
+        if (additionalBytes < 0) {
+            throw new IllegalArgumentException("additionalBytes must be nonnegative");
+        }
+        TenantQuotaEntity quota = findQuota(tenantId, "STORAGE_MB");
+        if (quota == null) return;
 
-        TenantQuotaEntity quota = list.get(0);
-        long maxMb = quota.getQuotaValue() != null ? quota.getQuotaValue() : Long.MAX_VALUE;
-        long maxBytes = maxMb * 1024L * 1024L;
-
-        Long currentBytes = jdbcTemplate.queryForObject(
-                "SELECT COALESCE(SUM(file_size), 0) FROM sys_file WHERE tenant_id = ? AND deleted = 0",
-                Long.class, tenantId);
-        long current = currentBytes != null ? currentBytes : 0L;
-
-        if (current + additionalBytes > maxBytes) {
+        long maxMb = quota.getQuotaValue();
+        long current = meteringMapper.sumStorageUsed(tenantId);
+        BigInteger requested = BigInteger.valueOf(current).add(BigInteger.valueOf(additionalBytes));
+        if (requested.compareTo(BigInteger.valueOf(maxMb).multiply(BigInteger.valueOf(BYTES_PER_MB))) > 0) {
             throw new BizException(
                     "TENANT_STORAGE_QUOTA_EXCEEDED",
                     String.format("当前租户文件存储空间已达上限 (当前使用 %.2f MB / 配额 %d MB)，无法上传新文件。请联系管理员扩容！",
-                            current / (1024.0 * 1024.0), maxMb)
+                            current / (double) BYTES_PER_MB, maxMb)
             );
         }
     }
 
+    private TenantQuotaEntity findQuota(Long tenantId, String code) {
+        return quotaMapper.selectOne(new LambdaQueryWrapper<TenantQuotaEntity>()
+                .eq(TenantQuotaEntity::getTenantId, tenantId)
+                .eq(TenantQuotaEntity::getQuotaCode, code));
+    }
 
     private void upsertQuota(Long tenantId, String code, String name, Long value,
                              Long alarmThreshold, String resetCycle, String remark) {
-        List<TenantQuotaEntity> existing = quotaMapper.selectList(new LambdaQueryWrapper<TenantQuotaEntity>()
-                .eq(TenantQuotaEntity::getTenantId, tenantId)
-                .eq(TenantQuotaEntity::getQuotaCode, code));
-
-        if (!existing.isEmpty()) {
-            TenantQuotaEntity entity = existing.get(0);
+        TenantQuotaEntity entity = findQuota(tenantId, code);
+        if (entity != null) {
             entity.setQuotaName(name);
             entity.setQuotaValue(value);
             entity.setAlarmThreshold(alarmThreshold);
@@ -218,7 +182,7 @@ public class TenantQuotaService {
             entity.setRemark(remark);
             quotaMapper.updateById(entity);
         } else {
-            TenantQuotaEntity entity = new TenantQuotaEntity();
+            entity = new TenantQuotaEntity();
             entity.setTenantId(tenantId);
             entity.setQuotaCode(code);
             entity.setQuotaName(name);

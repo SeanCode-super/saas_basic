@@ -1,6 +1,7 @@
 package com.saasbasics.platform.modules.integration.entity;
 
 import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.saasbasics.platform.common.model.BaseTenantEntity;
 import java.time.LocalDateTime;
@@ -20,22 +21,22 @@ public class DatasourceEntity extends BaseTenantEntity {
     @TableField("usage_type")
     private String usageType;
 
-    @TableField("host")
+    @TableField(value = "host", updateStrategy = FieldStrategy.ALWAYS)
     private String host;
 
-    @TableField("port")
+    @TableField(value = "port", updateStrategy = FieldStrategy.ALWAYS)
     private Integer port;
 
-    @TableField("database_name")
+    @TableField(value = "database_name", updateStrategy = FieldStrategy.ALWAYS)
     private String databaseName;
 
-    @TableField("username")
+    @TableField(value = "username", updateStrategy = FieldStrategy.ALWAYS)
     private String username;
 
     @TableField("test_status")
     private String testStatus;
 
-    @TableField("last_tested_at")
+    @TableField(value = "last_tested_at", updateStrategy = FieldStrategy.ALWAYS)
     private LocalDateTime lastTestedAt;
 
     @TableField("status")

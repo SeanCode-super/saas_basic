@@ -1,5 +1,7 @@
 package com.saasbasics.platform.modules.iam.service;
 
+import org.springframework.transaction.annotation.Isolation;
+import com.saasbasics.platform.common.tenant.TenantMembershipCapacity;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.saasbasics.platform.common.auth.AuthPrincipal;
 import com.saasbasics.platform.common.exception.BizException;
@@ -38,6 +40,7 @@ public class ScimProvisioningService {
             Pattern.CASE_INSENSITIVE
     );
 
+    private final TenantMembershipCapacity capacity;
     private final AuthService authService;
     private final PasswordSecurityService passwordSecurityService;
     private final ObjectProvider<UserMapper> userMapperProvider;
@@ -47,8 +50,10 @@ public class ScimProvisioningService {
     public ScimProvisioningService(
             AuthService authService,
             PasswordSecurityService passwordSecurityService,
-            ObjectProvider<UserMapper> userMapperProvider
+            ObjectProvider<UserMapper> userMapperProvider,
+            TenantMembershipCapacity capacity
     ) {
+        this.capacity = capacity;
         this.authService = authService;
         this.passwordSecurityService = passwordSecurityService;
         this.userMapperProvider = userMapperProvider;
@@ -141,7 +146,7 @@ public class ScimProvisioningService {
         }
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public ScimUserResource createUser(String authorizationHeader, ScimUserResource request) {
         AuthPrincipal principal = authenticateScimBearer(authorizationHeader, "iam:user:write");
         if (request == null || request.userName() == null || request.userName().isBlank()) {
@@ -150,6 +155,7 @@ public class ScimProvisioningService {
         String username = request.userName().trim();
         try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openAuthenticated(principal)) {
             UserMapper mapper = requiredUserMapper();
+            capacity.requireSeat(principal.tenantId());
             UserEntity existing = mapper.selectByTenantAndUsername(principal.tenantId(), username);
             if (existing != null) {
                 throw new BizException("SCIM_CONFLICT", "User with userName already exists: " + username);

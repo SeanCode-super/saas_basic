@@ -1,5 +1,6 @@
 package com.saasbasics.platform.modules.iam.service;
 
+import com.saasbasics.platform.common.tenant.TenantMembershipCapacity;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -80,7 +81,7 @@ class ScimAndSelfServiceTest {
             return 1;
         }).when(userMapper).insert(any(UserEntity.class));
 
-        ScimProvisioningService scim = new ScimProvisioningService(authService, passwordService, providerOf(userMapper));
+        ScimProvisioningService scim = new ScimProvisioningService(authService, passwordService, providerOf(userMapper), mock(TenantMembershipCapacity.class));
         ScimUserResource created = scim.createUser("Bearer tok_valid", new ScimUserResource(
                 List.of(ScimDtos.USER_SCHEMA),
                 null,
@@ -133,6 +134,7 @@ class ScimAndSelfServiceTest {
             return 1;
         }).when(inviteMapper).insert(any(TenantInviteEntity.class));
         when(inviteMapper.selectOne(any())).thenAnswer(inv -> storedInvite.get());
+        when(inviteMapper.selectById(77L)).thenAnswer(inv -> storedInvite.get());
 
         SelfServiceAccountService service = new SelfServiceAccountService(
                 passwordService,
@@ -143,7 +145,8 @@ class ScimAndSelfServiceTest {
                 providerOf(null),
                 providerOf(null),
                 providerOf(null),
-                null
+                null,
+                mock(TenantMembershipCapacity.class)
         );
 
         PasswordResetSendCodeResponse otpResp = service.sendPasswordResetCode(

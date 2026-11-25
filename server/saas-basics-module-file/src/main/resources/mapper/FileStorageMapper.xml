@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.saasbasics.platform.modules.file.mapper.FileStorageMapper">
+    <select id="selectStorageList" resultType="com.saasbasics.platform.modules.file.dto.FileStorageResponse">
+        SELECT
+          id,
+          tenant_id AS tenantId,
+          storage_code AS storageCode,
+          storage_name AS storageName,
+          storage_type AS storageType,
+          endpoint,
+          bucket_default AS bucketDefault,
+          region_name AS regionName,
+          base_path AS basePath,
+          default_folder AS defaultFolder,
+          path_pattern AS pathPattern,
+          max_file_mb AS maxFileMb,
+          allowed_exts AS allowedExts,
+          public_base_url AS publicBaseUrl,
+          status,
+          is_default AS isDefault,
+          upload_mode AS uploadMode,
+          remark
+        FROM file_storage
+        WHERE deleted = 0
+        ORDER BY is_default DESC, id DESC
+    </select>
+
+    <select id="selectStorageById" resultType="com.saasbasics.platform.modules.file.dto.FileStorageResponse">
+        SELECT
+          id,
+          tenant_id AS tenantId,
+          storage_code AS storageCode,
+          storage_name AS storageName,
+          storage_type AS storageType,
+          endpoint,
+          bucket_default AS bucketDefault,
+          region_name AS regionName,
+          base_path AS basePath,
+          default_folder AS defaultFolder,
+          path_pattern AS pathPattern,
+          max_file_mb AS maxFileMb,
+          allowed_exts AS allowedExts,
+          public_base_url AS publicBaseUrl,
+          status,
+          is_default AS isDefault,
+          upload_mode AS uploadMode,
+          remark
+        FROM file_storage
+        WHERE id = #{id}
+          AND deleted = 0
+    </select>
+</mapper>

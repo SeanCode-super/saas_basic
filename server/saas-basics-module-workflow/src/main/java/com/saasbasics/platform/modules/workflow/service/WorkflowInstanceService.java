@@ -1,5 +1,6 @@
 package com.saasbasics.platform.modules.workflow.service;
 
+import com.saasbasics.platform.modules.workflow.dto.AssigneeInfo;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.saasbasics.platform.common.auth.AuthContext;
 import com.saasbasics.platform.common.auth.AuthPrincipal;
@@ -22,7 +23,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
-import org.springframework.jdbc.core.JdbcTemplate;
+import com.saasbasics.platform.modules.workflow.mapper.WorkflowParticipantMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -42,7 +43,7 @@ public class WorkflowInstanceService {
     private final WorkflowTaskLogMapper taskLogMapper;
     private final WorkflowDefinitionService definitionService;
     private final WorkflowEngine workflowEngine;
-    private final JdbcTemplate jdbcTemplate;
+    private final WorkflowParticipantMapper participants;
     private final FlowableProcessBridgeService flowableBridgeService;
     private final ObjectMapper objectMapper;
 
@@ -53,7 +54,7 @@ public class WorkflowInstanceService {
             WorkflowTaskLogMapper taskLogMapper,
             WorkflowDefinitionService definitionService,
             WorkflowEngine workflowEngine,
-            JdbcTemplate jdbcTemplate,
+            WorkflowParticipantMapper participants,
             FlowableProcessBridgeService flowableBridgeService,
             ObjectMapper objectMapper
     ) {
@@ -63,7 +64,7 @@ public class WorkflowInstanceService {
         this.taskLogMapper = taskLogMapper;
         this.definitionService = definitionService;
         this.workflowEngine = workflowEngine;
-        this.jdbcTemplate = jdbcTemplate;
+        this.participants = participants;
         this.flowableBridgeService = flowableBridgeService;
         this.objectMapper = objectMapper;
     }
@@ -74,7 +75,7 @@ public class WorkflowInstanceService {
         Long userId = getUserId();
         String userName = getUserName();
 
-        ProcessDefinitionEntity definition = definitionMapper.selectById(request.definitionId());
+        ProcessDefinitionEntity definition = definitionMapper.selectForUpdate(request.definitionId(), tenantId);
         if (definition == null || definition.getDeleted() != 0 || !definition.getTenantId().equals(tenantId)) {
             throw new BizException("NOT_FOUND", "流程定义不存在或已删除");
         }
@@ -83,19 +84,9 @@ public class WorkflowInstanceService {
         }
 
         // 1. 查询发起人部门归属
-        Long initiatorDeptId = null;
-        String initiatorDeptName = "默认业务部";
-        try {
-            String sql = "SELECT d.id, d.dept_name FROM iam_department d " +
-                    "INNER JOIN iam_employee e ON e.dept_id = d.id " +
-                    "WHERE e.user_id = ? AND d.tenant_id = ? AND d.deleted = 0 LIMIT 1";
-            List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, userId, tenantId);
-            if (!rows.isEmpty()) {
-                initiatorDeptId = ((Number) rows.get(0).get("id")).longValue();
-                initiatorDeptName = String.valueOf(rows.get(0).get("dept_name"));
-            }
-        } catch (Exception ignored) {
-        }
+        var department = participants.findDepartment(tenantId, userId);
+        Long initiatorDeptId = department == null ? null : department.id();
+        String initiatorDeptName = department == null ? "" : department.name();
 
         // 2. 生成单据流水号
         String stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
@@ -112,7 +103,7 @@ public class WorkflowInstanceService {
                 initiatorDeptId
         );
 
-        // 4. 在 Flowable 7 工业级流程引擎中同步实例化
+        // 4. 在 Flowable 8 工业级流程引擎中同步实例化
         Map<String, Object> vars = new HashMap<>();
         if (StringUtils.hasText(request.formDataJson())) {
             try {
@@ -129,21 +120,13 @@ public class WorkflowInstanceService {
             } catch (Exception ignored) {
             }
         }
-        Long leaderUserId = userId;
-        if (initiatorDeptId != null && initiatorDeptId > 0) {
-            try {
-                String sql = "SELECT leader_user_id FROM iam_department WHERE id = ? AND tenant_id = ? AND deleted = 0";
-                List<Long> leaders = jdbcTemplate.query(sql, (rs, rowNum) -> rs.getLong("leader_user_id"), initiatorDeptId, tenantId);
-                if (!leaders.isEmpty() && leaders.get(0) != null && leaders.get(0) > 0) {
-                    leaderUserId = leaders.get(0);
-                }
-            } catch (Exception ignored) {
-            }
-        }
+        Long leaderUserId = department == null ? null : department.leaderUserId();
         vars.put("initiator", String.valueOf(userId));
         vars.put("initiatorName", userName);
         vars.put("initiatorDeptId", initiatorDeptId != null ? initiatorDeptId : 0L);
-        vars.put("initiatorDeptLeader", String.valueOf(leaderUserId));
+        if (leaderUserId != null) {
+            vars.put("initiatorDeptLeader", String.valueOf(leaderUserId));
+        }
         vars.put("assignee", String.valueOf(userId));
 
         ProcessInstance flowableProcInst = flowableBridgeService.startProcessInstance(
@@ -157,6 +140,9 @@ public class WorkflowInstanceService {
         instance.setTenantId(tenantId);
         instance.setInstanceNo(instanceNo);
         instance.setDefinitionId(definition.getId());
+        instance.setFlowNodesSnapshot(definition.getFlowNodesJson());
+        instance.setFormSchemaSnapshot(definition.getFormSchemaJson());
+        instance.setDefinitionRevision(definition.getVersion());
         instance.setProcessCode(definition.getProcessCode());
         instance.setProcessName(definition.getProcessName());
         instance.setTitle(request.title());
@@ -167,13 +153,13 @@ public class WorkflowInstanceService {
         instance.setInitiatorDeptName(initiatorDeptName);
         instance.setFormDataJson(request.formDataJson());
         instance.setStartTime(LocalDateTime.now());
-        if (flowableProcInst != null) {
-            instance.setFlowableProcInstId(flowableProcInst.getId());
-        }
+        if (flowableProcInst == null) throw new BizException("WORKFLOW_ENGINE_UNAVAILABLE", "审批引擎未能启动该流程，申请未创建");
+        instance.setFlowableProcInstId(flowableProcInst.getId());
         instance.setCreatedBy(userId);
         instance.setUpdatedBy(userId);
 
         if (firstStep.isEnd()) {
+            flowableBridgeService.requireFinished(flowableProcInst.getId());
             instance.setCurrentNodeId("end");
             instance.setCurrentNodeName("流程办结");
             instance.setStatus("APPROVED");
@@ -185,13 +171,8 @@ public class WorkflowInstanceService {
             instance.setStatus("RUNNING");
             instanceMapper.insert(instance);
 
-            List<Task> flowableTasks = flowableProcInst != null
-                    ? flowableBridgeService.getActiveTasks(flowableProcInst.getId())
-                    : List.of();
-
-            // 创建待办任务
-            int taskIdx = 0;
-            for (WorkflowEngine.AssigneeInfo assignee : firstStep.assignees()) {
+            Task active = flowableBridgeService.requireApprovalTask(flowableProcInst.getId(), firstStep.nodeId());
+            for (AssigneeInfo assignee : firstStep.assignees()) {
                 WorkflowTaskEntity task = new WorkflowTaskEntity();
                 task.setTenantId(tenantId);
                 task.setInstanceId(instance.getId());
@@ -201,18 +182,15 @@ public class WorkflowInstanceService {
                 task.setAssigneeId(assignee.userId());
                 task.setAssigneeName(assignee.userName());
                 task.setStatus("PENDING");
-                if (taskIdx < flowableTasks.size()) {
-                    task.setFlowableTaskId(flowableTasks.get(taskIdx).getId());
-                    task.setActivityId(flowableTasks.get(taskIdx).getTaskDefinitionKey());
-                }
+                task.setFlowableTaskId(active.getId());
+                task.setActivityId(active.getTaskDefinitionKey());
                 task.setCreatedBy(userId);
                 task.setUpdatedBy(userId);
                 taskMapper.insert(task);
-                taskIdx++;
             }
 
             // 处理可能伴随的抄送人
-            for (WorkflowEngine.AssigneeInfo cc : firstStep.ccList()) {
+            for (AssigneeInfo cc : firstStep.ccList()) {
                 WorkflowTaskEntity ccTask = new WorkflowTaskEntity();
                 ccTask.setTenantId(tenantId);
                 ccTask.setInstanceId(instance.getId());
@@ -289,8 +267,14 @@ public class WorkflowInstanceService {
         ProcessInstanceEntity instance = getRequiredEntity(id);
         Long tenantId = instance.getTenantId();
 
-        ProcessDefinitionEntity definition = definitionMapper.selectById(instance.getDefinitionId());
+        ProcessDefinitionEntity definition = instance.getDefinitionRevision() == null ? null : definitionMapper.selectById(instance.getDefinitionId());
 
+        if (definition != null && instance.getDefinitionRevision() != null) {
+            definition.setFlowNodesJson(instance.getFlowNodesSnapshot());
+            definition.setFormSchemaJson(instance.getFormSchemaSnapshot());
+            definition.setVersion(instance.getDefinitionRevision());
+            definition.setProcessName(instance.getProcessName());
+        }
         List<WorkflowTaskEntity> taskEntities = taskMapper.selectList(new LambdaQueryWrapper<WorkflowTaskEntity>()
                 .eq(WorkflowTaskEntity::getTenantId, tenantId)
                 .eq(WorkflowTaskEntity::getInstanceId, id)
@@ -363,7 +347,7 @@ public class WorkflowInstanceService {
 
         // 同步通知 Flowable 工业级流程引擎终止该流程实例
         if (StringUtils.hasText(instance.getFlowableProcInstId())) {
-            flowableBridgeService.terminateProcessInstance(instance.getFlowableProcInstId(), reason);
+            if (!flowableBridgeService.terminateProcessInstance(instance.getFlowableProcInstId(), reason)) throw new BizException("WORKFLOW_ENGINE_MISMATCH", "审批引擎未确认撤回");
         }
 
         // 写入撤回流转日志
@@ -394,7 +378,7 @@ public class WorkflowInstanceService {
             List<Map<String, Object>> traceList = flowableBridgeService.getHistoricActivityTrace(instance.getFlowableProcInstId());
             result.put("activeActivityIds", activeActivities);
             result.put("traceList", traceList);
-            result.put("engineType", "Flowable 7.0 (BPMN 2.0 Engine)");
+            result.put("engineType", "Flowable 8.0 (BPMN 2.0 Engine)");
         } else {
             result.put("activeActivityIds", List.of());
             result.put("traceList", List.of());

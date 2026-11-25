@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.saasbasics.platform.modules.file.mapper.ExportDatasetMapper">
+    <sql id="publishedMetadata">
+        SELECT id, model_code, model_name, table_name FROM gen_dynamic_model
+        WHERE tenant_id = #{tenantId} AND deleted = 0 AND status = 'PUBLISHED'
+    </sql>
+    <select id="publishedModels" resultType="com.saasbasics.platform.modules.file.mapper.ExportDatasetMapper$Model">
+        <include refid="publishedMetadata"/> ORDER BY id DESC
+    </select>
+    <select id="publishedModel" resultType="com.saasbasics.platform.modules.file.mapper.ExportDatasetMapper$Model">
+        <include refid="publishedMetadata"/> AND model_code = #{modelCode}
+    </select>
+    <select id="modelFields" resultType="com.saasbasics.platform.modules.file.mapper.ExportDatasetMapper$Field">
+        SELECT field_code, field_name, column_type FROM gen_dynamic_field
+        WHERE tenant_id = #{tenantId} AND model_id = #{modelId} AND deleted = 0 ORDER BY sort_no, id
+    </select>
+    <!-- Identifiers come exclusively from the curated catalog or this tenant's published model. -->
+    <sql id="dataset">
+        FROM `${query.table}` WHERE tenant_id = #{query.tenantId}
+        <if test="query.logicalDelete">AND deleted = 0</if>
+        <if test="query.keyword != null and !query.keywordColumns.isEmpty()">
+            AND <foreach collection="query.keywordColumns" item="col" open="(" close=")" separator=" OR ">
+                `${col}` LIKE #{query.keyword}
+            </foreach>
+        </if>
+        <foreach collection="query.filters" item="filter">
+            AND `${filter.column}` = #{filter.value}
+        </foreach>
+    </sql>
+    <select id="countRows" resultType="long">SELECT COUNT(*) <include refid="dataset"/></select>
+    <select id="streamRows" resultType="java.util.LinkedHashMap" fetchSize="500">
+        SELECT <foreach collection="query.columns" item="col" separator=",">`${col}`</foreach>
+        <include refid="dataset"/> ORDER BY id DESC <if test="limit > 0">LIMIT #{limit}</if>
+    </select>
+</mapper>

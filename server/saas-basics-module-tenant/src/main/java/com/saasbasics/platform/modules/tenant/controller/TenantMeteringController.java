@@ -8,7 +8,7 @@ import com.saasbasics.platform.modules.tenant.dto.TenantMeteringSummaryResponse;
 import com.saasbasics.platform.modules.tenant.dto.TenantSnapshotResponse;
 import com.saasbasics.platform.modules.tenant.dto.TenantSnapshotRestoreResponse;
 import com.saasbasics.platform.modules.tenant.service.TenantMeteringService;
-import java.nio.charset.StandardCharsets;
+import org.springframework.core.io.Resource;
 import java.util.List;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -56,18 +56,19 @@ public class TenantMeteringController {
     @Idempotent(message = "快照还原处理中，请勿重复提交", expireMillis = 10000)
     public ApiResponse<TenantSnapshotRestoreResponse> restoreSnapshot(
             @RequestPart("file") MultipartFile file,
+            @RequestParam(defaultValue = "false") boolean apply,
             @RequestParam(required = false) Long tenantId) {
-        return ApiResponse.success(meteringService.restoreTenantSnapshot(file, tenantId));
+        return ApiResponse.success(meteringService.restoreTenantSnapshot(file, tenantId, apply));
     }
 
     @GetMapping("/snapshot/download/{snapshotId}")
     @RequirePermission("tenant:snapshot:export")
-    public ResponseEntity<byte[]> downloadSnapshot(@PathVariable String snapshotId) {
-        byte[] bytes = meteringService.loadSnapshotArchive(snapshotId);
+    public ResponseEntity<Resource> downloadSnapshot(@PathVariable String snapshotId) {
+        var archive = meteringService.snapshotResource(snapshotId);
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + snapshotId + ".zip\"")
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .body(bytes);
+                .body(archive);
     }
 }

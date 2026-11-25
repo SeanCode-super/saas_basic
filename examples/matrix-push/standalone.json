@@ -1,0 +1,36 @@
+{
+  "publicOrigin": "http://127.0.0.1:9530",
+  "listenPort": 9530,
+  "origin": "http://127.0.0.1:18091",
+  "codeAt": "code",
+  "successCode": 0,
+  "auth": {
+    "loginPath": "/api/auth/login",
+    "identityPath": "/api/auth/info",
+    "usernameField": "username",
+    "passwordField": "password",
+    "tokenAt": "data.token",
+    "userAt": "data.userId",
+    "tenantAt": "data.tenantId",
+    "roleAt": "data.role",
+    "nameAt": "data.username",
+    "tenantNameAt": "data.tenantName",
+    "statusAt": "data.tenantStatus",
+    "allowedStatuses": ["NORMAL", "TRIAL"]
+  },
+  "roles": {
+    "1": {"actions": ["devices_list", "materials_list", "accounts_list", "tasks_list", "results_list", "create_task"]},
+    "0": {"actions": ["devices_list", "materials_list", "accounts_list", "tasks_list"]}
+  },
+  "inputScopes": {
+    "create_task": [
+      {"field": "device_ids", "page": "devices", "idAt": "id", "labelAt": "deviceName", "tenantAt": "tenantId", "userAt": "userId"}
+    ]
+  },
+  "displayValues": {
+    "devices": {"state": {"0": "离线", "1": "在线", "2": "执行中"}},
+    "accounts": {"state": {"ACTIVE": "启用", "PAUSED": "暂停"}},
+    "tasks": {"state": {"0": "待执行", "1": "执行中", "2": "成功", "3": "失败", "4": "已取消"}},
+    "results": {"state": {"pending": "待执行", "running": "执行中", "success": "成功", "failed": "失败", "cancelled": "已取消"}}
+  }
+}

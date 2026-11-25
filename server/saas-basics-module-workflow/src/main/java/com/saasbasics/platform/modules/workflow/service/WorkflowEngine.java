@@ -1,28 +1,26 @@
 package com.saasbasics.platform.modules.workflow.service;
 
+import com.saasbasics.platform.modules.workflow.dto.AssigneeInfo;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.jdbc.core.JdbcTemplate;
+import com.saasbasics.platform.common.exception.BizException;
+import com.saasbasics.platform.modules.workflow.mapper.WorkflowParticipantMapper;
 import org.springframework.stereotype.Component;
 
 @Component
 public class WorkflowEngine {
 
-    private static final Logger log = LoggerFactory.getLogger(WorkflowEngine.class);
     private final ObjectMapper objectMapper;
-    private final JdbcTemplate jdbcTemplate;
+    private final WorkflowParticipantMapper participants;
 
-    public WorkflowEngine(ObjectMapper objectMapper, JdbcTemplate jdbcTemplate) {
+    public WorkflowEngine(ObjectMapper objectMapper, WorkflowParticipantMapper participants) {
         this.objectMapper = objectMapper;
-        this.jdbcTemplate = jdbcTemplate;
+        this.participants = participants;
     }
-
-    public record AssigneeInfo(Long userId, String userName) {}
 
     public record ExecutionStep(
             String nodeId,
@@ -60,9 +58,8 @@ public class WorkflowEngine {
                 targetNode = rootNode.get("next");
             } else {
                 JsonNode current = findNodeById(rootNode, currentNodeId);
-                if (current != null) {
-                    targetNode = current.get("next");
-                }
+                if (current == null) throw new BizException("WORKFLOW_NODE_UNKNOWN", "当前审批节点不在原始流程定义中");
+                targetNode = current.get("next");
             }
 
             List<AssigneeInfo> ccList = new ArrayList<>();
@@ -102,9 +99,8 @@ public class WorkflowEngine {
 
             return new ExecutionStep("end", "流程办结", "END", true, List.of(), ccList);
 
-        } catch (Exception e) {
-            log.error("Failed to advance workflow execution", e);
-            return new ExecutionStep("end", "自动办结", "END", true, List.of(), List.of());
+        } catch (JsonProcessingException e) {
+            throw new BizException("INVALID_WORKFLOW_JSON", "流程定义或表单 JSON 无法解析");
         }
     }
 
@@ -187,73 +183,43 @@ public class WorkflowEngine {
         return findNodeById(node.get("next"), id);
     }
 
+    List<AssigneeInfo> approversAt(String snapshot, String nodeId, Long tenant, Long initiator, Long department) {
+        try {
+            var node = findNodeById(objectMapper.readTree(snapshot), nodeId);
+            if (node == null || !"APPROVER".equals(node.path("type").asText())) {
+                throw new BizException("WORKFLOW_NODE_UNKNOWN", "原流程定义中找不到该审批节点");
+            }
+            return resolveAssignees(node, tenant, initiator, department);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new BizException("INVALID_WORKFLOW_JSON", "原流程定义无法解析");
+        }
+    }
+
     public List<AssigneeInfo> resolveAssignees(JsonNode node, Long tenantId, Long initiatorId, Long initiatorDeptId) {
         String assigneeType = node.path("assigneeType").asText("USER");
         String assigneeValue = node.path("assigneeValue").asText("");
-        List<AssigneeInfo> results = new ArrayList<>();
-
-        if ("DEPT_LEADER".equals(assigneeType)) {
-            // 1. 查询发起人归属部门的 leader_user_id
-            if (initiatorDeptId != null && initiatorDeptId > 0) {
-                try {
-                    String sql = "SELECT u.id, u.nickname FROM iam_user u " +
-                            "INNER JOIN iam_department d ON d.leader_user_id = u.id " +
-                            "WHERE d.id = ? AND d.tenant_id = ? AND d.deleted = 0 AND u.deleted = 0";
-                    List<AssigneeInfo> list = jdbcTemplate.query(sql, (rs, rowNum) ->
-                            new AssigneeInfo(rs.getLong("id"), rs.getString("nickname")), initiatorDeptId, tenantId);
-                    if (!list.isEmpty()) {
-                        results.addAll(list);
-                    }
-                } catch (Exception ex) {
-                    log.warn("Failed to query dept leader", ex);
-                }
-            }
-        } else if ("ROLE".equals(assigneeType)) {
-            // 2. 根据角色查询绑定的所有有效用户
-            if (!assigneeValue.isBlank()) {
-                try {
-                    Long roleId = Long.parseLong(assigneeValue);
-                    String sql = "SELECT u.id, u.nickname FROM iam_user u " +
-                            "INNER JOIN iam_user_role ur ON ur.user_id = u.id " +
-                            "WHERE ur.role_id = ? AND ur.tenant_id = ? AND u.deleted = 0 AND u.status = 'ENABLED'";
-                    List<AssigneeInfo> list = jdbcTemplate.query(sql, (rs, rowNum) ->
-                            new AssigneeInfo(rs.getLong("id"), rs.getString("nickname")), roleId, tenantId);
-                    results.addAll(list);
-                } catch (Exception ex) {
-                    log.warn("Failed to query role assignees", ex);
-                }
-            }
-        } else if ("USER".equals(assigneeType)) {
-            // 3. 指定用户
-            if (!assigneeValue.isBlank()) {
-                try {
-                    Long userId = Long.parseLong(assigneeValue);
-                    String sql = "SELECT id, nickname FROM iam_user WHERE id = ? AND tenant_id = ? AND deleted = 0";
-                    List<AssigneeInfo> list = jdbcTemplate.query(sql, (rs, rowNum) ->
-                            new AssigneeInfo(rs.getLong("id"), rs.getString("nickname")), userId, tenantId);
-                    results.addAll(list);
-                } catch (Exception ex) {
-                    log.warn("Failed to query user assignee", ex);
-                }
-            }
-        }
-
-        // 防御性保底机制：如果没查到对应的人（例如部门暂未设负责人），自动分配给系统管理员或发起人，确保审批绝不卡死
+        List<AssigneeInfo> results = switch (assigneeType) {
+            case "DEPT_LEADER" -> initiatorDeptId == null || initiatorDeptId <= 0
+                    ? List.of() : participants.findDepartmentLeader(tenantId, initiatorDeptId);
+            case "ROLE" -> participants.findRoleMembers(tenantId, configuredId(assigneeValue));
+            case "USER" -> participants.findUser(tenantId, configuredId(assigneeValue));
+            default -> throw new BizException("INVALID_ASSIGNEE_TYPE", "流程节点的办理人类型无效");
+        };
         if (results.isEmpty()) {
-            try {
-                String sql = "SELECT id, nickname FROM iam_user WHERE tenant_id = ? AND deleted = 0 AND status = 'ENABLED' ORDER BY id ASC LIMIT 1";
-                List<AssigneeInfo> fallback = jdbcTemplate.query(sql, (rs, rowNum) ->
-                        new AssigneeInfo(rs.getLong("id"), rs.getString("nickname")), tenantId);
-                if (!fallback.isEmpty()) {
-                    results.addAll(fallback);
-                } else {
-                    results.add(new AssigneeInfo(initiatorId, "业务审批员"));
-                }
-            } catch (Exception ex) {
-                results.add(new AssigneeInfo(initiatorId, "业务审批员"));
-            }
+            throw new BizException("WORKFLOW_ASSIGNEE_MISSING", "流程节点没有可用的办理人，请检查人员、角色或部门负责人配置");
         }
-
         return results;
+    }
+
+    private long configuredId(String value) {
+        try {
+            long id = Long.parseLong(value);
+            if (id <= 0) {
+                throw new BizException("INVALID_ASSIGNEE_ID", "办理人或角色编号必须为正整数");
+            }
+            return id;
+        } catch (NumberFormatException e) {
+            throw new BizException("INVALID_ASSIGNEE_ID", "流程节点缺少有效的办理人或角色编号");
+        }
     }
 }

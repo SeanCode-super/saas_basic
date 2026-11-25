@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.saasbasics.platform.modules.iam.mapper.MenuMapper">
+
+    <select id="selectMenuList" resultType="com.saasbasics.platform.modules.iam.dto.MenuResponse">
+        SELECT
+          id,
+          tenant_id AS tenantId,
+          parent_id AS parentId,
+          menu_type AS menuType,
+          menu_code AS menuCode,
+          app_code AS appCode,
+          menu_name AS menuName,
+          route_path AS routePath,
+          active_menu AS activeMenu,
+          redirect,
+          component_path AS componentPath,
+          component_name AS componentName,
+          permission_code AS permissionCode,
+          icon,
+          visible,
+          keep_alive AS keepAlive,
+          is_frame AS isFrame,
+          frame_src AS frameSrc,
+          is_affix AS isAffix,
+          sort_no AS sortNo,
+          status,
+          CAST(meta_json AS CHAR) AS metaJson,
+          remark
+        FROM iam_menu
+        WHERE deleted = 0
+        ORDER BY sort_no ASC, id ASC
+    </select>
+
+    <select id="selectMenuById" resultType="com.saasbasics.platform.modules.iam.dto.MenuResponse">
+        SELECT
+          id,
+          tenant_id AS tenantId,
+          parent_id AS parentId,
+          menu_type AS menuType,
+          menu_code AS menuCode,
+          app_code AS appCode,
+          menu_name AS menuName,
+          route_path AS routePath,
+          active_menu AS activeMenu,
+          redirect,
+          component_path AS componentPath,
+          component_name AS componentName,
+          permission_code AS permissionCode,
+          icon,
+          visible,
+          keep_alive AS keepAlive,
+          is_frame AS isFrame,
+          frame_src AS frameSrc,
+          is_affix AS isAffix,
+          sort_no AS sortNo,
+          status,
+          CAST(meta_json AS CHAR) AS metaJson,
+          remark
+        FROM iam_menu
+        WHERE id = #{id}
+          AND deleted = 0
+    </select>
+
+</mapper>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.saasbasics.platform.modules.iam.mapper.UserPersonBindingMapper">
+    <select id="selectEffectiveByUser" resultType="com.saasbasics.platform.modules.iam.entity.UserPersonBindingEntity">
+        SELECT * FROM iam_user_person_binding
+        WHERE tenant_id = #{tenantId} AND user_id = #{userId}
+          AND status = 'ACTIVE' AND deleted = 0
+          AND valid_from &lt;= #{at}
+          AND (valid_to IS NULL OR valid_to &gt; #{at})
+        ORDER BY valid_from DESC, id DESC LIMIT 1
+    </select>
+
+    <select id="selectEffectiveByPerson" resultType="com.saasbasics.platform.modules.iam.entity.UserPersonBindingEntity">
+        SELECT * FROM iam_user_person_binding
+        WHERE tenant_id = #{tenantId} AND person_public_id = #{personPublicId}
+          AND status = 'ACTIVE' AND deleted = 0
+          AND valid_from &lt;= #{at}
+          AND (valid_to IS NULL OR valid_to &gt; #{at})
+        ORDER BY valid_from DESC, id DESC
+    </select>
+</mapper>

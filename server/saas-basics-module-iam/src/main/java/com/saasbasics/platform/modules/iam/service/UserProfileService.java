@@ -28,10 +28,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
-import java.util.UUID;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
+import com.saasbasics.platform.modules.iam.mapper.UserProfileMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -41,7 +40,7 @@ public class UserProfileService {
 
     private final UserMapper userMapper;
     private final PasswordSecurityService passwordSecurityService;
-    private final JdbcTemplate jdbcTemplate;
+    private final UserProfileMapper profileMapper;
     private final ObjectProvider<PasswordPolicyMapper> passwordPolicyMapperProvider;
     private final ObjectProvider<PasswordHistoryMapper> passwordHistoryMapperProvider;
     private final ObjectProvider<AuthSessionMapper> authSessionMapperProvider;
@@ -51,17 +50,17 @@ public class UserProfileService {
 
     public UserProfileService(UserMapper userMapper,
                               PasswordSecurityService passwordSecurityService,
-                              JdbcTemplate jdbcTemplate,
+                              UserProfileMapper profileMapper,
                               ObjectProvider<PasswordPolicyMapper> passwordPolicyMapperProvider,
                               ObjectProvider<PasswordHistoryMapper> passwordHistoryMapperProvider) {
-        this(userMapper, passwordSecurityService, jdbcTemplate, passwordPolicyMapperProvider,
+        this(userMapper, passwordSecurityService, profileMapper, passwordPolicyMapperProvider,
                 passwordHistoryMapperProvider, null, null, null, new ObjectMapper());
     }
 
     @Autowired
     public UserProfileService(UserMapper userMapper,
                               PasswordSecurityService passwordSecurityService,
-                              JdbcTemplate jdbcTemplate,
+                              UserProfileMapper profileMapper,
                               ObjectProvider<PasswordPolicyMapper> passwordPolicyMapperProvider,
                               ObjectProvider<PasswordHistoryMapper> passwordHistoryMapperProvider,
                               ObjectProvider<AuthSessionMapper> authSessionMapperProvider,
@@ -70,7 +69,7 @@ public class UserProfileService {
                               ObjectMapper objectMapper) {
         this.userMapper = userMapper;
         this.passwordSecurityService = passwordSecurityService;
-        this.jdbcTemplate = jdbcTemplate;
+        this.profileMapper = profileMapper;
         this.passwordPolicyMapperProvider = passwordPolicyMapperProvider;
         this.passwordHistoryMapperProvider = passwordHistoryMapperProvider;
         this.authSessionMapperProvider = authSessionMapperProvider;
@@ -84,11 +83,11 @@ public class UserProfileService {
         UserEntity user = requiredUser(principal.userId());
 
         String tenantName = resolveTenantName(user.getTenantId(), principal.tenantCode());
-        List<String> roleNames = queryRoleNames(user.getId());
-        List<UserProfileResponse.DataScopeSummaryItem> dataScopes = queryDataScopes(user.getId(), user.getTenantId());
-        List<UserProfileResponse.IdentityBindingItem> identities = queryIdentities(user.getId(), user.getTenantId());
+        List<String> roleNames = profileMapper.roleNames(user.getTenantId(), user.getId());
+        List<UserProfileResponse.DataScopeSummaryItem> dataScopes = profileMapper.dataScopes(user.getTenantId(), user.getId());
+        List<UserProfileResponse.IdentityBindingItem> identities = profileMapper.identities(user.getTenantId(), user.getId());
         UserProfileResponse.EmployeeProfileInfo employeeInfo = resolveEmployeeInfo(user, principal);
-        List<UserProfileResponse.PersonalLoginLogItem> recentLogs = queryRecentLogs(user.getId());
+        List<UserProfileResponse.PersonalLoginLogItem> recentLogs = profileMapper.recentLogs(user.getTenantId(), user.getId());
 
         PasswordPolicyMapper policyMapper = passwordPolicyMapperProvider != null
                 ? passwordPolicyMapperProvider.getIfAvailable() : null;
@@ -391,128 +390,14 @@ public class UserProfileService {
     }
 
     private String resolveTenantName(Long tenantId, String fallbackCode) {
-        try {
-            List<String> names = jdbcTemplate.query(
-                    "SELECT tenant_name FROM plat_tenant WHERE id = ? AND deleted = 0 LIMIT 1",
-                    (rs, rowNum) -> rs.getString("tenant_name"),
-                    tenantId
-            );
-            if (!names.isEmpty() && names.get(0) != null) {
-                return names.get(0);
-            }
-        } catch (Exception ignored) {
-        }
-        return fallbackCode != null ? fallbackCode : "默认租户";
-    }
-
-    private List<String> queryRoleNames(Long userId) {
-        try {
-            return jdbcTemplate.query(
-                    "SELECT r.role_name FROM iam_role r " +
-                    "INNER JOIN iam_user_role ur ON r.id = ur.role_id " +
-                    "WHERE ur.user_id = ? AND ur.deleted = 0 AND r.deleted = 0",
-                    (rs, rowNum) -> rs.getString("role_name"),
-                    userId
-            );
-        } catch (Exception ignored) {
-            return List.of();
-        }
-    }
-
-    private List<UserProfileResponse.DataScopeSummaryItem> queryDataScopes(Long userId, Long tenantId) {
-        try {
-            return jdbcTemplate.query(
-                    "SELECT r.role_name, COALESCE(ds.scope_code, r.role_code) AS scope_code, " +
-                    "COALESCE(ds.scope_name, r.data_scope_type) AS scope_name, " +
-                    "COALESCE(ds.scope_type, r.data_scope_type) AS scope_type " +
-                    "FROM iam_user_role ur " +
-                    "INNER JOIN iam_role r ON r.id = ur.role_id AND r.deleted = 0 " +
-                    "LEFT JOIN iam_role_data_scope rds ON rds.role_id = r.id AND rds.deleted = 0 " +
-                    "LEFT JOIN iam_data_scope ds ON ds.id = rds.data_scope_id AND ds.deleted = 0 " +
-                    "WHERE ur.user_id = ? AND ur.tenant_id = ? AND ur.deleted = 0",
-                    (rs, rowNum) -> new UserProfileResponse.DataScopeSummaryItem(
-                            rs.getString("role_name"),
-                            rs.getString("scope_code"),
-                            rs.getString("scope_name"),
-                            rs.getString("scope_type")
-                    ),
-                    userId, tenantId
-            );
-        } catch (Exception ignored) {
-            return List.of();
-        }
-    }
-
-    private List<UserProfileResponse.IdentityBindingItem> queryIdentities(Long userId, Long tenantId) {
-        try {
-            return jdbcTemplate.query(
-                    "SELECT identity_type, identifier, verified, status, bound_at " +
-                    "FROM iam_user_identity WHERE user_id = ? AND tenant_id = ? AND deleted = 0 ORDER BY id ASC",
-                    (rs, rowNum) -> new UserProfileResponse.IdentityBindingItem(
-                            rs.getString("identity_type"),
-                            rs.getString("identifier"),
-                            rs.getBoolean("verified"),
-                            rs.getString("status"),
-                            rs.getTimestamp("bound_at") != null ? rs.getTimestamp("bound_at").toLocalDateTime() : null
-                    ),
-                    userId, tenantId
-            );
-        } catch (Exception ignored) {
-            return List.of();
-        }
+        String name = profileMapper.tenantName(tenantId);
+        return name != null ? name : fallbackCode;
     }
 
     private UserProfileResponse.EmployeeProfileInfo resolveEmployeeInfo(UserEntity user, AuthPrincipal principal) {
         Long employeeId = user.getEmployeeId();
-        String employeeNo = null;
-        String employeeName = null;
-        Long deptId = null;
-        String deptName = null;
-        String deptFullPath = null;
-        Long positionId = null;
-        String positionName = null;
-        java.time.LocalDate hireDate = null;
-        String employeeStatus = null;
-
-        if (employeeId != null && employeeId > 0) {
-            try {
-                List<UserProfileResponse.EmployeeProfileInfo> rows = jdbcTemplate.query(
-                        "SELECT e.id, e.employee_no, e.employee_name, e.dept_id, d.dept_name, d.dept_full_name, " +
-                        "e.position_id, p.position_name, e.hire_date, e.employee_status " +
-                        "FROM iam_employee e " +
-                        "LEFT JOIN iam_department d ON d.id = e.dept_id AND d.deleted = 0 " +
-                        "LEFT JOIN iam_position p ON p.id = e.position_id AND p.deleted = 0 " +
-                        "WHERE e.id = ? AND e.deleted = 0 LIMIT 1",
-                        (rs, rowNum) -> new UserProfileResponse.EmployeeProfileInfo(
-                                rs.getLong("id"),
-                                rs.getString("employee_no"),
-                                rs.getString("employee_name"),
-                                rs.getObject("dept_id") != null ? rs.getLong("dept_id") : null,
-                                rs.getString("dept_name"),
-                                rs.getString("dept_full_name"),
-                                rs.getObject("position_id") != null ? rs.getLong("position_id") : null,
-                                rs.getString("position_name"),
-                                rs.getDate("hire_date") != null ? rs.getDate("hire_date").toLocalDate() : null,
-                                rs.getString("employee_status"),
-                                null, null, List.of()
-                        ),
-                        employeeId
-                );
-                if (!rows.isEmpty()) {
-                    var r = rows.get(0);
-                    employeeNo = r.employeeNo();
-                    employeeName = r.employeeName();
-                    deptId = r.deptId();
-                    deptName = r.deptName();
-                    deptFullPath = r.deptFullPath();
-                    positionId = r.positionId();
-                    positionName = r.positionName();
-                    hireDate = r.hireDate();
-                    employeeStatus = r.employeeStatus();
-                }
-            } catch (Exception ignored) {
-            }
-        }
+        UserProfileMapper.EmployeeDetails employee = employeeId == null ? null
+                : profileMapper.employee(user.getTenantId(), employeeId);
 
         String personPublicId = principal.personPublicId() != null ? principal.personPublicId().toString() : null;
         String activeAssignmentPublicId = principal.organizationContext() != null
@@ -523,20 +408,10 @@ public class UserProfileService {
         OrganizationDirectory directory = organizationDirectoryProvider != null
                 ? organizationDirectoryProvider.getIfAvailable() : null;
         if (directory != null && principal.personPublicId() != null) {
-            try {
-                List<OrganizationDirectory.AssignmentSummary> raw =
-                        directory.findEffectiveAssignments(principal.personPublicId(), Instant.now());
-                for (OrganizationDirectory.AssignmentSummary a : raw) {
-                    String orgName = resolveOrgName(a.organizationPublicId(), directory);
-                    String unitName = resolveOrgUnitDisplayName(a.orgUnitPublicId());
-                    String posName = resolveOrgPositionDisplayName(a.positionPublicId());
-                    String aId = a.publicId().toString();
-                    boolean active = activeAssignmentPublicId != null && activeAssignmentPublicId.equals(aId);
-                    assignments.add(new UserProfileResponse.AssignmentItem(
-                            aId, orgName, unitName, posName, a.primary(), active
-                    ));
-                }
-            } catch (Exception ignored) {
+            for (var a : directory.findEffectiveAssignments(principal.personPublicId(), Instant.now())) {
+                String id = a.publicId().toString();
+                assignments.add(new UserProfileResponse.AssignmentItem(id, a.organizationName(), a.unitName(),
+                        a.positionName(), a.primary(), id.equals(activeAssignmentPublicId)));
             }
         }
 
@@ -544,66 +419,13 @@ public class UserProfileService {
             return null;
         }
         return new UserProfileResponse.EmployeeProfileInfo(
-                employeeId, employeeNo, employeeName, deptId, deptName, deptFullPath,
-                positionId, positionName, hireDate, employeeStatus,
+                employeeId, employee == null ? null : employee.employeeNo(), employee == null ? null : employee.employeeName(),
+                employee == null ? null : employee.deptId(), employee == null ? null : employee.deptName(),
+                employee == null ? null : employee.deptFullName(), employee == null ? null : employee.positionId(),
+                employee == null ? null : employee.positionName(), employee == null ? null : employee.hireDate(),
+                employee == null ? null : employee.employeeStatus(),
                 personPublicId, activeAssignmentPublicId, assignments
         );
-    }
-
-    private String resolveOrgName(UUID organizationPublicId, OrganizationDirectory directory) {
-        if (organizationPublicId == null) return null;
-        try {
-            return directory.getOrganization(organizationPublicId).displayName();
-        } catch (Exception ignored) {
-            return organizationPublicId.toString();
-        }
-    }
-
-    private String resolveOrgUnitDisplayName(UUID orgUnitPublicId) {
-        if (orgUnitPublicId == null) return null;
-        try {
-            List<String> rows = jdbcTemplate.query(
-                    "SELECT unit_name FROM org_unit WHERE public_id = ? AND deleted = 0 LIMIT 1",
-                    (rs, rowNum) -> rs.getString("unit_name"),
-                    orgUnitPublicId.toString()
-            );
-            if (!rows.isEmpty() && rows.get(0) != null) return rows.get(0);
-        } catch (Exception ignored) {
-        }
-        return orgUnitPublicId.toString();
-    }
-
-    private String resolveOrgPositionDisplayName(UUID positionPublicId) {
-        if (positionPublicId == null) return null;
-        try {
-            List<String> rows = jdbcTemplate.query(
-                    "SELECT position_name FROM org_position WHERE public_id = ? AND deleted = 0 LIMIT 1",
-                    (rs, rowNum) -> rs.getString("position_name"),
-                    positionPublicId.toString()
-            );
-            if (!rows.isEmpty() && rows.get(0) != null) return rows.get(0);
-        } catch (Exception ignored) {
-        }
-        return positionPublicId.toString();
-    }
-
-    private List<UserProfileResponse.PersonalLoginLogItem> queryRecentLogs(Long userId) {
-        try {
-            return jdbcTemplate.query(
-                    "SELECT id, login_ip, success, fail_reason, occurred_at FROM audit_login_log " +
-                    "WHERE user_id = ? ORDER BY id DESC LIMIT 10",
-                    (rs, rowNum) -> new UserProfileResponse.PersonalLoginLogItem(
-                            rs.getLong("id"),
-                            rs.getString("login_ip"),
-                            rs.getBoolean("success"),
-                            rs.getString("fail_reason"),
-                            rs.getTimestamp("occurred_at") != null ? rs.getTimestamp("occurred_at").toLocalDateTime() : null
-                    ),
-                    userId
-            );
-        } catch (Exception ignored) {
-            return List.of();
-        }
     }
 
     private static int calculateSecurityScore(UserEntity user, Long daysRemaining) {

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.saasbasics.platform.modules.tenant.mapper.PlatTenantMeteringMapper">
+
+    <select id="countActiveSeats" resultType="int">
+        SELECT COUNT(*) FROM iam_user WHERE tenant_id = #{tenantId} AND deleted = 0
+    </select>
+
+    <select id="sumStorageUsed" resultType="long">
+        SELECT COALESCE(SUM(file_size), 0) FROM plat_tenant_storage_sources WHERE tenant_id = #{tenantId}
+    </select>
+
+    <select id="countAuditCalls" resultType="long">
+        SELECT COUNT(*) FROM audit_operation_log WHERE tenant_id = #{tenantId}
+    </select>
+
+    <select id="countTodayAuditCalls" resultType="long">
+        SELECT COUNT(*) FROM audit_operation_log WHERE tenant_id = #{tenantId} AND occurred_at &gt;= CURRENT_DATE
+    </select>
+
+    <select id="sumUsage" resultType="long">
+        SELECT COALESCE(SUM(metric_value), 0) FROM plat_tenant_metering_log
+        WHERE tenant_id = #{tenantId} AND metering_type = #{type} AND deleted = 0
+        <if test="today">AND record_time &gt;= CURRENT_DATE</if>
+    </select>
+</mapper>

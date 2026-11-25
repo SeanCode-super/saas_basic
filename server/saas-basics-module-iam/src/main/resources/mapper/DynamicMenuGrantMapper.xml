@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.saasbasics.platform.modules.iam.mapper.DynamicMenuGrantMapper">
+    <insert id="registerActions">
+        INSERT INTO iam_api_resource (tenant_id, resource_code, resource_name, http_method, url_pattern, created_by, updated_by)
+        SELECT #{tenantId}, CONCAT('dynamic:', #{code}, ':', a.action), LEFT(CONCAT(#{name}, ' · ', a.label), 128),
+               a.method, CONCAT('/api/dynamic/', #{code}, a.suffix), #{actorId}, #{actorId}
+        FROM (
+            SELECT 'create' AS action, '新增' AS label, 'POST' AS method, '' AS suffix
+            UNION ALL SELECT 'update', '编辑', 'PUT', '/*'
+            UNION ALL SELECT 'delete', '删除', 'DELETE', '/*'
+        ) a
+        ON DUPLICATE KEY UPDATE status = 'ENABLED', updated_by = #{actorId}
+    </insert>
+    <insert id="grantToTenantAdministrators">
+        INSERT INTO iam_role_menu (tenant_id, role_id, menu_id, created_by, updated_by)
+        SELECT r.tenant_id, r.id, #{menuId}, #{actorId}, #{actorId}
+        FROM iam_role r
+        JOIN plat_tenant t ON t.id = r.tenant_id AND t.deleted = 0
+        WHERE r.tenant_id = #{tenantId} AND r.deleted = 0 AND r.status = 'ENABLED'
+          AND (r.role_code = 'TENANT_ADMIN' OR (r.is_system = 1 AND r.data_scope_type = 'ALL'
+              AND r.role_code IN ('platform_super_admin', CONCAT(t.tenant_code, '_super_admin'))))
+          AND NOT EXISTS (
+              SELECT 1 FROM iam_role_menu grant_record
+              WHERE grant_record.tenant_id = r.tenant_id AND grant_record.role_id = r.id
+                AND grant_record.menu_id = #{menuId} AND grant_record.deleted = 0
+          )
+    </insert>
+</mapper>

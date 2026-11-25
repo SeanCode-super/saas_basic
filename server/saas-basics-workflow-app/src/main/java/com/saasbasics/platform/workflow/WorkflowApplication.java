@@ -9,6 +9,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
         "com.saasbasics.platform.config",
         "com.saasbasics.platform.security",
         "com.saasbasics.platform.mask",
+        "com.saasbasics.platform.ratelimit",
         "com.saasbasics.platform.modules.workflow",
         "com.saasbasics.platform.workflow"
 })

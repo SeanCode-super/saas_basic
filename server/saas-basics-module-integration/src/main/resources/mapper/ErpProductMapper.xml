@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.saasbasics.platform.modules.erp.mapper.ErpProductMapper">
+    <select id="lockForUpdate" resultType="com.saasbasics.platform.modules.erp.entity.ErpProductEntity">
+        SELECT * FROM erp_product
+        WHERE tenant_id = #{tenantId} AND id = #{id} AND deleted = 0 AND status = 'ENABLED'
+        FOR UPDATE
+    </select>
+</mapper>

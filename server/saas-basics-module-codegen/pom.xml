@@ -28,8 +28,22 @@
         </dependency>
         <dependency>
             <groupId>com.baomidou</groupId>
-            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+            <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
             <version>${mybatis-plus.version}</version>
         </dependency>
     </dependencies>
+    <build>
+        <resources>
+            <resource><directory>src/main/resources</directory></resource>
+            <!-- Ship the same supported clients the host runs, so generated sources follow both terminals. -->
+            <resource>
+                <directory>../../web/src</directory><targetPath>codegen/project/web</targetPath>
+                <includes><include>views/industry/IndustryApplication.vue</include><include>api/modules/industry.ts</include></includes>
+            </resource>
+            <resource>
+                <directory>../../mobile/src</directory><targetPath>codegen/project/mobile</targetPath>
+                <includes><include>pages/industry/app.vue</include><include>api/industry.ts</include></includes>
+            </resource>
+        </resources>
+    </build>
 </project>

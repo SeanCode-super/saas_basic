@@ -77,13 +77,13 @@ public class ApiStatPersistenceService {
         flushNow();
     }
 
-    public int flushNow() {
+    public synchronized int flushNow() {
         PlatformApiCatalogService catalog = catalogProvider.getIfAvailable();
         ApiEndpointStatMapper mapper = statMapperProvider.getIfAvailable();
         if (catalog == null || mapper == null) {
             return 0;
         }
-        List<EndpointStatDelta> deltas = catalog.drainUnsyncedDeltas();
+        List<EndpointStatDelta> deltas = catalog.pendingDeltas();
         int flushed = 0;
         for (EndpointStatDelta delta : deltas) {
             try {
@@ -102,6 +102,7 @@ public class ApiStatPersistenceService {
                         delta.p99LatencyMs(),
                         delta.lastCalledAtEpochMs()
                 );
+                catalog.acknowledgePersisted(delta);
                 syncRedisClusterHash(delta);
                 flushed++;
             } catch (Exception ex) {

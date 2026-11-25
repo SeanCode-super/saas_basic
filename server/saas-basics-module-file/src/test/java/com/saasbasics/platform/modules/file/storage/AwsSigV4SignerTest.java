@@ -16,6 +16,15 @@ import org.junit.jupiter.api.Test;
 class AwsSigV4SignerTest {
 
     @Test
+    void presignedUploadSignatureBindsTheReservedContentLength() {
+        URI target = URI.create("https://example.test/bucket/object");
+        Instant now = Instant.parse("2025-01-01T00:00:00Z");
+        String first = AwsSigV4Signer.presignUrl("PUT", target, "id", "secret", "us-east-1", 300, now, 123L);
+        String other = AwsSigV4Signer.presignUrl("PUT", target, "id", "secret", "us-east-1", 300, now, 124L);
+        assertThat(first).contains("X-Amz-SignedHeaders=content-length%3Bhost").isNotEqualTo(other);
+    }
+
+    @Test
     void generatesDeterministicSigV4HeadersAndPresignedUrls() {
         URI uri = URI.create("https://s3.example.com/my-bucket/docs/report.pdf");
         Instant fixed = Instant.parse("2026-11-18T00:00:00Z");

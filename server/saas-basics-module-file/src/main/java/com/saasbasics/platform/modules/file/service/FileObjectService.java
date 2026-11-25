@@ -62,6 +62,10 @@ public class FileObjectService {
         }
     }
 
+    public void deleteFileRegistration(Long id) {
+        fileObjectMapperProvider.getObject().deleteById(id);
+    }
+
     public FileObjectEntity recordUploadedFile(Long tenantId,
                                                Long storageId,
                                                String objectKey,
@@ -91,9 +95,10 @@ public class FileObjectService {
         entity.setBizType(bizType);
         entity.setVersionNo(1);
         entity.setStatus("ACTIVE");
-        if (mapper != null) {
-            mapper.insert(entity);
+        if (mapper == null) {
+            throw new com.saasbasics.platform.common.exception.BizException("FILE_OBJECT_MAPPER_UNAVAILABLE", "文件目录不可用");
         }
+        mapper.insert(entity);
         return entity;
     }
 }

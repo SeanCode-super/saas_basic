@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.saasbasics.platform.modules.iam.mapper.RoleMenuMapper">
+
+    <select id="selectMenuIdsByRoleIds" resultType="java.lang.Long">
+        SELECT DISTINCT menu_id
+        FROM iam_role_menu
+        WHERE tenant_id = #{tenantId}
+          AND deleted = 0
+          AND role_id IN
+          <foreach item='id' collection='roleIds' open='(' separator=',' close=')'>
+            #{id}
+          </foreach>
+    </select>
+
+    <select id="selectButtonCodesByRoleIds" resultType="java.lang.String">
+        SELECT DISTINCT m.menu_code
+        FROM iam_menu m
+        INNER JOIN iam_role_menu rm ON m.id = rm.menu_id AND m.tenant_id = rm.tenant_id
+        WHERE rm.tenant_id = #{tenantId}
+          AND rm.deleted = 0
+          AND rm.role_id IN
+          <foreach item='id' collection='roleIds' open='(' separator=',' close=')'>
+            #{id}
+          </foreach>
+          AND m.menu_type = 'BUTTON'
+          AND m.status = 'ENABLED'
+          AND m.deleted = 0
+    </select>
+
+    <select id="selectMenuIdsByRoleId" resultType="java.lang.Long">
+        SELECT menu_id
+        FROM iam_role_menu
+        WHERE tenant_id = #{tenantId}
+          AND deleted = 0
+          AND role_id = #{roleId}
+    </select>
+
+    <update id="revokeByRoleId">
+        UPDATE iam_role_menu
+        SET deleted = 1, deleted_at = NOW(3), updated_at = NOW(3),
+            updated_by = COALESCE(#{actorId}, 0), version = version + 1
+        WHERE tenant_id = #{tenantId}
+          AND role_id = #{roleId} AND deleted = 0
+    </update>
+
+</mapper>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">
+<properties>
+    <entry key="receivablesByStatus">SELECT status AS dimension, COUNT(*) AS record_count, COALESCE(SUM(price), 0) AS total_amount FROM crm_receivable WHERE tenant_id = {tenantId} AND deleted = 0 GROUP BY status ORDER BY total_amount DESC LIMIT {maxRows}</entry>
+    <entry key="receivables">SELECT receivable_no, customer_name, contract_name, price, return_time, pay_type, status FROM crm_receivable WHERE tenant_id = {tenantId} AND deleted = 0 ORDER BY price DESC, id DESC LIMIT {maxRows}</entry>
+    <entry key="contractsByStatus">SELECT status AS dimension, COUNT(*) AS contract_count, COALESCE(SUM(total_price), 0) AS total_amount FROM crm_contract WHERE tenant_id = {tenantId} AND deleted = 0 GROUP BY status ORDER BY total_amount DESC LIMIT {maxRows}</entry>
+    <entry key="contracts">SELECT contract_no, name, customer_name, total_price, start_time, end_time, status, signer_user_name FROM crm_contract WHERE tenant_id = {tenantId} AND deleted = 0 ORDER BY total_price DESC, id DESC LIMIT {maxRows}</entry>
+    <entry key="dealsByStage">SELECT stage AS dimension, COUNT(*) AS deal_count, COALESCE(SUM(total_price), 0) AS expected_amount, ROUND(AVG(win_rate), 1) AS avg_win_rate FROM crm_business WHERE tenant_id = {tenantId} AND deleted = 0 GROUP BY stage ORDER BY expected_amount DESC LIMIT {maxRows}</entry>
+    <entry key="deals">SELECT business_code, name, customer_name, total_price, stage, win_rate, deal_date, owner_user_name FROM crm_business WHERE tenant_id = {tenantId} AND deleted = 0 ORDER BY total_price DESC LIMIT {maxRows}</entry>
+    <entry key="leadsBySource">SELECT source AS dimension, COUNT(*) AS clue_count FROM crm_clue WHERE tenant_id = {tenantId} AND deleted = 0 GROUP BY source ORDER BY clue_count DESC LIMIT {maxRows}</entry>
+    <entry key="leads">SELECT id, name, contact_name, mobile, source, status, owner_user_name, created_at FROM crm_clue WHERE tenant_id = {tenantId} AND deleted = 0 ORDER BY id DESC LIMIT {maxRows}</entry>
+    <entry key="stockByProduct">SELECT p.product_code, p.product_name, p.category, COALESCE(SUM(i.stock_quantity), 0) AS total_stock, p.min_stock, p.sale_price FROM erp_product p LEFT JOIN erp_inventory i ON i.product_id = p.id AND i.tenant_id = {tenantId} WHERE p.tenant_id = {tenantId} AND p.deleted = 0 GROUP BY p.id, p.product_code, p.product_name, p.category, p.min_stock, p.sale_price ORDER BY total_stock DESC LIMIT {maxRows}</entry>
+    <entry key="products">SELECT product_code, product_name, category, specification, purchase_price, sale_price, min_stock, status FROM erp_product WHERE tenant_id = {tenantId} AND deleted = 0 ORDER BY sale_price DESC LIMIT {maxRows}</entry>
+    <entry key="purchaseOrders">SELECT order_no, supplier_name, total_amount, status, created_at FROM erp_purchase_order WHERE tenant_id = {tenantId} AND deleted = 0 ORDER BY id DESC LIMIT {maxRows}</entry>
+    <entry key="salesOrders">SELECT order_no, customer_name, total_amount, status, created_at FROM erp_sale_order WHERE tenant_id = {tenantId} AND deleted = 0 ORDER BY total_amount DESC, id DESC LIMIT {maxRows}</entry>
+    <entry key="exportTasks">SELECT task_no, task_name, source_code, export_format, total_rows, status, operator_name, created_at FROM sys_export_task WHERE tenant_id = {tenantId} AND deleted = 0 ORDER BY id DESC LIMIT {maxRows}</entry>
+    <entry key="auditByModule">SELECT biz_module AS dimension, COUNT(*) AS event_count, ROUND(AVG(duration_ms), 1) AS avg_ms FROM audit_operation_log WHERE tenant_id = {tenantId} GROUP BY biz_module ORDER BY event_count DESC LIMIT {maxRows}</entry>
+    <entry key="auditEvents">SELECT id, operator_name, biz_module, biz_type, operation_type, success, duration_ms, occurred_at FROM audit_operation_log WHERE tenant_id = {tenantId} ORDER BY id DESC LIMIT {maxRows}</entry>
+    <entry key="users">SELECT id, user_code, username, nickname, user_type, status, mobile, email, last_login_at FROM iam_user WHERE tenant_id = {tenantId} AND deleted = 0 ORDER BY id ASC LIMIT {maxRows}</entry>
+    <entry key="customersByIndustry">SELECT industry AS dimension, COUNT(*) AS customer_count, SUM(deal_status) AS deal_count FROM crm_customer WHERE tenant_id = {tenantId} AND deleted = 0 GROUP BY industry ORDER BY customer_count DESC LIMIT {maxRows}</entry>
+    <entry key="customers">SELECT customer_code, name, industry, level, mobile, email, deal_status, is_pool, owner_user_name, created_at FROM crm_customer WHERE tenant_id = {tenantId} AND deleted = 0{poolFilter}{levelFilter} ORDER BY id DESC LIMIT {maxRows}</entry>
+    <entry key="poolFilter"> AND is_pool = 1 </entry>
+    <entry key="levelFilter"> AND level = 'A' </entry>
+</properties>

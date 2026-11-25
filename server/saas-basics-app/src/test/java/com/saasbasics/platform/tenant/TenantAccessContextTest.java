@@ -47,6 +47,12 @@ class TenantAccessContextTest {
                 .extracting("code")
                 .isEqualTo("TENANT_BYPASS_FORBIDDEN");
 
+        AuthContext.set(new AuthPrincipal(1L, 73L, "customer", 500L, "admin", "Admin", "PLATFORM",
+                "ONLINE", null, List.of("*"), List.of(), List.of(), List.of()));
+        assertThatThrownBy(() -> TenantAccessContextHolder.openPlatformBypass("tenant:write",
+                TenantAccessContext.BypassOperation.TENANT_BOOTSTRAP, "cross-tenant bootstrap"))
+                .isInstanceOf(BizException.class).extracting("code").isEqualTo("TENANT_BYPASS_FORBIDDEN");
+
         AuthContext.set(principal("PLATFORM", List.of("tenant:query")));
         assertThatThrownBy(() -> TenantAccessContextHolder.openPlatformBypass(
                 "tenant:write",

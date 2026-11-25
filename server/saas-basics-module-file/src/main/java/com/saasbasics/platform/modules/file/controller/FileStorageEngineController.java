@@ -19,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -44,6 +45,7 @@ public class FileStorageEngineController {
     @PostMapping("/raw-upload")
     public ApiResponse<Map<String, Object>> uploadFile(
             @RequestParam("file") MultipartFile file,
+            @RequestHeader(value = "Idempotency-Key", required = false) String requestKey,
             @RequestParam(required = false, defaultValue = "COMMON") String bizType) throws IOException {
 
         if (file.isEmpty()) {
@@ -57,7 +59,7 @@ public class FileStorageEngineController {
                 bizType,
                 file.getOriginalFilename(),
                 file.getContentType(),
-                file.getBytes()
+                file.getBytes(), requestKey
         );
 
         return ApiResponse.success(Map.ofEntries(

@@ -13,6 +13,7 @@ public record DatasourceResponse(
         String username,
         String testStatus,
         String status,
-        String remark
+        String remark,
+        java.time.LocalDateTime lastTestedAt
 ) {
 }

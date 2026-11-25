@@ -1,5 +1,7 @@
 package com.saasbasics.platform.modules.codegen.service;
 
+import com.saasbasics.platform.modules.codegen.domain.DynamicSchemaIdentifiers;
+
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.saasbasics.platform.common.api.PageResponse;
 import com.saasbasics.platform.common.auth.AuthContext;
@@ -17,8 +19,9 @@ import com.saasbasics.platform.modules.codegen.entity.DynamicModelEntity;
 import com.saasbasics.platform.modules.codegen.mapper.DynamicFieldMapper;
 import com.saasbasics.platform.modules.codegen.mapper.DynamicModelMapper;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
+import com.saasbasics.platform.modules.codegen.mapper.CodegenSchemaMapper;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Service;
@@ -40,6 +43,8 @@ public class DynamicDataService {
     private final ObjectProvider<DynamicModelMapper> modelMapperProvider;
     private final ObjectProvider<DynamicFieldMapper> fieldMapperProvider;
     private final JdbcTemplate jdbcTemplate;
+    private final CodegenSchemaMapper schema;
+    private final com.saasbasics.platform.common.tenant.DynamicApplicationMenus menus;
     private final ObjectProvider<DataPermissionProvider> dataPermissionProvider;
     private final ObjectProvider<CurrentDepartmentResolver> departmentResolverProvider;
     private final Set<String> deptReadyTables = ConcurrentHashMap.newKeySet();
@@ -47,22 +52,17 @@ public class DynamicDataService {
     public DynamicDataService(
             ObjectProvider<DynamicModelMapper> modelMapperProvider,
             ObjectProvider<DynamicFieldMapper> fieldMapperProvider,
-            JdbcTemplate jdbcTemplate
-    ) {
-        this(modelMapperProvider, fieldMapperProvider, jdbcTemplate, null, null);
-    }
-
-    @Autowired
-    public DynamicDataService(
-            ObjectProvider<DynamicModelMapper> modelMapperProvider,
-            ObjectProvider<DynamicFieldMapper> fieldMapperProvider,
             JdbcTemplate jdbcTemplate,
+            CodegenSchemaMapper schema,
+            com.saasbasics.platform.common.tenant.DynamicApplicationMenus menus,
             ObjectProvider<DataPermissionProvider> dataPermissionProvider,
             ObjectProvider<CurrentDepartmentResolver> departmentResolverProvider
     ) {
         this.modelMapperProvider = modelMapperProvider;
         this.fieldMapperProvider = fieldMapperProvider;
         this.jdbcTemplate = jdbcTemplate;
+        this.schema = schema;
+        this.menus = menus;
         this.dataPermissionProvider = dataPermissionProvider;
         this.departmentResolverProvider = departmentResolverProvider;
     }
@@ -156,14 +156,9 @@ public class DynamicDataService {
         // Query records
         int page = request.getPage();
         int size = request.getSize();
-        int offset = (page - 1) * size;
+        long offset = (long) (page - 1) * size;
 
-        StringBuilder selectCols = new StringBuilder("id, tenant_id, dept_id, created_by, created_at, updated_by, updated_at");
-        for (DynamicFieldEntity f : fields) {
-            selectCols.append(", `").append(f.getFieldCode()).append("`");
-        }
-
-        String baseDataSql = "SELECT " + selectCols + " FROM `" + tableName + "`" + whereSql;
+        String baseDataSql = "SELECT " + selectColumns(fields) + " FROM `" + tableName + "`" + whereSql;
         String dataSql = applyDynamicDataScope(baseDataSql, modelCode, tableName) + " ORDER BY id DESC LIMIT ? OFFSET ?";
 
         List<Object> queryArgs = new ArrayList<>(args);
@@ -174,6 +169,15 @@ public class DynamicDataService {
         return new PageResponse<>(records, total);
     }
 
+    private String selectColumns(List<DynamicFieldEntity> fields) {
+        StringBuilder selectCols = new StringBuilder("id, tenant_id, dept_id, created_by, created_at, updated_by, updated_at");
+        for (DynamicFieldEntity f : fields) {
+            selectCols.append(", `").append(f.getFieldCode()).append("`");
+        }
+
+        return selectCols.toString();
+    }
+
     public Map<String, Object> getById(String modelCode, Long id) {
         Long tenantId = currentTenantId();
         DynamicModelEntity model = findModel(tenantId, modelCode);
@@ -181,8 +185,9 @@ public class DynamicDataService {
         validateCode(tableName);
         ensureDeptColumn(tableName);
 
+        var fields = findFields(tenantId, model.getId());
         String sql = applyDynamicDataScope(
-                "SELECT * FROM `" + tableName + "` WHERE id = ? AND tenant_id = ? AND deleted = 0",
+                "SELECT " + selectColumns(fields) + " FROM `" + tableName + "` WHERE id = ? AND tenant_id = ? AND deleted = 0",
                 modelCode,
                 tableName
         );
@@ -195,6 +200,7 @@ public class DynamicDataService {
 
     @Transactional
     public Long createRecord(String modelCode, Map<String, Object> data) {
+        requireAction(modelCode, "create");
         Long tenantId = currentTenantId();
         Long userId = currentUserId();
         Long deptId = resolveCurrentDeptId(tenantId, userId);
@@ -209,7 +215,7 @@ public class DynamicDataService {
                 .collect(Collectors.toMap(DynamicFieldEntity::getFieldCode, f -> f));
 
         List<String> insertCols = new ArrayList<>(List.of("tenant_id", "created_by", "dept_id", "updated_by", "created_at", "updated_at", "deleted", "version"));
-        List<Object> insertVals = new ArrayList<>(List.of(tenantId, userId, deptId, userId, LocalDateTime.now(), LocalDateTime.now(), 0, 0));
+        List<Object> insertVals = new ArrayList<>(Arrays.asList(tenantId, userId, deptId, userId, LocalDateTime.now(), LocalDateTime.now(), 0, 0));
 
         for (Map.Entry<String, Object> entry : data.entrySet()) {
             String col = entry.getKey();
@@ -233,11 +239,16 @@ public class DynamicDataService {
         }, keyHolder);
 
         Number key = keyHolder.getKey();
-        return key != null ? key.longValue() : 0L;
+        if (key == null) throw new IllegalStateException("数据库没有返回动态记录主键");
+        if (!AuthContext.requirePrincipal().isSuperAdmin()) {
+            assertRecordVisible(modelCode, tableName, key.longValue(), tenantId);
+        }
+        return key.longValue();
     }
 
     @Transactional
     public void updateRecord(String modelCode, Long id, Map<String, Object> data) {
+        requireAction(modelCode, "update");
         Long tenantId = currentTenantId();
         Long userId = currentUserId();
         DynamicModelEntity model = findModel(tenantId, modelCode);
@@ -287,13 +298,13 @@ public class DynamicDataService {
         String tableName = model.getTableName();
         validateCode(tableName);
 
-        Integer count = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM `" + tableName + "` WHERE tenant_id = ? AND deleted = 0",
-                Integer.class,
-                tenantId
-        );
+        ensureDeptColumn(tableName);
+        String countSql = "SELECT COUNT(*) FROM `" + tableName + "` WHERE tenant_id = ? AND deleted = 0";
+        String visibleCountSql = applyDynamicDataScope(countSql, modelCode, tableName);
+        Integer count = jdbcTemplate.queryForObject(countSql, Integer.class, tenantId);
         if (count != null && count > 0) {
-            return count;
+            if (countSql.equals(visibleCountSql)) return count;
+            return Objects.requireNonNull(jdbcTemplate.queryForObject(visibleCountSql, Integer.class, tenantId));
         }
 
         List<Map<String, Object>> samples = generateDefaultSamples(modelCode, fields);
@@ -305,6 +316,7 @@ public class DynamicDataService {
 
     @Transactional
     public int batchImportRecords(String modelCode, List<Map<String, Object>> records) {
+        requireAction(modelCode, "create");
         if (records == null || records.isEmpty()) return 0;
         int count = 0;
         for (Map<String, Object> record : records) {
@@ -393,6 +405,7 @@ public class DynamicDataService {
 
     @Transactional
     public void deleteRecord(String modelCode, Long id) {
+        requireAction(modelCode, "delete");
         Long tenantId = currentTenantId();
         DynamicModelEntity model = findModel(tenantId, modelCode);
         String tableName = model.getTableName();
@@ -406,6 +419,7 @@ public class DynamicDataService {
 
     @Transactional
     public void batchDeleteRecords(String modelCode, List<Long> ids) {
+        requireAction(modelCode, "delete");
         if (ids == null || ids.isEmpty()) return;
         Long tenantId = currentTenantId();
         DynamicModelEntity model = findModel(tenantId, modelCode);
@@ -422,7 +436,7 @@ public class DynamicDataService {
         List<Object> visArgs = new ArrayList<>();
         visArgs.add(tenantId);
         visArgs.addAll(ids);
-        List<Long> allowedIds = jdbcTemplate.queryForList(visibleQuery, Long.class, visArgs.toArray());
+        List<Long> allowedIds = jdbcTemplate.queryForList(visibleQuery + " ORDER BY id FOR UPDATE", Long.class, visArgs.toArray());
         if (allowedIds.isEmpty()) {
             throw new BizException("RECORD_NOT_FOUND", "待删除记录不存在或不在当前数据权限范围内");
         }
@@ -444,23 +458,20 @@ public class DynamicDataService {
                 modelCode,
                 tableName
         );
-        List<Long> found = jdbcTemplate.queryForList(checkSql, Long.class, id, tenantId);
+        List<Long> found = jdbcTemplate.queryForList(checkSql + " FOR UPDATE", Long.class, id, tenantId);
         if (found.isEmpty()) {
             throw new BizException("RECORD_NOT_FOUND", "记录不存在或不在当前部门数据权限范围内");
         }
     }
 
     private String applyDynamicDataScope(String sql, String modelCode, String tableName) {
-        DataPermissionProvider provider = dataPermissionProvider != null ? dataPermissionProvider.getIfAvailable() : null;
-        if (provider == null) {
+        AuthPrincipal principal = AuthContext.requirePrincipal();
+        if (principal.isSuperAdmin()) {
             return sql;
         }
-        AuthPrincipal principal = AuthContext.get();
-        if (principal == null || principal.isSuperAdmin()) {
-            return sql;
-        }
-        DataPermissionSqlSpec spec = provider.resolveDataPermission("dynamic:" + modelCode);
-        if (spec == null || spec.isAllowAll()) {
+        DataPermissionSqlSpec spec = dataPermissionProvider.getObject().resolveDataPermission("dynamic:" + modelCode);
+        if (spec == null) throw new BizException("DATA_PERMISSION_DENIED", "未取得该动态应用的数据权限");
+        if (spec.isAllowAll()) {
             return sql;
         }
         if (spec.isDenyAll()) {
@@ -477,22 +488,23 @@ public class DynamicDataService {
     }
 
     private void ensureDeptColumn(String tableName) {
-        if (deptReadyTables.contains(tableName)) {
-            return;
-        }
-        try {
-            Integer exists = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(1) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? AND column_name = 'dept_id'",
-                    Integer.class,
-                    tableName
-            );
-            if (exists != null && exists == 0) {
-                jdbcTemplate.execute("ALTER TABLE `" + tableName + "` ADD COLUMN `dept_id` BIGINT UNSIGNED DEFAULT NULL COMMENT '归属部门ID' AFTER `created_by`, ADD INDEX `idx_tenant_dept` (`tenant_id`, `dept_id`)");
+        String key = currentTenantId() + ":" + tableName;
+        if (deptReadyTables.contains(key)) return;
+        if (!hasDepartmentColumn(tableName)) {
+            try {
+                jdbcTemplate.execute("ALTER TABLE `" + tableName + "` ADD COLUMN `dept_id` BIGINT UNSIGNED DEFAULT NULL "
+                        + "COMMENT '归属部门ID' AFTER `created_by`, ADD INDEX `idx_tenant_dept` (`tenant_id`, `dept_id`)");
+            } catch (DataAccessException e) {
+                // Another backend can initialize this same physical table before our ALTER acquires its lock.
+                if (!hasDepartmentColumn(tableName)) throw e;
             }
-            deptReadyTables.add(tableName);
-        } catch (Exception ignored) {
-            // 兼容单元测试中的 Mock JdbcTemplate 或非 MySQL 方言
         }
+        deptReadyTables.add(key);
+    }
+
+    private boolean hasDepartmentColumn(String tableName) {
+        return schema.selectDbColumns(tableName).stream()
+                .anyMatch(column -> "dept_id".equalsIgnoreCase(column.columnName()));
     }
 
     private Long resolveCurrentDeptId(Long tenantId, Long userId) {
@@ -500,6 +512,15 @@ public class DynamicDataService {
                 ? departmentResolverProvider.getIfAvailable()
                 : null;
         return resolver != null ? resolver.resolveDepartmentId(tenantId, userId) : null;
+    }
+
+    private void requireAction(String modelCode, String action) {
+        var principal = AuthContext.requirePrincipal();
+        var permissions = principal.permissions();
+        if (!principal.isSuperAdmin() && (permissions == null
+                || !(permissions.contains("codegen:project:write") || permissions.contains("dynamic:" + modelCode + ":" + action)))) {
+            throw new BizException("AUTH_FORBIDDEN", "当前角色没有此应用的操作权限");
+        }
     }
 
     private DynamicModelEntity findModel(Long tenantId, String modelCode) {
@@ -510,30 +531,29 @@ public class DynamicDataService {
         DynamicModelEntity entity = mapper.selectOne(new LambdaQueryWrapper<DynamicModelEntity>()
                 .eq(DynamicModelEntity::getTenantId, tenantId)
                 .eq(DynamicModelEntity::getModelCode, modelCode)
-                .eq(DynamicModelEntity::getDeleted, 0));
+                .eq(DynamicModelEntity::getStatus, "PUBLISHED").eq(DynamicModelEntity::getDeleted, 0));
 
         if (entity == null) {
             throw new BizException("MODEL_NOT_FOUND", "应用模型【" + modelCode + "】不存在或尚未发布");
         }
-        assertSafeDynamicTable(entity.getTableName());
-        return entity;
-    }
-
-    private void assertSafeDynamicTable(String tableName) {
-        validateCode(tableName);
-        if (tableName == null || !tableName.startsWith("biz_dyn_")) {
-            throw new BizException("UNSAFE_DYNAMIC_TABLE", "非法动态业务表前缀: " + tableName);
+        if (entity.getMenuId() == null || !menus.canOpen(entity.getMenuId())) {
+            throw new BizException("AUTH_FORBIDDEN", "该应用已停用或当前账号无权进入");
         }
+        DynamicSchemaIdentifiers.requireTable(tenantId, entity.getTableName());
+        return entity;
     }
 
     private List<DynamicFieldEntity> findFields(Long tenantId, Long modelId) {
         DynamicFieldMapper mapper = fieldMapperProvider.getIfAvailable();
         if (mapper == null) throw new BizException("SYSTEM_ERROR", "DynamicFieldMapper unavailable");
 
-        return mapper.selectList(new LambdaQueryWrapper<DynamicFieldEntity>()
+        var fields = mapper.selectList(new LambdaQueryWrapper<DynamicFieldEntity>()
+                .eq(DynamicFieldEntity::getTenantId, tenantId)
                 .eq(DynamicFieldEntity::getModelId, modelId)
                 .eq(DynamicFieldEntity::getDeleted, 0)
                 .orderByAsc(DynamicFieldEntity::getSortNo));
+        fields.forEach(field -> DynamicSchemaIdentifiers.requireBusinessField(field.getFieldCode()));
+        return fields;
     }
 
     private DynamicFieldDto toFieldDto(DynamicFieldEntity entity) {
@@ -560,12 +580,10 @@ public class DynamicDataService {
     }
 
     private Long currentTenantId() {
-        AuthPrincipal principal = AuthContext.get();
-        return principal != null && principal.tenantId() != null ? principal.tenantId() : 1L;
+        return AuthContext.requirePrincipal().tenantId();
     }
 
     private Long currentUserId() {
-        AuthPrincipal principal = AuthContext.get();
-        return principal != null && principal.userId() != null ? principal.userId() : 1L;
+        return AuthContext.requirePrincipal().userId();
     }
 }

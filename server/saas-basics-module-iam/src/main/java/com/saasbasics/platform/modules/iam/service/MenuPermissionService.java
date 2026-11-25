@@ -155,7 +155,7 @@ public class MenuPermissionService {
             }
         }
 
-        roleMenuMapper.deleteByRoleId(tenantId, roleId);
+        roleMenuMapper.revokeByRoleId(tenantId, roleId, AuthContext.getUserId());
         for (Long menuId : targetIds) {
             roleMenuMapper.insert(new RoleMenuEntity(tenantId, roleId, menuId));
         }
@@ -185,7 +185,7 @@ public class MenuPermissionService {
                 .filter(menu -> tenantId.equals(menu.tenantId()))
                 .collect(Collectors.toMap(MenuResponse::id, item -> item));
 
-        requiredMapper().deleteSubjectGrants(tenantId, subjectType, subjectValue);
+        requiredMapper().deleteSubjectGrants(tenantId, subjectType, subjectValue, AuthContext.getUserId());
         LinkedHashSet<Long> processedMenus = new LinkedHashSet<>();
         LinkedHashSet<Long> atomicMenuIds = new LinkedHashSet<>();
 
@@ -236,7 +236,7 @@ public class MenuPermissionService {
                 Long roleId = Long.parseLong(subjectValue);
                 RoleMenuMapper roleMenuMapper = roleMenuMapperProvider.getIfAvailable();
                 if (roleMenuMapper != null) {
-                    roleMenuMapper.deleteByRoleId(tenantId, roleId);
+                    roleMenuMapper.revokeByRoleId(tenantId, roleId, AuthContext.getUserId());
                     for (Long menuId : atomicMenuIds) {
                         roleMenuMapper.insert(new RoleMenuEntity(tenantId, roleId, menuId));
                     }
@@ -297,7 +297,8 @@ public class MenuPermissionService {
                     .stream()
                     .filter(menu -> matchesTenantMenuOwnership(principal.tenantId(), menu, hasOwnTenantMenus))
                     .filter(menu -> "ENABLED".equalsIgnoreCase(menu.status()))
-                    .filter(menu -> isMenuAllowedForTenant(menu, effectiveFeatures))
+                    .filter(menu -> isMenuAllowedForTenant(menu, effectiveFeatures, principal.tenantId()))
+                    .map(menu -> localizeTenantMenu(menu, principal.tenantId()))
                     .toList();
         }
 
@@ -329,14 +330,16 @@ public class MenuPermissionService {
                 .stream()
                 .filter(menu -> matchesTenantMenuOwnership(principal.tenantId(), menu, hasOwnTenantMenus))
                 .filter(menu -> "ENABLED".equalsIgnoreCase(menu.status()))
-                .filter(menu -> menu.permissionCode() == null || principal.permissions().contains(menu.permissionCode()))
-                .filter(menu -> isMenuAllowedForTenant(menu, effectiveFeatures))
+                .filter(menu -> menu.permissionCode() == null || principal.permissions().contains(menu.permissionCode())
+                        || (grantedMenuIds.contains(menu.id()) && isDynamicModelMenu(menu)))
+                .filter(menu -> isMenuAllowedForTenant(menu, effectiveFeatures, principal.tenantId()))
+                .map(menu -> localizeTenantMenu(menu, principal.tenantId()))
                 .toList();
 
         // 3. 兜底回退：如果角色菜单映射未单独配置，但账号拥有权限码，自动激活权限码对应菜单
         if (grantedMenuIds.isEmpty() && principal.permissions() != null && !principal.permissions().isEmpty()) {
             for (MenuResponse menu : allMenus) {
-                if (menu.permissionCode() != null && principal.permissions().contains(menu.permissionCode())) {
+                if (!isDynamicModelMenu(menu) && menu.permissionCode() != null && principal.permissions().contains(menu.permissionCode())) {
                     grantedMenuIds.add(menu.id());
                 }
             }
@@ -362,11 +365,33 @@ public class MenuPermissionService {
         return allMenus.stream().filter(menu -> visibleIds.contains(menu.id())).toList();
     }
 
-    private boolean isMenuAllowedForTenant(MenuResponse menu, Set<String> effectiveFeatures) {
+    private MenuResponse localizeTenantMenu(MenuResponse menu, Long tenantId) {
+        if (tenantId != null && tenantId > 1L && "dashboard".equalsIgnoreCase(menu.menuCode()) && "平台总览".equals(menu.menuName())) {
+            return new MenuResponse(
+                    menu.id(), menu.tenantId(), menu.parentId(), menu.menuType(), menu.menuCode(),
+                    menu.appCode(), "工作台", menu.routePath(), menu.activeMenu(), menu.redirect(),
+                    menu.componentPath(), menu.componentName(), menu.permissionCode(), menu.icon(),
+                    menu.visible(), menu.keepAlive(), menu.isFrame(), menu.frameSrc(), menu.isAffix(),
+                    menu.sortNo(), menu.status(), menu.metaJson(), menu.remark()
+            );
+        }
+        return menu;
+    }
+
+    private static boolean isDynamicModelMenu(MenuResponse menu) {
+        return menu.routePath() != null && menu.routePath().startsWith("/dynamic/")
+                && menu.permissionCode() != null && menu.permissionCode().startsWith("dynamic:");
+    }
+
+    private boolean isMenuAllowedForTenant(MenuResponse menu, Set<String> effectiveFeatures, Long tenantId) {
+        String appCode = menu.appCode();
+        // 平台专属应用（如 tenant 多租户中心）：非平台租户 (tenantId > 1) 严禁访问
+        if (tenantId != null && tenantId > 1L && "tenant".equalsIgnoreCase(appCode)) {
+            return false;
+        }
         if (effectiveFeatures.contains("*")) {
             return true;
         }
-        String appCode = menu.appCode();
         if (appCode == null || appCode.isBlank() || "dashboard".equalsIgnoreCase(appCode.trim())) {
             return true;
         }
@@ -427,7 +452,7 @@ public class MenuPermissionService {
 
     private void syncRoleMenuPermissionTable(Long tenantId, Long roleId, Set<Long> grantedIds, Map<Long, MenuResponse> allMenus) {
         MenuPermissionMapper mapper = requiredMapper();
-        mapper.deleteSubjectGrants(tenantId, "ROLE", String.valueOf(roleId));
+        mapper.deleteSubjectGrants(tenantId, "ROLE", String.valueOf(roleId), AuthContext.getUserId());
 
         // 按页面汇总按钮
         Map<Long, List<String>> pageButtons = new LinkedHashMap<>();

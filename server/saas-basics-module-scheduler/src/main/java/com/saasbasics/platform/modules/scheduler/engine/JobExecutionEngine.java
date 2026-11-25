@@ -26,6 +26,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import jakarta.annotation.PreDestroy;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -90,6 +91,13 @@ public class JobExecutionEngine {
         this.taskScheduler.setPoolSize(10);
         this.taskScheduler.setThreadNamePrefix("saas-sched-worker-");
         this.taskScheduler.initialize();
+    }
+
+    @PreDestroy
+    public synchronized void shutdown() {
+        activeSchedules.values().forEach(task -> task.cancel(false));
+        activeSchedules.clear();
+        taskScheduler.shutdown();
     }
 
     @EventListener(ApplicationReadyEvent.class)

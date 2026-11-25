@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.saasbasics.platform.modules.file.mapper.FileAccessLogMapper">
+    <select id="selectLogList" resultType="com.saasbasics.platform.modules.file.dto.FileAccessLogResponse">
+        SELECT
+          id,
+          tenant_id AS tenantId,
+          file_id AS fileId,
+          access_type AS accessType,
+          operator_user_id AS operatorUserId,
+          operator_ip AS operatorIp,
+          success,
+          occurred_at AS occurredAt,
+          remark
+        FROM file_access_log
+        ORDER BY occurred_at DESC, id DESC
+        LIMIT 200
+    </select>
+</mapper>

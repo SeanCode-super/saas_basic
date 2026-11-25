@@ -11,6 +11,11 @@ public class WorkflowTaskEntity extends BaseTenantEntity {
     @TableField("instance_id")
     private Long instanceId;
 
+    private Long returnSourceTaskId;
+
+    public Long getReturnSourceTaskId() { return returnSourceTaskId; }
+    public void setReturnSourceTaskId(Long id) { returnSourceTaskId = id; }
+
     @TableField("node_id")
     private String nodeId;
 

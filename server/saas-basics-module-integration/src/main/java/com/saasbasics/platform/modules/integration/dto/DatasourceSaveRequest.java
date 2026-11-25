@@ -13,7 +13,7 @@ public record DatasourceSaveRequest(
         Integer port,
         String databaseName,
         String username,
-        @NotBlank String testStatus,
+        String testStatus,
         @NotBlank String status,
         String remark
 ) {

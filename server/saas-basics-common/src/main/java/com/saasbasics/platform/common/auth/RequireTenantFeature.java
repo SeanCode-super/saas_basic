@@ -19,6 +19,9 @@ public @interface RequireTenantFeature {
      */
     String value();
 
+    /** Positive for an explicitly installed application, with the minimum tenant revision. */
+    int installedRevision() default 0;
+
     /**
      * 未开通时的友好提示
      */

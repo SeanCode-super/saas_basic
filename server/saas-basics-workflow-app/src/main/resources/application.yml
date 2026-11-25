@@ -1,12 +1,20 @@
 spring:
   application:
     name: saas-basics-workflow-app
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${DB_NAME:saas_basics}?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false
-    username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:root}
-  jackson:
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  http:
+    converters:
+      preferred-json-mapper: jackson2
+  jackson2:
     default-property-inclusion: non_null
     serialization:
       write-dates-as-timestamps: false

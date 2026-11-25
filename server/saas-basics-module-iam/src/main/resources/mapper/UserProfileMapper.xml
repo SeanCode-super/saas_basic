@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.saasbasics.platform.modules.iam.mapper.UserProfileMapper">
+    <select id="tenantName" resultType="string">
+        SELECT tenant_name FROM plat_tenant WHERE id = #{tenantId} AND deleted = 0
+    </select>
+    <sql id="currentUserRoles">
+        FROM iam_user_role ur JOIN iam_role r ON r.id = ur.role_id AND r.tenant_id = ur.tenant_id
+        WHERE ur.tenant_id = #{tenantId} AND ur.user_id = #{userId} AND ur.deleted = 0 AND r.deleted = 0
+          AND r.status = 'ENABLED'
+    </sql>
+    <select id="roleNames" resultType="string">
+        SELECT r.role_name <include refid="currentUserRoles"/> ORDER BY r.sort_no, r.id
+    </select>
+    <select id="dataScopes" resultType="com.saasbasics.platform.modules.iam.dto.UserProfileResponse$DataScopeSummaryItem">
+        SELECT r.role_name, COALESCE(r.data_scope_type, 'SELF') AS scope_code,
+               COALESCE((SELECT CASE WHEN COUNT(*) = 1 THEN MIN(ds.scope_name) END
+                         FROM iam_data_scope ds WHERE ds.tenant_id = r.tenant_id AND ds.deleted = 0
+                           AND ds.status = 'ENABLED' AND ds.scope_type = COALESCE(r.data_scope_type, 'SELF')),
+                        r.data_scope_type, 'SELF') AS scope_name,
+               COALESCE(r.data_scope_type, 'SELF') AS scope_type
+        <include refid="currentUserRoles"/> ORDER BY r.sort_no, r.id
+    </select>
+    <select id="identities" resultType="com.saasbasics.platform.modules.iam.dto.UserProfileResponse$IdentityBindingItem">
+        SELECT identity_type, identifier, verified, status, bound_at
+        FROM iam_user_identity WHERE tenant_id = #{tenantId} AND user_id = #{userId} AND deleted = 0 ORDER BY id
+    </select>
+    <select id="employee" resultType="com.saasbasics.platform.modules.iam.mapper.UserProfileMapper$EmployeeDetails">
+        SELECT e.employee_no, e.employee_name, e.dept_id, d.dept_name, d.dept_full_name,
+               e.position_id, p.position_name, e.hire_date, e.employee_status
+        FROM iam_employee e
+        LEFT JOIN iam_department d ON d.id = e.dept_id AND d.tenant_id = e.tenant_id AND d.deleted = 0
+        LEFT JOIN iam_position p ON p.id = e.position_id AND p.tenant_id = e.tenant_id AND p.deleted = 0
+        WHERE e.tenant_id = #{tenantId} AND e.id = #{employeeId} AND e.deleted = 0
+    </select>
+    <select id="recentLogs" resultType="com.saasbasics.platform.modules.iam.dto.UserProfileResponse$PersonalLoginLogItem">
+        SELECT id, login_ip, success, fail_reason, occurred_at FROM audit_login_log
+        WHERE tenant_id = #{tenantId} AND user_id = #{userId} ORDER BY id DESC LIMIT 10
+    </select>
+</mapper>

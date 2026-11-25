@@ -1,0 +1,217 @@
+{
+  "code": "matrix_push",
+  "name": "矩阵发",
+  "description": "设备、素材、账号、发布任务和发布结果管理",
+  "revision": 1,
+  "roles": [
+    "设备操作员查看获准设备、素材和账号",
+    "任务管理员为获准设备创建任务",
+    "企业管理员查看本企业发布结果"
+  ],
+  "workflow": [
+    "选择设备和素材",
+    "创建发布任务",
+    "设备领取并执行",
+    "回传进度和发布结果"
+  ],
+  "decisions": [
+    "结果列表原接口按企业查询，仅授权可查看全企业数据的账号；个人可见范围需在原业务服务实现。",
+    "设备登记的企业归属、批量任务的设备归属与配额需在原服务核实后，再向真实租户授予写权限。",
+    "设备心跳、素材上传、运营后台和支付沿用原服务，当前蓝图覆盖企业工作台五个页面。"
+  ],
+  "pages": [
+    {
+      "key": "devices",
+      "label": "设备",
+      "evidence": "src/main/java/com/matrixpush/controller/DeviceController.java",
+      "path": "/api/devices",
+      "rowsAt": "data",
+      "columns": [
+        {
+          "key": "id",
+          "label": "设备 ID",
+          "type": "number",
+          "source": "id"
+        },
+        {
+          "key": "name",
+          "label": "设备名称",
+          "type": "text",
+          "source": "deviceName"
+        },
+        {
+          "key": "number",
+          "label": "设备编号",
+          "type": "text",
+          "source": "deviceNo"
+        },
+        {
+          "key": "state",
+          "label": "设备状态",
+          "type": "number",
+          "source": "status"
+        }
+      ],
+      "actions": []
+    },
+    {
+      "key": "materials",
+      "label": "素材",
+      "evidence": "src/main/java/com/matrixpush/controller/MaterialController.java",
+      "path": "/api/materials",
+      "rowsAt": "data",
+      "columns": [
+        {
+          "key": "name",
+          "label": "文件名",
+          "type": "text",
+          "source": "originalName"
+        },
+        {
+          "key": "size",
+          "label": "文件大小",
+          "type": "number",
+          "source": "fileSize"
+        },
+        {
+          "key": "device",
+          "label": "设备名称",
+          "type": "text",
+          "source": "deviceName"
+        }
+      ],
+      "actions": []
+    },
+    {
+      "key": "accounts",
+      "label": "账号",
+      "evidence": "src/main/java/com/matrixpush/controller/AccountController.java",
+      "path": "/api/accounts",
+      "rowsAt": "data",
+      "columns": [
+        {
+          "key": "nickname",
+          "label": "账号昵称",
+          "type": "text",
+          "source": "nickname"
+        },
+        {
+          "key": "state",
+          "label": "账号状态",
+          "type": "text",
+          "source": "status"
+        }
+      ],
+      "actions": []
+    },
+    {
+      "key": "tasks",
+      "label": "发布任务",
+      "evidence": "src/main/java/com/matrixpush/controller/TaskController.java",
+      "path": "/api/tasks",
+      "rowsAt": "data",
+      "columns": [
+        {
+          "key": "task_no",
+          "label": "任务编号",
+          "type": "text",
+          "source": "taskNo"
+        },
+        {
+          "key": "title",
+          "label": "发布标题",
+          "type": "text",
+          "source": "titleFinal"
+        },
+        {
+          "key": "state",
+          "label": "执行状态",
+          "type": "number",
+          "source": "status"
+        },
+        {
+          "key": "device",
+          "label": "执行设备",
+          "type": "text",
+          "source": "deviceName"
+        }
+      ],
+      "actions": [
+        {
+          "key": "create_task",
+          "label": "创建发布任务",
+          "method": "POST",
+          "path": "/api/tasks",
+          "evidence": "src/main/java/com/matrixpush/controller/TaskController.java",
+          "positiveCountAt": "data.created",
+          "fields": [
+            {
+              "key": "device_ids",
+              "label": "目标设备 ID",
+              "type": "number_list",
+              "required": true,
+              "target": "deviceIds",
+              "location": "body"
+            },
+            {
+              "key": "title",
+              "label": "发布标题",
+              "type": "text",
+              "required": true,
+              "target": "titleFinal",
+              "location": "body"
+            },
+            {
+              "key": "material",
+              "label": "设备上的素材路径",
+              "type": "text",
+              "required": true,
+              "target": "materialLocalPath",
+              "location": "body"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "results",
+      "label": "发布结果",
+      "evidence": "src/main/java/com/matrixpush/controller/PublishResultController.java",
+      "path": "/api/publish-results",
+      "rowsAt": "data.list",
+      "columns": [
+        {
+          "key": "task_no",
+          "label": "任务编号",
+          "type": "text",
+          "source": "taskNo"
+        },
+        {
+          "key": "title",
+          "label": "发布标题",
+          "type": "text",
+          "source": "titleFinal"
+        },
+        {
+          "key": "state",
+          "label": "发布状态",
+          "type": "text",
+          "source": "status"
+        },
+        {
+          "key": "progress",
+          "label": "进度（%）",
+          "type": "number",
+          "source": "progress"
+        },
+        {
+          "key": "finished",
+          "label": "完成时间",
+          "type": "text",
+          "source": "finishedAt"
+        }
+      ],
+      "actions": []
+    }
+  ]
+}

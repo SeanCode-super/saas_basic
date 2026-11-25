@@ -20,7 +20,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -257,7 +257,7 @@ public class CrmService {
 
         CrmCustomerEntity customer = new CrmCustomerEntity();
         customer.setTenantId(tenantId);
-        customer.setCustomerCode("CUST-" + DateTimeFormatter.ofPattern("yyyyMMdd").format(LocalDateTime.now()) + "-" + (1000 + ThreadLocalRandom.current().nextInt(9000)));
+        customer.setCustomerCode("CUST-" + DateTimeFormatter.ofPattern("yyyyMMdd").format(LocalDateTime.now()) + "-" + UUID.randomUUID().toString().replace("-", ""));
         customer.setName(clue.getName());
         customer.setIndustry("DEFAULT");
         customer.setLevel("B");
@@ -365,7 +365,7 @@ public class CrmService {
         Long tenantId = getCurrentTenantId();
         CrmCustomerEntity entity = new CrmCustomerEntity();
         entity.setTenantId(tenantId);
-        entity.setCustomerCode("CUST-" + DateTimeFormatter.ofPattern("yyyyMMdd").format(LocalDateTime.now()) + "-" + (1000 + ThreadLocalRandom.current().nextInt(9000)));
+        entity.setCustomerCode("CUST-" + DateTimeFormatter.ofPattern("yyyyMMdd").format(LocalDateTime.now()) + "-" + UUID.randomUUID().toString().replace("-", ""));
         entity.setName(req.getName());
         entity.setIndustry(req.getIndustry() != null ? req.getIndustry() : "INTERNET");
         entity.setLevel(req.getLevel() != null ? req.getLevel() : "B");
@@ -507,7 +507,7 @@ public class CrmService {
 
         CrmBusinessEntity entity = new CrmBusinessEntity();
         entity.setTenantId(tenantId);
-        entity.setBusinessCode("BIZ-" + DateTimeFormatter.ofPattern("yyyyMMdd").format(LocalDateTime.now()) + "-" + (1000 + ThreadLocalRandom.current().nextInt(9000)));
+        entity.setBusinessCode("BIZ-" + DateTimeFormatter.ofPattern("yyyyMMdd").format(LocalDateTime.now()) + "-" + UUID.randomUUID().toString().replace("-", ""));
         entity.setName(req.getName());
         entity.setCustomerId(req.getCustomerId());
         entity.setCustomerName(customerName);
@@ -616,7 +616,7 @@ public class CrmService {
 
         CrmContractEntity entity = new CrmContractEntity();
         entity.setTenantId(tenantId);
-        entity.setContractNo("CT-" + DateTimeFormatter.ofPattern("yyyyMMdd").format(LocalDateTime.now()) + "-" + (1000 + ThreadLocalRandom.current().nextInt(9000)));
+        entity.setContractNo("CT-" + DateTimeFormatter.ofPattern("yyyyMMdd").format(LocalDateTime.now()) + "-" + UUID.randomUUID().toString().replace("-", ""));
         entity.setName(req.getName());
         entity.setCustomerId(req.getCustomerId());
         entity.setCustomerName(customerName);
@@ -701,7 +701,7 @@ public class CrmService {
 
         CrmReceivableEntity entity = new CrmReceivableEntity();
         entity.setTenantId(tenantId);
-        entity.setReceivableNo("REC-" + DateTimeFormatter.ofPattern("yyyyMMdd").format(LocalDateTime.now()) + "-" + (10 + ThreadLocalRandom.current().nextInt(90)));
+        entity.setReceivableNo("REC-" + DateTimeFormatter.ofPattern("yyyyMMdd").format(LocalDateTime.now()) + "-" + UUID.randomUUID().toString().replace("-", ""));
         entity.setContractId(contract.getId());
         entity.setContractName(contract.getName());
         entity.setCustomerId(contract.getCustomerId());

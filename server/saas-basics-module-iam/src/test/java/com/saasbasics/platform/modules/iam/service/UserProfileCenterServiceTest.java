@@ -28,7 +28,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.jdbc.core.JdbcTemplate;
+import com.saasbasics.platform.modules.iam.mapper.UserProfileMapper;
 import org.springframework.mock.web.MockMultipartFile;
 
 class UserProfileCenterServiceTest {
@@ -58,7 +58,7 @@ class UserProfileCenterServiceTest {
     void requiresPasswordConfirmationWhenReplacingBoundMobileOrEmail() {
         UserMapper userMapper = mock(UserMapper.class);
         PasswordSecurityService pwdService = mock(PasswordSecurityService.class);
-        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        UserProfileMapper profileMapper = mock(UserProfileMapper.class);
         UserEntity user = new UserEntity();
         user.setId(5L);
         user.setTenantId(1L);
@@ -70,7 +70,7 @@ class UserProfileCenterServiceTest {
         when(userMapper.selectById(5L)).thenReturn(user);
 
         UserProfileService service = new UserProfileService(
-                userMapper, pwdService, jdbcTemplate, providerOf(null), providerOf(null),
+                userMapper, pwdService, profileMapper, providerOf(null), providerOf(null),
                 providerOf(null), providerOf(null), providerOf(null), new ObjectMapper()
         );
 
@@ -113,7 +113,7 @@ class UserProfileCenterServiceTest {
         when(sessionMapper.selectOne(any())).thenReturn(current).thenReturn(other).thenReturn(null);
 
         UserProfileService service = new UserProfileService(
-                userMapper, mock(PasswordSecurityService.class), mock(JdbcTemplate.class),
+                userMapper, mock(PasswordSecurityService.class), mock(UserProfileMapper.class),
                 providerOf(null), providerOf(null), providerOf(sessionMapper),
                 providerOf(null), providerOf(null), new ObjectMapper()
         );
@@ -159,7 +159,7 @@ class UserProfileCenterServiceTest {
                 ));
 
         UserProfileService service = new UserProfileService(
-                userMapper, mock(PasswordSecurityService.class), mock(JdbcTemplate.class),
+                userMapper, mock(PasswordSecurityService.class), mock(UserProfileMapper.class),
                 providerOf(null), providerOf(null), providerOf(null),
                 providerOf(null), providerOf(gateway), new ObjectMapper()
         );

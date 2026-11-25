@@ -9,6 +9,7 @@ import com.saasbasics.platform.modules.tenant.dto.TenantAppResponse;
 import com.saasbasics.platform.modules.tenant.dto.TenantAppSubscribeRequest;
 import com.saasbasics.platform.modules.tenant.entity.TenantAppEntity;
 import com.saasbasics.platform.modules.tenant.mapper.TenantAppMapper;
+import com.saasbasics.platform.common.tenant.TenantApplication;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -52,9 +53,12 @@ public class TenantAppService {
     private final TenantFeatureProvider tenantFeatureProvider;
     private final AuditTrailService auditTrailService;
 
+    private final ExtensionInstallations extensions;
+
     public TenantAppService(ObjectProvider<TenantAppMapper> tenantAppMapperProvider,
                             TenantFeatureProvider tenantFeatureProvider,
-                            AuditTrailService auditTrailService) {
+                            AuditTrailService auditTrailService, ExtensionInstallations extensions) {
+        this.extensions = extensions;
         this.tenantAppMapperProvider = tenantAppMapperProvider;
         this.tenantFeatureProvider = tenantFeatureProvider;
         this.auditTrailService = auditTrailService;
@@ -82,7 +86,14 @@ public class TenantAppService {
         LocalDateTime now = LocalDateTime.now();
         List<TenantAppCatalogItemResponse> results = new ArrayList<>();
 
-        for (SystemAppMeta meta : SYSTEM_APPS) {
+        List<SystemAppMeta> catalog = new ArrayList<>(SYSTEM_APPS);
+        Map<String, TenantApplication> available = new java.util.LinkedHashMap<>();
+        for (TenantApplication app : extensions.catalog()) {
+            available.put(app.code(), app);
+            catalog.add(metadata(app));
+        }
+        for (SystemAppMeta meta : catalog) {
+            TenantApplication extension = available.get(meta.appCode());
             String code = meta.appCode().toLowerCase(Locale.ROOT);
             TenantAppEntity subscription = subscribedAppsMap.get(code);
 
@@ -91,9 +102,12 @@ public class TenantAppService {
             boolean isExpired = isSubscribed && subscription.getExpiredAt() != null && subscription.getExpiredAt().isBefore(now);
             boolean isTrial = isSubscribed && subscription.getExpiredAt() != null && subscription.getExpiredAt().isAfter(now);
 
-            boolean hasAccess = (!isExplicitlyDisabled && !isExpired && (
-                    isAllAccess || isSubscribed || tenantFeatureProvider.hasFeature(tenantId, code)
-            ));
+            boolean entitled = extension == null
+                    ? isAllAccess || isSubscribed || tenantFeatureProvider.hasFeature(tenantId, code)
+                    : isSubscribed && "ENABLED".equals(subscription.getStatus())
+                        && subscription.getInstalledRevision() != null && subscription.getInstalledRevision() > 0
+                        && subscription.getInstalledRevision() <= extension.latestRevision();
+            boolean hasAccess = entitled && !isExplicitlyDisabled && !isExpired;
 
             String status;
             if (hasAccess) {
@@ -110,8 +124,13 @@ public class TenantAppService {
                 daysRemaining = Math.max(0, duration.toDays());
             }
 
-            boolean isIncludedInPlan = isAllAccess || tenantFeatureProvider.hasFeature(tenantId, code);
+            boolean isIncludedInPlan = extension == null && (isAllAccess || tenantFeatureProvider.hasFeature(tenantId, code));
 
+            String entryPath = extension == null ? null : "/apps/" + code;
+            if (extension instanceof IndustryManifest manifest) {
+                boolean supportsPc = hasAccess && extensions.supportsPc(manifest, subscription.getInstalledRevision());
+                entryPath = supportsPc ? "/industry/" + code : null;
+            }
             results.add(new TenantAppCatalogItemResponse(
                     meta.appCode(),
                     meta.appName(),
@@ -125,7 +144,10 @@ public class TenantAppService {
                     daysRemaining,
                     isTrial,
                     isIncludedInPlan,
-                    !hasAccess || isTrial
+                    !hasAccess || isTrial,
+                    subscription == null ? null : subscription.getInstalledRevision(),
+                    extension == null ? null : extension.latestRevision(),
+                    entryPath
             ));
         }
 
@@ -140,10 +162,12 @@ public class TenantAppService {
         }
 
         String appCode = request.appCode().trim().toLowerCase(Locale.ROOT);
-        SystemAppMeta meta = SYSTEM_APPS.stream()
-                .filter(m -> m.appCode().equalsIgnoreCase(appCode))
-                .findFirst()
-                .orElseThrow(() -> new BizException("APP_NOT_FOUND", "Unknown appCode: " + appCode));
+        SystemAppMeta meta = requireMetadata(appCode);
+        TenantApplication extension = extensions.find(appCode);
+        if (extension != null) {
+            extensions.migrate(tenantId, extension, request.revision(), false);
+            extensions.syncMenu(tenantId, extension, true);
+        }
 
         TenantAppEntity entity = appMapper.selectOne(new LambdaQueryWrapper<TenantAppEntity>()
                 .eq(TenantAppEntity::getTenantId, tenantId)
@@ -212,6 +236,14 @@ public class TenantAppService {
             throw new BizException("APP_SUBSCRIPTION_NOT_FOUND", "App subscription not found");
         }
 
+        if (extensions.find(entity.getAppCode()) != null) {
+            if (!List.of("ENABLED", "DISABLED").contains(status)) {
+                throw new BizException("APP_STATUS_INVALID", "应用状态无效");
+            }
+            toggleAppAuthorization(tenantId, entity.getAppCode(), "ENABLED".equals(status), null);
+            return;
+        }
+
         entity.setStatus(status);
         appMapper.updateById(entity);
 
@@ -236,10 +268,16 @@ public class TenantAppService {
         }
 
         String targetCode = appCode.trim().toLowerCase(Locale.ROOT);
-        SystemAppMeta meta = SYSTEM_APPS.stream()
-                .filter(m -> m.appCode().equalsIgnoreCase(targetCode))
-                .findFirst()
-                .orElseThrow(() -> new BizException("APP_NOT_FOUND", "Unknown appCode: " + targetCode));
+        SystemAppMeta meta = requireMetadata(targetCode);
+        TenantApplication extension = extensions.find(targetCode);
+        if (extension != null) {
+            if (enabled) {
+                extensions.migrate(tenantId, extension, null, false);
+            } else {
+                extensions.lockTenant(tenantId);
+            }
+            extensions.syncMenu(tenantId, extension, enabled);
+        }
 
         TenantAppEntity entity = appMapper.selectOne(new LambdaQueryWrapper<TenantAppEntity>()
                 .eq(TenantAppEntity::getTenantId, tenantId)
@@ -283,6 +321,27 @@ public class TenantAppService {
         );
     }
 
+    private SystemAppMeta metadata(TenantApplication app) {
+        return new SystemAppMeta(app.code(), app.name(), app.description(), "BUSINESS", "Grid", "EXTENSION");
+    }
+
+    private SystemAppMeta requireMetadata(String code) {
+        TenantApplication extension = extensions.find(code);
+        if (extension != null) return metadata(extension);
+        return SYSTEM_APPS.stream().filter(m -> m.appCode().equals(code)).findFirst()
+                .orElseThrow(() -> new BizException("APP_NOT_FOUND", "Unknown appCode: " + code));
+    }
+
+    @Transactional
+    public void upgrade(long tenantId, String code, int revision) {
+        TenantApplication app = extensions.find(code);
+        if (app == null) throw new BizException("APP_NOT_FOUND", "应用未注册");
+        extensions.migrate(tenantId, app, revision, true);
+        extensions.syncMenu(tenantId, app, extensions.isInstalled(tenantId, code, 1));
+        auditTrailService.record("tenant", "plat_tenant_app", String.valueOf(tenantId),
+                "UPGRADE_APP", code, String.valueOf(revision), true);
+    }
+
     @Transactional
     public void batchAuthorizeApps(Long tenantId, List<String> appCodes, boolean enabled, String remark) {
         if (appCodes == null || appCodes.isEmpty()) {
@@ -299,7 +358,13 @@ public class TenantAppService {
         if (appMapper == null) {
             throw new BizException("SYSTEM_ERROR", "TenantAppMapper not available");
         }
+        extensions.lockTenant(tenantId);
+        for (TenantApplication app : extensions.catalog()) {
+            extensions.syncMenu(tenantId, app, false);
+        }
+        appMapper.resetInstalledExtensions(tenantId);
         appMapper.delete(new LambdaQueryWrapper<TenantAppEntity>()
+                .isNull(TenantAppEntity::getInstalledRevision)
                 .eq(TenantAppEntity::getTenantId, tenantId));
         tenantFeatureProvider.invalidateCache(tenantId);
         auditTrailService.record(

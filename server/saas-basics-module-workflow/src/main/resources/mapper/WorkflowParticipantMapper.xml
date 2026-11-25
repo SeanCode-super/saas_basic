@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.saasbasics.platform.modules.workflow.mapper.WorkflowParticipantMapper">
+    <select id="findDepartment" resultType="com.saasbasics.platform.modules.workflow.mapper.WorkflowParticipantMapper$InitiatorDepartment">
+        SELECT d.id, d.dept_name AS name, leader.id AS leader_user_id
+        FROM iam_user subject
+        JOIN iam_employee e ON e.tenant_id = subject.tenant_id AND e.id = subject.employee_id AND e.deleted = 0
+        JOIN iam_department d ON d.tenant_id = e.tenant_id AND d.id = e.dept_id AND d.deleted = 0
+        LEFT JOIN iam_user leader ON leader.tenant_id = d.tenant_id AND leader.id = d.leader_user_id
+            AND leader.deleted = 0 AND leader.status = 'ENABLED'
+        WHERE subject.tenant_id = #{tenantId} AND subject.id = #{userId} AND subject.deleted = 0 AND subject.status = 'ENABLED'
+        ORDER BY e.id LIMIT 1
+    </select>
+    <select id="findDepartmentLeader" resultType="com.saasbasics.platform.modules.workflow.dto.AssigneeInfo">
+        SELECT u.id AS user_id, u.nickname AS user_name FROM iam_department d
+        JOIN iam_user u ON u.tenant_id = d.tenant_id AND u.id = d.leader_user_id
+        WHERE d.tenant_id = #{tenantId} AND d.id = #{id}
+          AND d.deleted = 0 AND u.deleted = 0 AND u.status = 'ENABLED'
+    </select>
+    <select id="findRoleMembers" resultType="com.saasbasics.platform.modules.workflow.dto.AssigneeInfo">
+        SELECT DISTINCT u.id AS user_id, u.nickname AS user_name FROM iam_user_role ur
+        JOIN iam_role r ON r.tenant_id = ur.tenant_id AND r.id = ur.role_id AND r.deleted = 0 AND r.status = 'ENABLED'
+        JOIN iam_user u ON u.tenant_id = ur.tenant_id AND u.id = ur.user_id
+        WHERE ur.tenant_id = #{tenantId} AND ur.role_id = #{id} AND ur.deleted = 0
+          AND (ur.expire_at IS NULL OR ur.expire_at &gt; CURRENT_TIMESTAMP)
+          AND u.deleted = 0 AND u.status = 'ENABLED' ORDER BY u.id
+    </select>
+    <select id="findUser" resultType="com.saasbasics.platform.modules.workflow.dto.AssigneeInfo">
+        SELECT id AS user_id, nickname AS user_name FROM iam_user
+        WHERE tenant_id = #{tenantId} AND id = #{id} AND deleted = 0 AND status = 'ENABLED'
+    </select>
+</mapper>

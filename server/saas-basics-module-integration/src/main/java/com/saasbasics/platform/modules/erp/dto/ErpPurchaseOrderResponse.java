@@ -2,6 +2,7 @@ package com.saasbasics.platform.modules.erp.dto;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record ErpPurchaseOrderResponse(
         Long id,
@@ -11,5 +12,8 @@ public record ErpPurchaseOrderResponse(
         BigDecimal totalAmount,
         String status,
         String remark,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        Long warehouseId,
+        String warehouseName,
+        List<ErpPurchaseItemResponse> items
 ) {}

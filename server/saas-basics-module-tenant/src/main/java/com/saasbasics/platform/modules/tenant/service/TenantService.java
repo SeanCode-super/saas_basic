@@ -1,15 +1,18 @@
 package com.saasbasics.platform.modules.tenant.service;
 
+import org.springframework.transaction.annotation.Isolation;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.saasbasics.platform.common.api.PageResponse;
 import com.saasbasics.platform.common.exception.BizException;
 import com.saasbasics.platform.common.tenant.TenantAccessContext;
 import com.saasbasics.platform.common.tenant.TenantAccessContextHolder;
+import com.saasbasics.platform.datasource.TenantDataSourceRegistry;
 import com.saasbasics.platform.modules.audit.service.AuditTrailService;
 import com.saasbasics.platform.modules.tenant.dto.TenantIsolationUpdateRequest;
 import com.saasbasics.platform.modules.tenant.dto.TenantPlanUpdateRequest;
 import com.saasbasics.platform.modules.tenant.dto.TenantQuotaOverviewResponse;
 import com.saasbasics.platform.modules.tenant.dto.TenantResponse;
+import com.saasbasics.platform.modules.tenant.dto.TenantCreateResponse;
 import com.saasbasics.platform.modules.tenant.dto.TenantSaveRequest;
 import com.saasbasics.platform.modules.tenant.dto.TenantStatusUpdateRequest;
 import com.saasbasics.platform.modules.tenant.entity.TenantEntity;
@@ -17,6 +20,7 @@ import com.saasbasics.platform.modules.tenant.mapper.TenantMapper;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,17 +32,30 @@ public class TenantService {
     private final TenantQuotaService tenantQuotaService;
     private final TenantFeatureService tenantFeatureService;
     private final AuditTrailService auditTrailService;
+    private final ObjectProvider<TenantDataSourceRegistry> dataSourceRegistryProvider;
 
     public TenantService(ObjectProvider<TenantMapper> tenantMapperProvider,
                           TenantBootstrapService tenantBootstrapService,
                           TenantQuotaService tenantQuotaService,
                           TenantFeatureService tenantFeatureService,
                           AuditTrailService auditTrailService) {
+        this(tenantMapperProvider, tenantBootstrapService, tenantQuotaService,
+                tenantFeatureService, auditTrailService, null);
+    }
+
+    @Autowired
+    public TenantService(ObjectProvider<TenantMapper> tenantMapperProvider,
+                          TenantBootstrapService tenantBootstrapService,
+                          TenantQuotaService tenantQuotaService,
+                          TenantFeatureService tenantFeatureService,
+                          AuditTrailService auditTrailService,
+                          ObjectProvider<TenantDataSourceRegistry> dataSourceRegistryProvider) {
         this.tenantMapperProvider = tenantMapperProvider;
         this.tenantBootstrapService = tenantBootstrapService;
         this.tenantQuotaService = tenantQuotaService;
         this.tenantFeatureService = tenantFeatureService;
         this.auditTrailService = auditTrailService;
+        this.dataSourceRegistryProvider = dataSourceRegistryProvider;
     }
 
     public PageResponse<TenantResponse> pageTenants() {
@@ -58,8 +75,8 @@ public class TenantService {
         return tenantQuotaService.getTenantQuotaOverview(id);
     }
 
-    @Transactional
-    public TenantResponse createTenant(TenantSaveRequest request) {
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public TenantCreateResponse createTenant(TenantSaveRequest request) {
         TenantMapper tenantMapper = requiredMapper();
         TenantEntity exists = tenantMapper.selectOne(new LambdaQueryWrapper<TenantEntity>()
                 .eq(TenantEntity::getTenantCode, request.tenantCode())
@@ -75,11 +92,12 @@ public class TenantService {
         // Initialize tenant quotas and baseline
         tenantQuotaService.initTenantQuotas(entity.getId(), entity.getPackageId());
 
+        String initialPassword;
         try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openPlatformBypass(
                 "tenant:write",
                 TenantAccessContext.BypassOperation.TENANT_BOOTSTRAP,
                 "Initialize required records for tenant " + entity.getTenantCode())) {
-            tenantBootstrapService.initializeTenant(
+            initialPassword = tenantBootstrapService.initializeTenant(
                     entity.getId(),
                     entity.getTenantCode(),
                     entity.getTenantName(),
@@ -88,7 +106,7 @@ public class TenantService {
         }
         TenantResponse response = getTenant(entity.getId());
         auditTrailService.record("tenant", "tenant", String.valueOf(response.id()), "CREATE", request.tenantCode(), response.tenantCode(), true);
-        return response;
+        return new TenantCreateResponse(response, new TenantCreateResponse.InitialAdmin("admin", initialPassword));
     }
 
     @Transactional
@@ -161,18 +179,28 @@ public class TenantService {
         if (entity == null || (entity.getDeleted() != null && entity.getDeleted() == 1)) {
             throw new BizException("TENANT_NOT_FOUND", "Tenant not found");
         }
-        String mode = request.isolationMode().trim().toUpperCase(java.util.Locale.ROOT);
-        if (!java.util.Set.of("PLATFORM", "SHARED_SCHEMA", "ISOLATED_SCHEMA", "DEDICATED_DATABASE").contains(mode)) {
-            throw new BizException("INVALID_ISOLATION_MODE", "不支持的租户隔离模式: " + mode);
-        }
         String previous = entity.getIsolationMode();
-        entity.setIsolationMode(mode);
-        tenantMapper.updateById(entity);
-        tenantFeatureService.invalidateCache(id);
-        TenantResponse response = getTenant(id);
-        auditTrailService.record("tenant", "tenant_isolation", String.valueOf(id), "ISOLATION_MIGRATE",
-                previous, mode, true);
-        return response;
+        validateIsolationMode(entity, request.isolationMode());
+        if (!request.isolationMode().equals(previous)) {
+            entity.setIsolationMode(request.isolationMode());
+            tenantMapper.updateById(entity);
+            auditTrailService.record("tenant", "tenant", String.valueOf(id), "UPDATE_ISOLATION_MODE",
+                    previous, request.isolationMode(), true);
+        }
+        return getTenant(id);
+    }
+
+    private void validateIsolationMode(TenantEntity entity, String requested) {
+        String current = entity.getIsolationMode();
+        if (requested == null || requested.isBlank() || requested.equals(current)) return;
+        if ("SHARED_SCHEMA".equals(requested)) return;
+        TenantDataSourceRegistry registry = dataSourceRegistryProvider != null
+                ? dataSourceRegistryProvider.getIfAvailable()
+                : null;
+        if (entity.getId() != null && registry != null && registry.hasDedicatedDataSource(entity.getId())) {
+            return;
+        }
+        throw new BizException("TENANT_ISOLATION_MIGRATION_UNAVAILABLE", "当前部署未注册该租户的物理独立数据源，租户隔离模式未变更");
     }
 
     private void apply(TenantEntity entity, TenantSaveRequest request) {
@@ -184,7 +212,8 @@ public class TenantService {
             entity.setPackageId(4L); // 默认平台旗舰版 (全模块开放)
         }
         entity.setStatus(request.status());
-        entity.setIsolationMode(request.isolationMode());
+        validateIsolationMode(entity, request.isolationMode());
+        if (entity.getId() == null) entity.setIsolationMode("SHARED_SCHEMA");
         if (request.expireAt() != null && !request.expireAt().isBlank()) {
             entity.setExpireAt(parseDateTime(request.expireAt()));
         } else if (entity.getId() == null) {

@@ -6,6 +6,7 @@ import com.saasbasics.platform.common.exception.BizException;
 import com.saasbasics.platform.common.file.PlatformFileStorageGateway;
 import com.saasbasics.platform.modules.file.dto.FileAccessLogCreateRequest;
 import com.saasbasics.platform.modules.file.entity.FileObjectEntity;
+import com.saasbasics.platform.modules.file.entity.FileUploadSessionEntity;
 import com.saasbasics.platform.modules.file.entity.FileStorageEntity;
 import com.saasbasics.platform.modules.file.entity.FileUploadRouteEntity;
 import com.saasbasics.platform.modules.file.storage.FileClient;
@@ -21,17 +22,20 @@ public class PlatformFileStorageGatewayImpl implements PlatformFileStorageGatewa
     private final FileClientFactory fileClientFactory;
     private final FileObjectService fileObjectService;
     private final FileAccessLogService fileAccessLogService;
+    private final FileUploadAccounting accounting;
 
     public PlatformFileStorageGatewayImpl(FileStorageService fileStorageService,
                                           FileUploadRouteService fileUploadRouteService,
                                           FileClientFactory fileClientFactory,
                                           FileObjectService fileObjectService,
-                                          FileAccessLogService fileAccessLogService) {
+                                          FileAccessLogService fileAccessLogService,
+                                          FileUploadAccounting accounting) {
         this.fileStorageService = fileStorageService;
         this.fileUploadRouteService = fileUploadRouteService;
         this.fileClientFactory = fileClientFactory;
         this.fileObjectService = fileObjectService;
         this.fileAccessLogService = fileAccessLogService;
+        this.accounting = accounting;
     }
 
     @Override
@@ -86,6 +90,12 @@ public class PlatformFileStorageGatewayImpl implements PlatformFileStorageGatewa
                                           String originalFilename,
                                           String contentType,
                                           byte[] content) {
+        return uploadBytes(tenantId, bizType, originalFilename, contentType, content, null);
+    }
+
+    @Override
+    public StoredUploadResult uploadBytes(Long tenantId, String bizType, String originalFilename,
+                                          String contentType, byte[] content, String requestKey) {
         if (content == null || content.length == 0) {
             throw new BizException("FILE_EMPTY", "上传文件内容不能为空");
         }
@@ -126,10 +136,24 @@ public class PlatformFileStorageGatewayImpl implements PlatformFileStorageGatewa
 
         String objectKey = FilePathPolicyHelper.resolveObjectKey(pattern, targetDir, normalizedBizType, resolvedTenant, safeFilename);
         FileClient client = fileClientFactory.getClient(storage);
-        String uploadedUrl = client.upload(content, objectKey, contentType);
-        String publicUrl = "/api/file/raw-download/" + objectKey;
-        if (!"LOCAL".equalsIgnoreCase(storage.getStorageType()) && uploadedUrl != null && !uploadedUrl.isBlank()) {
-            publicUrl = uploadedUrl;
+        FileUploadSessionEntity candidate = new FileUploadSessionEntity();
+        candidate.setTenantId(resolvedTenant);
+        candidate.setBucketId(1L);
+        candidate.setStorageId(storage.getId());
+        candidate.setObjectKey(objectKey);
+        candidate.setFileName(safeFilename);
+        candidate.setFileSize((long) content.length);
+        candidate.setPartCount(1);
+        candidate.setOwnerUserId(AuthContext.getUserId() == null ? 0L : AuthContext.getUserId());
+        candidate.setUploadMode(uploadMode);
+        String fingerprint = requestKey == null ? null : FileUploadAccounting.fingerprint(
+                normalizedBizType, safeFilename, contentType, FileUploadAccounting.contentHash(content));
+        FileUploadSessionEntity session = accounting.reserve(candidate, requestKey, fingerprint, true);
+        if ("COMPLETED".equals(session.getStatus())) {
+            FileObjectEntity existing = accounting.completedObject(session);
+            FileStorageEntity originalStorage = fileStorageService.findActiveStorageById(resolvedTenant, existing.getStorageId());
+            if (originalStorage == null) throw new BizException("FILE_STORAGE_SOURCE_NOT_CONFIGURED", "原上传存储源不可用");
+            return storedResult(existing, originalStorage, fileClientFactory.getClient(originalStorage));
         }
 
         String physicalStoragePath = buildStoragePath(storage, objectKey);
@@ -140,7 +164,10 @@ public class PlatformFileStorageGatewayImpl implements PlatformFileStorageGatewa
                 ? contentType
                 : "application/octet-stream";
 
-        FileObjectEntity saved = fileObjectService.recordUploadedFile(
+        FileObjectEntity saved;
+        try {
+            client.upload(content, objectKey, effectiveContentType);
+            saved = accounting.finish(resolvedTenant, session.getId(), () -> fileObjectService.recordUploadedFile(
                 resolvedTenant,
                 storage.getId(),
                 objectKey,
@@ -153,7 +180,11 @@ public class PlatformFileStorageGatewayImpl implements PlatformFileStorageGatewa
                 targetDir,
                 physicalStoragePath,
                 visibility
-        );
+            ));
+        } catch (RuntimeException failure) {
+            accounting.discard(resolvedTenant, session.getId(), false, ignored -> client.delete(objectKey));
+            throw failure;
+        }
 
         try {
             if (saved.getId() != null) {
@@ -173,19 +204,15 @@ public class PlatformFileStorageGatewayImpl implements PlatformFileStorageGatewa
             // Audit log failures should not roll back a successful storage upload
         }
 
-        return new StoredUploadResult(
-                saved.getId(),
-                storage.getId(),
-                storage.getStorageCode(),
-                storage.getStorageType(),
-                uploadMode,
-                targetDir,
-                objectKey,
-                publicUrl,
-                safeFilename,
-                (long) content.length,
-                effectiveContentType
-        );
+        return storedResult(saved, storage, client);
+    }
+
+    private StoredUploadResult storedResult(FileObjectEntity file, FileStorageEntity storage, FileClient client) {
+        String url = "LOCAL".equalsIgnoreCase(storage.getStorageType())
+                ? "/api/file/raw-download/" + file.getObjectKey() : client.getPublicUrl(file.getObjectKey());
+        return new StoredUploadResult(file.getId(), storage.getId(), storage.getStorageCode(), storage.getStorageType(),
+                file.getUploadMode(), file.getTargetDir(), file.getObjectKey(), url, file.getFileName(),
+                file.getFileSize(), file.getContentType());
     }
 
     @Override
@@ -203,8 +230,7 @@ public class PlatformFileStorageGatewayImpl implements PlatformFileStorageGatewa
         FileStorageEntity storage = null;
         if (obj != null && obj.getStorageId() != null) {
             storage = fileStorageService.findActiveStorageById(resolvedTenant, obj.getStorageId());
-        }
-        if (storage == null) {
+        } else {
             storage = fileStorageService.findActiveDefaultStorage(resolvedTenant);
         }
         if (storage == null) {

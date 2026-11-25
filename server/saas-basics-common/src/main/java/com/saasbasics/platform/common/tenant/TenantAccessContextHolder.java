@@ -48,7 +48,7 @@ public final class TenantAccessContextHolder {
                                            TenantAccessContext.BypassOperation operation,
                                            String reason) {
         AuthPrincipal principal = AuthContext.get();
-        if (principal == null || !"PLATFORM".equalsIgnoreCase(principal.userType())) {
+        if (principal == null || !principal.isPlatformTenant() || !"PLATFORM".equalsIgnoreCase(principal.userType())) {
             throw new BizException("TENANT_BYPASS_FORBIDDEN", "Platform identity is required for tenant bypass");
         }
         if (!principal.isSuperAdmin()) {

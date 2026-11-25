@@ -1,0 +1,83 @@
+{
+  "contract": "approved-contract.json",
+  "origin": "http://127.0.0.1:18091",
+  "auth": {
+    "loginPath": "/api/auth/login",
+    "identityPath": "/api/auth/info",
+    "usernameField": "username",
+    "passwordField": "password",
+    "tokenAt": "data.token",
+    "userAt": "data.userId",
+    "tenantAt": "data.tenantId",
+    "roleAt": "data.role",
+    "statusAt": "data.tenantStatus",
+    "allowedStatuses": [
+      "NORMAL",
+      "TRIAL"
+    ]
+  },
+  "codeAt": "code",
+  "successCode": 0,
+  "inputScopes": {
+    "create_task": [
+      {
+        "field": "device_ids",
+        "page": "devices",
+        "idAt": "id",
+        "labelAt": "deviceName",
+        "tenantAt": "tenantId",
+        "userAt": "userId"
+      }
+    ]
+  },
+  "displayValues": {
+    "devices": {
+      "state": {
+        "0": "离线",
+        "1": "在线",
+        "2": "执行中"
+      }
+    },
+    "accounts": {
+      "state": {
+        "ACTIVE": "启用",
+        "PAUSED": "暂停"
+      }
+    },
+    "tasks": {
+      "state": {
+        "0": "待执行",
+        "1": "执行中",
+        "2": "成功",
+        "3": "失败",
+        "4": "已取消"
+      }
+    },
+    "results": {
+      "state": {
+        "pending": "待执行",
+        "running": "执行中",
+        "success": "成功",
+        "failed": "失败",
+        "cancelled": "已取消"
+      }
+    }
+  },
+  "members": {
+    "<天枢租户ID>:<天枢成员ID>": {
+      "username": "<矩阵发账号>",
+      "password": "<矩阵发业务凭据>",
+      "tenant": "<矩阵发租户ID>",
+      "user": "<矩阵发成员ID>",
+      "role": "1",
+      "actions": [
+        "devices_list",
+        "materials_list",
+        "accounts_list",
+        "tasks_list",
+        "results_list",
+        "create_task"
+      ]
+    }
+  }
+}

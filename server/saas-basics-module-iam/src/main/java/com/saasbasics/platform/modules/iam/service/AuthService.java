@@ -78,12 +78,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AuthService {
 
-    private static final List<String> DEFAULT_FEATURE_FLAGS = List.of(
-            "saas.codegen.preview",
-            "saas.tenant.package",
-            "saas.file.versioning"
-    );
-
     private static final Set<String> INVALID_ASSIGNMENT_CONTEXT_CODES = Set.of(
             "ORG_ASSIGNMENT_NOT_FOUND",
             "ORG_ASSIGNMENT_PERSON_MISMATCH",
@@ -1290,19 +1284,16 @@ public class AuthService {
         List<Long> roleIds = loadRoleIds(session.getTenantId(), session.getUserId());
         List<String> rawPermissions = loadPermissions(session.getTenantId(), session.getUserId());
         List<String> permissions = rawPermissions == null ? new java.util.ArrayList<>() : new java.util.ArrayList<>(rawPermissions);
-        boolean isSuperAdmin = Long.valueOf(1L).equals(session.getUserId())
-                || "admin".equalsIgnoreCase(session.getUsername())
-                || "PLATFORM".equalsIgnoreCase(session.getUserType())
-                || (roleIds != null && roleIds.contains(1L));
+        boolean isSuperAdmin = AuthPrincipal.hasPlatformAdminRole(session.getTenantId(), roleIds);
         if (isSuperAdmin && !permissions.contains("*")) {
             permissions.add(0, "*");
         }
-        List<String> featureFlags = DEFAULT_FEATURE_FLAGS;
+        List<String> featureFlags = List.of();
         if (tenantFeatureProvider != null) {
             TenantFeatureProvider provider = tenantFeatureProvider.getIfAvailable();
             if (provider != null && session.getTenantId() != null) {
                 Set<String> effective = provider.getEffectiveFeatures(session.getTenantId());
-                if (effective != null && !effective.isEmpty()) {
+                if (effective != null) {
                     featureFlags = new java.util.ArrayList<>(effective);
                 }
             }
@@ -1359,10 +1350,25 @@ public class AuthService {
                 ? UserPreferencesHelper.normalizeLocale(user.getLocale()) : null;
         String resolvedTimezone = user != null && user.getTimezone() != null && !user.getTimezone().isBlank()
                 ? UserPreferencesHelper.normalizeTimezone(user.getTimezone()) : null;
+        String tenantName = null;
+        try {
+            TenantMapper tMapper = tenantMapperProvider != null ? tenantMapperProvider.getIfAvailable() : null;
+            if (tMapper != null && principal.tenantId() != null) {
+                TenantEntity tenant = tMapper.selectById(principal.tenantId());
+                if (tenant != null && tenant.getTenantName() != null && !tenant.getTenantName().isBlank()) {
+                    tenantName = tenant.getTenantName();
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        if (tenantName == null || tenantName.isBlank()) {
+            tenantName = "platform".equalsIgnoreCase(principal.tenantCode()) ? "平台空间" : principal.tenantCode();
+        }
         return new AuthCurrentUserResponse(
                 principal.sessionId(),
                 principal.tenantId(),
                 principal.tenantCode(),
+                tenantName,
                 principal.userId(),
                 principal.username(),
                 principal.nickname(),
@@ -1532,11 +1538,7 @@ public class AuthService {
             return List.of();
         }
         List<String> permissions = roleApiMapper.selectPermissionCodesByUserId(tenantId, userId, LocalDateTime.now());
-        List<String> result = permissions == null ? new java.util.ArrayList<>() : new java.util.ArrayList<>(permissions);
-        if (Long.valueOf(1L).equals(userId) && !result.contains("*")) {
-            result.add(0, "*");
-        }
-        return result;
+        return permissions == null ? List.of() : permissions;
     }
 
     private List<Long> loadRoleIds(Long tenantId, Long userId) {

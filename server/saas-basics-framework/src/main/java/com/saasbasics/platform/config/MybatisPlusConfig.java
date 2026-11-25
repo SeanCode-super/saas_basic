@@ -27,6 +27,7 @@ import org.springframework.context.annotation.Configuration;
 public class MybatisPlusConfig {
 
     static final Set<String> PLATFORM_TABLES = Set.of(
+            "plat_industry_service",
             "plat_tenant",
             "plat_tenant_package",
             "sys_app_service",
@@ -56,7 +57,7 @@ public class MybatisPlusConfig {
                     return true;
                 }
                 String lower = tableName.toLowerCase(Locale.ROOT);
-                return lower.startsWith("plat_") || PLATFORM_TABLES.contains(lower);
+                return PLATFORM_TABLES.contains(lower) || lower.startsWith("plat_");
             }
         }));
         interceptor.addInnerInterceptor(new com.baomidou.mybatisplus.extension.plugins.inner.DataPermissionInterceptor(dataPermissionHandler));

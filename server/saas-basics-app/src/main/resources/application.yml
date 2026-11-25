@@ -1,7 +1,14 @@
 spring:
   application:
     name: saas-basics-server
-  jackson:
+  servlet:
+    multipart:
+      max-file-size: 500MB
+      max-request-size: 502MB
+  http:
+    converters:
+      preferred-json-mapper: jackson2
+  jackson2:
     default-property-inclusion: non_null
     serialization:
       write-dates-as-timestamps: false
@@ -105,3 +112,7 @@ flowable:
   process:
     definition-cache-limit: 100
 
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true

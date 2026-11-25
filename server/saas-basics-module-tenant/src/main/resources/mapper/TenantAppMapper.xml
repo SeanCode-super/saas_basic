@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.saasbasics.platform.modules.tenant.mapper.TenantAppMapper">
+
+    <update id="resetInstalledExtensions">
+        UPDATE plat_tenant_app SET status = 'DISABLED'
+        WHERE tenant_id = #{tenantId} AND installed_revision IS NOT NULL AND deleted = 0
+    </update>
+
+    <update id="disableExtensionResources">
+        UPDATE iam_api_resource SET status = 'DISABLED'
+        WHERE tenant_id = #{tenantId} AND LEFT(resource_code, CHAR_LENGTH(#{prefix})) = #{prefix} AND deleted = 0
+    </update>
+    <insert id="enableEndpoint">
+        INSERT INTO iam_api_resource (tenant_id, resource_code, resource_name, http_method, url_pattern)
+        VALUES (#{tenantId}, #{permission}, #{endpoint.name}, #{endpoint.method}, #{endpoint.path})
+        ON DUPLICATE KEY UPDATE status = 'ENABLED', http_method = #{endpoint.method},
+            url_pattern = #{endpoint.path}, resource_name = #{endpoint.name}
+    </insert>
+    <update id="disableEndpoint">
+        UPDATE iam_api_resource SET status = 'DISABLED'
+        WHERE tenant_id = #{tenantId} AND resource_code = #{permission} AND deleted = 0
+    </update>
+    <update id="disableMenu">
+        UPDATE iam_menu SET status = 'DISABLED'
+        WHERE tenant_id = #{tenantId} AND menu_code = #{menuCode} AND deleted = 0
+    </update>
+    <insert id="enableMenu">
+        INSERT INTO iam_menu (tenant_id, app_code, menu_code, menu_name, route_path, component_path, permission_code, status)
+        VALUES (#{tenantId}, #{appCode}, #{menuCode}, #{name}, CONCAT('/apps/', #{appCode}), #{component},
+                CONCAT('biz_', #{appCode}, ':query'), 'ENABLED')
+        ON DUPLICATE KEY UPDATE menu_name = #{name}, component_path = #{component}, app_code = #{appCode}, status = 'ENABLED'
+    </insert>
+    <sql id="generatedAdminRole">
+        r.tenant_id = #{tenantId} AND r.deleted = 0 AND r.status = 'ENABLED'
+        AND (r.role_code = 'TENANT_ADMIN' OR (r.is_system = 1 AND r.data_scope_type = 'ALL'
+            AND r.role_code IN ('platform_super_admin',CONCAT(#{tenantCode},'_super_admin'))))
+    </sql>
+    <insert id="grantGeneratedMenu">
+        INSERT INTO iam_role_menu (tenant_id,role_id,menu_id,created_by,updated_by)
+        SELECT r.tenant_id,r.id,m.id,#{actor},#{actor} FROM iam_role r
+        JOIN iam_menu m ON m.tenant_id=r.tenant_id AND m.menu_code=CONCAT('ext_',#{code}) AND m.deleted=0
+        WHERE <include refid="generatedAdminRole"/>
+        AND NOT EXISTS (SELECT 1 FROM iam_role_menu g WHERE g.tenant_id=r.tenant_id
+            AND g.role_id=r.id AND g.menu_id=m.id AND g.deleted=0)
+    </insert>
+    <insert id="grantGeneratedActions">
+        INSERT INTO iam_role_api (tenant_id,role_id,api_resource_id,created_by,updated_by)
+        SELECT r.tenant_id,r.id,a.id,#{actor},#{actor} FROM iam_role r
+        JOIN iam_api_resource a ON a.tenant_id=r.tenant_id AND a.status='ENABLED' AND a.deleted=0
+            AND LEFT(a.resource_code,CHAR_LENGTH(CONCAT('biz_',#{code},':')))=CONCAT('biz_',#{code},':')
+        WHERE <include refid="generatedAdminRole"/>
+        AND NOT EXISTS (SELECT 1 FROM iam_role_api g WHERE g.tenant_id=r.tenant_id
+            AND g.role_id=r.id AND g.api_resource_id=a.id AND g.deleted=0)
+    </insert>
+</mapper>

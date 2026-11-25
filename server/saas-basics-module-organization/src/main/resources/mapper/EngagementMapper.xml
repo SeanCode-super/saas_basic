@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.saasbasics.platform.modules.organization.internal.persistence.mapper.EngagementMapper">
+    <select id="lockById" resultType="java.lang.Long">
+        SELECT id FROM org_engagement WHERE id = #{id} AND deleted = 0 FOR UPDATE
+    </select>
+</mapper>

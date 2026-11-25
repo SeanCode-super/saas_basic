@@ -1,11 +1,12 @@
 package com.saasbasics.platform.modules.file.service;
 
 import com.saasbasics.platform.common.auth.DataPermissionSqlSpec;
-import com.saasbasics.platform.common.auth.SqlAstDataGuard;
+import com.saasbasics.platform.common.auth.DataPermissionContext;
+import com.saasbasics.platform.common.auth.DataScope;
+import com.saasbasics.platform.modules.file.mapper.ExportDatasetMapper;
 import com.saasbasics.platform.common.exception.BizException;
 import com.saasbasics.platform.modules.file.dto.ExportDtos.ExportDatasetInfoDTO;
 import com.saasbasics.platform.modules.file.dto.ExportDtos.ExportFieldSpec;
-import java.sql.ResultSetMetaData;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -14,9 +15,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.core.annotation.AnnotationUtils;
+import java.util.function.Supplier;
 import org.springframework.stereotype.Service;
 
 /**
@@ -25,7 +25,6 @@ import org.springframework.stereotype.Service;
 @Service
 public class ExportDatasetCatalogService {
 
-    private static final Logger log = LoggerFactory.getLogger(ExportDatasetCatalogService.class);
     private static final Pattern SAFE_IDENT = Pattern.compile("^[a-z0-9_]{1,64}$");
     private static final Set<String> SENSITIVE_HINTS = Set.of(
             "mobile", "phone", "telephone", "contact_phone", "email", "id_card", "bank_card"
@@ -34,10 +33,10 @@ public class ExportDatasetCatalogService {
             "audit_operation_log", "erp_inventory", "erp_inventory_record"
     );
 
-    private final JdbcTemplate jdbcTemplate;
+    private final ExportDatasetMapper mapper;
 
-    public ExportDatasetCatalogService(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
+    public ExportDatasetCatalogService(ExportDatasetMapper mapper) {
+        this.mapper = mapper;
     }
 
     public List<ExportDatasetInfoDTO> listDatasets(Long tenantId) {
@@ -61,11 +60,8 @@ public class ExportDatasetCatalogService {
     }
 
     public long countRows(Long tenantId, String sourceCode, Map<String, Object> filters, DataPermissionSqlSpec spec) {
-        ResolvedDatasetQuery q = buildQuery(tenantId, sourceCode, null, filters);
-        String sql = "SELECT COUNT(*) FROM " + q.tableSql() + q.whereSql();
-        sql = applyDataPermissionGuard(sql, q.physicalTable(), spec);
-        Long cnt = jdbcTemplate.queryForObject(sql, Long.class, q.args().toArray());
-        return cnt != null ? cnt : 0L;
+        var query = buildQuery(tenantId, sourceCode, null, filters);
+        return withRowScope(query.table(), spec, () -> mapper.countRows(query));
     }
 
     public void streamRows(Long tenantId, String sourceCode, List<String> selectedFields,
@@ -76,36 +72,26 @@ public class ExportDatasetCatalogService {
     public void streamRows(Long tenantId, String sourceCode, List<String> selectedFields,
                            Map<String, Object> filters, int maxRows, DataPermissionSqlSpec spec,
                            Consumer<Map<String, Object>> rowConsumer) {
-        ResolvedDatasetQuery q = buildQuery(tenantId, sourceCode, selectedFields, filters);
-        String sql = "SELECT " + q.selectColsSql() + " FROM " + q.tableSql() + q.whereSql()
-                + " ORDER BY id DESC" + (maxRows > 0 ? " LIMIT " + maxRows : "");
-        sql = applyDataPermissionGuard(sql, q.physicalTable(), spec);
-        jdbcTemplate.query(sql, ps -> {
-            for (int i = 0; i < q.args().size(); i++) {
-                ps.setObject(i + 1, q.args().get(i));
-            }
-        }, rs -> {
-            ResultSetMetaData meta = rs.getMetaData();
-            int colCount = meta.getColumnCount();
-            Map<String, Object> row = new LinkedHashMap<>(colCount);
-            for (int i = 1; i <= colCount; i++) {
-                row.put(meta.getColumnLabel(i), rs.getObject(i));
-            }
-            rowConsumer.accept(row);
+        var query = buildQuery(tenantId, sourceCode, selectedFields, filters);
+        withRowScope(query.table(), spec, () -> {
+            mapper.streamRows(query, maxRows, result -> rowConsumer.accept(result.getResultObject()));
+            return null;
         });
     }
 
-    private String applyDataPermissionGuard(String sql, String physicalTable, DataPermissionSqlSpec spec) {
-        if (spec == null || spec.isAllowAll()) {
-            return sql;
+    private <T> T withRowScope(String table, DataPermissionSqlSpec spec, Supplier<T> read) {
+        var previousScope = DataPermissionContext.getDataScope();
+        var previousSpec = DataPermissionContext.getSqlSpec();
+        var scope = AnnotationUtils.synthesizeAnnotation(Map.of("orgColumn", "", "unitColumn", resolveUnitColumnForTable(table),
+                "userColumn", resolveUserColumnForTable(table)), DataScope.class, ExportDatasetCatalogService.class);
+        try {
+            DataPermissionContext.setDataScope(scope);
+            DataPermissionContext.setSqlSpec(spec == null ? previousSpec : spec);
+            return read.get();
+        } finally {
+            DataPermissionContext.setDataScope(previousScope);
+            DataPermissionContext.setSqlSpec(previousSpec);
         }
-        String unitColumn = resolveUnitColumnForTable(physicalTable);
-        String userColumn = resolveUserColumnForTable(physicalTable);
-        return SqlAstDataGuard.rewriteSelectSql(sql, table ->
-                physicalTable.equalsIgnoreCase(table)
-                        ? new SqlAstDataGuard.TableScopeConfig(spec, "", unitColumn, userColumn)
-                        : null
-        );
     }
 
     private static String resolveUnitColumnForTable(String physicalTable) {
@@ -148,84 +134,54 @@ public class ExportDatasetCatalogService {
         List<ExportFieldSpec> ordered = new ArrayList<>();
         for (String code : selectedFields) {
             ExportFieldSpec spec = byCode.get(code);
-            if (spec != null) {
-                ordered.add(spec);
-            }
+            if (spec == null) throw new BizException("EXPORT_FIELD_INVALID", "数据源不包含此导出字段");
+            ordered.add(spec);
         }
-        return ordered.isEmpty() ? dataset.fields() : ordered;
+        return ordered;
     }
 
-    private ResolvedDatasetQuery buildQuery(Long tenantId, String sourceCode, List<String> selectedFields,
-                                           Map<String, Object> filters) {
-        ExportDatasetInfoDTO dataset = requireDataset(tenantId, sourceCode);
-        String physicalTable = resolvePhysicalTable(tenantId, sourceCode);
-        List<ExportFieldSpec> cols = resolveSelectedFieldSpecs(dataset, selectedFields);
-
-        String selectCols = cols.stream()
-                .map(c -> "`" + sanitizeIdent(c.fieldCode()) + "`")
-                .collect(java.util.stream.Collectors.joining(", "));
-
-        Set<String> validCols = dataset.fields().stream()
-                .map(ExportFieldSpec::fieldCode)
-                .collect(java.util.stream.Collectors.toSet());
-
-        StringBuilder where = new StringBuilder(
-                NO_DELETED_TABLES.contains(physicalTable)
-                        ? " WHERE tenant_id = ? "
-                        : " WHERE tenant_id = ? AND deleted = 0 "
-        );
-        List<Object> args = new ArrayList<>();
-        args.add(tenantId);
-
-        if (filters != null && !filters.isEmpty()) {
-            Object kwObj = filters.get("keyword");
-            if (kwObj != null && !String.valueOf(kwObj).isBlank()) {
-                String kw = "%" + String.valueOf(kwObj).trim() + "%";
-                List<String> strCols = cols.stream()
-                        .filter(c -> "VARCHAR".equalsIgnoreCase(c.dataType()) || "TEXT".equalsIgnoreCase(c.dataType()))
-                        .limit(4)
-                        .map(ExportFieldSpec::fieldCode)
-                        .toList();
-                if (!strCols.isEmpty()) {
-                    where.append(" AND (");
-                    for (int i = 0; i < strCols.size(); i++) {
-                        if (i > 0) where.append(" OR ");
-                        where.append("`").append(sanitizeIdent(strCols.get(i))).append("` LIKE ?");
-                        args.add(kw);
-                    }
-                    where.append(") ");
-                }
+    private ExportDatasetMapper.Query buildQuery(Long tenantId, String sourceCode, List<String> selectedFields,
+                                                  Map<String, Object> filters) {
+        ExportDatasetInfoDTO dataset = buildBuiltinDatasets().get(sourceCode);
+        String table;
+        if (dataset != null) {
+            table = dataset.sourceCode();
+        } else {
+            if (sourceCode == null || !sourceCode.startsWith("dynamic:")) {
+                throw new BizException("EXPORT_DATASET_NOT_FOUND", "不支持的导出数据源");
             }
-            for (Map.Entry<String, Object> entry : filters.entrySet()) {
-                String k = entry.getKey();
-                Object v = entry.getValue();
-                if ("keyword".equals(k) || v == null || String.valueOf(v).isBlank()) {
-                    continue;
-                }
-                if (validCols.contains(k)) {
-                    where.append(" AND `").append(sanitizeIdent(k)).append("` = ? ");
-                    args.add(v);
-                }
+            var model = mapper.publishedModel(tenantId, sanitizeIdent(sourceCode.substring(8)));
+            if (model == null) throw new BizException("EXPORT_DATASET_NOT_FOUND", "租户没有已发布的导出模型");
+            table = dynamicTable(tenantId, model.tableName());
+            dataset = describeModel(tenantId, model);
+        }
+        List<ExportFieldSpec> selected = resolveSelectedFieldSpecs(dataset, selectedFields);
+        var columns = selected.stream().map(f -> sanitizeIdent(f.fieldCode())).toList();
+        var valid = dataset.fields().stream().map(ExportFieldSpec::fieldCode).collect(java.util.stream.Collectors.toSet());
+        List<ExportDatasetMapper.Filter> equals = new ArrayList<>();
+        String keyword = null;
+        if (filters != null) {
+            for (var filter : filters.entrySet()) {
+                if (filter.getValue() == null || filter.getValue().toString().isBlank()) continue;
+                if ("keyword".equals(filter.getKey())) keyword = "%" + filter.getValue().toString().trim() + "%";
+                else if (valid.contains(filter.getKey())) equals.add(new ExportDatasetMapper.Filter(sanitizeIdent(filter.getKey()), filter.getValue()));
+                else throw new BizException("EXPORT_FIELD_INVALID", "数据源不包含此筛选字段");
             }
         }
-
-        return new ResolvedDatasetQuery(physicalTable, "`" + physicalTable + "`", selectCols, where.toString(), args);
+        var keywordColumns = selected.stream()
+                .filter(f -> "VARCHAR".equalsIgnoreCase(f.dataType()) || "TEXT".equalsIgnoreCase(f.dataType()))
+                .limit(4).map(ExportFieldSpec::fieldCode).toList();
+        return new ExportDatasetMapper.Query(tenantId, table, !NO_DELETED_TABLES.contains(table),
+                columns, keywordColumns, keyword, equals);
     }
 
-    private String resolvePhysicalTable(Long tenantId, String sourceCode) {
-        if (sourceCode != null && sourceCode.startsWith("dynamic:")) {
-            String modelCode = sourceCode.substring("dynamic:".length()).trim().toLowerCase(Locale.ROOT);
-            sanitizeIdent(modelCode);
-            List<Map<String, Object>> found = jdbcTemplate.queryForList(
-                    "SELECT table_name FROM gen_dynamic_model WHERE tenant_id = ? AND model_code = ? AND deleted = 0 LIMIT 1",
-                    tenantId, modelCode
-            );
-            if (found.isEmpty()) {
-                throw new BizException("DYNAMIC_MODEL_NOT_FOUND", "动态模型不存在: " + modelCode);
-            }
-            return sanitizeIdent(String.valueOf(found.get(0).get("table_name")).toLowerCase(Locale.ROOT));
+    private static String dynamicTable(Long tenantId, String table) {
+        sanitizeIdent(table);
+        if (!table.startsWith("biz_dyn_") || (table.matches("biz_dyn_t[0-9]+_.*")
+                && !table.startsWith("biz_dyn_t" + tenantId + "_"))) {
+            throw new BizException("INVALID_EXPORT_IDENTIFIER", "动态导出表不属于当前租户的业务模型");
         }
-        return sanitizeIdent(sourceCode);
+        return table;
     }
 
     private static String sanitizeIdent(String ident) {
@@ -245,36 +201,22 @@ public class ExportDatasetCatalogService {
     }
 
     private void discoverDynamicDatasets(Map<String, ExportDatasetInfoDTO> catalog, Long tenantId) {
-        try {
-            List<Map<String, Object>> models = jdbcTemplate.queryForList(
-                    "SELECT id, model_code, model_name FROM gen_dynamic_model WHERE tenant_id = ? AND deleted = 0 AND status = 'PUBLISHED' ORDER BY id DESC",
-                    tenantId
-            );
-            for (Map<String, Object> m : models) {
-                Long modelId = ((Number) m.get("id")).longValue();
-                String modelCode = String.valueOf(m.get("model_code"));
-                String modelName = String.valueOf(m.get("model_name"));
-                List<Map<String, Object>> fieldRows = jdbcTemplate.queryForList(
-                        "SELECT field_code, field_name, column_type FROM gen_dynamic_field WHERE tenant_id = ? AND model_id = ? AND deleted = 0 ORDER BY sort_no ASC",
-                        tenantId, modelId
-                );
-                List<ExportFieldSpec> fields = new ArrayList<>();
-                fields.add(field("id", "记录ID", "BIGINT"));
-                for (Map<String, Object> f : fieldRows) {
-                    String fc = String.valueOf(f.get("field_code"));
-                    fields.add(field(fc, String.valueOf(f.get("field_name")), String.valueOf(f.get("column_type"))));
-                }
-                fields.add(field("created_at", "创建时间", "DATETIME"));
-                catalog.put("dynamic:" + modelCode, new ExportDatasetInfoDTO(
-                        "dynamic:" + modelCode,
-                        modelName + " (AI自建应用)",
-                        "DYNAMIC",
-                        fields
-                ));
-            }
-        } catch (Exception ex) {
-            log.debug("[ExportCatalog] Dynamic model inspection skipped: {}", ex.getMessage());
+        for (var model : mapper.publishedModels(tenantId)) {
+            dynamicTable(tenantId, model.tableName());
+            var dataset = describeModel(tenantId, model);
+            catalog.put(dataset.sourceCode(), dataset);
         }
+    }
+
+    private ExportDatasetInfoDTO describeModel(Long tenantId, ExportDatasetMapper.Model model) {
+        List<ExportFieldSpec> fields = new ArrayList<>();
+        fields.add(field("id", "记录ID", "BIGINT"));
+        for (var column : mapper.modelFields(tenantId, model.id())) {
+            fields.add(field(sanitizeIdent(column.fieldCode()), column.fieldName(), column.columnType()));
+        }
+        fields.add(field("created_at", "创建时间", "DATETIME"));
+        return new ExportDatasetInfoDTO("dynamic:" + sanitizeIdent(model.modelCode()), model.modelName() + " (AI自建应用)",
+                "DYNAMIC", fields);
     }
 
     private Map<String, ExportDatasetInfoDTO> buildBuiltinDatasets() {
@@ -416,5 +358,4 @@ public class ExportDatasetCatalogService {
         return new ExportFieldSpec(code, label, isSensitiveField(code), dataType);
     }
 
-    private record ResolvedDatasetQuery(String physicalTable, String tableSql, String selectColsSql, String whereSql, List<Object> args) {}
 }

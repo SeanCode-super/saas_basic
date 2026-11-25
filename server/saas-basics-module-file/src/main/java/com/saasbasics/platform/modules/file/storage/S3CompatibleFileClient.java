@@ -124,6 +124,28 @@ public class S3CompatibleFileClient implements FileClient {
     }
 
     @Override
+    public long size(String path) {
+        String key = path.startsWith("/") ? path.substring(1) : path;
+        HttpURLConnection conn = null;
+        try {
+            URI uri = validateEndpointUri(endpoint + "/" + bucketName + "/" + key);
+            conn = (HttpURLConnection) uri.toURL().openConnection();
+            conn.setRequestMethod("HEAD");
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(15000);
+            applySigV4Headers(conn, "HEAD", uri, Map.of(), new byte[0]);
+            if (conn.getResponseCode() != 200 || conn.getContentLengthLong() < 0) {
+                throw new BizException("FILE_OBJECT_UNAVAILABLE", "存储端未返回对象大小");
+            }
+            return conn.getContentLengthLong();
+        } catch (java.io.IOException ex) {
+            throw new BizException("FILE_OBJECT_UNAVAILABLE", "读取对象大小失败");
+        } finally {
+            if (conn != null) conn.disconnect();
+        }
+    }
+
+    @Override
     public void delete(String path) {
         String cleanPath = path.startsWith("/") ? path.substring(1) : path;
         String targetUrl = endpoint + "/" + bucketName + "/" + cleanPath;
@@ -153,23 +175,23 @@ public class S3CompatibleFileClient implements FileClient {
     }
 
     @Override
-    public String generatePresignedUploadUrl(String path, int expireSeconds) {
-        return presign("PUT", path, expireSeconds);
+    public String generatePresignedUploadUrl(String path, int expireSeconds, long size) {
+        return presign("PUT", path, expireSeconds, size);
     }
 
     @Override
     public String generatePresignedDownloadUrl(String path, int expireSeconds) {
-        return presign("GET", path, expireSeconds);
+        return presign("GET", path, expireSeconds, null);
     }
 
-    private String presign(String method, String path, int expireSeconds) {
+    private String presign(String method, String path, int expireSeconds, Long size) {
         if (accessKey == null || accessKey.isBlank() || secretKey == null || secretKey.isBlank()) {
             throw new BizException("FILE_STORAGE_CREDENTIALS_MISSING",
                     "生成预签名 URL 需要为存储源配置有效的 AccessKey 与 SecretKey");
         }
         String cleanPath = path.startsWith("/") ? path.substring(1) : path;
         URI uri = validateEndpointUri(endpoint + "/" + bucketName + "/" + cleanPath);
-        return AwsSigV4Signer.presignUrl(method, uri, accessKey.trim(), secretKey.trim(), region, expireSeconds);
+        return AwsSigV4Signer.presignUrl(method, uri, accessKey.trim(), secretKey.trim(), region, expireSeconds, java.time.Instant.now(), size);
     }
 
     private URI validateEndpointUri(String targetUrl) {

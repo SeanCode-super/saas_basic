@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.saasbasics.platform.modules.audit.mapper.AuditQueryMapper">
+
+    <sql id="catalogSelect">
+        SELECT resource_code, resource_name, http_method, url_pattern
+        FROM iam_api_resource
+        WHERE deleted = 0
+          AND status = 'ENABLED'
+          AND UPPER(http_method) &lt;&gt; 'GET'
+    </sql>
+
+    <select id="selectHighRiskCatalog" resultType="java.util.Map">
+        <include refid="catalogSelect"/>
+          AND tenant_id = #{tenantId}
+        ORDER BY id ASC
+    </select>
+
+    <select id="selectPlatformHighRiskCatalog" resultType="java.util.Map">
+        <include refid="catalogSelect"/>
+          AND tenant_id = 1
+        ORDER BY id ASC
+    </select>
+
+    <sql id="policySelect">
+        SELECT config_value
+        FROM sys_config
+        WHERE ((config_group = 'AUDIT' AND config_key = 'audit.risk_policy')
+               OR config_key = 'audit.policy')
+          AND deleted = 0
+          AND status = 'ENABLED'
+    </sql>
+
+    <sql id="policyPriority">
+        ORDER BY CASE WHEN config_key = 'audit.risk_policy' THEN 0 ELSE 1 END, id ASC
+        LIMIT 1
+    </sql>
+
+    <select id="selectAuditPolicyConfig" resultType="java.lang.String">
+        <include refid="policySelect"/>
+          AND tenant_id = #{tenantId}
+        <include refid="policyPriority"/>
+    </select>
+
+    <select id="selectPlatformAuditPolicyConfig" resultType="java.lang.String">
+        <include refid="policySelect"/>
+          AND tenant_id = 1
+        <include refid="policyPriority"/>
+    </select>
+
+    <sql id="activeBlacklistSelect">
+        SELECT black_type, black_value, reason, expired_at
+        FROM sec_blacklist
+        WHERE deleted = 0
+          AND status = 'ENABLED'
+          AND (expired_at IS NULL OR expired_at &gt; CURRENT_TIMESTAMP)
+    </sql>
+
+    <select id="selectTenantBlacklist" resultType="com.saasbasics.platform.modules.audit.entity.SecBlacklistEntity">
+        <include refid="activeBlacklistSelect"/>
+          AND tenant_id = #{tenantId}
+    </select>
+
+    <select id="selectPublicBlacklist" resultType="com.saasbasics.platform.modules.audit.entity.SecBlacklistEntity">
+        <include refid="activeBlacklistSelect"/>
+          AND tenant_id IN (0, 1)
+    </select>
+
+    <select id="selectUsernamesByIds" resultType="java.util.Map">
+        SELECT id, username
+        FROM iam_user
+        WHERE id IN
+        <foreach item="id" collection="ids" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+</mapper>

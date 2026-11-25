@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNiIgZmlsbD0iIzM0NThjNiIvPjxwYXRoIGQ9Ik03IDdoOHY4SDd6bTEwIDEwaDh2OGgtOHoiIGZpbGw9IiNkN2UyZmYiLz48cGF0aCBkPSJNMTcgN2g4djhoLTh6TTcgMTdoOHY4SDd6IiBmaWxsPSIjOTJhY2YxIi8+PC9zdmc+">
+  <title>管理后台</title>
+  <link rel="stylesheet" href="/console.css">
+  <script src="/console.js" defer></script>
+</head>
+<body>
+  <main id="login" class="login" hidden>
+    <form id="login-form" class="login-form">
+      <div class="brand"><span class="mark" aria-hidden="true"></span><span class="brand-name"></span></div>
+      <h1>登录管理后台</h1>
+      <label>账号<input name="username" autocomplete="username" required maxlength="256"></label>
+      <label>密码<input name="password" type="password" autocomplete="current-password" required maxlength="256"></label>
+      <p id="login-error" class="notice" role="alert"></p>
+      <button class="primary" type="submit">登录</button>
+    </form>
+  </main>
+  <div id="workspace" hidden>
+    <aside>
+      <div class="brand"><span class="mark" aria-hidden="true"></span><span class="brand-name"></span></div>
+      <nav id="nav" aria-label="业务页面"></nav>
+    </aside>
+    <main class="content">
+      <header><span id="tenant"></span><div><span id="username"></span><button id="logout">退出登录</button></div></header>
+      <section class="page" aria-labelledby="page-title">
+        <div class="toolbar"><h1 id="page-title"></h1><div id="actions"></div></div>
+        <p class="notice" role="status" id="status"></p>
+        <div id="table-area" tabindex="0" aria-label="业务列表"></div>
+      </section>
+    </main>
+  </div>
+  <dialog id="dialog" aria-labelledby="dialog-title">
+    <form id="action-form">
+      <h2 id="dialog-title"></h2>
+      <div id="fields"></div>
+      <p id="form-error" class="notice" role="alert"></p>
+      <footer><button type="button" id="cancel">取消</button><button type="submit" class="primary">提交</button></footer>
+    </form>
+  </dialog>
+  <noscript>请启用 JavaScript 以使用管理后台。</noscript>
+</body>
+</html>

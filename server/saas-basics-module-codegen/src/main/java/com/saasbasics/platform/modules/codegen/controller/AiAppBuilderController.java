@@ -42,6 +42,15 @@ public class AiAppBuilderController {
         return ApiResponse.success(aiAppBuilderService.listPublishedModels());
     }
 
+    public record NewField(String fieldCode, String fieldName, AiAppBuilderService.FieldKind type) {}
+
+    @PostMapping("/models/{id}/fields")
+    @RequirePermission("codegen:project:write")
+    public ApiResponse<Void> addField(@PathVariable("id") long id, @RequestBody NewField field) {
+        aiAppBuilderService.appendField(id, field.fieldCode(), field.fieldName(), field.type());
+        return ApiResponse.success(null);
+    }
+
     @DeleteMapping("/models/{id}")
     @RequirePermission("codegen:project:write")
     public ApiResponse<Void> deleteModel(@PathVariable("id") Long id) {

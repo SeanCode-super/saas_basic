@@ -190,7 +190,8 @@ public class OrganizationDirectoryService implements OrganizationDirectory {
                 support.toUuid(position.getPublicId()),
                 Boolean.TRUE.equals(entity.getPrimaryAssignment()),
                 support.toInstant(entity.getValidFrom()),
-                support.toInstant(entity.getValidTo())
+                support.toInstant(entity.getValidTo()),
+                organization.getDisplayName(), unit.getDisplayName(), position.getDisplayName()
         );
     }
 

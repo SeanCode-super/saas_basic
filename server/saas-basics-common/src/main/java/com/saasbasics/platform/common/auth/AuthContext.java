@@ -1,5 +1,7 @@
 package com.saasbasics.platform.common.auth;
 
+import com.saasbasics.platform.common.exception.BizException;
+
 public final class AuthContext {
 
     private static final ThreadLocal<AuthPrincipal> HOLDER = new ThreadLocal<>();
@@ -13,6 +15,14 @@ public final class AuthContext {
 
     public static AuthPrincipal get() {
         return HOLDER.get();
+    }
+
+    public static AuthPrincipal requirePrincipal() {
+        AuthPrincipal principal = HOLDER.get();
+        if (principal == null || principal.tenantId() == null || principal.userId() == null) {
+            throw new BizException("AUTH_UNAUTHORIZED", "Authentication is required");
+        }
+        return principal;
     }
 
     public static Long getUserId() {

@@ -1,5 +1,6 @@
 package com.saasbasics.platform.modules.workflow.service;
 
+import com.saasbasics.platform.modules.workflow.dto.AssigneeInfo;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.saasbasics.platform.common.auth.AuthContext;
 import com.saasbasics.platform.common.auth.AuthPrincipal;
@@ -7,11 +8,10 @@ import com.saasbasics.platform.common.exception.BizException;
 import com.saasbasics.platform.idempotent.Idempotent;
 import com.saasbasics.platform.modules.workflow.dto.TaskHandleRequest;
 import com.saasbasics.platform.modules.workflow.dto.WorkflowTaskResponse;
-import com.saasbasics.platform.modules.workflow.entity.ProcessDefinitionEntity;
 import com.saasbasics.platform.modules.workflow.entity.ProcessInstanceEntity;
 import com.saasbasics.platform.modules.workflow.entity.WorkflowTaskEntity;
 import com.saasbasics.platform.modules.workflow.entity.WorkflowTaskLogEntity;
-import com.saasbasics.platform.modules.workflow.mapper.ProcessDefinitionMapper;
+import com.saasbasics.platform.modules.workflow.mapper.WorkflowParticipantMapper;
 import com.saasbasics.platform.modules.workflow.mapper.ProcessInstanceMapper;
 import com.saasbasics.platform.modules.workflow.mapper.WorkflowTaskLogMapper;
 import com.saasbasics.platform.modules.workflow.mapper.WorkflowTaskMapper;
@@ -31,7 +31,7 @@ public class WorkflowTaskService {
 
     private final WorkflowTaskMapper taskMapper;
     private final ProcessInstanceMapper instanceMapper;
-    private final ProcessDefinitionMapper definitionMapper;
+    private final WorkflowParticipantMapper participants;
     private final WorkflowTaskLogMapper taskLogMapper;
     private final WorkflowEngine workflowEngine;
     private final FlowableProcessBridgeService flowableBridgeService;
@@ -39,14 +39,14 @@ public class WorkflowTaskService {
     public WorkflowTaskService(
             WorkflowTaskMapper taskMapper,
             ProcessInstanceMapper instanceMapper,
-            ProcessDefinitionMapper definitionMapper,
+            WorkflowParticipantMapper participants,
             WorkflowTaskLogMapper taskLogMapper,
             WorkflowEngine workflowEngine,
             FlowableProcessBridgeService flowableBridgeService
     ) {
         this.taskMapper = taskMapper;
         this.instanceMapper = instanceMapper;
-        this.definitionMapper = definitionMapper;
+        this.participants = participants;
         this.taskLogMapper = taskLogMapper;
         this.workflowEngine = workflowEngine;
         this.flowableBridgeService = flowableBridgeService;
@@ -103,6 +103,7 @@ public class WorkflowTaskService {
         Long userId = getUserId();
         String userName = getUserName();
 
+        ProcessInstanceEntity instance = instanceMapper.lockByTask(taskId, tenantId);
         WorkflowTaskEntity task = taskMapper.selectById(taskId);
         if (task == null || task.getDeleted() != 0 || !task.getTenantId().equals(tenantId)) {
             throw new BizException("NOT_FOUND", "任务不存在或已删除");
@@ -114,12 +115,35 @@ public class WorkflowTaskService {
             throw new BizException("TASK_ALREADY_HANDLED", "该任务已处理，无法重复办理");
         }
 
-        ProcessInstanceEntity instance = instanceMapper.selectById(task.getInstanceId());
-        if (instance == null || !"RUNNING".equals(instance.getStatus())) {
+        String action = request.action() == null ? "" : request.action().toUpperCase(java.util.Locale.ROOT);
+        boolean reading = "READ".equals(action);
+        if (reading != "CC".equals(task.getNodeType()) || "DELEGATE_RESOLVE".equals(action) != "DELEGATE".equals(task.getNodeType())) {
+            throw new BizException("INVALID_PARAM", "该操作不适用于当前待办类型");
+        }
+        if (instance == null || !reading && !"RUNNING".equals(instance.getStatus())) {
             throw new BizException("INSTANCE_NOT_RUNNING", "审批单已不在进行中，无法操作");
         }
-
-        String action = request.action() != null ? request.action().toUpperCase() : "AGREE";
+        if ("ROLLBACK_TARGET".equals(action) && "root".equals(request.targetNodeId())) action = "ROLLBACK_INITIATOR";
+        if ("ROLLBACK_PREVIOUS".equals(action) || "ROLLBACK_TARGET".equals(action)) {
+            var past = approvedNodes(instance).stream()
+                    .filter(t -> !task.getNodeId().equals(t.getNodeId()))
+                    .filter(t -> !"ROLLBACK_TARGET".equalsIgnoreCase(request.action()) || t.getNodeId().equals(request.targetNodeId()))
+                    .findFirst();
+            if (past.isPresent()) {
+                returnToApproval(instance, task, past.get(), action, request.comment(), userId, userName);
+                return;
+            }
+            if ("ROLLBACK_TARGET".equals(action)) throw new BizException("INVALID_PARAM", "该审批单没有此历史审批节点");
+            action = "ROLLBACK_INITIATOR";
+        }
+        if ("rollback_starter".equals(instance.getCurrentNodeId()) && !"rollback_starter".equals(task.getNodeId())) {
+            throw new BizException("WORKFLOW_WAITING_RESUBMISSION", "申请人重新提交后才能继续审批");
+        }
+        if ("rollback_starter".equals(task.getNodeId()) && !"REJECT".equals(action)) {
+            if (!"AGREE".equals(action)) throw new BizException("INVALID_PARAM", "请重新提交或驳回申请");
+            resumeReturnedTask(instance, task, userId, userName, request.comment());
+            return;
+        }
 
         if ("REJECT".equals(action)) {
             // 1. 驳回审批
@@ -138,7 +162,7 @@ public class WorkflowTaskService {
 
             // 同步在 Flowable 流程引擎中终止该实例
             if (StringUtils.hasText(instance.getFlowableProcInstId())) {
-                flowableBridgeService.terminateProcessInstance(instance.getFlowableProcInstId(), request.comment());
+                if (!flowableBridgeService.terminateProcessInstance(instance.getFlowableProcInstId(), request.comment())) throw new BizException("WORKFLOW_ENGINE_MISMATCH", "审批引擎未确认终止");
             }
 
             // 写入日志
@@ -158,11 +182,11 @@ public class WorkflowTaskService {
             task.setUpdatedBy(userId);
             taskMapper.updateById(task);
 
-            String targetName = StringUtils.hasText(request.transferToUserName()) ? request.transferToUserName() : "转办专员";
+            String targetName = activeParticipant(tenantId, request.transferToUserId());
 
             // Flowable 任务转派
             if (StringUtils.hasText(task.getFlowableTaskId())) {
-                flowableBridgeService.transferTask(task.getFlowableTaskId(), request.transferToUserId(), targetName);
+                if (!flowableBridgeService.transferTask(task.getFlowableTaskId(), request.transferToUserId(), targetName)) throw new BizException("WORKFLOW_ENGINE_MISMATCH", "审批引擎未确认转办");
             }
 
             // 创建新的待办
@@ -198,14 +222,15 @@ public class WorkflowTaskService {
             if (request.addSignUserId() == null || request.addSignUserId() <= 0) {
                 throw new BizException("INVALID_PARAM", "加签操作必须指定被加签人用户ID");
             }
-            String targetName = StringUtils.hasText(request.addSignUserName()) ? request.addSignUserName() : "加签协同人";
+            String targetName = activeParticipant(tenantId, request.addSignUserId());
 
             WorkflowTaskEntity addSignTask = new WorkflowTaskEntity();
             addSignTask.setTenantId(tenantId);
             addSignTask.setInstanceId(instance.getId());
-            addSignTask.setNodeId(task.getNodeId() + "_sign_" + System.currentTimeMillis());
+            addSignTask.setNodeId(task.getNodeId());
             addSignTask.setNodeName(task.getNodeName() + " (加签协同)");
             addSignTask.setNodeType("APPROVER");
+            addSignTask.setFlowableTaskId(task.getFlowableTaskId());
             addSignTask.setAssigneeId(request.addSignUserId());
             addSignTask.setAssigneeName(targetName);
             addSignTask.setStatus("PENDING");
@@ -215,46 +240,6 @@ public class WorkflowTaskService {
 
             logAction(tenantId, instance.getId(), taskId, task.getNodeName(), userId, userName, "ADD_SIGN", "加签协同",
                     "邀请 " + targetName + " 协助审批。附言: " + (request.comment() != null ? request.comment() : "无"));
-
-        } else if ("ROLLBACK_PREVIOUS".equals(action)) {
-            // 5. 退回上一步
-            task.setStatus("ROLLBACK");
-            task.setAction("ROLLBACK_PREVIOUS");
-            task.setComment(request.comment());
-            task.setFinishTime(LocalDateTime.now());
-            task.setUpdatedBy(userId);
-            taskMapper.updateById(task);
-
-            WorkflowTaskEntity lastTask = taskMapper.selectOne(new LambdaQueryWrapper<WorkflowTaskEntity>()
-                    .eq(WorkflowTaskEntity::getInstanceId, instance.getId())
-                    .eq(WorkflowTaskEntity::getStatus, "COMPLETED")
-                    .eq(WorkflowTaskEntity::getNodeType, "APPROVER")
-                    .orderByDesc(WorkflowTaskEntity::getFinishTime)
-                    .last("LIMIT 1"));
-
-            Long prevUserId = (lastTask != null) ? lastTask.getAssigneeId() : instance.getInitiatorId();
-            String prevUserName = (lastTask != null) ? lastTask.getAssigneeName() : instance.getInitiatorName();
-            String prevNodeName = (lastTask != null) ? lastTask.getNodeName() : "申请人重新修改";
-
-            WorkflowTaskEntity rollbackTask = new WorkflowTaskEntity();
-            rollbackTask.setTenantId(tenantId);
-            rollbackTask.setInstanceId(instance.getId());
-            rollbackTask.setNodeId("rollback_" + System.currentTimeMillis());
-            rollbackTask.setNodeName(prevNodeName);
-            rollbackTask.setNodeType("APPROVER");
-            rollbackTask.setAssigneeId(prevUserId);
-            rollbackTask.setAssigneeName(prevUserName);
-            rollbackTask.setStatus("PENDING");
-            rollbackTask.setCreatedBy(userId);
-            rollbackTask.setUpdatedBy(userId);
-            taskMapper.insert(rollbackTask);
-
-            instance.setCurrentNodeName("退回: " + prevNodeName);
-            instance.setUpdatedBy(userId);
-            instanceMapper.updateById(instance);
-
-            logAction(tenantId, instance.getId(), taskId, task.getNodeName(), userId, userName, "ROLLBACK_PREVIOUS", "退回上一环节",
-                    "退回至 " + prevUserName + "。退回原因: " + (request.comment() != null ? request.comment() : "无"));
 
         } else if ("ROLLBACK_INITIATOR".equals(action)) {
             // 6. 退回发起人
@@ -268,6 +253,7 @@ public class WorkflowTaskService {
             WorkflowTaskEntity initTask = new WorkflowTaskEntity();
             initTask.setTenantId(tenantId);
             initTask.setInstanceId(instance.getId());
+            initTask.setReturnSourceTaskId(task.getId());
             initTask.setNodeId("rollback_starter");
             initTask.setNodeName("申请人重新修改");
             initTask.setNodeType("APPROVER");
@@ -278,6 +264,7 @@ public class WorkflowTaskService {
             initTask.setUpdatedBy(userId);
             taskMapper.insert(initTask);
 
+            instance.setCurrentNodeId("rollback_starter");
             instance.setCurrentNodeName("退回申请人");
             instance.setUpdatedBy(userId);
             instanceMapper.updateById(instance);
@@ -285,54 +272,12 @@ public class WorkflowTaskService {
             logAction(tenantId, instance.getId(), taskId, task.getNodeName(), userId, userName, "ROLLBACK_INITIATOR", "退回发起人",
                     "单据退回给申请人重新核准。原因: " + (request.comment() != null ? request.comment() : "无"));
 
-        } else if ("ROLLBACK_TARGET".equals(action)) {
-            // 7. 退回至历史指定任意环节 (BPMN 自由回退)
-            String targetNodeId = request.targetNodeId();
-            String targetNodeName = StringUtils.hasText(request.targetNodeName()) ? request.targetNodeName() : "历史指定节点";
-
-            task.setStatus("ROLLBACK");
-            task.setAction("ROLLBACK_TARGET");
-            task.setComment(request.comment());
-            task.setFinishTime(LocalDateTime.now());
-            task.setUpdatedBy(userId);
-            taskMapper.updateById(task);
-
-            WorkflowTaskLogEntity historicalLog = taskLogMapper.selectOne(new LambdaQueryWrapper<WorkflowTaskLogEntity>()
-                    .eq(WorkflowTaskLogEntity::getInstanceId, instance.getId())
-                    .eq(WorkflowTaskLogEntity::getNodeName, targetNodeName)
-                    .ne(WorkflowTaskLogEntity::getAction, "REJECT")
-                    .orderByDesc(WorkflowTaskLogEntity::getId)
-                    .last("LIMIT 1"));
-
-            Long targetAssigneeId = (historicalLog != null) ? historicalLog.getOperatorId() : instance.getInitiatorId();
-            String targetAssigneeName = (historicalLog != null) ? historicalLog.getOperatorName() : instance.getInitiatorName();
-
-            WorkflowTaskEntity targetTask = new WorkflowTaskEntity();
-            targetTask.setTenantId(tenantId);
-            targetTask.setInstanceId(instance.getId());
-            targetTask.setNodeId(StringUtils.hasText(targetNodeId) ? targetNodeId : "rollback_" + System.currentTimeMillis());
-            targetTask.setNodeName(targetNodeName);
-            targetTask.setNodeType("APPROVER");
-            targetTask.setAssigneeId(targetAssigneeId);
-            targetTask.setAssigneeName(targetAssigneeName);
-            targetTask.setStatus("PENDING");
-            targetTask.setCreatedBy(userId);
-            targetTask.setUpdatedBy(userId);
-            taskMapper.insert(targetTask);
-
-            instance.setCurrentNodeName("退回至: " + targetNodeName);
-            instance.setUpdatedBy(userId);
-            instanceMapper.updateById(instance);
-
-            logAction(tenantId, instance.getId(), taskId, task.getNodeName(), userId, userName, "ROLLBACK_TARGET", "退回历史环节",
-                    "退回至环节 [" + targetNodeName + "] 处理人: " + targetAssigneeName + "。原因: " + (request.comment() != null ? request.comment() : "无"));
-
         } else if ("DELEGATE".equals(action)) {
             // 8. 任务委派 (委托他人协助初审，审毕交回原审批人)
             if (request.delegateUserId() == null || request.delegateUserId() <= 0) {
                 throw new BizException("INVALID_PARAM", "委派操作必须指定被委派人用户ID");
             }
-            String targetName = StringUtils.hasText(request.delegateUserName()) ? request.delegateUserName() : "委派初审人";
+            String targetName = activeParticipant(tenantId, request.delegateUserId());
 
             task.setStatus("DELEGATED");
             task.setAction("DELEGATE");
@@ -344,6 +289,7 @@ public class WorkflowTaskService {
             delegateTask.setTenantId(tenantId);
             delegateTask.setInstanceId(instance.getId());
             delegateTask.setNodeId(task.getNodeId());
+            delegateTask.setReturnSourceTaskId(task.getId());
             delegateTask.setNodeName(task.getNodeName() + " (受托预审)");
             delegateTask.setNodeType("DELEGATE");
             delegateTask.setAssigneeId(request.delegateUserId());
@@ -371,13 +317,15 @@ public class WorkflowTaskService {
             WorkflowTaskEntity originalTask = taskMapper.selectOne(new LambdaQueryWrapper<WorkflowTaskEntity>()
                     .eq(WorkflowTaskEntity::getInstanceId, instance.getId())
                     .eq(WorkflowTaskEntity::getNodeId, task.getNodeId())
+                    .eq(task.getReturnSourceTaskId() != null, WorkflowTaskEntity::getId, task.getReturnSourceTaskId())
                     .eq(WorkflowTaskEntity::getStatus, "DELEGATED")
                     .eq(WorkflowTaskEntity::getNodeType, "APPROVER")
                     .eq(WorkflowTaskEntity::getDeleted, 0)
                     .orderByDesc(WorkflowTaskEntity::getId)
                     .last("LIMIT 1"));
 
-            if (originalTask != null) {
+            if (originalTask == null) throw new BizException("WORKFLOW_RETURN_SOURCE_UNKNOWN", "缺少原委派任务");
+            {
                 originalTask.setStatus("PENDING");
                 originalTask.setAction(null);
                 originalTask.setUpdatedBy(userId);
@@ -389,8 +337,8 @@ public class WorkflowTaskService {
             logAction(tenantId, instance.getId(), taskId, task.getNodeName(), userId, userName, "DELEGATE_RESOLVE", "受托初审交回",
                     "受托人已签署并交回原审批人。审核意见: " + (request.comment() != null ? request.comment() : "已完成协助核验"));
 
-        } else {
-            // 10. 同意审批 (默认)
+        } else if ("AGREE".equals(action)) {
+            // 同意审批
             task.setStatus("COMPLETED");
             task.setAction("AGREE");
             task.setComment(request.comment());
@@ -401,16 +349,11 @@ public class WorkflowTaskService {
             logAction(tenantId, instance.getId(), taskId, task.getNodeName(), userId, userName, "AGREE", "同意审批",
                     StringUtils.hasText(request.comment()) ? request.comment() : "审核通过。");
 
-            // 同步驱动 Flowable 工业级任务完成
-            if (StringUtils.hasText(task.getFlowableTaskId())) {
-                flowableBridgeService.completeTask(task.getFlowableTaskId(), Map.of(), request.comment(), userId);
-            }
-
             // 检查当前节点是否还有其他处于 PENDING 状态的会签任务 (BPMN 会签校验)
             List<WorkflowTaskEntity> pendingSiblings = taskMapper.selectList(new LambdaQueryWrapper<WorkflowTaskEntity>()
                     .eq(WorkflowTaskEntity::getInstanceId, instance.getId())
                     .eq(WorkflowTaskEntity::getNodeId, task.getNodeId())
-                    .eq(WorkflowTaskEntity::getStatus, "PENDING")
+                    .in(WorkflowTaskEntity::getStatus, List.of("PENDING", "DELEGATED"))
                     .eq(WorkflowTaskEntity::getNodeType, "APPROVER")
                     .ne(WorkflowTaskEntity::getId, task.getId())
                     .eq(WorkflowTaskEntity::getDeleted, 0));
@@ -424,67 +367,177 @@ public class WorkflowTaskService {
             }
 
             // 本环节所有人均已完成签署，推进下一步流程
-            ProcessDefinitionEntity definition = definitionMapper.selectById(instance.getDefinitionId());
-            if (definition != null) {
-                WorkflowEngine.ExecutionStep nextStep = workflowEngine.advanceFlow(
-                        definition.getFlowNodesJson(),
-                        instance.getFormDataJson(),
-                        task.getNodeId(),
-                        tenantId,
-                        instance.getInitiatorId(),
-                        instance.getInitiatorDeptId()
-                );
-
-                if (nextStep.isEnd()) {
-                    instance.setStatus("APPROVED");
-                    instance.setEndTime(LocalDateTime.now());
-                    instance.setCurrentNodeId("end");
-                    instance.setCurrentNodeName("流程办结");
-                    instance.setUpdatedBy(userId);
-                    instanceMapper.updateById(instance);
-
-                    logAction(tenantId, instance.getId(), null, "流程办结", userId, userName, "END", "办结归档", "所有审批环节均已顺利完成，单据生效。");
-                } else {
-                    instance.setCurrentNodeId(nextStep.nodeId());
-                    instance.setCurrentNodeName(nextStep.nodeName());
-                    instance.setUpdatedBy(userId);
-                    instanceMapper.updateById(instance);
-
-                    // 创建新审批任务 (若多个候选人则自动生成会签待办)
-                    for (WorkflowEngine.AssigneeInfo assignee : nextStep.assignees()) {
-                        WorkflowTaskEntity nextTask = new WorkflowTaskEntity();
-                        nextTask.setTenantId(tenantId);
-                        nextTask.setInstanceId(instance.getId());
-                        nextTask.setNodeId(nextStep.nodeId());
-                        nextTask.setNodeName(nextStep.nodeName());
-                        nextTask.setNodeType("APPROVER");
-                        nextTask.setAssigneeId(assignee.userId());
-                        nextTask.setAssigneeName(assignee.userName());
-                        nextTask.setStatus("PENDING");
-                        nextTask.setCreatedBy(userId);
-                        nextTask.setUpdatedBy(userId);
-                        taskMapper.insert(nextTask);
-                    }
-
-                    // 创建可能伴随的抄送人
-                    for (WorkflowEngine.AssigneeInfo cc : nextStep.ccList()) {
-                        WorkflowTaskEntity ccTask = new WorkflowTaskEntity();
-                        ccTask.setTenantId(tenantId);
-                        ccTask.setInstanceId(instance.getId());
-                        ccTask.setNodeId("cc_" + cc.userId());
-                        ccTask.setNodeName("抄送知会");
-                        ccTask.setNodeType("CC");
-                        ccTask.setAssigneeId(cc.userId());
-                        ccTask.setAssigneeName(cc.userName());
-                        ccTask.setStatus("PENDING");
-                        ccTask.setCreatedBy(userId);
-                        ccTask.setUpdatedBy(userId);
-                        taskMapper.insert(ccTask);
-                    }
+            if (instance.getDefinitionRevision() == null) {
+                throw new BizException("WORKFLOW_REVISION_UNKNOWN", "该历史单据缺少可核对的原始流程定义");
+            }
+            if (StringUtils.hasText(instance.getFlowableProcInstId())) {
+                var active = flowableBridgeService.getActiveTasks(instance.getFlowableProcInstId()).stream()
+                        .filter(t -> task.getNodeId().equals(t.getTaskDefinitionKey())).toList();
+                if (active.size() != 1 || !flowableBridgeService.completeTask(active.getFirst().getId(), Map.of(), request.comment(), userId)) {
+                    throw new BizException("WORKFLOW_ENGINE_MISMATCH", "引擎任务与业务节点不一致，审批未提交");
                 }
             }
+            WorkflowEngine.ExecutionStep nextStep = workflowEngine.advanceFlow(
+                    instance.getFlowNodesSnapshot(),
+                    instance.getFormDataJson(),
+                    task.getNodeId(),
+                    tenantId,
+                    instance.getInitiatorId(),
+                    instance.getInitiatorDeptId()
+            );
+
+            String engineId = instance.getFlowableProcInstId();
+            if (nextStep.isEnd()) {
+                if (StringUtils.hasText(engineId)) flowableBridgeService.requireFinished(engineId);
+                instance.setStatus("APPROVED");
+                instance.setEndTime(LocalDateTime.now());
+                instance.setCurrentNodeId("end");
+                instance.setCurrentNodeName("流程办结");
+                instance.setUpdatedBy(userId);
+                instanceMapper.updateById(instance);
+
+                logAction(tenantId, instance.getId(), null, "流程办结", userId, userName, "END", "办结归档", "所有审批环节均已顺利完成，单据生效。");
+            } else {
+                var active = StringUtils.hasText(engineId) ? flowableBridgeService.requireApprovalTask(engineId, nextStep.nodeId()) : null;
+                instance.setCurrentNodeId(nextStep.nodeId());
+                instance.setCurrentNodeName(nextStep.nodeName());
+                instance.setUpdatedBy(userId);
+                instanceMapper.updateById(instance);
+
+                // 创建新审批任务 (若多个候选人则自动生成会签待办)
+                for (AssigneeInfo assignee : nextStep.assignees()) {
+                    WorkflowTaskEntity nextTask = new WorkflowTaskEntity();
+                    nextTask.setTenantId(tenantId);
+                    nextTask.setInstanceId(instance.getId());
+                    nextTask.setNodeId(nextStep.nodeId());
+                    if (active != null) {
+                        nextTask.setFlowableTaskId(active.getId());
+                        nextTask.setActivityId(active.getTaskDefinitionKey());
+                    }
+                    nextTask.setNodeName(nextStep.nodeName());
+                    nextTask.setNodeType("APPROVER");
+                    nextTask.setAssigneeId(assignee.userId());
+                    nextTask.setAssigneeName(assignee.userName());
+                    nextTask.setStatus("PENDING");
+                    nextTask.setCreatedBy(userId);
+                    nextTask.setUpdatedBy(userId);
+                    taskMapper.insert(nextTask);
+                }
+
+                // 创建可能伴随的抄送人
+                for (AssigneeInfo cc : nextStep.ccList()) {
+                    WorkflowTaskEntity ccTask = new WorkflowTaskEntity();
+                    ccTask.setTenantId(tenantId);
+                    ccTask.setInstanceId(instance.getId());
+                    ccTask.setNodeId("cc_" + cc.userId());
+                    ccTask.setNodeName("抄送知会");
+                    ccTask.setNodeType("CC");
+                    ccTask.setAssigneeId(cc.userId());
+                    ccTask.setAssigneeName(cc.userName());
+                    ccTask.setStatus("PENDING");
+                    ccTask.setCreatedBy(userId);
+                    ccTask.setUpdatedBy(userId);
+                    taskMapper.insert(ccTask);
+                }
+            }
+        } else {
+            throw new BizException("INVALID_PARAM", "未知的审批操作");
         }
     }
+
+    private String activeParticipant(Long tenantId, Long id) {
+        return participants.findUser(tenantId, id).stream().findFirst().orElseThrow(() ->
+                new BizException("WORKFLOW_ASSIGNEE_MISSING", "目标办理人未启用或不属于当前租户")).userName();
+    }
+
+    private List<WorkflowTaskEntity> approvedNodes(ProcessInstanceEntity instance) {
+        return taskMapper.selectList(new LambdaQueryWrapper<WorkflowTaskEntity>()
+                .eq(WorkflowTaskEntity::getTenantId, instance.getTenantId())
+                .eq(WorkflowTaskEntity::getInstanceId, instance.getId())
+                .eq(WorkflowTaskEntity::getNodeType, "APPROVER").eq(WorkflowTaskEntity::getAction, "AGREE")
+                .eq(WorkflowTaskEntity::getStatus, "COMPLETED").eq(WorkflowTaskEntity::getDeleted, 0)
+                .orderByDesc(WorkflowTaskEntity::getFinishTime, WorkflowTaskEntity::getId));
+    }
+
+    private void returnToApproval(ProcessInstanceEntity instance, WorkflowTaskEntity task, WorkflowTaskEntity previous,
+                                  String action, String comment, Long actor, String actorName) {
+        if (!task.getNodeId().equals(instance.getCurrentNodeId()) || instance.getDefinitionRevision() == null) {
+            throw new BizException("WORKFLOW_ENGINE_MISMATCH", "无法核对要退回的活动节点");
+        }
+        var assignees = workflowEngine.approversAt(instance.getFlowNodesSnapshot(), previous.getNodeId(),
+                instance.getTenantId(), instance.getInitiatorId(), instance.getInitiatorDeptId());
+        var engineId = instance.getFlowableProcInstId();
+        var active = StringUtils.hasText(engineId) ? flowableBridgeService.returnTo(engineId, task.getNodeId(), previous.getNodeId()) : null;
+        taskMapper.update(new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<WorkflowTaskEntity>()
+                .eq(WorkflowTaskEntity::getInstanceId, instance.getId()).eq(WorkflowTaskEntity::getNodeId, task.getNodeId())
+                .in(WorkflowTaskEntity::getStatus, List.of("PENDING", "DELEGATED")).ne(WorkflowTaskEntity::getId, task.getId())
+                .set(WorkflowTaskEntity::getStatus, "CANCELLED").set(WorkflowTaskEntity::getFinishTime, LocalDateTime.now())
+                .set(WorkflowTaskEntity::getUpdatedBy, actor));
+        task.setAction(action);
+        task.setStatus("ROLLBACK");
+        task.setComment(comment);
+        task.setFinishTime(LocalDateTime.now());
+        task.setUpdatedBy(actor);
+        taskMapper.updateById(task);
+        for (var person : assignees) {
+            var reopened = new WorkflowTaskEntity();
+            reopened.setTenantId(instance.getTenantId());
+            reopened.setInstanceId(instance.getId());
+            reopened.setNodeId(previous.getNodeId());
+            reopened.setNodeName(previous.getNodeName());
+            reopened.setNodeType("APPROVER");
+            reopened.setAssigneeId(person.userId());
+            reopened.setAssigneeName(person.userName());
+            reopened.setFlowableTaskId(active == null ? null : active.getId());
+            reopened.setStatus("PENDING");
+            reopened.setCreatedBy(actor);
+            reopened.setUpdatedBy(actor);
+            taskMapper.insert(reopened);
+        }
+        instance.setCurrentNodeId(previous.getNodeId());
+        instance.setCurrentNodeName(previous.getNodeName());
+        instance.setUpdatedBy(actor);
+        instanceMapper.updateById(instance);
+        logAction(instance.getTenantId(), instance.getId(), task.getId(), task.getNodeName(), actor, actorName,
+                action, "退回至" + previous.getNodeName(), comment);
+    }
+
+    private void resumeReturnedTask(ProcessInstanceEntity instance, WorkflowTaskEntity submission,
+                                    Long userId, String userName, String comment) {
+        WorkflowTaskEntity source = submission.getReturnSourceTaskId() == null ? null
+                : taskMapper.selectById(submission.getReturnSourceTaskId());
+        if (source == null || !instance.getId().equals(source.getInstanceId())
+                || !instance.getTenantId().equals(source.getTenantId()) || !"ROLLBACK_INITIATOR".equals(source.getAction())) {
+            throw new BizException("WORKFLOW_RETURN_SOURCE_UNKNOWN", "找不到本次退回对应的审批任务");
+        }
+        submission.setStatus("COMPLETED");
+        submission.setAction("RESUBMIT");
+        submission.setComment(comment);
+        submission.setFinishTime(LocalDateTime.now());
+        submission.setUpdatedBy(userId);
+        taskMapper.updateById(submission);
+        WorkflowTaskEntity resumed = new WorkflowTaskEntity();
+        resumed.setTenantId(instance.getTenantId());
+        resumed.setInstanceId(instance.getId());
+        resumed.setNodeId(source.getNodeId());
+        resumed.setNodeName(source.getNodeName());
+        resumed.setNodeType("APPROVER");
+        resumed.setAssigneeId(source.getAssigneeId());
+        resumed.setAssigneeName(source.getAssigneeName());
+        resumed.setFlowableTaskId(source.getFlowableTaskId());
+        resumed.setActivityId(source.getActivityId());
+        resumed.setStatus("PENDING");
+        resumed.setCreatedBy(userId);
+        resumed.setUpdatedBy(userId);
+        taskMapper.insert(resumed);
+        instance.setCurrentNodeId(source.getNodeId());
+        instance.setCurrentNodeName(source.getNodeName());
+        instance.setUpdatedBy(userId);
+        instanceMapper.updateById(instance);
+        logAction(instance.getTenantId(), instance.getId(), submission.getId(), submission.getNodeName(),
+                userId, userName, "RESUBMIT", "重新提交", comment);
+    }
+
 
     @Transactional
     public void urgeInstance(Long instanceId, String comment) {
@@ -523,11 +576,6 @@ public class WorkflowTaskService {
             throw new BizException("NOT_FOUND", "审批实例不存在");
         }
 
-        List<WorkflowTaskLogEntity> logs = taskLogMapper.selectList(new LambdaQueryWrapper<WorkflowTaskLogEntity>()
-                .eq(WorkflowTaskLogEntity::getInstanceId, instanceId)
-                .in(WorkflowTaskLogEntity::getAction, List.of("AGREE", "START", "SUBMIT"))
-                .orderByAsc(WorkflowTaskLogEntity::getId));
-
         List<Map<String, Object>> result = new ArrayList<>();
         Map<String, Object> initiatorNode = new LinkedHashMap<>();
         initiatorNode.put("nodeId", "root");
@@ -538,15 +586,10 @@ public class WorkflowTaskService {
         result.add(initiatorNode);
 
         Set<String> seen = new HashSet<>();
-        for (WorkflowTaskLogEntity log : logs) {
-            if (StringUtils.hasText(log.getNodeName()) && seen.add(log.getNodeName())) {
-                Map<String, Object> node = new LinkedHashMap<>();
-                node.put("nodeId", "node_" + log.getId());
-                node.put("nodeName", log.getNodeName());
-                node.put("assigneeId", log.getOperatorId());
-                node.put("assigneeName", log.getOperatorName());
-                node.put("time", log.getCreatedAt());
-                result.add(node);
+        for (var past : approvedNodes(instance)) {
+            if (seen.add(past.getNodeId()) && !past.getNodeId().equals(instance.getCurrentNodeId())) {
+                result.add(Map.of("nodeId", past.getNodeId(), "nodeName", past.getNodeName(),
+                        "assigneeId", past.getAssigneeId(), "assigneeName", past.getAssigneeName(), "time", past.getFinishTime()));
             }
         }
         return result;

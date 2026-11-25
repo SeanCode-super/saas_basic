@@ -1,5 +1,6 @@
 package com.saasbasics.platform.modules.ai.application.service;
 
+import com.saasbasics.platform.common.exception.BizException;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.saasbasics.platform.common.auth.AuthContext;
 import com.saasbasics.platform.common.auth.AuthPrincipal;
@@ -115,7 +116,7 @@ public class AiChatGatewayService implements AiGatewayFacade {
                     item.put("name", cfg.getModelName());
                     item.put("vendor", vendorName);
                     item.put("contextWindow", cfg.getContextWindow() != null ? cfg.getContextWindow() : "64k");
-                    item.put("status", "ONLINE");
+                    item.put("status", "CONFIGURED");
                     item.put("isDefault", cfg.getIsDefault() != null && cfg.getIsDefault() == 1);
                     item.put("providerId", cfg.getProviderId());
                     item.put("hasApiKey", hasKey);
@@ -124,15 +125,9 @@ public class AiChatGatewayService implements AiGatewayFacade {
                 return result;
             }
         } catch (Exception e) {
-            log.warn("[AI Gateway]: Failed to query dynamic model configs, fallback to built-in models: {}", e.getMessage());
+            throw new BizException("AI_CATALOG_UNAVAILABLE", "模型目录读取失败");
         }
-
-        return List.of(
-                Map.of("id", "deepseek-chat", "name", "DeepSeek-V3 (通用大模型)", "vendor", "DeepSeek", "contextWindow", "64k", "status", "ONLINE", "hasApiKey", false),
-                Map.of("id", "deepseek-reasoner", "name", "DeepSeek-R1 (深度推理链)", "vendor", "DeepSeek", "contextWindow", "64k", "status", "ONLINE", "hasApiKey", false),
-                Map.of("id", "gpt-4o-mini", "name", "OpenAI GPT-4o Mini (轻量极速)", "vendor", "OpenAI", "contextWindow", "128k", "status", "ONLINE", "hasApiKey", false),
-                Map.of("id", "qwen-max", "name", "通义千问 Qwen-Max", "vendor", "Alibaba", "contextWindow", "32k", "status", "ONLINE", "hasApiKey", false)
-        );
+        return List.of();
     }
 
     @Override
@@ -203,23 +198,10 @@ public class AiChatGatewayService implements AiGatewayFacade {
                         remoteResp.latencyMs()
                 );
             } catch (Exception e) {
-                log.warn("[AI Gateway]: Remote call to {} failed ({}), falling back to intelligent response", endpoint.url, e.getMessage());
+                throw new BizException("AI_PROVIDER_UNAVAILABLE", "模型服务调用失败，请检查供应商连接");
             }
         }
-
-        String reply = generateIntelligentResponse(modelId, lastPrompt);
-        long costMs = Math.max(1L, System.currentTimeMillis() - start);
-        int promptTokens = Math.max(8, lastPrompt.length() / 2);
-        int completionTokens = Math.max(16, reply.length() / 2);
-        String providerCode = endpoint != null ? endpoint.providerCode : "demo-local";
-
-        String runNo = runOrchestratorService.recordCompletedChatRun(
-                tenantId, userId, username, providerCode, modelId, request.getPromptCode(),
-                lastPrompt, reply, promptTokens, completionTokens, costMs, null
-        );
-        emitGenAiTelemetry(providerCode, modelId, tenantId, promptTokens, completionTokens, costMs, null);
-
-        return new AiChatResponse(runNo, modelId, reply, promptTokens, completionTokens, costMs);
+        throw new BizException("AI_PROVIDER_NOT_CONFIGURED", "未配置此模型的可用服务凭据");
     }
 
     public SseEmitter chatStream(AiChatRequest request) {
@@ -294,18 +276,12 @@ public class AiChatGatewayService implements AiGatewayFacade {
                                     emitter.complete();
                                 }
                             },
-                            errCat -> {
-                                try {
-                                    streamLocalSimulation(tenantId, userId, username, modelId, request, emitter, start);
-                                } catch (Exception simEx) {
-                                    emitter.completeWithError(simEx);
-                                }
-                            }
+                            errCat -> emitter.completeWithError(new BizException("AI_PROVIDER_UNAVAILABLE", "模型服务中断"))
                     );
                     return;
                 }
 
-                streamLocalSimulation(tenantId, userId, username, modelId, request, emitter, start);
+                emitter.completeWithError(new BizException("AI_PROVIDER_NOT_CONFIGURED", "未配置此模型的可用服务凭据"));
             } catch (Exception ex) {
                 log.error("[AI Streaming Error]: {}", ex.getMessage());
                 try {
@@ -316,35 +292,6 @@ public class AiChatGatewayService implements AiGatewayFacade {
         });
 
         return emitter;
-    }
-
-    private void streamLocalSimulation(
-            Long tenantId,
-            Long userId,
-            String username,
-            String modelId,
-            AiChatRequest request,
-            SseEmitter emitter,
-            long start
-    ) throws Exception {
-        String lastPrompt = extractLastUserMessage(request);
-        String fullReply = generateIntelligentResponse(modelId, lastPrompt);
-        String[] chunks = fullReply.split("(?<=\\n|。|，|；| )");
-        for (String chunk : chunks) {
-            if (chunk.isEmpty()) continue;
-            emitter.send(SseEmitter.event().data(Map.of("model", modelId, "content", chunk, "done", false)));
-            Thread.sleep(25);
-        }
-        int pTok = Math.max(8, lastPrompt.length() / 2);
-        int cTok = Math.max(16, fullReply.length() / 2);
-        long simLatencyMs = Math.max(1L, System.currentTimeMillis() - start);
-        runOrchestratorService.recordCompletedChatRun(
-                tenantId, userId, username, "demo-local", modelId, request.getPromptCode(),
-                lastPrompt, fullReply, pTok, cTok, simLatencyMs, null
-        );
-        emitGenAiTelemetry("demo-local", modelId, tenantId, pTok, cTok, simLatencyMs, null);
-        emitter.send(SseEmitter.event().data(Map.of("done", true, "finishReason", "stop")));
-        emitter.complete();
     }
 
     private void emitGenAiTelemetry(
@@ -442,63 +389,4 @@ public class AiChatGatewayService implements AiGatewayFacade {
         return request.getMessages().get(request.getMessages().size() - 1).getContent();
     }
 
-    private String generateIntelligentResponse(String model, String prompt) {
-        String p = prompt.toLowerCase();
-        if (p.contains("芋道") || p.contains("ruoyi") || p.contains("对比")) {
-            return """
-### Antigravity SaaS vs 芋道 (ruoyi-vue-pro) 核心对比
-
-很高兴为您解答！Antigravity SaaS 相比传统开源框架具备以下四大领先架构特性：
-
-1. **企业级安全硬化与 Vault 凭据保险箱**：
-   - 全站核心密钥采用 **AES-256-GCM** 密封存储与零停机轮换；网关层面内置 **Redis Lua 滑动窗口限流**与 **HTTP 429** 防护。
-2. **M3 级 AI 治理与 MCP 协议安全**：
-   - 具备完整的 `ai_run` 审批状态机、MCP JSON-RPC 2.0 白名单门禁及租户级 Token 配额结算。
-3. **OpenTelemetry + Prometheus 全链路可观测**：
-   - 原生支持 W3C `traceparent` 穿透、OpenTelemetry Span 采集与 `/actuator/prometheus` 指标大盘。
-4. **唯一键与 ArchUnit 架构防腐**：
-   - 通过代码级 ArchUnit 测试防线守住模块化与多租户安全边界。
-""";
-        }
-
-        if (p.contains("sql") || p.contains("数据库") || p.contains("表")) {
-            return """
-### 企业级数据库设计建议
-
-针对您提出的数据库场景，推荐遵循 Antigravity SaaS 底座规范：
-
-```sql
-CREATE TABLE `biz_order` (
-    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `tenant_id` BIGINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '租户ID',
-    `order_no` VARCHAR(64) NOT NULL COMMENT '订单编号',
-    `total_amount` DECIMAL(12,2) NOT NULL DEFAULT 0.00 COMMENT '总金额',
-    `order_status` VARCHAR(32) NOT NULL DEFAULT 'PENDING' COMMENT '状态',
-    `created_by` BIGINT UNSIGNED NOT NULL DEFAULT 0,
-    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updated_by` BIGINT UNSIGNED NOT NULL DEFAULT 0,
-    `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
-    `deleted` TINYINT(1) NOT NULL DEFAULT 0,
-    `deleted_at` DATETIME(3) DEFAULT NULL,
-    `version` INT UNSIGNED NOT NULL DEFAULT 0,
-    UNIQUE KEY `uk_order_no` (`tenant_id`, `order_no`, (CASE WHEN `deleted` = 0 THEN 0 ELSE NULL END))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='企业业务订单表';
-```
-""";
-        }
-
-        return String.format("""
-### AI 智能助手响应 (%s)
-
-您好！我已经收到您关于 **"%s"** 的咨询。
-
-当前回答已通过 **天枢 AI 治理中台 (M3)** 处理并计入租户 Token 用量审计：
-- 🔐 **Vault 加密保护**：所有三方大模型密钥经 AES-256-GCM 密封保管
-- 🛡️ **网关限流守护**：已开启租户级 RPM 滑动窗口配额防刷
-- 📊 **OpenTelemetry 追踪**：全链路 TraceId 已注入响应头与监控看板
-- 🚀 **MCP 与工具审批**：支持在「AI 智能模型网关」体验高危工具人机协同审批流
-
-如需配置真实 API Key，点击右上角 **⚙️ 设置齿轮** 即可直达服务商配置面板！
-""", model, prompt);
-    }
 }

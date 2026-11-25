@@ -871,7 +871,7 @@ public class PlatformApiCatalogService implements SmartInitializingSingleton {
         }
     }
 
-    public List<EndpointStatDelta> drainUnsyncedDeltas() {
+    public List<EndpointStatDelta> pendingDeltas() {
         ensureCatalogInitialized();
         List<EndpointStatDelta> deltas = new ArrayList<>();
         for (RegisteredEndpoint ep : this.catalog) {
@@ -897,13 +897,6 @@ public class PlatformApiCatalogService implements SmartInitializingSingleton {
                 continue;
             }
 
-            c.syncedTotalCalls.addAndGet(dTotal);
-            c.syncedEncryptedCalls.addAndGet(dEnc);
-            c.syncedPlaintextCalls.addAndGet(dPlain);
-            c.syncedRejectedCalls.addAndGet(dRej);
-            c.syncedErrorCalls.addAndGet(dErr);
-            c.syncedTotalDurationMs.addAndGet(dDur);
-
             double[] pct = c.computePercentiles();
             deltas.add(new EndpointStatDelta(
                     ep.endpointKey(),
@@ -922,6 +915,16 @@ public class PlatformApiCatalogService implements SmartInitializingSingleton {
             ));
         }
         return deltas;
+    }
+
+    public void acknowledgePersisted(EndpointStatDelta delta) {
+        EndpointCounters counters = statsMap.get(delta.endpointKey());
+        counters.syncedTotalCalls.addAndGet(delta.totalCallsDelta());
+        counters.syncedEncryptedCalls.addAndGet(delta.encryptedCallsDelta());
+        counters.syncedPlaintextCalls.addAndGet(delta.plaintextCallsDelta());
+        counters.syncedRejectedCalls.addAndGet(delta.rejectedCallsDelta());
+        counters.syncedErrorCalls.addAndGet(delta.errorCallsDelta());
+        counters.syncedTotalDurationMs.addAndGet(delta.totalDurationMsDelta());
     }
 
     private static List<String> extractPackageLevels(String packageName) {

@@ -2,34 +2,42 @@ package com.saasbasics.platform.modules.erp.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.saasbasics.platform.common.auth.AuthContext;
-import com.saasbasics.platform.common.auth.AuthPrincipal;
 import com.saasbasics.platform.common.auth.CurrentDepartmentResolver;
 import com.saasbasics.platform.common.exception.BizException;
 import com.saasbasics.platform.modules.erp.dto.ErpInventoryResponse;
+import com.saasbasics.platform.modules.erp.dto.ErpInventoryRecordResponse;
+import com.saasbasics.platform.modules.erp.dto.ErpMasterDataOption;
+import com.saasbasics.platform.modules.erp.dto.ErpMasterDataRequest;
+import com.saasbasics.platform.modules.erp.dto.ErpPurchaseItemResponse;
+import com.saasbasics.platform.modules.erp.dto.ErpStockAdjustmentRequest;
 import com.saasbasics.platform.modules.erp.dto.ErpProductResponse;
 import com.saasbasics.platform.modules.erp.dto.ErpProductSaveRequest;
+import com.saasbasics.platform.modules.erp.dto.ErpPurchaseItemRequest;
 import com.saasbasics.platform.modules.erp.dto.ErpPurchaseOrderResponse;
 import com.saasbasics.platform.modules.erp.dto.ErpPurchaseOrderSaveRequest;
 import com.saasbasics.platform.modules.erp.entity.ErpInventoryEntity;
 import com.saasbasics.platform.modules.erp.entity.ErpInventoryRecordEntity;
 import com.saasbasics.platform.modules.erp.entity.ErpProductEntity;
+import com.saasbasics.platform.modules.erp.entity.ErpPurchaseItemEntity;
 import com.saasbasics.platform.modules.erp.entity.ErpPurchaseOrderEntity;
+import com.saasbasics.platform.modules.erp.entity.ErpWarehouseEntity;
+import com.saasbasics.platform.modules.erp.entity.ErpSupplierEntity;
 import com.saasbasics.platform.modules.erp.mapper.ErpInventoryMapper;
 import com.saasbasics.platform.modules.erp.mapper.ErpInventoryRecordMapper;
 import com.saasbasics.platform.modules.erp.mapper.ErpProductMapper;
+import com.saasbasics.platform.modules.erp.mapper.ErpPurchaseItemMapper;
 import com.saasbasics.platform.modules.erp.mapper.ErpPurchaseOrderMapper;
+import com.saasbasics.platform.modules.erp.mapper.ErpWarehouseMapper;
+import com.saasbasics.platform.modules.erp.mapper.ErpSupplierMapper;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.util.UUID;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,7 +48,9 @@ public class ErpService {
     private final ErpInventoryMapper inventoryMapper;
     private final ErpInventoryRecordMapper recordMapper;
     private final ErpPurchaseOrderMapper purchaseOrderMapper;
-    private final JdbcTemplate jdbcTemplate;
+    private final ErpPurchaseItemMapper purchaseItemMapper;
+    private final ErpWarehouseMapper warehouseMapper;
+    private final ErpSupplierMapper supplierMapper;
     private final ObjectProvider<CurrentDepartmentResolver> departmentResolverProvider;
 
     public ErpService(
@@ -48,25 +58,18 @@ public class ErpService {
             ErpInventoryMapper inventoryMapper,
             ErpInventoryRecordMapper recordMapper,
             ErpPurchaseOrderMapper purchaseOrderMapper,
-            JdbcTemplate jdbcTemplate
-    ) {
-        this(productMapper, inventoryMapper, recordMapper, purchaseOrderMapper, jdbcTemplate, null);
-    }
-
-    @Autowired
-    public ErpService(
-            ErpProductMapper productMapper,
-            ErpInventoryMapper inventoryMapper,
-            ErpInventoryRecordMapper recordMapper,
-            ErpPurchaseOrderMapper purchaseOrderMapper,
-            JdbcTemplate jdbcTemplate,
+            ErpPurchaseItemMapper purchaseItemMapper,
+            ErpWarehouseMapper warehouseMapper,
+            ErpSupplierMapper supplierMapper,
             ObjectProvider<CurrentDepartmentResolver> departmentResolverProvider
     ) {
         this.productMapper = productMapper;
         this.inventoryMapper = inventoryMapper;
         this.recordMapper = recordMapper;
         this.purchaseOrderMapper = purchaseOrderMapper;
-        this.jdbcTemplate = jdbcTemplate;
+        this.purchaseItemMapper = purchaseItemMapper;
+        this.warehouseMapper = warehouseMapper;
+        this.supplierMapper = supplierMapper;
         this.departmentResolverProvider = departmentResolverProvider;
     }
 
@@ -116,14 +119,16 @@ public class ErpService {
         entity.setDeleted(0);
         productMapper.insert(entity);
 
-        // 默认初始化在当前租户默认中心仓的库存为 0
-        ErpInventoryEntity inv = new ErpInventoryEntity();
-        inv.setTenantId(tenantId);
-        inv.setProductId(entity.getId());
-        inv.setWarehouseId(resolveTenantDefaultWarehouseId(tenantId));
-        inv.setStockQuantity(0);
-        inv.setLockedQuantity(0);
-        inventoryMapper.insert(inv);
+        List<ErpWarehouseEntity> warehouses = enabledWarehouses();
+        if (!warehouses.isEmpty()) {
+            ErpInventoryEntity inventory = new ErpInventoryEntity();
+            inventory.setTenantId(tenantId);
+            inventory.setProductId(entity.getId());
+            inventory.setWarehouseId(warehouses.getFirst().getId());
+            inventory.setStockQuantity(0);
+            inventory.setLockedQuantity(0);
+            inventoryMapper.insert(inventory);
+        }
 
         return new ErpProductResponse(
                 entity.getId(),
@@ -163,6 +168,7 @@ public class ErpService {
                 .eq(ErpProductEntity::getDeleted, 0))
                 .stream().collect(Collectors.toMap(ErpProductEntity::getId, Function.identity()));
 
+        Map<Long, String> warehouses = warehouseNames(tenantId);
         List<ErpInventoryResponse> result = new ArrayList<>();
         for (ErpInventoryEntity inv : invList) {
             ErpProductEntity prod = prodMap.get(inv.getProductId());
@@ -173,7 +179,7 @@ public class ErpService {
             int avail = stock - locked;
             int min = prod.getMinStock() != null ? prod.getMinStock() : 10;
             boolean low = stock <= min;
-            BigDecimal val = prod.getPurchasePrice().multiply(BigDecimal.valueOf(stock));
+            BigDecimal val = prod.getPurchasePrice() == null ? null : prod.getPurchasePrice().multiply(BigDecimal.valueOf(stock));
 
             result.add(new ErpInventoryResponse(
                     inv.getId(),
@@ -183,30 +189,33 @@ public class ErpService {
                     prod.getSpecification(),
                     prod.getUnit(),
                     inv.getWarehouseId(),
-                    inv.getWarehouseId() == 1L ? "华东一号中心立体总仓" : "华南保税智造配送仓",
+                    warehouses.get(inv.getWarehouseId()),
                     stock,
                     locked,
                     avail,
                     min,
                     low,
                     val,
-                    inv.getUpdatedAt() != null ? inv.getUpdatedAt() : LocalDateTime.now()
+                    inv.getUpdatedAt()
             ));
         }
         return result;
     }
 
-    public List<com.saasbasics.platform.modules.erp.dto.ErpInventoryRecordResponse> listInventoryRecords() {
+    public List<ErpInventoryRecordResponse> listInventoryRecords(Long productId, Long warehouseId) {
         Long tenantId = getTenantId();
         List<ErpInventoryRecordEntity> list = recordMapper.selectList(new LambdaQueryWrapper<ErpInventoryRecordEntity>()
                 .eq(ErpInventoryRecordEntity::getTenantId, tenantId)
+                .eq(productId != null, ErpInventoryRecordEntity::getProductId, productId)
+                .eq(warehouseId != null, ErpInventoryRecordEntity::getWarehouseId, warehouseId)
                 .orderByDesc(ErpInventoryRecordEntity::getId)
                 .last("LIMIT 50"));
-        return list.stream().map(r -> new com.saasbasics.platform.modules.erp.dto.ErpInventoryRecordResponse(
+        return list.stream().map(r -> new ErpInventoryRecordResponse(
                 r.getId(),
                 r.getTenantId(),
                 r.getRecordNo(),
                 r.getRecordType(),
+                r.getPurchaseItemId(),
                 r.getProductId(),
                 r.getProductName(),
                 r.getWarehouseId(),
@@ -220,266 +229,277 @@ public class ErpService {
         )).toList();
     }
 
+    public List<ErpMasterDataOption> listSuppliers() {
+        return supplierMapper.selectList(new LambdaQueryWrapper<ErpSupplierEntity>()
+                .eq(ErpSupplierEntity::getTenantId, getTenantId())
+                .eq(ErpSupplierEntity::getDeleted, 0).eq(ErpSupplierEntity::getStatus, "ENABLED")
+                .orderByAsc(ErpSupplierEntity::getSupplierCode)).stream()
+                .map(row -> new ErpMasterDataOption(row.getId(), row.getSupplierCode(), row.getSupplierName())).toList();
+    }
+
+    public List<ErpMasterDataOption> listWarehouses() {
+        return enabledWarehouses().stream()
+                .map(row -> new ErpMasterDataOption(row.getId(), row.getWarehouseCode(), row.getWarehouseName())).toList();
+    }
+
+    private List<ErpWarehouseEntity> enabledWarehouses() {
+        return warehouseMapper.selectList(new LambdaQueryWrapper<ErpWarehouseEntity>()
+                .eq(ErpWarehouseEntity::getTenantId, getTenantId())
+                .eq(ErpWarehouseEntity::getDeleted, 0).eq(ErpWarehouseEntity::getStatus, "ENABLED")
+                .orderByAsc(ErpWarehouseEntity::getId));
+    }
+
+    private Map<Long, String> warehouseNames(Long tenantId) {
+        return warehouseMapper.selectList(new LambdaQueryWrapper<ErpWarehouseEntity>()
+                .eq(ErpWarehouseEntity::getTenantId, tenantId)).stream()
+                .collect(Collectors.toMap(ErpWarehouseEntity::getId, ErpWarehouseEntity::getWarehouseName));
+    }
+
+    @Transactional
+    public ErpMasterDataOption createSupplier(ErpMasterDataRequest request) {
+        ErpSupplierEntity supplier = new ErpSupplierEntity();
+        supplier.setTenantId(getTenantId());
+        supplier.setSupplierCode(request.code().trim());
+        supplier.setSupplierName(request.name().trim());
+        supplier.setStatus("ENABLED");
+        supplier.setCreatedBy(getUserId());
+        supplier.setUpdatedBy(getUserId());
+        supplierMapper.insert(supplier);
+        return new ErpMasterDataOption(supplier.getId(), supplier.getSupplierCode(), supplier.getSupplierName());
+    }
+
+    @Transactional
+    public ErpMasterDataOption createWarehouse(ErpMasterDataRequest request) {
+        ErpWarehouseEntity warehouse = new ErpWarehouseEntity();
+        warehouse.setTenantId(getTenantId());
+        warehouse.setWarehouseCode(request.code().trim());
+        warehouse.setWarehouseName(request.name().trim());
+        warehouse.setStatus("ENABLED");
+        warehouse.setCreatedBy(getUserId());
+        warehouse.setUpdatedBy(getUserId());
+        warehouseMapper.insert(warehouse);
+        return new ErpMasterDataOption(warehouse.getId(), warehouse.getWarehouseCode(), warehouse.getWarehouseName());
+    }
+
+    private ErpWarehouseEntity requireWarehouse(Long tenantId, Long id) {
+        var warehouse = warehouseMapper.selectOne(new LambdaQueryWrapper<ErpWarehouseEntity>()
+                .eq(ErpWarehouseEntity::getTenantId, tenantId).eq(ErpWarehouseEntity::getId, id)
+                .eq(ErpWarehouseEntity::getStatus, "ENABLED").eq(ErpWarehouseEntity::getDeleted, 0));
+        if (warehouse == null) throw new BizException("INVALID_WAREHOUSE", "收货仓库不存在或已停用");
+        return warehouse;
+    }
+
     public List<ErpPurchaseOrderResponse> listPurchaseOrders() {
         Long tenantId = getTenantId();
-        List<ErpPurchaseOrderEntity> list = purchaseOrderMapper.selectList(new LambdaQueryWrapper<ErpPurchaseOrderEntity>()
-                .eq(ErpPurchaseOrderEntity::getTenantId, tenantId)
-                .eq(ErpPurchaseOrderEntity::getDeleted, 0)
+        var orders = purchaseOrderMapper.selectList(new LambdaQueryWrapper<ErpPurchaseOrderEntity>()
+                .eq(ErpPurchaseOrderEntity::getTenantId, tenantId).eq(ErpPurchaseOrderEntity::getDeleted, 0)
                 .orderByDesc(ErpPurchaseOrderEntity::getId));
+        if (orders.isEmpty()) return List.of();
+        var items = purchaseItemMapper.selectList(new LambdaQueryWrapper<ErpPurchaseItemEntity>()
+                .eq(ErpPurchaseItemEntity::getTenantId, tenantId)
+                .in(ErpPurchaseItemEntity::getOrderId, orders.stream().map(ErpPurchaseOrderEntity::getId).toList())
+                .orderByAsc(ErpPurchaseItemEntity::getId)).stream()
+                .collect(Collectors.groupingBy(ErpPurchaseItemEntity::getOrderId));
+        var names = warehouseNames(tenantId);
+        return orders.stream().map(order -> response(order, names.get(order.getWarehouseId()),
+                items.getOrDefault(order.getId(), List.of()))).toList();
+    }
 
-        return list.stream().map(o -> new ErpPurchaseOrderResponse(
-                o.getId(),
-                o.getOrderNo(),
-                o.getSupplierId(),
-                o.getSupplierName(),
-                o.getTotalAmount(),
-                o.getStatus(),
-                o.getRemark(),
-                o.getCreatedAt()
-        )).toList();
+    private ErpPurchaseOrderResponse response(ErpPurchaseOrderEntity order, String warehouse,
+                                              List<ErpPurchaseItemEntity> items) {
+        var lines = items.stream().map(item -> new ErpPurchaseItemResponse(item.getProductId(),
+                item.getProductName(), item.getQuantity(), item.getUnitPrice(), item.getSubtotal())).toList();
+        return new ErpPurchaseOrderResponse(order.getId(), order.getOrderNo(), order.getSupplierId(),
+                order.getSupplierName(), order.getTotalAmount(), order.getStatus(), order.getRemark(),
+                order.getCreatedAt(), order.getWarehouseId(), warehouse, lines);
     }
 
     @Transactional
-    public ErpPurchaseOrderResponse createPurchaseOrder(ErpPurchaseOrderSaveRequest req) {
-        if (req != null && req.totalAmount() != null && req.totalAmount().compareTo(BigDecimal.ZERO) < 0) {
-            throw new BizException("INVALID_AMOUNT", "采购订单总金额不能为负数");
-        }
-        Long tenantId = getTenantId();
-        Long userId = getUserId();
-
-        String stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-        int rand = ThreadLocalRandom.current().nextInt(1000, 9999);
-        String orderNo = "PO" + stamp + rand;
-
-        ErpPurchaseOrderEntity order = new ErpPurchaseOrderEntity();
-        order.setTenantId(tenantId);
-        order.setOrderNo(orderNo);
-        order.setSupplierId(req.supplierId());
-        order.setSupplierName(req.supplierName() != null ? req.supplierName() : "华为数字能源技术有限公司");
-        order.setTotalAmount(req.totalAmount() != null ? req.totalAmount() : new BigDecimal("48500.00"));
+    public ErpPurchaseOrderResponse createPurchaseOrder(ErpPurchaseOrderSaveRequest request) {
+        var order = new ErpPurchaseOrderEntity();
+        order.setTenantId(getTenantId());
+        order.setOrderNo("PO-" + UUID.randomUUID());
         order.setStatus("PENDING");
-        order.setRemark(req.remark() != null ? req.remark() : "例行采购订单");
         order.setDeptId(resolveCurrentDeptId());
-        order.setCreatedBy(userId);
-        order.setUpdatedBy(userId);
+        order.setCreatedBy(getUserId());
+        order.setCreatedAt(LocalDateTime.now());
         order.setDeleted(0);
-        purchaseOrderMapper.insert(order);
-
-        return new ErpPurchaseOrderResponse(
-                order.getId(),
-                order.getOrderNo(),
-                order.getSupplierId(),
-                order.getSupplierName(),
-                order.getTotalAmount(),
-                order.getStatus(),
-                order.getRemark(),
-                LocalDateTime.now()
-        );
+        return saveOrder(order, request);
     }
 
     @Transactional
-    public void stockInPurchaseOrder(Long orderId, Long warehouseId) {
-        Long tenantId = getTenantId();
-        String userName = getUserName();
-
-        ErpPurchaseOrderEntity order = purchaseOrderMapper.selectById(orderId);
-        if (order == null || !order.getTenantId().equals(tenantId) || order.getDeleted() != 0) {
-            throw new BizException("NOT_FOUND", "采购订单不存在");
+    public ErpPurchaseOrderResponse confirmLegacyOrder(Long id, ErpPurchaseOrderSaveRequest request) {
+        var order = lockPendingOrder(id);
+        if (order.getWarehouseId() != null && purchaseItemMapper.exists(new LambdaQueryWrapper<ErpPurchaseItemEntity>()
+                .eq(ErpPurchaseItemEntity::getTenantId, order.getTenantId()).eq(ErpPurchaseItemEntity::getOrderId, id))) {
+            throw new BizException("ORDER_ALREADY_CONFIRMED", "该采购单已经确认");
         }
-        if ("IN_STORAGE".equals(order.getStatus())) {
-            throw new BizException("ALREADY_IN", "该采购订单已完成入库，请勿重复操作");
-        }
-
-        order.setStatus("IN_STORAGE");
-        purchaseOrderMapper.updateById(order);
-
-        Long whId = warehouseId != null ? warehouseId : resolveTenantDefaultWarehouseId(tenantId);
-        List<ErpProductEntity> tenantProducts = productMapper.selectList(new LambdaQueryWrapper<ErpProductEntity>()
-                .eq(ErpProductEntity::getTenantId, tenantId)
-                .eq(ErpProductEntity::getDeleted, 0)
-                .orderByAsc(ErpProductEntity::getId)
-                .last("LIMIT 1"));
-        ErpProductEntity targetProd = tenantProducts.isEmpty() ? null : tenantProducts.get(0);
-        Long prodId = targetProd != null ? targetProd.getId() : 1L;
-        String prodName = targetProd != null ? targetProd.getProductName() : "高频工业级 UPS 50kVA 主机";
-
-        ErpInventoryEntity inv = inventoryMapper.selectOne(new LambdaQueryWrapper<ErpInventoryEntity>()
-                .eq(ErpInventoryEntity::getTenantId, tenantId)
-                .eq(ErpInventoryEntity::getProductId, prodId)
-                .eq(ErpInventoryEntity::getWarehouseId, whId));
-
-        int before = inv != null && inv.getStockQuantity() != null ? inv.getStockQuantity() : 0;
-        int qtyChange = 10;
-        int after = before + qtyChange;
-
-        if (inv != null) {
-            inv.setStockQuantity(after);
-            inv.setUpdatedAt(LocalDateTime.now());
-            inventoryMapper.updateById(inv);
-        } else if (targetProd != null) {
-            inv = new ErpInventoryEntity();
-            inv.setTenantId(tenantId);
-            inv.setProductId(prodId);
-            inv.setWarehouseId(whId);
-            inv.setStockQuantity(after);
-            inv.setLockedQuantity(0);
-            inv.setUpdatedAt(LocalDateTime.now());
-            inventoryMapper.insert(inv);
-        }
-
-        // 记录出入库台账流水
-        ErpInventoryRecordEntity record = new ErpInventoryRecordEntity();
-        record.setTenantId(tenantId);
-        record.setRecordNo("REC" + System.currentTimeMillis());
-        record.setRecordType("PURCHASE_IN");
-        record.setProductId(prodId);
-        record.setProductName(prodName);
-        record.setWarehouseId(whId);
-        record.setWarehouseName(resolveWarehouseName(tenantId, whId));
-        record.setChangeQuantity(qtyChange);
-        record.setBeforeQuantity(before);
-        record.setAfterQuantity(after);
-        record.setOperatorName(userName);
-        record.setRemark("采购单 " + order.getOrderNo() + " 核销入库");
-        record.setCreatedBy(getUserId());
-        record.setDeptId(resolveCurrentDeptId());
-        record.setCreatedAt(LocalDateTime.now());
-        recordMapper.insert(record);
+        return saveOrder(order, request);
     }
 
-    @Transactional
-    public void adjustStock(Long productId, Long warehouseId, String type, int delta, String remark) {
-        Long tenantId = getTenantId();
-        String userName = getUserName();
-        Long whId = warehouseId != null ? warehouseId : resolveTenantDefaultWarehouseId(tenantId);
-
-        ErpProductEntity prod = productMapper.selectById(productId);
-        if (prod == null || !prod.getTenantId().equals(tenantId) || prod.getDeleted() != 0) {
-            throw new BizException("NOT_FOUND", "物料不存在");
+    private ErpPurchaseOrderResponse saveOrder(ErpPurchaseOrderEntity order, ErpPurchaseOrderSaveRequest request) {
+        Long tenantId = order.getTenantId();
+        var supplier = supplierMapper.selectOne(new LambdaQueryWrapper<ErpSupplierEntity>()
+                .eq(ErpSupplierEntity::getTenantId, tenantId).eq(ErpSupplierEntity::getId, request.supplierId())
+                .eq(ErpSupplierEntity::getStatus, "ENABLED").eq(ErpSupplierEntity::getDeleted, 0));
+        if (supplier == null) throw new BizException("INVALID_SUPPLIER", "供应商不存在或已停用");
+        var warehouse = requireWarehouse(tenantId, request.warehouseId());
+        var products = productMapper.selectList(new LambdaQueryWrapper<ErpProductEntity>()
+                .eq(ErpProductEntity::getTenantId, tenantId).eq(ErpProductEntity::getDeleted, 0)
+                .eq(ErpProductEntity::getStatus, "ENABLED")
+                .in(ErpProductEntity::getId, request.items().stream().map(ErpPurchaseItemRequest::productId).distinct().toList()))
+                .stream().collect(Collectors.toMap(ErpProductEntity::getId, Function.identity()));
+        List<ErpPurchaseItemEntity> lines = new ArrayList<>();
+        BigDecimal total = BigDecimal.ZERO;
+        for (var input : request.items()) {
+            var product = products.get(input.productId());
+            if (product == null) throw new BizException("INVALID_PRODUCT", "采购物料不存在或已停用");
+            var line = new ErpPurchaseItemEntity();
+            line.setTenantId(tenantId);
+            line.setProductId(product.getId());
+            line.setProductName(product.getProductName());
+            line.setQuantity(input.quantity());
+            line.setUnitPrice(input.unitPrice());
+            line.setSubtotal(input.unitPrice().multiply(BigDecimal.valueOf(input.quantity())));
+            total = total.add(line.getSubtotal());
+            lines.add(line);
         }
-
-        ErpInventoryEntity inv = inventoryMapper.selectOne(new LambdaQueryWrapper<ErpInventoryEntity>()
-                .eq(ErpInventoryEntity::getTenantId, tenantId)
-                .eq(ErpInventoryEntity::getProductId, productId)
-                .eq(ErpInventoryEntity::getWarehouseId, whId));
-
-        int before = inv != null && inv.getStockQuantity() != null ? inv.getStockQuantity() : 0;
-        int after;
-        int changeQty;
-        String normalizedType = type != null ? type.toUpperCase() : "IN";
-
-        if (normalizedType.contains("IN") || "PURCHASE".equals(normalizedType)) {
-            after = before + delta;
-            changeQty = delta;
-        } else if (normalizedType.contains("OUT") || "SALE".equals(normalizedType)) {
-            if (before < delta) {
-                throw new BizException("INSUFFICIENT_STOCK", "库存不足，当前仅剩 " + before + " " + prod.getUnit());
-            }
-            after = before - delta;
-            changeQty = -delta;
-        } else { // AUDIT / CHECK
-            after = delta;
-            changeQty = delta - before;
+        if (total.compareTo(new BigDecimal("9999999999.99")) > 0) {
+            throw new BizException("INVALID_AMOUNT", "采购单合计超过金额上限");
         }
-
-        if (inv != null) {
-            inv.setStockQuantity(after);
-            inv.setUpdatedAt(LocalDateTime.now());
-            inventoryMapper.updateById(inv);
+        if (request.totalAmount() != null && total.compareTo(request.totalAmount()) != 0) {
+            throw new BizException("INVALID_AMOUNT", "采购单总额与明细合计不符");
+        }
+        order.setWarehouseId(warehouse.getId());
+        order.setSupplierId(supplier.getId());
+        order.setSupplierName(supplier.getSupplierName());
+        order.setTotalAmount(total);
+        order.setUpdatedBy(getUserId());
+        order.setRemark(request.remark());
+        if (order.getId() == null) {
+            purchaseOrderMapper.insert(order);
         } else {
-            inv = new ErpInventoryEntity();
-            inv.setTenantId(tenantId);
-            inv.setProductId(productId);
-            inv.setWarehouseId(whId);
-            inv.setStockQuantity(after);
-            inv.setLockedQuantity(0);
-            inv.setUpdatedAt(LocalDateTime.now());
-            inventoryMapper.insert(inv);
+            purchaseOrderMapper.updateById(order);
+            purchaseItemMapper.delete(new LambdaQueryWrapper<ErpPurchaseItemEntity>()
+                    .eq(ErpPurchaseItemEntity::getTenantId, tenantId).eq(ErpPurchaseItemEntity::getOrderId, order.getId()));
         }
+        for (var line : lines) {
+            line.setOrderId(order.getId());
+            purchaseItemMapper.insert(line);
+        }
+        return response(order, warehouse.getWarehouseName(), lines);
+    }
 
-        String whName = resolveWarehouseName(tenantId, whId);
+    private ErpPurchaseOrderEntity lockPendingOrder(Long id) {
+        var order = purchaseOrderMapper.lockForUpdate(getTenantId(), id);
+        if (order == null) throw new BizException("NOT_FOUND", "采购单不存在");
+        if (!"PENDING".equals(order.getStatus())) throw new BizException("ORDER_NOT_PENDING", "仅待入库的采购单可操作");
+        return order;
+    }
 
-        ErpInventoryRecordEntity record = new ErpInventoryRecordEntity();
-        record.setTenantId(tenantId);
-        record.setRecordNo("REC" + System.currentTimeMillis());
-        record.setRecordType(normalizedType.contains("IN") ? "MANUAL_IN" : (normalizedType.contains("OUT") ? "MANUAL_OUT" : "STOCK_CHECK"));
-        record.setProductId(productId);
-        record.setProductName(prod.getProductName());
-        record.setWarehouseId(whId);
-        record.setWarehouseName(whName);
-        record.setChangeQuantity(changeQty);
+    @Transactional
+    public void stockInPurchaseOrder(Long orderId, Long requestedWarehouse) {
+        var order = lockPendingOrder(orderId);
+        Long tenantId = order.getTenantId();
+        if (order.getWarehouseId() == null) throw new BizException("REVIEW_REQUIRED", "请先核对采购明细并确认收货仓库");
+        if (requestedWarehouse != null && !requestedWarehouse.equals(order.getWarehouseId())) {
+            throw new BizException("INVALID_WAREHOUSE", "入库仓库与采购单不一致");
+        }
+        var warehouse = requireWarehouse(tenantId, order.getWarehouseId());
+        var items = purchaseItemMapper.selectList(new LambdaQueryWrapper<ErpPurchaseItemEntity>()
+                .eq(ErpPurchaseItemEntity::getTenantId, tenantId).eq(ErpPurchaseItemEntity::getOrderId, orderId)
+                .orderByAsc(ErpPurchaseItemEntity::getProductId, ErpPurchaseItemEntity::getId));
+        if (items.isEmpty()) throw new BizException("REVIEW_REQUIRED", "采购单缺少采购明细");
+        BigDecimal total = BigDecimal.ZERO;
+        for (var item : items) {
+            if (item.getQuantity() <= 0 || item.getUnitPrice().signum() < 0 ||
+                    item.getSubtotal().compareTo(item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity()))) != 0) {
+                throw new BizException("INVALID_AMOUNT", "采购明细的数量或金额不符");
+            }
+            total = total.add(item.getSubtotal());
+        }
+        if (order.getTotalAmount() == null || total.compareTo(order.getTotalAmount()) != 0) {
+            throw new BizException("INVALID_AMOUNT", "采购单总额与明细合计不符");
+        }
+        // Every receipt acquires product and balance locks in the same product order.
+        for (var item : items) {
+            var product = requireProductForPosting(tenantId, item.getProductId());
+            postMovement(product, warehouse, "PURCHASE_IN", item.getQuantity(), item.getId(), "采购单 " + order.getOrderNo());
+        }
+        order.setStatus("IN_STORAGE");
+        order.setUpdatedBy(getUserId());
+        purchaseOrderMapper.updateById(order);
+    }
+
+    private ErpProductEntity requireProductForPosting(Long tenantId, Long productId) {
+        var product = productMapper.lockForUpdate(tenantId, productId);
+        if (product == null) throw new BizException("INVALID_PRODUCT", "物料不存在或已停用");
+        return product;
+    }
+
+    @Transactional
+    public void adjustStock(ErpStockAdjustmentRequest input) {
+        Long tenantId = getTenantId();
+        var warehouse = requireWarehouse(tenantId, input.warehouseId());
+        var product = requireProductForPosting(tenantId, input.productId());
+        String type = switch (input.type()) {
+            case "IN" -> "MANUAL_IN";
+            case "OUT" -> "MANUAL_OUT";
+            case "AUDIT" -> "STOCK_CHECK";
+            default -> throw new BizException("INVALID_TYPE", "不支持的库存调整方式");
+        };
+        if (input.delta() == 0 && !"STOCK_CHECK".equals(type)) {
+            throw new BizException("INVALID_QUANTITY", "出入库数量必须为正整数");
+        }
+        postMovement(product, warehouse, type, input.delta(), null, input.remark());
+    }
+
+    private void postMovement(ErpProductEntity product, ErpWarehouseEntity warehouse, String type,
+                              int quantity, Long purchaseItemId, String remark) {
+        inventoryMapper.ensureBalance(product.getTenantId(), product.getId(), warehouse.getId());
+        var balance = inventoryMapper.lockForUpdate(product.getTenantId(), product.getId(), warehouse.getId());
+        int before = balance.getStockQuantity();
+        int locked = balance.getLockedQuantity();
+        long target = switch (type) {
+            case "STOCK_CHECK" -> quantity;
+            case "MANUAL_OUT" -> (long) before - quantity;
+            default -> (long) before + quantity;
+        };
+        if (target < locked) throw new BizException("INSUFFICIENT_STOCK", "调整后库存不能低于锁定数量");
+        if (target > Integer.MAX_VALUE) throw new BizException("INVALID_QUANTITY", "调整后库存超过数量上限");
+        int after = (int) target;
+        balance.setStockQuantity(after);
+        balance.setUpdatedAt(LocalDateTime.now());
+        inventoryMapper.updateById(balance);
+        var record = new ErpInventoryRecordEntity();
+        record.setTenantId(product.getTenantId());
+        record.setRecordNo("REC-" + UUID.randomUUID());
+        record.setPurchaseItemId(purchaseItemId);
+        record.setRecordType(type);
+        record.setProductId(product.getId());
+        record.setProductName(product.getProductName());
+        record.setWarehouseId(warehouse.getId());
+        record.setWarehouseName(warehouse.getWarehouseName());
         record.setBeforeQuantity(before);
         record.setAfterQuantity(after);
-        record.setOperatorName(userName);
-        record.setRemark(remark != null && !remark.isBlank() ? remark : "智能仓储调拨盘点");
+        record.setChangeQuantity(after - before);
+        record.setOperatorName(AuthContext.requirePrincipal().username());
+        record.setRemark(remark);
         record.setCreatedBy(getUserId());
         record.setDeptId(resolveCurrentDeptId());
-        record.setCreatedAt(LocalDateTime.now());
         recordMapper.insert(record);
-    }
-
-    private Long resolveTenantDefaultWarehouseId(Long tenantId) {
-        try {
-            List<Long> ids = jdbcTemplate.query(
-                    "SELECT id FROM erp_warehouse WHERE tenant_id = ? AND status = 'ENABLED' AND deleted = 0 ORDER BY id ASC LIMIT 1",
-                    (rs, rowNum) -> rs.getLong("id"),
-                    tenantId
-            );
-            if (!ids.isEmpty() && ids.get(0) != null && ids.get(0) > 0L) {
-                return ids.get(0);
-            }
-            jdbcTemplate.update(
-                    "INSERT IGNORE INTO erp_warehouse (tenant_id, warehouse_code, warehouse_name, status, created_by, updated_by, deleted) VALUES (?, 'WH-DEFAULT', '默认中心总仓', 'ENABLED', ?, ?, 0)",
-                    tenantId, getUserId(), getUserId()
-            );
-            ids = jdbcTemplate.query(
-                    "SELECT id FROM erp_warehouse WHERE tenant_id = ? AND deleted = 0 ORDER BY id ASC LIMIT 1",
-                    (rs, rowNum) -> rs.getLong("id"),
-                    tenantId
-            );
-            if (!ids.isEmpty() && ids.get(0) != null && ids.get(0) > 0L) {
-                return ids.get(0);
-            }
-        } catch (Exception ignored) {
-            // 兼容单元测试无 JdbcTemplate 表结构场景
-        }
-        return 1L;
-    }
-
-    private String resolveWarehouseName(Long tenantId, Long whId) {
-        try {
-            List<String> names = jdbcTemplate.query(
-                    "SELECT warehouse_name FROM erp_warehouse WHERE id = ? AND tenant_id = ? AND deleted = 0 LIMIT 1",
-                    (rs, rowNum) -> rs.getString("warehouse_name"),
-                    whId, tenantId
-            );
-            if (!names.isEmpty() && names.get(0) != null) {
-                return names.get(0);
-            }
-        } catch (Exception ignored) {
-        }
-        return whId == 1L ? "华东一号中心立体总仓" : (whId == 2L ? "华南保税智造配送仓" : "默认中心总仓");
-    }
-
-    private Long resolveCurrentDeptId() {
-        CurrentDepartmentResolver resolver = departmentResolverProvider != null
-                ? departmentResolverProvider.getIfAvailable()
-                : null;
-        return resolver != null ? resolver.resolveDepartmentId(getTenantId(), getUserId()) : null;
     }
 
     private Long getTenantId() {
-        AuthPrincipal p = AuthContext.get();
-        return p != null && p.tenantId() != null ? p.tenantId() : 1L;
+        return AuthContext.requirePrincipal().tenantId();
     }
 
     private Long getUserId() {
-        AuthPrincipal p = AuthContext.get();
-        return p != null && p.userId() != null ? p.userId() : 1L;
+        return AuthContext.requirePrincipal().userId();
     }
 
-    private String getUserName() {
-        AuthPrincipal p = AuthContext.get();
-        return p != null && p.username() != null ? p.username() : "平台管理员";
+    private Long resolveCurrentDeptId() {
+        CurrentDepartmentResolver resolver = departmentResolverProvider.getIfAvailable();
+        return resolver == null ? null : resolver.resolveDepartmentId(getTenantId(), getUserId());
     }
 }

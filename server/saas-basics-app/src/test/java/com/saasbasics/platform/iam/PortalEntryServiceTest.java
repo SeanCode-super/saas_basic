@@ -18,6 +18,8 @@ import com.saasbasics.platform.modules.iam.mapper.PasswordPolicyMapper;
 import com.saasbasics.platform.modules.iam.mapper.PortalClientMapper;
 import com.saasbasics.platform.modules.iam.mapper.PortalTerminalMapper;
 import com.saasbasics.platform.modules.iam.service.PortalEntryService;
+import com.saasbasics.platform.modules.tenant.api.PortalTenantDirectory;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
@@ -26,6 +28,7 @@ class PortalEntryServiceTest {
 
     private PortalClientMapper clientMapper;
     private PortalTerminalMapper terminalMapper;
+    private PortalTenantDirectory tenantDirectory;
     private PortalEntryService service;
     private PortalClientEntity client;
 
@@ -45,12 +48,21 @@ class PortalEntryServiceTest {
         when(loginPolicyMapper.selectById(11L)).thenReturn(loginPolicy);
         when(passwordPolicyMapper.selectById(12L)).thenReturn(passwordPolicy);
 
+        tenantDirectory = mock(PortalTenantDirectory.class);
         service = new PortalEntryService(
                 provider(clientMapper),
                 provider(terminalMapper),
                 provider(loginPolicyMapper),
-                provider(passwordPolicyMapper)
+                provider(passwordPolicyMapper), tenantDirectory
         );
+    }
+
+    @Test
+    void checksTenantStatusThroughThePublicDirectoryWhenNoClientIsConfigured() {
+        when(tenantDirectory.findByCode("paused")).thenReturn(Optional.of(
+                new PortalTenantDirectory.PortalTenant(17L, "paused", "企业", "SUSPENDED")));
+        assertThatThrownBy(() -> service.resolveEntry(null, "web", " paused "))
+                .isInstanceOfSatisfying(BizException.class, e -> assertThat(e.getCode()).isEqualTo("TENANT_DISABLED"));
     }
 
     @Test

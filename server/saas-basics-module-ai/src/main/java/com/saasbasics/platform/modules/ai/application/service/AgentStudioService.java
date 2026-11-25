@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.saasbasics.platform.common.auth.AuthContext;
-import com.saasbasics.platform.common.auth.AuthPrincipal;
 import com.saasbasics.platform.modules.ai.api.AiGatewayFacade;
 import com.saasbasics.platform.modules.ai.application.dto.AiCommandDtos.Nl2SqlQueryRequest;
 import com.saasbasics.platform.modules.ai.application.dto.AiCommandDtos.Nl2SqlQueryResponse;
@@ -27,7 +26,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.jdbc.core.JdbcTemplate;
+import com.saasbasics.platform.common.api.CustomerFollowUpDirectory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,7 +43,7 @@ public class AgentStudioService {
     private final KnowledgeRagService knowledgeRagService;
     private final Nl2SqlService nl2SqlService;
     private final AiChatGatewayService chatGatewayService;
-    private final JdbcTemplate jdbcTemplate;
+    private final ObjectProvider<CustomerFollowUpDirectory> customerDirectory;
     private final ObjectMapper objectMapper;
 
     public AgentStudioService(
@@ -53,7 +52,7 @@ public class AgentStudioService {
             KnowledgeRagService knowledgeRagService,
             Nl2SqlService nl2SqlService,
             AiChatGatewayService chatGatewayService,
-            JdbcTemplate jdbcTemplate,
+            ObjectProvider<CustomerFollowUpDirectory> customerDirectory,
             ObjectMapper objectMapper
     ) {
         this.agentMapperProvider = agentMapperProvider;
@@ -61,7 +60,7 @@ public class AgentStudioService {
         this.knowledgeRagService = knowledgeRagService;
         this.nl2SqlService = nl2SqlService;
         this.chatGatewayService = chatGatewayService;
-        this.jdbcTemplate = jdbcTemplate;
+        this.customerDirectory = customerDirectory;
         this.objectMapper = objectMapper;
     }
 
@@ -261,32 +260,16 @@ public class AgentStudioService {
      */
     public Map<String, Object> buildCrmFollowUpSuggestion(String bizType, Long bizId) {
         Long tenantId = currentTenantId();
-        String targetName = "当前客户";
-        List<Map<String, Object>> contracts = List.of();
-        List<Map<String, Object>> followUps = List.of();
-        try {
-            if ("CUSTOMER".equalsIgnoreCase(bizType) && bizId != null) {
-                List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                        "SELECT name, level, industry, deal_status, remark FROM crm_customer WHERE id = ? AND tenant_id = ? AND deleted = 0 LIMIT 1",
-                        bizId, tenantId);
-                if (!rows.isEmpty()) {
-                    targetName = String.valueOf(rows.get(0).get("name"));
-                }
-                contracts = jdbcTemplate.queryForList(
-                        "SELECT contract_no, name, total_price, status, end_time FROM crm_contract WHERE customer_id = ? AND tenant_id = ? AND deleted = 0 ORDER BY id DESC LIMIT 5",
-                        bizId, tenantId);
-                followUps = jdbcTemplate.queryForList(
-                        "SELECT follow_type, content, created_at FROM crm_follow_up_record WHERE biz_id = ? AND tenant_id = ? ORDER BY id DESC LIMIT 5",
-                        bizId, tenantId);
-            }
-        } catch (Exception ignored) {
+        var summary = new CustomerFollowUpDirectory.Summary("当前客户", 0, 0);
+        if ("CUSTOMER".equalsIgnoreCase(bizType) && bizId != null) {
+            summary = customerDirectory.getObject().recent(tenantId, bizId).orElse(summary);
         }
-
+        String targetName = summary.customerName();
         List<KnowledgeCitationDTO> policyRefs = knowledgeRagService.hybridSearch(List.of(), "合同 付款 首付 账期 违约", 2);
-        String riskLevel = contracts.isEmpty() ? "MEDIUM" : "LOW";
-        String riskSummary = contracts.isEmpty()
+        String riskLevel = summary.recentContracts() == 0 ? "MEDIUM" : "LOW";
+        String riskSummary = summary.recentContracts() == 0
                 ? "该客户暂无已签署有效合同，建议重点推进方案演示与试用落地，并确认决策人预算周期。"
-                : "已关联 " + contracts.size() + " 份历史合同（最近跟进 " + followUps.size() + " 条），建议关注尾款账期（红线≤45个工作日）及续费节点。";
+                : "已关联 " + summary.recentContracts() + " 份历史合同（最近跟进 " + summary.recentFollowUps() + " 条），建议关注尾款账期（红线≤45个工作日）及续费节点。";
         String pitch = "【AI 推荐跟进话术 · " + targetName + "】\n"
                 + "您好！结合贵司在数字化升级与降本增效上的诉求，我们整理了同行业标杆客户的上线收益对照（平均交付周期缩短 40%）。"
                 + "本次报价方案严格遵循首付 30% + 里程碑验收节点结算机制，附件已附上安全合规白皮书，方便您与技术/法务团队并行评审。本周方便约 20 分钟做一次高管方案对齐吗？";
@@ -297,7 +280,7 @@ public class AgentStudioService {
         out.put("riskSummary", riskSummary);
         out.put("suggestedPitch", pitch);
         out.put("policyReferences", policyRefs);
-        out.put("recentContractCount", contracts.size());
+        out.put("recentContractCount", summary.recentContracts());
         return out;
     }
 
@@ -419,12 +402,10 @@ public class AgentStudioService {
     }
 
     private Long currentTenantId() {
-        AuthPrincipal p = AuthContext.get();
-        return p != null && p.tenantId() != null ? p.tenantId() : 1L;
+        return AuthContext.requirePrincipal().tenantId();
     }
 
     private Long currentUserId() {
-        AuthPrincipal p = AuthContext.get();
-        return p != null && p.userId() != null ? p.userId() : 1L;
+        return AuthContext.requirePrincipal().userId();
     }
 }

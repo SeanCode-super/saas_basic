@@ -46,15 +46,18 @@ public class MenuService {
 
         return mapper.selectMenuList().stream()
                 .filter(menu -> menu.tenantId() == null || Long.valueOf(0L).equals(menu.tenantId()) || tenantId.equals(menu.tenantId()))
-                .filter(menu -> isMenuAllowedForTenant(menu, effectiveFeatures))
+                .filter(menu -> isMenuAllowedForTenant(menu, effectiveFeatures, tenantId))
                 .toList();
     }
 
-    private boolean isMenuAllowedForTenant(MenuResponse menu, Set<String> effectiveFeatures) {
+    private boolean isMenuAllowedForTenant(MenuResponse menu, Set<String> effectiveFeatures, Long tenantId) {
+        String appCode = menu.appCode();
+        if (tenantId != null && tenantId > 1L && "tenant".equalsIgnoreCase(appCode)) {
+            return false;
+        }
         if (effectiveFeatures.contains("*")) {
             return true;
         }
-        String appCode = menu.appCode();
         if (appCode == null || appCode.isBlank() || "dashboard".equalsIgnoreCase(appCode.trim())) {
             return true;
         }

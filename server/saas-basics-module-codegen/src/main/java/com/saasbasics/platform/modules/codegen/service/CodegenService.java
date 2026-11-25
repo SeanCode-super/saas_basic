@@ -18,24 +18,27 @@ import org.springframework.stereotype.Service;
 public class CodegenService {
 
     private final ObjectProvider<CodegenProjectMapper> projectMapperProvider;
+    private final CodegenSchemaMapper schemaMapper;
     private final CodegenEngineService codegenEngineService;
 
     public CodegenService(
             ObjectProvider<CodegenProjectMapper> projectMapperProvider,
+            CodegenSchemaMapper schemaMapper,
             CodegenEngineService codegenEngineService
     ) {
         this.projectMapperProvider = projectMapperProvider;
+        this.schemaMapper = schemaMapper;
         this.codegenEngineService = codegenEngineService;
     }
 
     @TenantIgnore(reason = "Query physical tables across database schema")
     public List<DbTableResponse> listDbTables() {
-        return requiredMapper().selectDbTables();
+        return schemaMapper.selectDbTables();
     }
 
     @TenantIgnore(reason = "Query physical table columns across database schema")
     public List<CodegenColumnDefinition> getDbTableColumns(String tableName) {
-        List<DbColumnResponse> dbCols = requiredMapper().selectDbColumns(tableName);
+        List<DbColumnResponse> dbCols = schemaMapper.selectDbColumns(tableName);
         List<CodegenColumnDefinition> cols = new ArrayList<>();
 
         for (DbColumnResponse c : dbCols) {
@@ -89,6 +92,26 @@ public class CodegenService {
             projectRoot = currentDir;
         } else if (currentDir.getParentFile() != null && new java.io.File(currentDir.getParentFile(), "web").exists()) {
             projectRoot = currentDir.getParentFile();
+        }
+
+        if ("EXTENSION".equalsIgnoreCase(request.templateType())) {
+            // The exported project has its own server/pom.xml. Never overlay the host build.
+            java.nio.file.Path directory = null;
+            try {
+                var exports = java.nio.file.Files.createDirectories(projectRoot.toPath().resolve("generated-apps"));
+                directory = java.nio.file.Files.createTempDirectory(exports, "app-").toAbsolutePath();
+                for (var file : files) {
+                    var target = directory.resolve(file.path()).normalize();
+                    if (!target.startsWith(directory)) throw new IOException("Invalid output path");
+                    java.nio.file.Files.createDirectories(target.getParent());
+                    java.nio.file.Files.writeString(target, file.code());
+                    writtenPaths.add(file.path());
+                }
+                return java.util.Map.of("projectRoot", directory.toString(), "count", files.size(), "files", writtenPaths);
+            } catch (IOException e) {
+                if (directory != null) org.springframework.util.FileSystemUtils.deleteRecursively(directory.toFile());
+                throw new BizException("FILE_WRITE_ERROR", "行业包导出失败: " + e.getMessage());
+            }
         }
 
         for (CodegenPreviewFileResponse f : files) {

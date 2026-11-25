@@ -58,8 +58,17 @@ public interface OrganizationDirectory {
             UUID positionPublicId,
             boolean primary,
             Instant validFrom,
-            Instant validTo
+            Instant validTo,
+            String organizationName,
+            String unitName,
+            String positionName
     ) {
+        public AssignmentSummary(UUID publicId, UUID engagementPublicId, UUID organizationPublicId,
+                                 UUID orgUnitPublicId, UUID positionPublicId, boolean primary,
+                                 Instant validFrom, Instant validTo) {
+            this(publicId, engagementPublicId, organizationPublicId, orgUnitPublicId, positionPublicId,
+                    primary, validFrom, validTo, null, null, null);
+        }
     }
 
     record ContextSelection(

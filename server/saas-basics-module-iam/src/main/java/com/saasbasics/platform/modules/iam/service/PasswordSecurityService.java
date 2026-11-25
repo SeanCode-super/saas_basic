@@ -1,13 +1,16 @@
 package com.saasbasics.platform.modules.iam.service;
 
 import com.saasbasics.platform.common.exception.BizException;
+import com.saasbasics.platform.common.auth.InitialPasswordIssuer;
 import com.saasbasics.platform.modules.iam.entity.PasswordPolicyEntity;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
 import java.util.HexFormat;
 import java.util.regex.Pattern;
 import javax.crypto.SecretKeyFactory;
@@ -19,7 +22,7 @@ import org.springframework.stereotype.Service;
  * 默认采用加盐 PBKDF2WithHmacSHA256（60,000 次迭代），并向下兼容历史 SHA-256 凭据，支持登录阶段平滑自动升级。
  */
 @Service
-public class PasswordSecurityService {
+public class PasswordSecurityService implements InitialPasswordIssuer {
 
     private static final String PBKDF2_PREFIX = "pbkdf2_sha256$";
     private static final int PBKDF2_ITERATIONS = 60_000;
@@ -31,8 +34,36 @@ public class PasswordSecurityService {
     private static final Pattern NUMBER = Pattern.compile(".*\\d.*");
     private static final Pattern SPECIAL = Pattern.compile(".*[^A-Za-z0-9].*");
 
+    private static final String INITIAL_PASSWORD_ALPHABET =
+            "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%-_";
+    private static final int PREFERRED_INITIAL_LENGTH = 24;
+
     private final SecureRandom secureRandom = new SecureRandom();
 
+    @Override
+    public String generateInitialPassword(Rules rules) {
+        List<Pattern> required = new ArrayList<>(4);
+        if (rules.requireUppercase()) required.add(UPPERCASE);
+        if (rules.requireLowercase()) required.add(LOWERCASE);
+        if (rules.requireNumber()) required.add(NUMBER);
+        if (rules.requireSpecial()) required.add(SPECIAL);
+        if (rules.minLength() < 1 || rules.minLength() > rules.maxLength() || required.size() > rules.maxLength()) {
+            throw new BizException("PASSWORD_POLICY_VIOLATION", "开通模板的长度范围无法生成符合要求的初始密码");
+        }
+        int length = Math.clamp(PREFERRED_INITIAL_LENGTH, rules.minLength(), rules.maxLength());
+        char[] value = new char[length];
+        while (true) {
+            for (int i = 0; i < length; i++) {
+                value[i] = INITIAL_PASSWORD_ALPHABET.charAt(secureRandom.nextInt(INITIAL_PASSWORD_ALPHABET.length()));
+            }
+            String candidate = new String(value);
+            if (required.stream().allMatch(pattern -> pattern.matcher(candidate).matches())) {
+                return candidate;
+            }
+        }
+    }
+
+    @Override
     public String hash(String rawPassword) {
         byte[] salt = new byte[SALT_BYTES];
         secureRandom.nextBytes(salt);

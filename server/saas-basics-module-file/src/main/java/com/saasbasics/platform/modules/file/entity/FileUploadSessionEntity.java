@@ -139,4 +139,31 @@ public class FileUploadSessionEntity extends BaseTenantEntity {
     public void setCompletedAt(LocalDateTime completedAt) {
         this.completedAt = completedAt;
     }
+
+    @TableField("request_key")
+    private String requestKey;
+
+    @TableField("request_hash")
+    private String requestHash;
+
+    @TableField("file_object_id")
+    private Long fileObjectId;
+
+    public String getRequestKey() { return requestKey; }
+    public void setRequestKey(String requestKey) { this.requestKey = requestKey; }
+    public String getRequestHash() { return requestHash; }
+    public void setRequestHash(String requestHash) { this.requestHash = requestHash; }
+    public Long getFileObjectId() { return fileObjectId; }
+    public void setFileObjectId(Long fileObjectId) { this.fileObjectId = fileObjectId; }
+
+    @TableField("quota_managed")
+    private Integer quotaManaged;
+
+    @TableField("cleanup_after")
+    private LocalDateTime cleanupAfter;
+
+    public Integer getQuotaManaged() { return quotaManaged; }
+    public void setQuotaManaged(Integer quotaManaged) { this.quotaManaged = quotaManaged; }
+    public LocalDateTime getCleanupAfter() { return cleanupAfter; }
+    public void setCleanupAfter(LocalDateTime cleanupAfter) { this.cleanupAfter = cleanupAfter; }
 }

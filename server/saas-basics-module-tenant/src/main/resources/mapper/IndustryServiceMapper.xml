@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.saasbasics.platform.modules.tenant.mapper.IndustryServiceMapper">
+
+    <select id="selectLatestCatalog" resultType="com.saasbasics.platform.modules.tenant.entity.IndustryServiceEntity">
+        SELECT s.app_code, s.revision, s.manifest_json, s.credential_cipher, s.created_at
+        FROM plat_industry_service s
+        INNER JOIN (
+            SELECT app_code, MAX(revision) AS rev
+            FROM plat_industry_service
+            GROUP BY app_code
+        ) v ON v.app_code = s.app_code AND v.rev = s.revision
+        ORDER BY s.app_code ASC
+    </select>
+
+    <select id="selectInstalledEntries" resultType="com.saasbasics.platform.modules.tenant.entity.IndustryServiceEntity">
+        SELECT s.app_code, s.revision, s.manifest_json, s.credential_cipher, s.created_at
+        FROM plat_industry_service s
+        INNER JOIN plat_tenant_app a ON a.app_code = s.app_code AND a.installed_revision = s.revision
+        WHERE a.tenant_id = #{tenantId}
+          AND a.deleted = 0
+          AND a.status = 'ENABLED'
+          AND (a.expired_at IS NULL OR a.expired_at > CURRENT_TIMESTAMP)
+        ORDER BY s.app_code ASC
+    </select>
+
+    <select id="selectInstalledApp" resultType="com.saasbasics.platform.modules.tenant.entity.IndustryServiceEntity">
+        SELECT s.app_code, s.revision, s.manifest_json, s.credential_cipher, s.project_design_json, s.created_at
+        FROM plat_industry_service s
+        INNER JOIN plat_tenant_app a ON a.app_code = s.app_code AND a.installed_revision = s.revision
+        WHERE a.tenant_id = #{tenantId}
+          AND s.app_code = #{appCode}
+          AND a.deleted = 0
+          AND a.status = 'ENABLED'
+          AND (a.expired_at IS NULL OR a.expired_at > CURRENT_TIMESTAMP)
+        LIMIT 1
+    </select>
+
+</mapper>

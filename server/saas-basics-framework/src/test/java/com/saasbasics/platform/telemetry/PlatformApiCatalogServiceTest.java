@@ -112,10 +112,12 @@ class PlatformApiCatalogServiceTest {
         assertThat(stat100.p95LatencyMs()).isGreaterThanOrEqualTo(94.0);
         assertThat(stat100.p99LatencyMs()).isGreaterThanOrEqualTo(98.0);
 
-        List<PlatformApiCatalogService.EndpointStatDelta> deltas = service.drainUnsyncedDeltas();
+        List<PlatformApiCatalogService.EndpointStatDelta> deltas = service.pendingDeltas();
         assertThat(deltas).hasSize(1);
         assertThat(deltas.get(0).totalCallsDelta()).isEqualTo(100L);
-        assertThat(service.drainUnsyncedDeltas()).isEmpty();
+        assertThat(service.pendingDeltas()).isEqualTo(deltas);
+        deltas.forEach(service::acknowledgePersisted);
+        assertThat(service.pendingDeltas()).isEmpty();
     }
 
     @org.springframework.web.bind.annotation.RestController

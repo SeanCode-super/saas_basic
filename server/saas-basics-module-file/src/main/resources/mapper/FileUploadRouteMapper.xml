@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.saasbasics.platform.modules.file.mapper.FileUploadRouteMapper">
+    <select id="selectRouteList" resultType="com.saasbasics.platform.modules.file.dto.FileUploadRouteResponse">
+        SELECT
+          id,
+          tenant_id AS tenantId,
+          storage_id AS storageId,
+          biz_type AS bizType,
+          route_name AS routeName,
+          upload_mode AS uploadMode,
+          target_dir AS targetDir,
+          path_pattern AS pathPattern,
+          max_file_mb AS maxFileMb,
+          allowed_exts AS allowedExts,
+          priority,
+          status,
+          remark
+        FROM file_upload_route
+        WHERE deleted = 0
+        ORDER BY priority ASC, id DESC
+    </select>
+
+    <select id="selectRouteById" resultType="com.saasbasics.platform.modules.file.dto.FileUploadRouteResponse">
+        SELECT
+          id,
+          tenant_id AS tenantId,
+          storage_id AS storageId,
+          biz_type AS bizType,
+          route_name AS routeName,
+          upload_mode AS uploadMode,
+          target_dir AS targetDir,
+          path_pattern AS pathPattern,
+          max_file_mb AS maxFileMb,
+          allowed_exts AS allowedExts,
+          priority,
+          status,
+          remark
+        FROM file_upload_route
+        WHERE id = #{id}
+          AND deleted = 0
+    </select>
+</mapper>

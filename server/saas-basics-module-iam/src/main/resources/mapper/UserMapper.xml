@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.saasbasics.platform.modules.iam.mapper.UserMapper">
+
+    <select id="selectByTenantAndPublicId" resultType="com.saasbasics.platform.modules.iam.entity.UserEntity">
+        SELECT *
+        FROM iam_user
+        WHERE tenant_id = #{tenantId}
+          AND public_id = #{publicId}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="selectUserList" resultType="com.saasbasics.platform.modules.iam.dto.UserResponse">
+        SELECT
+          u.id,
+          u.public_id AS publicId,
+          u.tenant_id AS tenantId,
+          u.user_code AS userCode,
+          u.username,
+          u.nickname,
+          u.employee_id AS employeeId,
+          u.user_type AS userType,
+          u.status,
+          u.mobile,
+          u.email,
+          u.remark
+        FROM iam_user u
+        LEFT JOIN iam_employee e ON e.id = u.employee_id AND e.deleted = 0
+        WHERE u.deleted = 0
+          AND u.tenant_id = #{spec.tenantId}
+        <if test="spec.denyAll">
+          AND 1 = 0
+        </if>
+        <if test="!spec.allowAll and !spec.denyAll">
+          <trim prefix="AND (" suffix=")" prefixOverrides="OR ">
+            <if test="spec.userIds != null and spec.userIds.size() > 0">
+              OR u.id IN
+              <foreach collection="spec.userIds" item="userId" open="(" separator="," close=")">
+                #{userId}
+              </foreach>
+            </if>
+            <if test="spec.departmentIds != null and spec.departmentIds.size() > 0">
+              OR e.dept_id IN
+              <foreach collection="spec.departmentIds" item="departmentId" open="(" separator="," close=")">
+                #{departmentId}
+              </foreach>
+            </if>
+            <if test="spec.positionIds != null and spec.positionIds.size() > 0">
+              OR e.position_id IN
+              <foreach collection="spec.positionIds" item="positionId" open="(" separator="," close=")">
+                #{positionId}
+              </foreach>
+            </if>
+            <if test="spec.roleIds != null and spec.roleIds.size() > 0">
+              OR EXISTS (
+                SELECT 1
+                FROM iam_user_role ur
+                WHERE ur.tenant_id = u.tenant_id
+                  AND ur.user_id = u.id
+                  AND ur.deleted = 0
+                  AND ur.role_id IN
+                  <foreach collection="spec.roleIds" item="roleId" open="(" separator="," close=")">
+                    #{roleId}
+                  </foreach>
+              )
+            </if>
+          </trim>
+        </if>
+        ORDER BY u.id DESC
+    </select>
+
+    <select id="selectUserById" resultType="com.saasbasics.platform.modules.iam.dto.UserResponse">
+        SELECT
+          id,
+          public_id AS publicId,
+          tenant_id AS tenantId,
+          user_code AS userCode,
+          username,
+          nickname,
+          employee_id AS employeeId,
+          user_type AS userType,
+          status,
+          mobile,
+          email,
+          remark
+        FROM iam_user
+        WHERE id = #{id}
+          AND deleted = 0
+    </select>
+
+    <select id="selectByTenantAndUsername" resultType="com.saasbasics.platform.modules.iam.entity.UserEntity">
+        SELECT *
+        FROM iam_user
+        WHERE tenant_id = #{tenantId}
+          AND username = #{username}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="selectRoleNamesByUserId" resultType="java.lang.String">
+        SELECT r.role_name
+        FROM iam_role r
+        INNER JOIN iam_user_role ur ON r.id = ur.role_id
+        WHERE ur.user_id = #{userId}
+          AND ur.deleted = 0
+          AND r.deleted = 0
+    </select>
+
+    <select id="selectRoleNamesByUserIdAndTenantId" resultType="java.lang.String">
+        SELECT r.role_name
+        FROM iam_role r
+        INNER JOIN iam_user_role ur ON r.id = ur.role_id
+        WHERE ur.user_id = #{userId}
+          AND ur.tenant_id = #{tenantId}
+          AND ur.deleted = 0
+          AND r.deleted = 0
+    </select>
+
+</mapper>
