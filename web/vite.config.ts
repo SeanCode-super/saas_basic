@@ -6,6 +6,10 @@ import { ElementPlusResolver } from "unplugin-vue-components/resolvers";
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 
+// main.ts loads the full stylesheet. Per-component style imports would make
+// Vite re-optimize dependencies as users visit previously unseen routes.
+const elementPlus = ElementPlusResolver({ importStyle: false });
+
 export default defineConfig({
   plugins: [
     vue(),
@@ -15,13 +19,16 @@ export default defineConfig({
       eslintrc: {
         enabled: false
       },
-      resolvers: [ElementPlusResolver()]
+      resolvers: [elementPlus]
     }),
     Components({
       dts: "src/types/components.d.ts",
-      resolvers: [ElementPlusResolver()]
+      resolvers: [elementPlus]
     })
   ],
+  optimizeDeps: {
+    include: ["element-plus/es"]
+  },
   build: {
     chunkSizeWarningLimit: 850,
     rollupOptions: {

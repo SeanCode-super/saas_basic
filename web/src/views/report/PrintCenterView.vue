@@ -4,14 +4,13 @@ import {
   onMounted,
   ref
 } from "vue";
-import { ElMessage } from "element-plus";
 import {
   Printer
 } from "@element-plus/icons-vue";
 import { listCrmContracts, type CrmContractRow } from "@/api/modules/crm";
 import { fetchErpPurchaseOrders, type ErpPurchaseOrderRow } from "@/api/modules/erp";
 
-type TemplateType = "PURCHASE_IN" | "REIMBURSE" | "SHIPPING_LABEL" | "VAT_INVOICE";
+type TemplateType = "PURCHASE_IN" | "REIMBURSE" | "SHIPPING_LABEL" | "VAT_INVOICE" | "CONTRACT";
 
 const selectedTemplate = ref<TemplateType>("PURCHASE_IN");
 const showWatermark = ref(true);
@@ -79,19 +78,7 @@ function digitToChinese(n: number): string {
 
 const chineseVatSumAmount = computed(() => digitToChinese(totalVatSumAmount.value));
 
-const purchaseData = ref({
-  orderNo: "PO-20261019-8802",
-  supplierName: "华为数字能源技术有限公司",
-  warehouseName: "华东一号中心立体总仓",
-  inDate: "2026-10-19",
-  inspector: "李建国",
-  manager: "张明华",
-  items: [
-    { code: "HW-PWR-01", name: "工业级高频UPS电源模块 50kVA", spec: "50kVA/380V 三相", unit: "台", qty: 4, price: 18500.00, amount: 74000.00 },
-    { code: "HW-CAB-08", name: "微模块一体化服务器机柜", spec: "42U 600*1200mm", unit: "套", qty: 8, price: 6200.00, amount: 49600.00 },
-    { code: "HW-BAT-20", name: "磷酸铁锂高压储能电池组", spec: "51.2V 100Ah", unit: "组", qty: 16, price: 4200.00, amount: 67200.00 }
-  ]
-});
+
 
 const reimburseData = ref({
   docNo: "EXP-20261019-3011",
@@ -119,112 +106,20 @@ const shippingData = ref({
   pieces: 1
 });
 
-const totalPurchaseAmount = computed(() => {
-  return purchaseData.value.items.reduce((sum, item) => sum + item.amount, 0);
-});
-
 function handlePrint() {
   window.print();
 }
 
-const verificationCodeSeed = computed(() => {
-  if (selectedTemplate.value === "VAT_INVOICE") {
-    return `${vatInvoiceData.value.invoiceNo}|${totalVatSumAmount.value.toFixed(2)}|${vatInvoiceData.value.buyer.name}`;
-  }
-  if (selectedTemplate.value === "PURCHASE_IN") {
-    return `${purchaseData.value.orderNo}|${totalPurchaseAmount.value.toFixed(2)}|${purchaseData.value.supplierName}`;
-  }
-  if (selectedTemplate.value === "REIMBURSE") {
-    return `${reimburseData.value.docNo}|${reimburseData.value.totalAmount}`;
-  }
-  return `${shippingData.value.trackingNo}|${shippingData.value.receiver}`;
-});
+const order = computed(() => liveOrders.value.find(row => row.id === selectedOrderId.value));
+const contract = computed(() => liveContracts.value.find(row => row.id === selectedContractId.value));
+const readErrors = ref<string[]>([]);
 
-const qrCells = computed(() => {
-  const seed = verificationCodeSeed.value;
-  let hash = 2166136261;
-  for (let i = 0; i < seed.length; i++) {
-    hash ^= seed.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  const size = 11;
-  const rects: Array<{ x: number; y: number }> = [];
-  for (let r = 0; r < size; r++) {
-    for (let c = 0; c < size; c++) {
-      const isCorner = (r < 3 && c < 3) || (r < 3 && c >= size - 3) || (r >= size - 3 && c < 3);
-      if (isCorner) {
-        const edge = r === 0 || c === 0 || r === size - 1 || c === size - 1 || (r === 1 && c === 1);
-        if (edge || (r >= size - 2 && c === 1) || (r === 1 && c >= size - 2)) {
-          rects.push({ x: c * 5, y: r * 5 });
-        }
-        continue;
-      }
-      const bit = ((hash >>> ((r * size + c) % 31)) ^ (r * 7 + c * 13)) & 1;
-      if (bit === 1) {
-        rects.push({ x: c * 5, y: r * 5 });
-      }
-    }
-  }
-  return rects;
-});
-
-function applyLivePurchaseOrder(orderId: number | undefined) {
-  const ord = liveOrders.value.find((o) => o.id === orderId);
-  if (!ord) return;
-  const amt = Number(ord.totalAmount || 0);
-  purchaseData.value = {
-    orderNo: ord.orderNo,
-    supplierName: ord.supplierName || "认证供应商",
-    warehouseName: "企业华东中心仓",
-    inDate: (ord.createdAt || "").slice(0, 10) || "2026-11-12",
-    inspector: "系统质检员",
-    manager: "仓储主管",
-    items: [
-      {
-        code: `PO-SKU-${ord.id}`,
-        name: ord.remark || `采购订单标的物料（${ord.orderNo}）`,
-        spec: "按真实采购订单关联绑定",
-        unit: "批",
-        qty: 1,
-        price: amt,
-        amount: amt
-      }
-    ]
-  };
+function applyLivePurchaseOrder() {
   selectedTemplate.value = "PURCHASE_IN";
-  ElMessage.success(`已绑定真实 ERP 采购单「${ord.orderNo}」数据`);
 }
 
-function applyLiveContract(contractId: number | undefined) {
-  const ct = liveContracts.value.find((c) => c.id === contractId);
-  if (!ct) return;
-  const total = Number(ct.totalPrice || 0);
-  const net = Math.round((total / 1.06) * 100) / 100;
-  const tax = Math.round((total - net) * 100) / 100;
-  vatInvoiceData.value = {
-    ...vatInvoiceData.value,
-    invoiceNo: String(ct.id).padStart(8, "0"),
-    invoiceDate: (ct.startTime || "2026-11-12").slice(0, 10),
-    buyer: {
-      ...vatInvoiceData.value.buyer,
-      name: ct.customerName || "签约客户"
-    },
-    items: [
-      {
-        name: `*企业数字化服务* ${ct.name}`,
-        spec: ct.contractNo,
-        unit: "项",
-        qty: 1,
-        price: net,
-        amount: net,
-        taxRate: "6%",
-        taxAmount: tax
-      }
-    ],
-    remark: `对应真实 CRM 商务合同: ${ct.contractNo} (${ct.name})。签约人: ${ct.signerUserName || "管理员"}`
-  };
-  selectedTemplate.value = "VAT_INVOICE";
-  ElMessage.success(`已绑定真实 CRM 合同「${ct.contractNo}」开票数据`);
+function applyLiveContract() {
+  selectedTemplate.value = "CONTRACT";
 }
 
 onMounted(async () => {
@@ -234,10 +129,13 @@ onMounted(async () => {
       listCrmContracts()
     ]);
     if (poList.status === "fulfilled") {
-      liveOrders.value = poList.value || [];
+      liveOrders.value = poList.value.filter(row => row.status === "IN_STORAGE" && row.items.length > 0);
     }
+    if (poList.status === "rejected") readErrors.value.push("采购单读取失败");
     if (ctRes.status === "fulfilled") {
       liveContracts.value = ctRes.value.data || [];
+    } else {
+      readErrors.value.push("合同读取失败");
     }
   } catch {
     // offline fallback stays intact
@@ -257,7 +155,7 @@ onMounted(async () => {
               <p class="panel-subtitle">支持中国式复杂单据（采购入库单、报销凭证、仓储面单）的高保真套打、条形码打印与印章渲染。</p>
             </div>
             <div class="flex-actions">
-              <el-button type="primary" :icon="Printer" size="large" @click="handlePrint">
+              <el-button type="primary" :icon="Printer" size="large" :disabled="(selectedTemplate === 'PURCHASE_IN' && !order) || (selectedTemplate === 'CONTRACT' && !contract)" @click="handlePrint">
                 立即唤起浏览器套打 (Print)
               </el-button>
             </div>
@@ -271,7 +169,8 @@ onMounted(async () => {
               <el-radio-button value="PURCHASE_IN">采购入库验收单</el-radio-button>
               <el-radio-button value="REIMBURSE">费用报销凭证单</el-radio-button>
               <el-radio-button value="SHIPPING_LABEL">仓储快递发货面单</el-radio-button>
-              <el-radio-button value="VAT_INVOICE">增值税专用发票</el-radio-button>
+              <el-radio-button value="CONTRACT">合同摘要</el-radio-button>
+              <el-radio-button value="VAT_INVOICE">发票样张</el-radio-button>
             </el-radio-group>
           </div>
 
@@ -287,11 +186,12 @@ onMounted(async () => {
         </div>
 
         <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-top: 12px; padding-top: 12px; border-top: 1px dashed #e2e8f0;">
-          <span class="ctrl-label">🔗 绑定真实业务单据：</span>
+          <span v-if="readErrors.length" role="alert">{{ readErrors.join("，") }}</span>
+          <span class="ctrl-label">业务单据</span>
           <el-select
             v-model="selectedOrderId"
             clearable
-            placeholder="从真实 ERP 采购单载入"
+            placeholder="选择已入库采购单"
             style="width: 250px;"
             @change="applyLivePurchaseOrder"
           >
@@ -324,78 +224,35 @@ onMounted(async () => {
     <div class="print-sheet-wrapper">
       <!-- 1. 采购入库验收单模板 -->
       <div v-if="selectedTemplate === 'PURCHASE_IN'" class="print-paper" :class="`paper-${paperSize.toLowerCase()}`">
-        <!-- 防伪水印 -->
-        <div v-if="showWatermark" class="watermark-text">ANTIGRAVITY ORIGINAL DOC</div>
-
-        <div class="sheet-header">
-          <div class="company-name">ANTIGRAVITY ENTERPRISE CLOUD FOUNDATION</div>
-          <h2 class="sheet-title">物料采购入库综合验收凭证</h2>
-          <div class="barcode-box">
-            <svg width="55" height="55" viewBox="0 0 55 55" style="margin-bottom: 4px; border: 1px solid #cbd5e1; background: #fff; padding: 2px;">
-              <rect v-for="(cell, idx) in qrCells" :key="idx" :x="cell.x" :y="cell.y" width="4.5" height="4.5" fill="#0f172a" />
-            </svg>
-            <span class="barcode-no">{{ purchaseData.orderNo }}</span>
-          </div>
-        </div>
-
-        <div class="sheet-meta-grid">
-          <div><strong>供货单位：</strong>{{ purchaseData.supplierName }}</div>
-          <div><strong>验收仓库：</strong>{{ purchaseData.warehouseName }}</div>
-          <div><strong>入库日期：</strong>{{ purchaseData.inDate }}</div>
-          <div><strong>单据类别：</strong>标准供应链采购入库</div>
-        </div>
-
-        <table class="sheet-table">
-          <thead>
-            <tr>
-              <th width="40">序号</th>
-              <th width="120">物料编码</th>
-              <th>物料名称</th>
-              <th width="140">规格型号</th>
-              <th width="50">单位</th>
-              <th width="60">实收数</th>
-              <th width="80">单价(元)</th>
-              <th width="100">金额(元)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(item, idx) in purchaseData.items" :key="idx">
-              <td class="text-center">{{ idx + 1 }}</td>
-              <td>{{ item.code }}</td>
-              <td>{{ item.name }}</td>
-              <td>{{ item.spec }}</td>
-              <td class="text-center">{{ item.unit }}</td>
-              <td class="text-center font-bold">{{ item.qty }}</td>
-              <td class="text-right">¥ {{ item.price.toFixed(2) }}</td>
-              <td class="text-right font-bold">¥ {{ item.amount.toFixed(2) }}</td>
-            </tr>
-            <tr class="table-total-row">
-              <td colspan="7" class="text-right"><strong>合计金额（大写：人民币壹拾玖万零捌佰元整）：</strong></td>
-              <td class="text-right font-bold text-red">¥ {{ totalPurchaseAmount.toFixed(2) }}</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <!-- 印章与签名栏 -->
-        <div class="sheet-footer">
-          <div class="sign-block">
-            <span>仓储验收人：{{ purchaseData.inspector }}</span>
-            <span>库房主管：{{ purchaseData.manager }}</span>
-            <span>经手制单：系统管理员</span>
-          </div>
-          <!-- 电子印章 -->
-          <div v-if="showOfficialStamp" class="official-stamp-seal">
-            <div class="seal-inner">
-              <span class="seal-star">★</span>
-              <span class="seal-text">供应链物料验收专用章</span>
-              <span class="seal-date">2026.10.19</span>
-            </div>
-          </div>
-        </div>
+        <h2>采购入库单</h2>
+        <template v-if="order">
+          <p>采购单号 {{ order.orderNo }} · 供应商 {{ order.supplierName }} · 仓库 {{ order.warehouseName || '未登记' }}</p>
+          <table class="sheet-table">
+            <thead><tr><th>物料</th><th>数量</th><th>单价（元）</th><th>金额（元）</th></tr></thead>
+            <tbody>
+              <tr v-for="(line, index) in order.items" :key="index">
+                <td>{{ line.productName }}</td><td>{{ line.quantity }}</td>
+                <td>{{ line.unitPrice }}</td><td>{{ line.subtotal.toFixed(2) }}</td>
+              </tr>
+            </tbody>
+            <tfoot><tr><th colspan="3">合计（元）</th><td>{{ order.totalAmount.toFixed(2) }}</td></tr></tfoot>
+          </table>
+        </template>
+        <p v-else>请选择有明细的已入库采购单。</p>
       </div>
-
+      <div v-else-if="selectedTemplate === 'CONTRACT'" class="print-paper" :class="`paper-${paperSize.toLowerCase()}`">
+        <h2>合同摘要</h2>
+        <template v-if="contract">
+          <h3>{{ contract.name }}</h3>
+          <p>合同号 {{ contract.contractNo }}</p><p>客户 {{ contract.customerName }}</p>
+          <p>合同总额 {{ contract.totalPrice.toFixed(2) }} 元</p>
+          <p v-if="contract.startTime || contract.endTime">合同期 {{ contract.startTime || '未登记' }} 至 {{ contract.endTime || '未登记' }}</p>
+        </template>
+        <p v-else>请选择合同。</p>
+      </div>
       <!-- 2. 费用报销凭证模板 -->
       <div v-else-if="selectedTemplate === 'REIMBURSE'" class="print-paper" :class="`paper-${paperSize.toLowerCase()}`">
+        <strong>模板样张 · 示例数据</strong>
         <div v-if="showWatermark" class="watermark-text">ANTIGRAVITY ORIGINAL DOC</div>
         <div class="sheet-header">
           <div class="company-name">ANTIGRAVITY ENTERPRISE CLOUD FOUNDATION</div>
@@ -462,7 +319,8 @@ onMounted(async () => {
       </div>
 
       <!-- 3. 仓储发货面单模板 -->
-      <div v-else class="print-paper paper-shipping">
+      <div v-else-if="selectedTemplate === 'SHIPPING_LABEL'" class="print-paper paper-shipping">
+        <strong>模板样张 · 示例数据</strong>
         <div class="shipping-card">
           <div class="shipping-header">
             <span class="shipping-logo">⚡ 顺丰速运 特快特惠</span>
@@ -505,6 +363,7 @@ onMounted(async () => {
 
       <!-- 4. 增值税专用发票模板 -->
       <div v-if="selectedTemplate === 'VAT_INVOICE'" class="print-paper vat-invoice-paper" :class="`paper-${paperSize.toLowerCase()}`">
+        <strong>模板样张 · 示例数据</strong>
         <!-- 防伪水印 -->
         <div v-if="showWatermark" class="watermark-text vat-watermark">国家税务总局全国统一发票</div>
 

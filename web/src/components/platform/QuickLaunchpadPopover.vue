@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { useRouter } from "vue-router";
+import { industryEntries, type IndustryEntry } from "@/api/modules/industry";
+import { computed, ref, watch } from "vue";
 import {
   Bell,
   DataBoard,
@@ -46,6 +48,18 @@ const emit = defineEmits<{
 }>();
 
 const popoverVisible = ref(false);
+const router = useRouter();
+const installed = ref<IndustryEntry[]>([]);
+watch(popoverVisible, async (open, _, onCleanup) => {
+  let active = true;
+  onCleanup(() => { active = false; });
+  installed.value = [];
+  if (!open) return;
+  try {
+    const list = await industryEntries();
+    if (active) installed.value = list;
+  } catch { /* Built-in shortcuts remain usable when the directory is unavailable. */ }
+});
 const localeStore = useLocaleStore();
 const themeStore = useThemeStore();
 
@@ -140,6 +154,9 @@ function selectLayout(mode: LayoutMode) {
 
     <div class="launchpad-body">
       <div class="launchpad-bento-grid">
+        <button v-for="app in installed" :key="app.code" class="launchpad-tile" @click="popoverVisible = false; router.push('/industry/' + app.code)">
+          <el-icon><Grid /></el-icon><span>{{ app.name }}</span>
+        </button>
         <button
           v-for="item in quickApps"
           :key="item.key"

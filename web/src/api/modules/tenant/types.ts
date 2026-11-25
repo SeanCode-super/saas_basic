@@ -14,6 +14,10 @@ export interface TenantRow {
   remark?: string;
 }
 
+export interface TenantCreateReceipt extends TenantRow {
+  initialAdmin: { username: string; temporaryPassword: string };
+}
+
 export interface TenantSavePayload {
   tenantCode: string;
   tenantName: string;
@@ -150,6 +154,9 @@ export interface TenantAppCatalogItem {
   isTrial: boolean;
   isIncludedInPlan: boolean;
   canSubscribeTrial: boolean;
+  installedRevision?: number | null;
+  latestRevision?: number | null;
+  entryPath?: string | null;
 }
 
 export interface TenantAppResponse {
@@ -165,6 +172,7 @@ export interface TenantAppResponse {
 }
 
 export interface TenantAppSubscribePayload {
+  revision?: number;
   appCode: string;
   trialDays?: number;
   remark?: string;

@@ -125,6 +125,7 @@ export interface ProcessInstanceDetail {
 }
 
 export interface ProcessDefinitionSavePayload {
+  expectedVersion?: number;
   processCode: string;
   processName: string;
   category?: string;

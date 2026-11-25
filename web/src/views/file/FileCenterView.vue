@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { useRouter } from "vue-router";
+import { createRequestId } from "@/utils/request-id";
 import {
   completeFileUploadSession,
   createFileAccessLog,
@@ -464,9 +465,15 @@ async function handleDeleteUploadRoute(row: FileUploadRouteRow) {
   }
 }
 
+const uploadKeys = new WeakMap<File, { bizType: string; key: string }>();
+
 async function handleDirectUpload(file: File, bizType: string): Promise<boolean> {
+  const prior = uploadKeys.get(file);
+  const key = prior?.bizType === bizType ? prior.key : createRequestId();
+  uploadKeys.set(file, { bizType, key });
   try {
-    const res = await uploadRawFile(file, bizType);
+    const res = await uploadRawFile(file, bizType, key);
+    uploadKeys.delete(file);
     await loadData();
     ElMessage.success(`文件「${res.fileName}」已通过 ${res.uploadMode} 上传至目录 [${res.targetDir}]`);
     return true;
@@ -533,13 +540,15 @@ function editLifecycle(row: FileLifecyclePolicyRow) {
   lifecycleForm.remark = row.remark || "";
 }
 
+let pendingSession: { body: string; key: string } | undefined;
+
 async function createUpload() {
   if (!uploadForm.fileName?.trim()) {
     ElMessage.warning("请输入文件名称");
     return false;
   }
   try {
-    await createFileUploadSession({
+    const payload = {
       tenantId: getTenantId(),
       bucketId: 1,
       storageId: storageStatus.value?.activeStorageId ?? undefined,
@@ -550,7 +559,11 @@ async function createUpload() {
       partCount: uploadForm.partCount,
       ownerUserId: authStore.currentUser?.userId ?? 1,
       bizType: uploadForm.bizType || "COMMON"
-    });
+    };
+    const body = JSON.stringify(payload);
+    if (pendingSession?.body !== body) pendingSession = { body, key: createRequestId() };
+    await createFileUploadSession(payload, pendingSession.key);
+    pendingSession = undefined;
     await loadData();
     ElMessage.success("上传会话已创建");
     return true;

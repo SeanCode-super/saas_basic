@@ -65,7 +65,7 @@ const jobForm = reactive({
 });
 
 const activeDataset = computed(() => datasets.value.find((d) => d.id === activeDatasetId.value));
-const latestJob = computed(() => jobs.value[0]);
+const latestJob = computed(() => jobs.value.find(job => job.status === "VERIFIED"));
 
 async function loadAll() {
   loading.value = true;
@@ -203,7 +203,7 @@ onMounted(() => {
     <template #actions>
       <el-button :icon="RefreshRight" :loading="loading" @click="loadAll">刷新</el-button>
       <el-button :icon="Plus" @click="datasetDialogVisible = true">新建训练集</el-button>
-      <el-button type="primary" :icon="DataLine" @click="jobDialogVisible = true">发起 LoRA 微调</el-button>
+      <el-button type="primary" :icon="DataLine" disabled title="尚未接入训练服务，可导出数据集">发起 LoRA 微调</el-button>
     </template>
 
     <!-- Evaluation A/B Comparison Strip -->
@@ -333,7 +333,7 @@ onMounted(() => {
             <template #default="{ row }">
               <span>{{ (row.baselineAccuracy * 100).toFixed(1) }}%</span>
               <span style="margin: 0 6px; color: #94a3b8;">→</span>
-              <strong style="color: #059669;">{{ (row.evalAccuracy * 100).toFixed(1) }}%</strong>
+              <strong style="color: #059669;">{{ row.status === "VERIFIED" ? (row.evalAccuracy * 100).toFixed(1) + "%" : "未核验" }}</strong>
             </template>
           </el-table-column>
           <el-table-column prop="trainLoss" label="Train Loss" width="100" />

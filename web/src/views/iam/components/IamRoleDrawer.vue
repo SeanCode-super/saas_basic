@@ -710,7 +710,7 @@ async function handleSaveAll() {
     :size="720"
     :destroy-on-close="true"
     class="iam-role-drawer"
-    @update:model-value="(val) => emit('update:visible', val)"
+    @update:model-value="emit('update:visible', $event)"
   >
     <template #header>
       <div class="drawer-header-content">
@@ -807,7 +807,7 @@ async function handleSaveAll() {
                   :model-value="isGroupAllChecked(group)"
                   :indeterminate="isGroupIndeterminate(group)"
                   @click.stop
-                  @change="(val) => toggleGroup(group, Boolean(val))"
+                  @change="toggleGroup(group, Boolean($event))"
                 >
                   <span class="group-title">{{ group.name }}</span>
                 </el-checkbox>
@@ -845,7 +845,7 @@ async function handleSaveAll() {
                   <div class="page-left-info" @click.stop>
                     <el-checkbox
                       :model-value="isPageChecked(page.id)"
-                      @change="(val) => togglePage(page.id, Boolean(val))"
+                      @change="togglePage(page.id, Boolean($event))"
                     >
                       <span class="page-name">{{ page.name }}</span>
                       <span class="page-code">({{ page.code }})</span>

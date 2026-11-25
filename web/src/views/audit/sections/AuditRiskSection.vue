@@ -116,7 +116,7 @@ onMounted(() => {
               </el-tag>
               <strong>{{ r.name }}</strong>
             </div>
-            <el-switch v-model="r.enabled" @change="(val) => handleToggleRule(r, val)" />
+            <el-switch v-model="r.enabled" @change="handleToggleRule(r, $event)" />
           </div>
           <p class="rule-desc">{{ r.description || r.ruleExpr }}</p>
           <div class="rule-foot">

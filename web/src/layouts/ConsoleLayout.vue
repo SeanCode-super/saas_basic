@@ -313,23 +313,39 @@ function ensureAppExpanded(appId: number) {
   }
 }
 
-if (!tenantStore.currentTenant) {
+if (authStore.currentUser) {
+  tenantStore.syncWithUser(authStore.currentUser);
+} else if (!tenantStore.currentTenant) {
   tenantStore.bootstrap();
 }
 
+watch(
+  () => authStore.currentUser,
+  (user) => {
+    if (user) {
+      tenantStore.syncWithUser(user);
+    }
+  },
+  { immediate: true }
+);
+
+const isPlatformScope = computed(
+  () => !tenantStore.currentTenant?.code || tenantStore.currentTenant.code.toLowerCase() === "platform"
+);
+
 const apps = computed(() => menuStore.navigation);
 
-const clusterMetaMap: Record<string, { label: string; icon: string }> = {
-  overview: { label: "平台总览", icon: "DataBoard" },
+const clusterMetaMap = computed<Record<string, { label: string; icon: string }>>(() => ({
+  overview: { label: isPlatformScope.value ? "平台总览" : "工作台", icon: "DataBoard" },
   foundation: { label: "基础治理", icon: "Setting" },
   runtime: { label: "运行支撑", icon: "Cpu" },
   engineering: { label: "工程交付", icon: "Promotion" },
   assurance: { label: "审计追踪", icon: "DocumentChecked" },
-  platform: { label: "平台总览", icon: "DataBoard" },
+  platform: { label: isPlatformScope.value ? "平台总览" : "企业总览", icon: "DataBoard" },
   governance: { label: "基础治理", icon: "Setting" },
   delivery: { label: "工程交付", icon: "Promotion" },
   audit: { label: "审计追踪", icon: "DocumentChecked" }
-};
+}));
 
 const appGroups = computed(() => {
   const groups = new Map<string, { key: string; label: string; items: MenuNavItem[] }>();
@@ -338,7 +354,7 @@ const appGroups = computed(() => {
     const meta = resolveAppMeta(app.code, app.title, app.metaJson);
     const current = groups.get(meta.cluster) ?? {
       key: meta.cluster,
-      label: clusterMetaMap[meta.cluster]?.label || localeStore.t(`cluster.${meta.cluster}`),
+      label: clusterMetaMap.value[meta.cluster]?.label || localeStore.t(`cluster.${meta.cluster}`),
       items: []
     };
     current.items.push(app);
@@ -365,8 +381,8 @@ const clusterTabs = computed(() => {
     })
     .map((group) => ({
       key: group.key,
-      label: clusterMetaMap[group.key]?.label || group.label,
-      icon: clusterMetaMap[group.key]?.icon || "Grid",
+      label: clusterMetaMap.value[group.key]?.label || group.label,
+      icon: clusterMetaMap.value[group.key]?.icon || "Grid",
       items: group.items.filter((app) => app.navPosition !== "SIDE")
     }))
     .filter((group) => group.items.length > 0);
@@ -464,10 +480,6 @@ const quickEntries = computed<QuickEntry[]>(() => {
 
 const userInitial = computed(() =>
   (authStore.currentUser?.nickname || authStore.currentUser?.username || "U").trim().slice(0, 1).toUpperCase()
-);
-
-const isPlatformScope = computed(
-  () => !tenantStore.currentTenant?.code || tenantStore.currentTenant.code.toLowerCase() === "platform"
 );
 
 function go(item: MenuNavItem) {
@@ -1516,7 +1528,7 @@ onMounted(() => {
               <el-radio-group
                 :model-value="themeStore.mode"
                 size="small"
-                @update:model-value="(val) => themeStore.setMode(val === 'dark' ? 'dark' : val === 'system' ? 'system' : 'light')"
+                @update:model-value="themeStore.setMode($event === 'dark' ? 'dark' : $event === 'system' ? 'system' : 'light')"
               >
                 <el-radio-button value="light">浅色</el-radio-button>
                 <el-radio-button value="dark">深色</el-radio-button>
@@ -1532,7 +1544,7 @@ onMounted(() => {
               <el-radio-group
                 :model-value="themeStore.preset"
                 size="small"
-                @update:model-value="(val) => themeStore.setPreset(val === 'emerald' || val === 'titanium' || val === 'cobalt' ? val : 'obsidian')"
+                @update:model-value="themeStore.setPreset($event === 'emerald' || $event === 'titanium' || $event === 'cobalt' ? $event : 'obsidian')"
               >
                 <el-radio-button value="obsidian">曜石</el-radio-button>
                 <el-radio-button value="emerald">松石</el-radio-button>
@@ -1549,7 +1561,7 @@ onMounted(() => {
               <el-radio-group
                 :model-value="themeStore.surface"
                 size="small"
-                @update:model-value="(val) => themeStore.setSurface(val === 'glass' ? 'glass' : 'matte')"
+                @update:model-value="themeStore.setSurface($event === 'glass' ? 'glass' : 'matte')"
               >
                 <el-radio-button value="matte">一体实底</el-radio-button>
                 <el-radio-button value="glass">流光玻璃</el-radio-button>
@@ -1564,7 +1576,7 @@ onMounted(() => {
               <el-radio-group
                 :model-value="themeStore.tableDensity"
                 size="small"
-                @update:model-value="(val) => themeStore.setTableDensity(val === 'compact' ? 'compact' : 'comfortable')"
+                @update:model-value="themeStore.setTableDensity($event === 'compact' ? 'compact' : 'comfortable')"
               >
                 <el-radio-button value="comfortable">舒适</el-radio-button>
                 <el-radio-button value="compact">紧凑</el-radio-button>

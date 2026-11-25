@@ -281,7 +281,7 @@ async function handleExportSnapshot(row: TenantRow) {
   try {
     const res = await exportTenantSnapshot(row.id);
     snapshotResult.value = res;
-    ElMessage.success(`租户「${row.tenantName}」全量数据快照导出成功！`);
+    ElMessage.success(`租户「${row.tenantName}」数据快照已导出！`);
   } catch (error: any) {
     ElMessage.error(error?.response?.data?.message || "导出租户数据快照失败");
   } finally {
@@ -291,6 +291,7 @@ async function handleExportSnapshot(row: TenantRow) {
 
 function handleRestoreFileChange(uploadFile: any) {
   if (uploadFile.raw) {
+    restoreResult.value = null;
     selectedRestoreFile.value = uploadFile.raw;
   }
 }
@@ -310,14 +311,14 @@ async function handleDownloadSnapshot() {
   }
 }
 
-async function handleExecuteRestore() {
+async function handleExecuteRestore(apply: boolean) {
   if (!activeTenant.value || !selectedRestoreFile.value) {
     ElMessage.warning("请先选取要恢复的备份归档文件（.json 或 .zip）");
     return;
   }
   try {
-    await ElMessageBox.confirm(
-      `快照恢复将对租户「${activeTenant.value.tenantName}」现有业务数据进行原子性覆盖与同步还原。确定继续执行吗？`,
+    if (apply) await ElMessageBox.confirm(
+      `将租户「${activeTenant.value.tenantName}」在归档中的 CRM、ERP 和行业应用业务表恢复到备份时点。此后新增的记录也会移除。确定恢复吗？`,
       "高危操作提示",
       {
         confirmButtonText: "确认恢复",
@@ -326,12 +327,12 @@ async function handleExecuteRestore() {
       }
     );
     restoreSubmitting.value = true;
-    const res = await restoreTenantSnapshot(selectedRestoreFile.value, activeTenant.value.id);
+    const res = await restoreTenantSnapshot(selectedRestoreFile.value, activeTenant.value.id, apply);
     restoreResult.value = res;
-    ElMessage.success(res.message || "租户快照已成功恢复生效！");
-    await props.loadData();
-  } catch {
-    // cancelled
+    ElMessage.success(res.message);
+    if (apply) await props.loadData();
+  } catch (error: any) {
+    if (error !== "cancel" && error !== "close") ElMessage.error(error?.response?.data?.message || error?.message || "归档处理失败");
   } finally {
     restoreSubmitting.value = false;
   }
@@ -1051,14 +1052,14 @@ onMounted(() => {
       width="640px"
     >
       <el-tabs v-model="snapshotActiveTab" class="snapshot-tabs">
-        <el-tab-pane label="全量快照导出备份" name="export">
+        <el-tab-pane label="导出快照" name="export">
           <div v-loading="snapshotSubmitting" class="snapshot-dialog-body" style="padding-top: 10px;">
             <el-alert
               type="info"
               :closable="false"
               show-icon
               title="数据安全快照说明"
-              description="快照将对租户业务数据、配置、IAM 账号与日志进行原子性锁定并导出为签名加密文件。"
+              description="导出该租户的 CRM、ERP、行业业务表和基础资料。ZIP 内含原始数据，请妥善保管。"
               style="margin-bottom: 16px;"
             />
             <div v-if="snapshotResult" class="snapshot-result-box">
@@ -1080,14 +1081,14 @@ onMounted(() => {
           </div>
         </el-tab-pane>
 
-        <el-tab-pane label="快照灾备原子还原" name="restore">
+        <el-tab-pane label="校验与恢复" name="restore">
           <div v-loading="restoreSubmitting" class="snapshot-dialog-body" style="padding-top: 10px;">
             <el-alert
               type="warning"
               :closable="false"
               show-icon
-              title="灾备恢复特别警示"
-              description="快照导入将对目标租户的历史业务数据进行完整性校验和原子覆盖还原。请确认备份包来源合法受信。"
+              title="恢复范围"
+              description="业务恢复只覆盖归档中的租户业务表。账号、配置、审批引擎数据和文件不参与写回。旧版归档可用于校验。"
               style="margin-bottom: 16px;"
             />
 
@@ -1095,8 +1096,9 @@ onMounted(() => {
               drag
               :auto-upload="false"
               :limit="1"
-              accept=".json,.zip,.bak"
+              accept=".json,.zip"
               :on-change="handleRestoreFileChange"
+              :on-remove="() => { selectedRestoreFile = null; restoreResult = null; }"
               style="width: 100%; margin-bottom: 16px;"
             >
               <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
@@ -1105,7 +1107,7 @@ onMounted(() => {
               </div>
               <template #tip>
                 <div class="el-upload__tip">
-                  支持此前导出的 .json / .zip / .bak 格式加密快照文件，单文件不超过 500MB
+                  支持 ZIP 归档和历史 JSON 清单。展开后的内容上限为 500 MB。
                 </div>
               </template>
             </el-upload>
@@ -1119,9 +1121,9 @@ onMounted(() => {
                 style="margin-bottom: 10px;"
               />
               <el-descriptions :column="2" border size="small">
-                <el-descriptions-item label="还原批次号">{{ restoreResult.restoreBatchNo }}</el-descriptions-item>
-                <el-descriptions-item label="还原时间">{{ restoreResult.restoredAt }}</el-descriptions-item>
-                <el-descriptions-item label="恢复实体统计" :span="2">
+                <el-descriptions-item label="处理批次号">{{ restoreResult.restoreBatchNo }}</el-descriptions-item>
+                <el-descriptions-item label="处理时间">{{ restoreResult.restoredAt }}</el-descriptions-item>
+                <el-descriptions-item label="涉及数据行数" :span="2">
                   <span v-for="(cnt, key) in restoreResult.restoredCounts" :key="key" style="margin-right: 12px;">
                     {{ key }}: <strong>{{ cnt }}</strong>
                   </span>
@@ -1131,12 +1133,18 @@ onMounted(() => {
 
             <div style="margin-top: 16px; text-align: right;">
               <el-button
+                :disabled="!selectedRestoreFile || restoreSubmitting"
+                @click="handleExecuteRestore(false)"
+              >
+                校验归档
+              </el-button>
+              <el-button
                 type="danger"
                 :loading="restoreSubmitting"
                 :disabled="!selectedRestoreFile"
-                @click="handleExecuteRestore"
+                @click="handleExecuteRestore(true)"
               >
-                确认开始原子还原
+                恢复业务数据
               </el-button>
             </div>
           </div>

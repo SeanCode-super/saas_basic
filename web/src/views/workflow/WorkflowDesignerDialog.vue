@@ -6,8 +6,7 @@ import { fetchIamRoles, fetchIamUsers } from "@/api/modules/iam/service";
 import type { IamRoleRow, IamUserRow } from "@/api/modules/iam/types";
 import {
   createWorkflowDefinition,
-  updateWorkflowDefinition,
-  fetchWorkflowBpmnXml
+  updateWorkflowDefinition
 } from "@/api/modules/workflow";
 import { CopyDocument, Download } from "@element-plus/icons-vue";
 import type {
@@ -67,19 +66,10 @@ function generateClientBpmnXml(): string {
 </definitions>`;
 }
 
-async function loadBpmnXml() {
-  if (baseForm.id) {
-    try {
-      const xml = await fetchWorkflowBpmnXml(baseForm.id);
-      if (xml && xml.trim().length > 0) {
-        bpmnXmlContent.value = xml;
-        return;
-      }
-    } catch {
-      // fallback
-    }
+function loadBpmnXml() {
+  if (!bpmnXmlContent.value) {
+    bpmnXmlContent.value = baseForm.originalBpmnXml || generateClientBpmnXml();
   }
-  bpmnXmlContent.value = generateClientBpmnXml();
 }
 
 watch(activeTab, (tab) => {
@@ -115,6 +105,8 @@ const systemUsers = ref<IamUserRow[]>([]);
 // Base form
 const baseForm = reactive({
   id: undefined as number | undefined,
+  expectedVersion: undefined as number | undefined,
+  originalBpmnXml: undefined as string | undefined,
   processCode: "",
   processName: "",
   category: "GENERAL",
@@ -158,8 +150,14 @@ onMounted(async () => {
 });
 
 watch(
-  () => props.definition,
-  (def) => {
+  () => props.visible,
+  (visible) => {
+    if (!visible) return;
+    const def = props.definition;
+    baseForm.expectedVersion = def?.version;
+    baseForm.originalBpmnXml = def?.bpmnXml;
+    bpmnXmlContent.value = "";
+    activeTab.value = "flow";
     if (!def) {
       baseForm.id = undefined;
       baseForm.processCode = `WF_${Date.now().toString(36).toUpperCase()}`;
@@ -425,7 +423,7 @@ async function handleSave() {
     };
 
     if (baseForm.id) {
-      await updateWorkflowDefinition(baseForm.id, payload);
+      await updateWorkflowDefinition(baseForm.id, { ...payload, expectedVersion: baseForm.expectedVersion });
       ElMessage.success("流程定义已成功更新并发布");
     } else {
       await createWorkflowDefinition(payload);

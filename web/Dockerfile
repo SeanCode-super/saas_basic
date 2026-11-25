@@ -19,7 +19,8 @@ RUN npm run build
 FROM nginx:1.27-alpine
 
 COPY --from=builder /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+ENV TIANSHU_BACKEND=saas-backend:8080
+COPY nginx.conf /etc/nginx/templates/default.conf.template
 
 EXPOSE 80
 

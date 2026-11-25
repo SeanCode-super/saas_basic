@@ -51,7 +51,7 @@ export interface CodegenTableModel {
   moduleName: string;
   basePackage?: string;
   columns: CodegenColumnModel[];
-  templateType?: "SINGLE" | "MASTER_SLAVE" | "TREE";
+  templateType?: "SINGLE" | "MASTER_SLAVE" | "TREE" | "EXTENSION";
   subTableName?: string;
   subTableComment?: string;
   subClassName?: string;

@@ -376,7 +376,9 @@ onUnmounted(() => {
               <el-icon color="#409eff"><Platform /></el-icon>
               <span>saas-basics-app</span>
             </div>
-            <el-tag size="small" type="success" effect="dark">HEALTHY</el-tag>
+            <el-tag size="small" :type="monitorData ? 'success' : 'info'" effect="dark">
+              {{ monitorData ? "已读取指标" : "暂无数据" }}
+            </el-tag>
           </div>
           <div class="inst-role">单体宿主底座 (Host App)</div>
           <div class="inst-meta-grid">
@@ -408,8 +410,8 @@ onUnmounted(() => {
               <el-icon color="#67c23a"><Tickets /></el-icon>
               <span>workflow-engine</span>
             </div>
-            <el-tag size="small" type="success" effect="dark">
-              {{ monitorData?.appStatus?.workflow?.status || "HEALTHY" }}
+            <el-tag size="small" :type="monitorData?.appStatus?.workflow ? 'success' : 'info'" effect="dark">
+              {{ monitorData?.appStatus?.workflow ? "已读取指标" : "暂无数据" }}
             </el-tag>
           </div>
           <div class="inst-role">流程与审批中心 (单体嵌入式驱动)</div>
@@ -581,6 +583,7 @@ onUnmounted(() => {
                       <el-tag v-if="row.status === 'HEALTHY' || row.status === 'UP'" type="success" size="small">
                         正常
                       </el-tag>
+                      <el-tag v-else-if="row.status === 'UNVERIFIED'" type="info" size="small">未单独检测</el-tag>
                       <el-tag v-else type="danger" size="small">{{ row.status }}</el-tag>
                     </template>
                   </el-table-column>

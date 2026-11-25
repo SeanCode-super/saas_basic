@@ -1,3 +1,4 @@
+import { createRequestId } from "@/utils/request-id";
 import { http } from "@/api/http";
 import type { ApiResponse } from "@/types/http";
 import type {
@@ -36,11 +37,11 @@ export async function fetchFileStorageStatus(bizType = "COMMON"): Promise<Storag
   return response.data.data;
 }
 
-export async function uploadRawFile(file: File, bizType = "COMMON"): Promise<RawUploadResult> {
+export async function uploadRawFile(file: File, bizType = "COMMON", requestKey = createRequestId()): Promise<RawUploadResult> {
   const form = new FormData();
   form.append("file", file);
   form.append("bizType", bizType);
-  const response = await http.post<ApiResponse<RawUploadResult>>("/file/raw-upload", form);
+  const response = await http.post<ApiResponse<RawUploadResult>>("/file/raw-upload", form, { headers: { "Idempotency-Key": requestKey } });
   return response.data.data;
 }
 
@@ -107,8 +108,8 @@ export async function fetchFileUploadSessions(): Promise<FileUploadSessionRow[]>
   return response.data.data;
 }
 
-export async function createFileUploadSession(payload: FileUploadSessionCreatePayload): Promise<FileUploadSessionRow> {
-  const response = await http.post<ApiResponse<FileUploadSessionRow>>("/files/upload-sessions", payload);
+export async function createFileUploadSession(payload: FileUploadSessionCreatePayload, requestKey = createRequestId()): Promise<FileUploadSessionRow> {
+  const response = await http.post<ApiResponse<FileUploadSessionRow>>("/files/upload-sessions", payload, { headers: { "Idempotency-Key": requestKey } });
   return response.data.data;
 }
 

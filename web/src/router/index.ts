@@ -43,6 +43,18 @@ export const router = createRouter({
       },
       children: [
         {
+          path: "industry",
+          name: "industry-directory",
+          component: () => import("@/views/industry/IndustryDirectory.vue"),
+          meta: { title: "我的应用", hidden: true }
+        },
+        {
+          path: "industry/:appCode",
+          name: "industry-app",
+          component: () => import("@/views/industry/IndustryApplication.vue"),
+          meta: { title: "行业应用", hidden: true }
+        },
+        {
           path: "ai/data-copilot",
           name: "ai-data-copilot",
           component: () => import("@/views/ai/AiDataCopilotView.vue"),
@@ -107,16 +119,18 @@ router.beforeEach(async (to) => {
   const menuStore = useMenuStore();
   const tenantStore = useTenantStore();
 
-  if (!tenantStore.currentTenant) {
-    tenantStore.bootstrap();
-  }
-
   if (!authStore.bootstrapped) {
     try {
       await authStore.bootstrap();
     } catch {
       await authStore.logout();
     }
+  }
+
+  if (authStore.currentUser) {
+    tenantStore.syncWithUser(authStore.currentUser);
+  } else if (!tenantStore.currentTenant) {
+    tenantStore.bootstrap();
   }
 
   if (to.path === "/login" && authStore.isAuthenticated) {
@@ -188,5 +202,5 @@ function toDefaultRoute(menuStore: ReturnType<typeof useMenuStore>) {
       query: defaultEntry.query
     };
   }
-  return { path: "/dashboard" };
+  return { path: router.getRoutes().some(route => route.path === "/dashboard") ? "/dashboard" : "/industry" };
 }

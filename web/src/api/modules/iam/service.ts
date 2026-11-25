@@ -170,7 +170,7 @@ export async function fetchIamRoles(): Promise<IamRoleRow[]> {
   return response.data.data;
 }
 
-export async function createIamUser(payload: IamUserSavePayload): Promise<IamUserRow> {
+export async function createIamUser(payload: IamUserSavePayload & { password: string }): Promise<IamUserRow> {
   const response = await http.post<ApiResponse<IamUserRow>>("/iam/users", payload);
   return response.data.data;
 }

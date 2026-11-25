@@ -277,7 +277,7 @@ function handleGoToArtifacts() {
             <span class="chip-divider">·</span>
             <span class="chip-item"><span class="chip-k">模块:</span> <code class="chip-v">{{ activeTable.moduleName }}</code></span>
             <span class="chip-divider">·</span>
-            <span class="chip-item"><span class="chip-k">模式:</span> <el-tag size="small" :type="activeTable.templateType === 'TREE' ? 'warning' : (activeTable.templateType === 'MASTER_SLAVE' ? 'success' : 'info')">{{ activeTable.templateType === 'TREE' ? '树形表' : (activeTable.templateType === 'MASTER_SLAVE' ? '主子表' : '单表 CRUD') }}</el-tag></span>
+            <span class="chip-item"><span class="chip-k">模式:</span> <el-tag size="small" :type="activeTable.templateType === 'TREE' ? 'warning' : (activeTable.templateType === 'MASTER_SLAVE' ? 'success' : 'info')">{{ activeTable.templateType === 'TREE' ? '树形表' : (activeTable.templateType === 'MASTER_SLAVE' ? '主子表' : activeTable.templateType === 'EXTENSION' ? '独立行业应用' : '单表 CRUD') }}</el-tag></span>
             <span class="chip-divider">·</span>
             <span class="chip-item"><span class="chip-k">包:</span> <span class="chip-v-pkg" :title="activeTable.basePackage">{{ activeTable.basePackage }}</span></span>
           </div>
@@ -322,6 +322,7 @@ function handleGoToArtifacts() {
                 <el-col :span="8">
                   <el-form-item label="生成结构模式">
                     <el-select v-model="activeTable.templateType" style="width: 100%" placeholder="请选择结构模式" @change="persistCurrentTable">
+                      <el-option label="独立行业应用（按租户安装）" value="EXTENSION" />
                       <el-option label="单表标准 CRUD 模式" value="SINGLE" />
                       <el-option label="主子表 (1:N 级联) 模式" value="MASTER_SLAVE" />
                       <el-option label="树形表 (Tree Table) 模式" value="TREE" />

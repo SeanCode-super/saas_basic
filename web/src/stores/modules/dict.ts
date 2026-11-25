@@ -13,7 +13,7 @@ export const useDictStore = defineStore("dict", () => {
   const authStore = useAuthStore();
 
   async function bootstrap() {
-    if (!authStore.isAuthenticated) {
+    if (!authStore.isAuthenticated || !authStore.hasPermission("system:config:query")) {
       return;
     }
     await Promise.all(DEFAULT_DICT_CODES.map((dictCode) => loadDict(dictCode)));

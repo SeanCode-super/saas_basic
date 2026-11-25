@@ -6,6 +6,7 @@ import type {
   TenantPlanUpdatePayload,
   TenantQuotaOverview,
   TenantRow,
+  TenantCreateReceipt,
   TenantSavePayload,
   TenantMeteringSummary,
   TenantBillRow,
@@ -21,8 +22,8 @@ export async function fetchTenantPage(): Promise<TenantRow[]> {
   return response.data.data.records;
 }
 
-export async function createTenant(payload: TenantSavePayload): Promise<TenantRow> {
-  const response = await http.post<ApiResponse<TenantRow>>("/tenants", payload);
+export async function createTenant(payload: TenantSavePayload): Promise<TenantCreateReceipt> {
+  const response = await http.post<ApiResponse<TenantCreateReceipt>>("/tenants", payload);
   return response.data.data;
 }
 
@@ -94,11 +95,11 @@ export async function downloadTenantSnapshotBlob(snapshotId: string): Promise<Bl
   return response.data as Blob;
 }
 
-export async function restoreTenantSnapshot(file: File, tenantId?: number): Promise<TenantSnapshotRestoreResult> {
+export async function restoreTenantSnapshot(file: File, tenantId?: number, apply = false): Promise<TenantSnapshotRestoreResult> {
   const formData = new FormData();
   formData.append("file", file);
   const response = await http.post<ApiResponse<TenantSnapshotRestoreResult>>("/tenant/snapshot/restore", formData, {
-    params: tenantId ? { tenantId } : {},
+    params: { tenantId, apply },
     headers: { "Content-Type": "multipart/form-data" }
   });
   return response.data.data;
@@ -109,6 +110,12 @@ export async function fetchTenantAppCatalog(tenantId?: number): Promise<TenantAp
     params: tenantId ? { tenantId } : {}
   });
   return response.data.data;
+}
+
+export async function upgradeTenantApp(code: string, revision: number, tenantId?: number) {
+  await http.put(`/tenant/apps/extensions/${encodeURIComponent(code)}/revision/${revision}`, null, {
+    params: tenantId ? { tenantId } : {}
+  });
 }
 
 export async function subscribeTenantApp(payload: TenantAppSubscribePayload, tenantId?: number): Promise<TenantAppResponse> {

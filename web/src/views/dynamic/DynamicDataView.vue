@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from "vue";
+import { useAuthStore } from "@/stores/modules/auth";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import type { FormInstance, FormRules } from "element-plus";
@@ -42,6 +43,10 @@ import type { DynamicModelItem, DynamicFieldItem } from "@/api/modules/codegen/a
 
 const route = useRoute();
 const router = useRouter();
+const auth = useAuthStore();
+function canEdit(action: string) {
+  return auth.hasPermission("codegen:project:write") || auth.hasPermission(`dynamic:${modelCode.value}:${action}`);
+}
 
 // View Mode
 const viewMode = ref<"table" | "kanban" | "analytics">("table");
@@ -599,9 +604,9 @@ onMounted(() => {
       :description="meta?.description || '企业级多租户业务应用中心。'"
     >
       <template #actions>
-        <el-button :icon="Back" @click="router.push('/codegen')">返回应用工坊</el-button>
+        <el-button v-if="auth.hasPermission('codegen:project:query')" :icon="Back" @click="router.push('/codegen')">返回应用工坊</el-button>
         <el-button
-          v-if="records.length === 0"
+          v-if="records.length === 0 && auth.hasPermission('codegen:project:write')"
           type="warning"
           plain
           :icon="MagicStick"
@@ -610,18 +615,18 @@ onMounted(() => {
         >
           载入演示数据
         </el-button>
-        <el-button :icon="Upload" @click="importDialogVisible = true">批量导入</el-button>
+        <el-button v-if="canEdit('create')" :icon="Upload" @click="importDialogVisible = true">批量导入</el-button>
         <el-button :icon="Download" @click="exportDialogVisible = true">安全导出 / AI 报告</el-button>
         <el-button :icon="RefreshRight" :loading="loading" @click="loadData">刷新</el-button>
         <el-button
-          v-if="selectedRows.length > 0"
+          v-if="selectedRows.length > 0 && canEdit('delete')"
           type="danger"
           :icon="Delete"
           @click="handleBatchDelete"
         >
           批量删除 ({{ selectedRows.length }})
         </el-button>
-        <el-button type="primary" :icon="Plus" @click="openCreateDialog">新增记录</el-button>
+        <el-button v-if="canEdit('create')" type="primary" :icon="Plus" @click="openCreateDialog">新增记录</el-button>
       </template>
 
       <!-- 顶部 4 大核心 KPI 指标汇总看板 -->
@@ -799,9 +804,9 @@ onMounted(() => {
                 <el-empty description="当前暂无业务台账记录">
                   <template #extra>
                     <div class="empty-action-group">
-                      <el-button type="primary" :icon="Plus" @click="openCreateDialog">新增第一条记录</el-button>
-                      <el-button :icon="MagicStick" :loading="seeding" @click="handleSeedMock">一键载入演示数据</el-button>
-                      <el-button :icon="Upload" @click="importDialogVisible = true">批量导入台账</el-button>
+                      <el-button v-if="canEdit('create')" type="primary" :icon="Plus" @click="openCreateDialog">新增第一条记录</el-button>
+                      <el-button v-if="auth.hasPermission('codegen:project:write')" :icon="MagicStick" :loading="seeding" @click="handleSeedMock">一键载入演示数据</el-button>
+                      <el-button v-if="canEdit('create')" :icon="Upload" @click="importDialogVisible = true">批量导入台账</el-button>
                     </div>
                   </template>
                 </el-empty>
@@ -857,8 +862,8 @@ onMounted(() => {
               <template #default="{ row }">
                 <div class="table-actions-cell">
                   <el-button link :icon="View" @click="openDetailDrawer(row)">详情</el-button>
-                  <el-button link type="primary" :icon="Edit" @click="openEditDialog(row)">编辑</el-button>
-                  <el-button link type="danger" :icon="Delete" @click="handleDelete(row)">删除</el-button>
+                  <el-button v-if="canEdit('update')" link type="primary" :icon="Edit" @click="openEditDialog(row)">编辑</el-button>
+                  <el-button v-if="canEdit('delete')" link type="danger" :icon="Delete" @click="handleDelete(row)">删除</el-button>
                 </div>
               </template>
             </el-table-column>
@@ -1100,8 +1105,8 @@ onMounted(() => {
       <template #footer>
         <div class="drawer-footer-actions">
           <el-button :icon="Printer" @click="handlePrint">打印此单据</el-button>
-          <el-button type="danger" plain :icon="Delete" @click="handleDelete(detailRecord!)">删除</el-button>
-          <el-button type="primary" :icon="Edit" @click="openEditDialog(detailRecord!)">编辑修改</el-button>
+          <el-button v-if="canEdit('delete')" type="danger" plain :icon="Delete" @click="handleDelete(detailRecord!)">删除</el-button>
+          <el-button v-if="canEdit('update')" type="primary" :icon="Edit" @click="openEditDialog(detailRecord!)">编辑修改</el-button>
         </div>
       </template>
     </el-drawer>

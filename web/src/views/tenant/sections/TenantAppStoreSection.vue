@@ -35,6 +35,7 @@ import {
 import {
   fetchTenantAppCatalog,
   toggleTenantAppAuthorization,
+  upgradeTenantApp,
   batchAuthorizeTenantApps,
   resetTenantPackageBaseline,
   fetchTenantPage
@@ -43,11 +44,14 @@ import type {
   TenantAppCatalogItem,
   TenantRow
 } from "@/api/modules/tenant";
+import RegisterIndustry from "@/views/industry/RegisterIndustry.vue";
+import { useAuthStore } from "@/stores/modules/auth";
 import { useTenantStore } from "@/stores/modules/tenant";
 
 const route = useRoute();
 const router = useRouter();
 const tenantStore = useTenantStore();
+const auth = useAuthStore();
 
 const props = defineProps<{
   tenantId?: number;
@@ -331,8 +335,22 @@ async function handleAlignWithPackage() {
   }
 }
 
+async function upgradeApplication(app: TenantAppCatalogItem) {
+  if (!app.latestRevision) return;
+  catalogLoading.value = true;
+  try {
+    await upgradeTenantApp(app.appCode, app.latestRevision, selectedTenantId.value);
+    await fetchCatalog();
+    ElMessage.success(`${app.appName} 已升至 v${app.latestRevision}`);
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message || "升级失败");
+  } finally {
+    catalogLoading.value = false;
+  }
+}
+
 function navigateToApp(app: TenantAppCatalogItem) {
-  const path = appRouteMap[app.appCode];
+  const path = app.entryPath || appRouteMap[app.appCode];
   if (path) {
     router.push(path);
   } else {
@@ -441,6 +459,7 @@ onMounted(() => {
               全部回收
             </el-button>
           </el-button-group>
+          <RegisterIndustry v-if="auth.currentUser?.tenantId === 1 && auth.hasPermission('tenant:write')" @published="fetchCatalog" />
           <el-button :icon="Refresh" circle size="default" :loading="catalogLoading" @click="fetchCatalog" />
         </div>
       </div>
@@ -567,8 +586,12 @@ onMounted(() => {
         </el-table-column>
 
         <!-- Col 5: Direct Launch / Action -->
-        <el-table-column label="操作" width="120" align="center">
+        <el-table-column label="操作" width="160" align="center">
           <template #default="{ row }">
+            <el-button v-if="row.installedRevision && row.installedRevision < row.latestRevision"
+                       link type="primary" :disabled="catalogLoading" @click="upgradeApplication(row)">
+              升至 v{{ row.latestRevision }}
+            </el-button>
             <el-button
               v-if="row.status === 'ENABLED'"
               type="primary"
@@ -618,6 +641,10 @@ onMounted(() => {
           </div>
 
           <div class="card-foot-right">
+            <el-button v-if="app.installedRevision && app.latestRevision && app.installedRevision < app.latestRevision"
+                       link type="primary" :disabled="catalogLoading" @click="upgradeApplication(app)">
+              升至 v{{ app.latestRevision }}
+            </el-button>
             <el-switch
               :model-value="app.status === 'ENABLED'"
               active-text="已授权"

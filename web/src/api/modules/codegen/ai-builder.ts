@@ -103,7 +103,7 @@ export async function fetchDynamicPage(
   modelCode: string,
   payload: DynamicDataPagePayload
 ): Promise<ApiResponse<DynamicPageResult>> {
-  const res = await http.post<ApiResponse<DynamicPageResult>>(`/dynamic/${modelCode}/page`, payload);
+  const res = await http.post<ApiResponse<DynamicPageResult>>(`/dynamic/${modelCode}/page`, { page: payload.pageNum, size: payload.pageSize, filters: payload.params });
   return res.data;
 }
 
@@ -150,4 +150,9 @@ export async function batchImportDynamicRecords(
 ): Promise<ApiResponse<number>> {
   const res = await http.post<ApiResponse<number>>(`/dynamic/${modelCode}/batch-import`, records);
   return res.data;
+}
+
+
+export async function addModelField(id: number, field: { fieldCode: string; fieldName: string; type: string }) {
+  await http.post(`/codegen/ai-builder/models/${id}/fields`, field);
 }

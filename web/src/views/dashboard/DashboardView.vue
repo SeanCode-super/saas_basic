@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createTenantWithReceipt } from "@/views/tenant/initial-credentials";
 import { computed, onMounted, reactive, ref } from "vue";
 import {
   CircleCheck,
@@ -22,7 +23,6 @@ import { http } from "@/api/http";
 import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 import { useTenantStore } from "@/stores/modules/tenant";
 import {
-  createTenant,
   fetchTenantBills,
   fetchTenantMeteringSummary,
   fetchTenantPage,
@@ -47,6 +47,10 @@ import { fetchSchedulerJobs, type SchedulerJobRow } from "@/api/modules/schedule
 
 const router = useRouter();
 const tenantStore = useTenantStore();
+
+const isPlatformScope = computed(
+  () => !tenantStore.currentTenant?.code || tenantStore.currentTenant.code.toLowerCase() === "platform"
+);
 
 const loading = ref(false);
 const tenants = ref<TenantRow[]>([]);
@@ -414,6 +418,7 @@ const quickUserVisible = ref(false);
 const quickTenantVisible = ref(false);
 
 const userForm = reactive({
+  password: "",
   username: "",
   nickname: "",
   mobile: "",
@@ -431,9 +436,14 @@ async function handleCreateQuickUser() {
     ElMessage.warning("请填写完整的账号与姓名");
     return;
   }
+  if (!userForm.password.trim()) {
+    ElMessage.warning("请输入初始密码");
+    return;
+  }
   try {
     await createIamUser({
       tenantId: Number(tenantStore.currentTenant?.id ?? 1),
+      password: userForm.password,
       userCode: userForm.username.trim().toUpperCase(),
       username: userForm.username.trim(),
       nickname: userForm.nickname.trim(),
@@ -442,6 +452,7 @@ async function handleCreateQuickUser() {
       email: userForm.email || "user@saasbasics.local",
       status: "ENABLED"
     });
+    userForm.password = "";
     quickUserVisible.value = false;
     ElMessage.success(`用户「${userForm.nickname}」已成功录入并在岗生效！`);
     await loadDashboardData();
@@ -456,7 +467,7 @@ async function handleCreateQuickTenant() {
     return;
   }
   try {
-    await createTenant({
+    await createTenantWithReceipt({
       tenantCode: tenantForm.tenantCode.trim(),
       tenantName: tenantForm.tenantName.trim(),
       packageId: tenantForm.packageId,
@@ -507,7 +518,7 @@ onMounted(() => {
          ========================================================================= -->
     <header class="ios-dashboard__header">
       <div class="ios-dashboard__title-group">
-        <h1 class="ios-dashboard__title">概览面板</h1>
+        <h1 class="ios-dashboard__title">{{ isPlatformScope ? "概览面板" : "企业工作台" }}</h1>
         
         <!-- 胶囊时间切换器 (对标图1中央胶囊) -->
         <div class="ios-segmented-pill">
@@ -529,7 +540,7 @@ onMounted(() => {
 
       <!-- 右侧快捷胶囊操作组 -->
       <div class="ios-dashboard__actions">
-        <button class="ios-glass-btn" @click="quickTenantVisible = true">
+        <button v-if="isPlatformScope" class="ios-glass-btn" @click="quickTenantVisible = true">
           <el-icon><Plus /></el-icon>
           <span>新建租户</span>
         </button>
@@ -570,7 +581,8 @@ onMounted(() => {
           <span class="ios-hero-amount__number">{{ estimatedCostText }}</span>
           <div class="ios-growth-pill">
             <span class="ios-growth-pill__dot" />
-            <span>{{ tenants.length }} 个租户 · {{ activeSeatsCount }} 活跃席位</span>
+            <span v-if="isPlatformScope">{{ tenants.length }} 个租户 · {{ activeSeatsCount }} 活跃席位</span>
+            <span v-else>{{ tenantStore.currentTenant?.name || '企业空间' }} · {{ activeSeatsCount }} 活跃席位</span>
           </div>
         </div>
 
@@ -762,7 +774,7 @@ onMounted(() => {
       <!-- 3.4 租户配额使用率与账单汇总 -->
       <div class="ios-glass-card ios-metric-card">
         <div class="ios-metric-card__header">
-          <span class="ios-metric-card__title">租户配额与账单概览</span>
+          <span class="ios-metric-card__title">{{ isPlatformScope ? "租户配额与账单概览" : "企业资源与配额概览" }}</span>
           <span class="ios-pill-tag ios-pill-tag--amber">{{ tenantBills.length }} 期账单</span>
         </div>
         <div class="ios-metric-card__value-row">
@@ -788,7 +800,8 @@ onMounted(() => {
         <div class="ios-chart-ticks">
           <span>部门 {{ deptNodeCount }}</span>
           <span>成员 {{ users.length }}</span>
-          <span>租户 {{ tenants.length }}</span>
+          <span v-if="isPlatformScope">租户 {{ tenants.length }}</span>
+          <span v-else>空间 {{ tenantStore.currentTenant?.name || '当前企业' }}</span>
         </div>
       </div>
     </div>
@@ -831,10 +844,13 @@ onMounted(() => {
     </WorkspacePanel>
 
     <!-- 极速录入用户 -->
-    <WorkspacePanel v-model="quickUserVisible" title="录入在职系统账号" width="480px">
+    <WorkspacePanel v-model="quickUserVisible" @closed="userForm.password = ''" title="录入在职系统账号" width="480px">
       <el-form label-position="top">
         <el-form-item label="登录用户名">
           <el-input v-model="userForm.username" placeholder="如：zhangsan" />
+        </el-form-item>
+        <el-form-item label="初始密码" required>
+          <el-input v-model="userForm.password" type="password" show-password autocomplete="new-password" />
         </el-form-item>
         <el-form-item label="真实姓名">
           <el-input v-model="userForm.nickname" placeholder="如：张三" />

@@ -16,11 +16,14 @@ import {
   Right,
   List
 } from "@element-plus/icons-vue";
+import ProjectWorkbench from "./ProjectWorkbench.vue";
+import { useAuthStore } from "@/stores/modules/auth";
 import BaseCard from "@/components/base/BaseCard.vue";
 import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 import {
   designAiApp,
   publishAiApp,
+  addModelField,
   listAiModels,
   deleteAiModel
 } from "@/api/modules/codegen/ai-builder";
@@ -32,7 +35,8 @@ import type {
 const route = useRoute();
 const router = useRouter();
 
-const activeTab = ref<"builder" | "published">("builder");
+const auth = useAuthStore();
+const activeTab = ref<"builder" | "published" | "project">(route.query.project === "1" && auth.hasPermission("codegen:project:write") ? "project" : "builder");
 
 // Prompt & Model
 const promptText = ref("");
@@ -202,6 +206,26 @@ async function handleDeleteModel(app: DynamicModelItem) {
   }
 }
 
+const fieldTarget = ref<DynamicModelItem>();
+const fieldDraft = ref({ fieldCode: "", fieldName: "", type: "TEXT" });
+const savingField = ref(false);
+function openFieldEditor(app: DynamicModelItem) {
+  fieldDraft.value = { fieldCode: "", fieldName: "", type: "TEXT" };
+  fieldTarget.value = app;
+}
+async function saveField() {
+  if (!fieldTarget.value || savingField.value) return;
+  savingField.value = true;
+  try {
+    await addModelField(fieldTarget.value.id, fieldDraft.value);
+    fieldTarget.value = undefined;
+    await loadPublishedApps();
+    ElMessage.success("字段已发布");
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : "字段发布失败");
+  } finally { savingField.value = false; }
+}
+
 onMounted(() => {
   void loadPublishedApps();
   const qPrompt = typeof route.query.prompt === "string" ? route.query.prompt.trim() : "";
@@ -224,12 +248,15 @@ onMounted(() => {
           <el-icon><MagicStick /></el-icon>
           AI 智能自然语言构建
         </el-radio-button>
+        <el-radio-button v-if="auth.hasPermission('codegen:project:write')" value="project">从已有项目生成</el-radio-button>
         <el-radio-button value="published">
           <el-icon><List /></el-icon>
           已发布业务应用 ({{ publishedApps.length }})
         </el-radio-button>
       </el-radio-group>
     </div>
+
+    <ProjectWorkbench v-if="activeTab === 'project'" />
 
     <!-- TAB 1: AI 智能构建 -->
     <div v-show="activeTab === 'builder'" class="builder-view">
@@ -526,6 +553,7 @@ onMounted(() => {
               <el-button type="primary" size="small" :icon="Right" @click="goToApp(row.modelCode)">
                 进入应用
               </el-button>
+              <el-button size="small" @click="openFieldEditor(row)">加字段</el-button>
               <el-button type="danger" size="small" :icon="Delete" @click="handleDeleteModel(row)">
                 下线
               </el-button>
@@ -582,6 +610,16 @@ onMounted(() => {
       </template>
     </WorkspacePanel>
   </div>
+  <el-dialog :model-value="!!fieldTarget" title="新增可选字段" width="min(420px, 96vw)" @close="fieldTarget = undefined">
+    <el-form label-position="top">
+      <el-form-item label="字段名称"><el-input v-model="fieldDraft.fieldName" maxlength="64" /></el-form-item>
+      <el-form-item label="字段编码"><el-input v-model="fieldDraft.fieldCode" placeholder="小写字母、数字、下划线" /></el-form-item>
+      <el-form-item label="类型"><el-select v-model="fieldDraft.type">
+        <el-option label="文本" value="TEXT" /><el-option label="数值" value="NUMBER" /><el-option label="日期" value="DATE" />
+      </el-select></el-form-item>
+    </el-form>
+    <template #footer><el-button type="primary" :loading="savingField" @click="saveField">发布字段</el-button></template>
+  </el-dialog>
 </template>
 
 <style scoped lang="scss">

@@ -89,7 +89,25 @@ function formatTimeShort(ts?: string) {
   return match ? match[0] : ts.slice(0, 8);
 }
 
+const snapshotTime = ref("");
+const snapshotError = ref("");
+let refreshing = false;
+
 async function loadScreenData() {
+  if (refreshing) return;
+  refreshing = true;
+  try {
+    await refreshSnapshot();
+    snapshotTime.value = new Date().toLocaleTimeString();
+    snapshotError.value = "";
+  } catch {
+    snapshotError.value = "部分数据源读取失败";
+  } finally {
+    refreshing = false;
+  }
+}
+
+async function refreshSnapshot() {
   const [
     nextTenants,
     nextMetering,
@@ -108,24 +126,28 @@ async function loadScreenData() {
     nextJvm,
     nextRedis
   ] = await Promise.all([
-    fetchTenantPage().catch(() => [] as TenantRow[]),
-    fetchTenantMeteringSummary().catch(() => null),
-    fetchTenantBills().catch(() => [] as TenantBillRow[]),
-    listCrmContracts().then((r) => r.data ?? []).catch(() => [] as CrmContractRow[]),
-    fetchAuditOverview().catch(() => null),
-    fetchOperationLogs().catch(() => []),
-    fetchLoginLogs().catch(() => []),
-    fetchWorkflowInstances().catch(() => [] as ProcessInstanceRow[]),
-    fetchAiModels().catch(() => [] as AiModelConfigRow[]),
-    fetchAiRuns().catch(() => [] as AiRunRow[]),
-    fetchAiTenantQuota().catch(() => null),
-    fetchDatasources().catch(() => [] as DatasourceRow[]),
-    fetchMessageLogs().catch(() => []),
-    fetchPayOrders().catch(() => []),
-    fetchJvmInfo().catch(() => null),
-    fetchRedisInfo().catch(() => null)
+    fetchTenantPage(),
+    fetchTenantMeteringSummary(),
+    fetchTenantBills(),
+    listCrmContracts().then((r) => r.data ?? []),
+    fetchAuditOverview(),
+    fetchOperationLogs(),
+    fetchLoginLogs(),
+    fetchWorkflowInstances(),
+    fetchAiModels(),
+    fetchAiRuns(),
+    fetchAiTenantQuota(),
+    fetchDatasources(),
+    fetchMessageLogs(),
+    fetchPayOrders(),
+    fetchJvmInfo(),
+    fetchRedisInfo()
   ]);
 
+  // Fetch real quota saturation for top 5 tenants
+  const quotaOverviews = await Promise.all(
+    nextTenants.slice(0, 5).map((t) => fetchTenantQuotas(t.id))
+  );
   tenants.value = nextTenants;
   metering.value = nextMetering;
   bills.value = nextBills;
@@ -141,10 +163,6 @@ async function loadScreenData() {
   jvmInfo.value = nextJvm;
   redisInfo.value = nextRedis;
 
-  // Fetch real quota saturation for top 5 tenants
-  const quotaOverviews = await Promise.all(
-    nextTenants.slice(0, 5).map((t) => fetchTenantQuotas(t.id).catch(() => null))
-  );
   tenantRanks.value = nextTenants
     .slice(0, 5)
     .map((t, idx) => {
@@ -195,7 +213,7 @@ const stats = computed(() => {
 
   return {
     totalGmv: `¥ ${gmvValue.toLocaleString("en-US", { maximumFractionDigits: 0 })}`,
-    activeTenants: activeCount || tenants.value.length,
+    activeTenants: activeCount,
     throughputToday: events.toLocaleString(),
     workflowCount: workflows.value.length
   };
@@ -273,14 +291,15 @@ onUnmounted(() => {
           {{ isFullscreen ? "退出全屏" : "全屏沉浸" }}
         </el-button>
         <span class="status-badge">
-          <span class="status-dot-pulse" />
-          系统全链路健康 (UP)
+          <span v-if="snapshotTime && !snapshotError" class="status-dot-pulse" />
+          {{ snapshotError || (snapshotTime ? '数据更新时间 ' + snapshotTime : '正在读取') }}
         </span>
       </div>
     </header>
 
     <!-- 主展示面板三栏布局 -->
-    <main class="screen-body">
+    <p v-if="snapshotError && snapshotTime" role="alert">当前展示 {{ snapshotTime }} 的数据</p>
+    <main v-if="snapshotTime" class="screen-body">
       <!-- 左栏：多租户分布 + 运行时与网关指标 -->
       <section class="screen-column col-left">
         <div class="screen-card">

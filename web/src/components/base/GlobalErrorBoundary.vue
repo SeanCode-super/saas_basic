@@ -14,12 +14,11 @@ onErrorCaptured((err: unknown) => {
 });
 
 function retryView() {
-  capturedMessage.value = null;
+  window.location.reload();
 }
 
 function goHome() {
-  capturedMessage.value = null;
-  void router.push("/dashboard");
+  window.location.assign(router.resolve("/dashboard").href);
 }
 </script>
 

@@ -95,7 +95,7 @@ async function handleWriteToDisk() {
     const table = getActiveTable();
     const res = await writeCodegenToDisk(table);
     const count = res?.data?.count ?? 0;
-    ElMessage.success(`🎉 成功将 ${count} 个代码文件直接写入工程磁盘目录！实时生效！`);
+    ElMessage.success(`已将 ${count} 个文件写入 ${res.data.projectRoot}`);
   } catch (err: any) {
     ElMessage.error(err?.message || "物理落盘失败");
   } finally {
@@ -175,10 +175,10 @@ onMounted(() => {
     </el-card>
 
     <!-- 模拟落盘确认工作区面板 -->
-    <WorkspacePanel v-model="dryRunVisible" title="模拟一键写入工程目录 (Dry Run)" width="680px" destroy-on-close>
+    <WorkspacePanel v-model="dryRunVisible" title="确认写入文件" width="680px" destroy-on-close>
       <div class="dry-run-content">
         <el-alert
-          title="系统将以安全只读沙箱模拟写入工程。此操作会校验包冲突、类名覆盖与 Flyway 版本号冲突。"
+          title="确认后写入以下文件。独立行业应用会导出到 generated-apps 下的新目录。"
           type="info"
           show-icon
           :closable="false"
@@ -195,7 +195,7 @@ onMounted(() => {
       </div>
       <template #footer>
         <el-button @click="dryRunVisible = false">取消</el-button>
-        <el-button type="primary" :icon="Check" @click="handleConfirmApply">确认模拟落盘</el-button>
+        <el-button type="primary" :icon="Check" @click="handleConfirmApply">确认写入</el-button>
       </template>
     </WorkspacePanel>
   </div>

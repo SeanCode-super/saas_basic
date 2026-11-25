@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createTenantWithReceipt } from "@/views/tenant/initial-credentials";
 import { onMounted, reactive, ref, watch } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
@@ -6,7 +7,6 @@ import {
   Close,
   Plus
 } from "@element-plus/icons-vue";
-import { createTenant } from "@/api/modules/tenant";
 import { fetchSystemConfigs, upsertSystemConfigByKey } from "@/api/modules/system";
 import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 import { useAuthStore } from "@/stores/modules/auth";
@@ -219,7 +219,7 @@ async function handleApprove(app: OnboardingApplication) {
       { type: "success", confirmButtonText: "确认开通", cancelButtonText: "取消" }
     );
     try {
-      await createTenant({
+      await createTenantWithReceipt({
         tenantCode: app.tenantCode,
         tenantName: app.tenantName,
         packageId: 1,

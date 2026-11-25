@@ -243,7 +243,7 @@ watch(
     title="企业级安全数据导出与报告中心"
     class="export-dialog"
     destroy-on-close
-    @update:model-value="(val) => emit('update:visible', val)"
+    @update:model-value="emit('update:visible', $event)"
   >
     <div v-loading="loadingMeta" class="export-body">
       <div class="config-grid">

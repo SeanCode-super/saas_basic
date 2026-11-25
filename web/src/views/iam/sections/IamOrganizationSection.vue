@@ -521,7 +521,7 @@ function getPositionEmployeeList(posId: number) {
                 default-expand-all
                 highlight-current
                 :expand-on-click-node="false"
-                @node-click="(node) => empSelectedDeptId = node.id"
+                @node-click="empSelectedDeptId = $event.id"
               >
                 <template #default="{ data }">
                   <div class="emp-tree-node-row" :class="{ 'is-selected': empSelectedDeptId === data.id }">

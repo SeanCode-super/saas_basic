@@ -8,7 +8,16 @@ const { currentTenant, tenantOptions } = storeToRefs(tenantStore);
 </script>
 
 <template>
+  <div
+    v-if="tenantOptions.length <= 1"
+    class="tenant-pill-static"
+    :title="`当前企业空间：${currentTenant?.name || '企业空间'}`"
+  >
+    <el-icon class="tenant-switcher__icon"><OfficeBuilding /></el-icon>
+    <span class="tenant-pill-name">{{ currentTenant?.name || "企业空间" }}</span>
+  </div>
   <el-select
+    v-else
     class="tenant-switcher"
     :model-value="currentTenant?.code"
     placeholder="切换租户"
@@ -28,6 +37,29 @@ const { currentTenant, tenantOptions } = storeToRefs(tenantStore);
 </template>
 
 <style scoped lang="scss">
+.tenant-pill-static {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: #1e293b;
+  background: #f8fafc;
+  border-radius: var(--sb-radius-sm, 6px);
+  box-shadow: 0 0 0 1px var(--sb-border-subtle, #e2e8f0) inset;
+  user-select: none;
+  white-space: nowrap;
+  max-width: 180px;
+
+  .tenant-pill-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
 .tenant-switcher {
   flex: 0 0 160px;
   width: 160px;

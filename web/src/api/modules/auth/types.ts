@@ -24,6 +24,7 @@ export interface AuthCurrentUser {
   sessionId: number;
   tenantId: number;
   tenantCode: string;
+  tenantName?: string;
   userId: number;
   username: string;
   nickname: string;

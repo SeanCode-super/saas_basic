@@ -53,11 +53,47 @@ export interface ErpPurchaseOrderRow {
   id: number;
   orderNo: string;
   supplierId: number;
+  warehouseId: number | null;
+  warehouseName: string | null;
+  items: ErpPurchaseLine[];
   supplierName: string;
   totalAmount: number;
   status: "PENDING" | "IN_STORAGE" | "CANCELLED" | string;
   remark?: string;
   createdAt?: string;
+}
+
+export interface ErpPurchaseLine {
+  productId: number;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+}
+
+export interface ErpPurchaseRequest {
+  supplierId: number;
+  warehouseId: number;
+  remark: string;
+  items: Pick<ErpPurchaseLine, "productId" | "quantity" | "unitPrice">[];
+}
+
+export interface ErpMasterOption {
+  id: number;
+  code: string;
+  name: string;
+}
+
+export type ErpMasterType = "suppliers" | "warehouses";
+
+export async function fetchErpOptions(type: ErpMasterType): Promise<ErpMasterOption[]> {
+  const res = await http.get<{ data: ErpMasterOption[] }>(`/erp/${type}`);
+  return res.data.data;
+}
+
+export async function createErpOption(type: ErpMasterType, code: string, name: string): Promise<ErpMasterOption> {
+  const res = await http.post<{ data: ErpMasterOption }>(`/erp/${type}`, { code, name });
+  return res.data.data;
 }
 
 export async function fetchErpProducts(): Promise<ErpProductRow[]> {
@@ -89,14 +125,15 @@ export async function fetchErpPurchaseOrders(): Promise<ErpPurchaseOrderRow[]> {
   return res.data.data;
 }
 
-export async function createErpPurchaseOrder(payload: Partial<ErpPurchaseOrderRow>): Promise<ErpPurchaseOrderRow> {
+export async function createErpPurchaseOrder(payload: ErpPurchaseRequest): Promise<ErpPurchaseOrderRow> {
   const res = await http.post<{ data: ErpPurchaseOrderRow }>("/erp/purchase-orders", payload);
   return res.data.data;
 }
 
-export async function stockInPurchaseOrder(id: number, warehouseId?: number): Promise<void> {
-  await http.post(`/erp/purchase-orders/${id}/stock-in`, null, {
-    params: { warehouseId }
-  });
+export async function confirmLegacyPurchaseOrder(id: number, payload: ErpPurchaseRequest): Promise<void> {
+  await http.put(`/erp/purchase-orders/${id}/confirmation`, payload);
 }
 
+export async function stockInPurchaseOrder(id: number): Promise<void> {
+  await http.post(`/erp/purchase-orders/${id}/stock-in`);
+}

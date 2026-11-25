@@ -478,7 +478,7 @@ onMounted(() => {
               row-key="id"
               stripe
               class="enterprise-members-table"
-              @selection-change="(rows) => selectedMemberRows = rows"
+              @selection-change="selectedMemberRows = $event"
             >
               <el-table-column type="selection" width="48" align="center" />
               <el-table-column label="成员账号与姓名" min-width="200">
@@ -744,7 +744,7 @@ onMounted(() => {
             max-height="340"
             row-key="id"
             stripe
-            @selection-change="(rows) => selectedNewUserIds = rows.map((r: any) => r.id)"
+            @selection-change="selectedNewUserIds = $event.map((r: IamUserRow) => r.id)"
           >
             <el-table-column type="selection" width="48" align="center" />
             <el-table-column label="成员" min-width="160">

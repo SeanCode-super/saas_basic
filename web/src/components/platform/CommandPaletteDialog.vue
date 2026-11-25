@@ -420,7 +420,7 @@ function executeCommand(cmd: CommandItem) {
     class="command-palette-dialog"
     destroy-on-close
     align-center
-    @update:model-value="(val) => emit('update:visible', val)"
+    @update:model-value="emit('update:visible', $event)"
     @keydown="handleKeyDown"
   >
     <div class="palette-container">

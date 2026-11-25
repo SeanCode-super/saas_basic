@@ -1417,7 +1417,7 @@ function resolveMenuTypeTag(type: string) {
                     <el-checkbox
                       :model-value="isDomainAllSelected(domain)"
                       :indeterminate="isDomainIndeterminate(domain)"
-                      @change="(val) => toggleDomainSelection(domain, !!val)"
+                      @change="toggleDomainSelection(domain, !!$event)"
                     >
                       全选本主域
                     </el-checkbox>
@@ -1455,7 +1455,7 @@ function resolveMenuTypeTag(type: string) {
                         <el-checkbox
                           :model-value="isModuleAllSelected(module)"
                           :indeterminate="isModuleIndeterminate(module)"
-                          @change="(val) => toggleModuleSelection(module, !!val)"
+                          @change="toggleModuleSelection(module, !!$event)"
                         >
                           本模块全选
                         </el-checkbox>
@@ -1475,7 +1475,7 @@ function resolveMenuTypeTag(type: string) {
                           <el-checkbox
                             :model-value="isPageSelected(page)"
                             :indeterminate="isPageIndeterminate(page)"
-                            @change="(val) => togglePageSelection(page, module.id, !!val)"
+                            @change="togglePageSelection(page, module.id, !!$event)"
                           >
                             <span class="page-title">{{ page.name }}</span>
                           </el-checkbox>

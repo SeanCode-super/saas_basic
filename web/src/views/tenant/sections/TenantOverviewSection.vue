@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createTenantWithReceipt } from "@/views/tenant/initial-credentials";
 import { computed, reactive, ref } from "vue";
 import {
   CircleCheck,
@@ -11,7 +12,6 @@ import {
   Warning
 } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
-import { createTenant } from "@/api/modules/tenant";
 import type { TenantRow } from "@/api/modules/tenant";
 import BaseCard from "@/components/base/BaseCard.vue";
 import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
@@ -85,7 +85,7 @@ async function handleWizardNext() {
   } else {
     wizardSubmitting.value = true;
     try {
-      await createTenant({
+      await createTenantWithReceipt({
         tenantCode: wizardForm.tenantCode.trim(),
         tenantName: wizardForm.tenantName.trim(),
         packageId: wizardForm.packageTier === "SUPREME" ? 1 : 2,
@@ -143,7 +143,7 @@ function exportTelemetry() {
         <div class="metric-item">
           <el-icon class="icon-emerald"><CircleCheck /></el-icon>
           <span class="label">正常运行</span>
-          <span class="value">{{ activeTenants }} 家 (SLA 100%)</span>
+          <span class="value">{{ activeTenants }} 家</span>
         </div>
         <div class="divider"></div>
         <div class="metric-item">

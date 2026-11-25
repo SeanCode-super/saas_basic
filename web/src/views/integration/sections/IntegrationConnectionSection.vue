@@ -3,19 +3,20 @@ import {
   ref
 } from "vue";
 import {
-  ElMessage
-} from "element-plus";
-import {
-  CircleCheck,
+
   Connection,
   Cpu,
-  Refresh,
+
   Setting,
   Key
 } from "@element-plus/icons-vue";
 import BaseCard from "@/components/base/BaseCard.vue";
 
+import IntegrationHealthSection from "./IntegrationHealthSection.vue";
+import type { DatasourceRow } from "@/api/modules/integration";
+
 defineProps<{
+  rows: DatasourceRow[];
   connectionPolicy: {
     defaultTimeoutMs: number;
     rotationCycleDays: number;
@@ -26,31 +27,7 @@ defineProps<{
   savePolicy: (message: string) => void;
 }>();
 
-const testing = ref(false);
 const policyExpanded = ref(false);
-
-const probeResults = ref<Array<{ name: string; url: string; latency: string; status: "PASSED" | "FAILED" }>>([
-  { name: "主业务数据源 (MySQL-Cluster-01)", url: "jdbc:mysql://127.0.0.1:3306/saas_basics", latency: "1.2ms", status: "PASSED" },
-  { name: "租户财务独立 Schema (Finance-DB)", url: "jdbc:mysql://127.0.0.1:3306/tenant_finance", latency: "1.8ms", status: "PASSED" },
-  { name: "只读从库副本 (MySQL-Read-Replica)", url: "jdbc:mysql://127.0.0.1:3307/saas_basics_ro", latency: "2.1ms", status: "PASSED" }
-]);
-
-function runBatchProbe() {
-  testing.value = true;
-  setTimeout(() => {
-    testing.value = false;
-    probeResults.value.forEach((r) => {
-      r.latency = `${(Math.random() * 2 + 0.8).toFixed(1)}ms`;
-      r.status = "PASSED";
-    });
-    ElMessage.success("全量数据源连通性与连接池探针测试通过，平均延迟 1.5ms！");
-  }, 500);
-}
-
-function probeSingle(row: any) {
-  row.latency = `${(Math.random() * 1.5 + 0.8).toFixed(1)}ms`;
-  ElMessage.success(`数据源 [${row.name}] 连通性探针校验通过，延迟 ${row.latency}`);
-}
 </script>
 
 <template>
@@ -58,12 +35,6 @@ function probeSingle(row: any) {
     <!-- Sleek 40px Connection Telemetry Strip -->
     <div class="connection-telemetry-bar">
       <div class="telemetry-items">
-        <div class="telemetry-item">
-          <span class="telemetry-icon green"><el-icon><CircleCheck /></el-icon></span>
-          <span class="telemetry-label">探针健康</span>
-          <strong class="telemetry-val">3/3 连通</strong>
-        </div>
-        <div class="telemetry-divider" />
         <div class="telemetry-item">
           <span class="telemetry-icon blue"><el-icon><Connection /></el-icon></span>
           <span class="telemetry-label">默认超时</span>
@@ -87,9 +58,6 @@ function probeSingle(row: any) {
         <el-button link type="primary" size="small" @click="policyExpanded = !policyExpanded">
           <el-icon><Setting /></el-icon>
           <span>{{ policyExpanded ? '收起治理基线' : '配置治理基线' }}</span>
-        </el-button>
-        <el-button size="small" type="primary" :icon="Refresh" :loading="testing" @click="runBatchProbe">
-          执行全量探测
         </el-button>
       </div>
     </div>
@@ -127,53 +95,7 @@ function probeSingle(row: any) {
       </div>
     </el-collapse-transition>
 
-    <!-- Main Live Probe Table Card (Full Width) -->
-    <el-card shadow="never" class="probe-table-card">
-      <template #header>
-        <div class="panel-header-flex">
-          <div>
-            <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: #0f172a">实时数据源连接池探测台账</h3>
-            <p style="margin: 2px 0 0; font-size: 12px; color: #64748b">动态探测各租户专属与共享数据源连接有效性、套接字握手与往返延迟。</p>
-          </div>
-          <el-tag size="small" type="success" effect="plain">连接池就绪 · 零连接泄漏</el-tag>
-        </div>
-      </template>
-
-      <el-table :data="probeResults" stripe style="width: 100%">
-        <el-table-column prop="name" label="数据源名称" min-width="220">
-          <template #default="{ row }">
-            <strong style="color: #0f172a">{{ row.name }}</strong>
-          </template>
-        </el-table-column>
-
-        <el-table-column prop="url" label="JDBC 物理连接串 / 访问端点" min-width="320">
-          <template #default="{ row }">
-            <code class="mono-url">{{ row.url }}</code>
-          </template>
-        </el-table-column>
-
-        <el-table-column prop="status" label="连通状态" width="120" align="center">
-          <template #default="{ row }">
-            <el-tag size="small" :type="row.status === 'PASSED' ? 'success' : 'danger'">
-              <el-icon style="vertical-align: -1px; margin-right: 2px"><CircleCheck /></el-icon>
-              {{ row.status === 'PASSED' ? '握手成功' : '连接超时' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-
-        <el-table-column prop="latency" label="实测延迟" width="120" align="center">
-          <template #default="{ row }">
-            <span class="latency-badge">{{ row.latency }}</span>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="操作" width="120" align="center">
-          <template #default="{ row }">
-            <el-button link type="primary" size="small" :icon="Refresh" @click="probeSingle(row)">即刻探针</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-card>
+    <IntegrationHealthSection :rows="rows" />
   </div>
 </template>
 

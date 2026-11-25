@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { createTenantWithReceipt, showInitialCredentials } from "@/views/tenant/initial-credentials";
+import type { TenantCreateReceipt } from "@/api/modules/tenant/types";
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
@@ -242,7 +244,7 @@ async function handleCreate() {
   }
   submitting.value = true;
   try {
-    await createTenant({
+    await createTenantWithReceipt({
       tenantCode: form.tenantCode.trim(),
       tenantName: form.tenantName.trim(),
       packageId: form.packageId,
@@ -271,19 +273,20 @@ async function handleImport() {
       throw new Error("导入清单不能为空数组");
     }
 
+    const receipts: TenantCreateReceipt[] = [];
     let success = 0;
     const errors: string[] = [];
 
     for (const [index, item] of manifest.entries()) {
       try {
-        await createTenant({
+        receipts.push(await createTenant({
           tenantCode: String(item.tenantCode ?? ""),
           tenantName: String(item.tenantName ?? ""),
           packageId: Number(item.packageId ?? 1),
           status: String(item.status ?? "TRIAL"),
           isolationMode: String(item.isolationMode ?? "SHARED_SCHEMA"),
           remark: item.remark ? String(item.remark) : undefined
-        });
+        }));
         success += 1;
       } catch (error: any) {
         errors.push(`第 ${index + 1} 条：${error?.response?.data?.message ?? error?.message ?? "导入失败"}`);
@@ -291,6 +294,7 @@ async function handleImport() {
     }
 
     importVisible.value = false;
+    await showInitialCredentials(receipts);
     await loadData();
     ElMessage.success(`租户清单导入完成，成功 ${success} 条${errors.length ? `，失败 ${errors.length} 条` : ""}`);
     if (errors.length) {
@@ -395,8 +399,8 @@ onMounted(loadData);
             <el-form-item label="物理/逻辑隔离模式">
               <el-select v-model="form.isolationMode" style="width: 100%">
                 <el-option label="共享 Schema (行级隔离)" value="SHARED_SCHEMA" />
-                <el-option label="独立 Schema (表级隔离)" value="ISOLATED_SCHEMA" />
-                <el-option label="独立数据库 (物理隔离)" value="DEDICATED_DATABASE" />
+                <el-option label="独立 Schema (表级隔离)" value="ISOLATED_SCHEMA" disabled />
+                <el-option label="独立数据库 (物理隔离)" value="DEDICATED_DATABASE" disabled />
               </el-select>
             </el-form-item>
           </el-col>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { InfoFilled } from "@element-plus/icons-vue";
+import { useAuthStore } from "@/stores/modules/auth";
 import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 import IconPicker from "./components/IconPicker.vue";
 import type { IamDepartmentRow, IamMenuRow, IamPositionRow, IamRoleRow } from "@/api/modules/iam";
@@ -61,6 +62,12 @@ const props = defineProps<{
   submitLoginPolicy: () => Promise<void> | void;
   submitPasswordPolicy: () => Promise<void> | void;
 }>();
+
+const authStore = useAuthStore();
+const allowPlatformAccount = computed(() => {
+  const user = authStore.currentUser;
+  return user?.userType === "PLATFORM" && (user.tenantId === 1 || user.tenantCode === "platform");
+});
 
 const validMenuParentOptions = computed(() => {
   const allowedParentTypes = props.menuForm.menuType === "BUTTON" ? ["MENU"] : ["DIRECTORY"];
@@ -278,6 +285,7 @@ function getDataScopeTemplateDesc(type: string) {
 
   <WorkspacePanel
     v-model="employeeDialog.visible"
+    @closed="employeeForm.accountPassword = ''"
     :title="employeeDialog.mode === 'create' ? '新增员工' : employeeDialog.mode === 'transfer' ? '组织异动' : '编辑员工'"
     subtitle="维护员工主数据、岗位归属与「入职一表通」系统登录授权"
     width="680px"
@@ -359,7 +367,10 @@ function getDataScopeTemplateDesc(type: string) {
             <el-form-item label="初始登录密码" required>
               <el-input
                 v-model="employeeForm.accountPassword"
-                placeholder="默认 User@123456（首次登录强制重置）"
+                placeholder="请输入初始密码"
+                type="password"
+                show-password
+                autocomplete="new-password"
               />
             </el-form-item>
           </div>
@@ -390,7 +401,7 @@ function getDataScopeTemplateDesc(type: string) {
     </template>
   </WorkspacePanel>
 
-  <WorkspacePanel v-model="userDialog.visible" :title="userDialog.mode === 'create' ? '新增用户' : '编辑用户'" width="680px">
+  <WorkspacePanel v-model="userDialog.visible" @closed="userForm.password = ''" :title="userDialog.mode === 'create' ? '新增用户' : '编辑用户'" width="680px">
     <el-form label-position="top">
       <div class="form-grid">
         <el-form-item label="用户编码">
@@ -409,7 +420,7 @@ function getDataScopeTemplateDesc(type: string) {
         </el-form-item>
         <el-form-item label="账号类型">
           <el-select v-model="userForm.userType" style="width: 100%">
-            <el-option label="平台账号" value="PLATFORM" />
+            <el-option v-if="allowPlatformAccount" label="平台账号" value="PLATFORM" />
             <el-option label="员工账号" value="EMPLOYEE" />
             <el-option label="租户账号" value="TENANT" />
             <el-option label="外部账号" value="EXTERNAL" />
@@ -427,12 +438,12 @@ function getDataScopeTemplateDesc(type: string) {
         <el-form-item label="邮箱">
           <el-input v-model="userForm.email" />
         </el-form-item>
-        <el-form-item :label="userDialog.mode === 'create' ? '初始密码' : '重置密码（留空则不修改）'">
-          <el-input v-model="userForm.password" type="password" show-password placeholder="默认 Admin@123456" />
+        <el-form-item :required="userDialog.mode === 'create'" :label="userDialog.mode === 'create' ? '初始密码' : '重置密码（留空则不修改）'">
+          <el-input v-model="userForm.password" type="password" show-password autocomplete="new-password" />
         </el-form-item>
       </div>
       <el-form-item>
-        <el-switch v-model="userForm.needResetPassword" active-text="下次登录强制修改密码" />
+        <el-switch v-model="userForm.needResetPassword" active-text="提示用户修改密码" />
       </el-form-item>
       <el-form-item label="备注">
         <el-input v-model="userForm.remark" type="textarea" :rows="3" />

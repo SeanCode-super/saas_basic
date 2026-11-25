@@ -123,7 +123,7 @@ export function useIamEditors(params: UseIamEditorsParams) {
     username: "",
     nickname: "",
     employeeId: 0,
-    userType: "PLATFORM",
+    userType: "EMPLOYEE",
     status: "ENABLED",
     mobile: "",
     email: "",
@@ -246,7 +246,7 @@ export function useIamEditors(params: UseIamEditorsParams) {
     employeeForm.remark = "";
     employeeForm.createAccount = true;
     employeeForm.accountUsername = "";
-    employeeForm.accountPassword = "User@123456";
+    employeeForm.accountPassword = "";
     employeeForm.accountRoleIds = [];
   }
 
@@ -255,7 +255,7 @@ export function useIamEditors(params: UseIamEditorsParams) {
     userForm.username = "";
     userForm.nickname = "";
     userForm.employeeId = 0;
-    userForm.userType = "PLATFORM";
+    userForm.userType = "EMPLOYEE";
     userForm.status = "ENABLED";
     userForm.mobile = "";
     userForm.email = "";
@@ -771,6 +771,11 @@ export function useIamEditors(params: UseIamEditorsParams) {
         return;
       }
     }
+    const accountPassword = employeeForm.accountPassword ?? "";
+    if (employeeDialog.mode === "create" && employeeForm.createAccount && !accountPassword.trim()) {
+      ElMessage.warning("请输入登录账号的初始密码");
+      return;
+    }
     await withSubmit(async () => {
       if (employeeDialog.mode === "transfer") {
         await transferIamEmployee(employeeDialog.id, {
@@ -810,7 +815,7 @@ export function useIamEditors(params: UseIamEditorsParams) {
             status: "ENABLED",
             mobile: employeeForm.mobile || undefined,
             email: employeeForm.email || undefined,
-            password: employeeForm.accountPassword?.trim() || "User@123456",
+            password: accountPassword,
             needResetPassword: true,
             remark: "入职向导自动创建账号"
           };
@@ -822,6 +827,7 @@ export function useIamEditors(params: UseIamEditorsParams) {
               roleIds: employeeForm.accountRoleIds
             });
           }
+          employeeForm.accountPassword = "";
           ElMessage.success(`员工已入职，且已开通登录账号：${username}`);
         } else {
           ElMessage.success("员工档案已创建");
@@ -836,6 +842,10 @@ export function useIamEditors(params: UseIamEditorsParams) {
   }
 
   async function submitUser() {
+    if (userDialog.mode === "create" && !userForm.password?.trim()) {
+      ElMessage.warning("请输入初始密码");
+      return;
+    }
     if (!userForm.username?.trim()) {
       ElMessage.warning("请输入登录账号/用户名");
       return;
@@ -860,8 +870,9 @@ export function useIamEditors(params: UseIamEditorsParams) {
         remark: userForm.remark
       };
       if (userDialog.mode === "create") {
-        await createIamUser(payload);
-        ElMessage.success("用户已创建，未填写密码时默认使用 Admin@123456");
+        await createIamUser({ ...payload, password: userForm.password });
+        userForm.password = "";
+        ElMessage.success("用户已创建");
       } else {
         await updateIamUser(userDialog.id, payload);
         ElMessage.success("用户已更新");

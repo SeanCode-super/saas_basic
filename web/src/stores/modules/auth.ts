@@ -4,6 +4,7 @@ import { fetchCurrentUser, loginByPassword, loginBySso, logoutSession } from "@/
 import type { AuthCurrentUser, UserWorkspacePreferences } from "@/api/modules/auth";
 import { useLocaleStore } from "./locale";
 import { useMenuStore } from "./menu";
+import { useTenantStore } from "./tenant";
 
 const TOKEN_KEY = "sb-access-token";
 const REFRESH_TOKEN_KEY = "sb-refresh-token";
@@ -49,6 +50,7 @@ export const useAuthStore = defineStore("auth", () => {
     currentUser.value = user;
     persistCurrentUser(user);
     syncPreferences(user.preferences, user.locale);
+    useTenantStore().syncWithUser(user);
   }
 
   function updateUserSnapshot(partial: Partial<AuthCurrentUser>) {
@@ -132,19 +134,13 @@ export const useAuthStore = defineStore("auth", () => {
     localStorage.removeItem(REFRESH_TOKEN_KEY);
     localStorage.removeItem(CURRENT_USER_KEY);
     useMenuStore().clear();
+    useTenantStore().bootstrap();
   }
 
   const isSuperAdmin = computed(() => {
     const user = currentUser.value;
     if (!user) return false;
-    return (
-      user.userId === 1 ||
-      user.username === "admin" ||
-      user.userType === "PLATFORM" ||
-      Boolean(user.roleIds?.includes(1)) ||
-      Boolean(user.permissions?.includes("*") || user.permissions?.includes("*:*:*")) ||
-      Boolean(user.buttonPermissions?.includes("*"))
-    );
+    return Boolean(user.permissions?.some(code => code === "*" || code === "*:*:*"));
   });
 
   function hasPermission(permissionCode?: string) {
