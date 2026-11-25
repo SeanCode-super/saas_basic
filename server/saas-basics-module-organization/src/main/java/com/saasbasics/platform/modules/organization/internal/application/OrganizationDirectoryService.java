@@ -145,6 +145,25 @@ public class OrganizationDirectoryService implements OrganizationDirectory {
         );
     }
 
+    @Override
+    public List<UUID> expandOrgUnitSubtree(UUID orgUnitPublicId) {
+        if (orgUnitPublicId == null) {
+            return List.of();
+        }
+        OrgUnitEntity root = structure.unit(orgUnitPublicId);
+        if (root.getTreePath() == null || root.getTreePath().isBlank()) {
+            return List.of(orgUnitPublicId);
+        }
+        return mappers.units().selectList(new QueryWrapper<OrgUnitEntity>()
+                        .eq("deleted", 0)
+                        .eq("organization_id", root.getOrganizationId())
+                        .likeRight("tree_path", root.getTreePath())
+                        .orderByAsc("tree_path", "sort_order", "id"))
+                .stream()
+                .map(unit -> support.toUuid(unit.getPublicId()))
+                .toList();
+    }
+
     private List<EngagementEntity> findEffectiveEngagementEntities(UUID personPublicId, Instant effectiveAt) {
         PersonEntity person = workforce.person(personPublicId);
         return mappers.engagements().selectList(this.<EngagementEntity>effectiveQuery(effectiveAt)

@@ -40,6 +40,10 @@ public class DataPermissionSqlSpec {
     private final Set<Long> orgUnitIds = new LinkedHashSet<>();
     private final Set<String> treePaths = new LinkedHashSet<>();
     private final Set<Long> roleIds = new LinkedHashSet<>();
+    private final Set<String> organizationPublicIds = new LinkedHashSet<>();
+    private final Set<String> orgUnitPublicIds = new LinkedHashSet<>();
+    private final Set<String> assignmentPublicIds = new LinkedHashSet<>();
+    private final Set<String> personPublicIds = new LinkedHashSet<>();
 
     // 历史兼容集合
     private final Set<Long> employeeIds = new LinkedHashSet<>();
@@ -62,6 +66,10 @@ public class DataPermissionSqlSpec {
         private final Set<Long> positionIds = new LinkedHashSet<>();
         private final Set<Long> roleIds = new LinkedHashSet<>();
         private final Set<String> treePaths = new LinkedHashSet<>();
+        private final Set<String> organizationPublicIds = new LinkedHashSet<>();
+        private final Set<String> orgUnitPublicIds = new LinkedHashSet<>();
+        private final Set<String> assignmentPublicIds = new LinkedHashSet<>();
+        private final Set<String> personPublicIds = new LinkedHashSet<>();
         private final Set<Long> scopedMemberUserIds = new LinkedHashSet<>();
         private final List<AbacCondition> abacConditions = new ArrayList<>();
         private boolean scopeConfigured;
@@ -178,6 +186,50 @@ public class DataPermissionSqlSpec {
             }
         }
 
+        public Set<String> getOrganizationPublicIds() {
+            return organizationPublicIds;
+        }
+
+        public void addOrganizationPublicId(String publicId) {
+            if (publicId != null && !publicId.isBlank()) {
+                organizationPublicIds.add(publicId.trim());
+                scopeConfigured = true;
+            }
+        }
+
+        public Set<String> getOrgUnitPublicIds() {
+            return orgUnitPublicIds;
+        }
+
+        public void addOrgUnitPublicId(String publicId) {
+            if (publicId != null && !publicId.isBlank()) {
+                orgUnitPublicIds.add(publicId.trim());
+                scopeConfigured = true;
+            }
+        }
+
+        public Set<String> getAssignmentPublicIds() {
+            return assignmentPublicIds;
+        }
+
+        public void addAssignmentPublicId(String publicId) {
+            if (publicId != null && !publicId.isBlank()) {
+                assignmentPublicIds.add(publicId.trim());
+                scopeConfigured = true;
+            }
+        }
+
+        public Set<String> getPersonPublicIds() {
+            return personPublicIds;
+        }
+
+        public void addPersonPublicId(String publicId) {
+            if (publicId != null && !publicId.isBlank()) {
+                personPublicIds.add(publicId.trim());
+                scopeConfigured = true;
+            }
+        }
+
         public Set<Long> getScopedMemberUserIds() {
             return scopedMemberUserIds;
         }
@@ -250,7 +302,27 @@ public class DataPermissionSqlSpec {
         positionIds.addAll(clause.getPositionIds());
         roleIds.addAll(clause.getRoleIds());
         treePaths.addAll(clause.getTreePaths());
+        organizationPublicIds.addAll(clause.getOrganizationPublicIds());
+        orgUnitPublicIds.addAll(clause.getOrgUnitPublicIds());
+        assignmentPublicIds.addAll(clause.getAssignmentPublicIds());
+        personPublicIds.addAll(clause.getPersonPublicIds());
         abacConditions.addAll(clause.getAbacConditions());
+    }
+
+    public List<String> getOrganizationPublicIds() {
+        return new ArrayList<>(organizationPublicIds);
+    }
+
+    public List<String> getOrgUnitPublicIds() {
+        return new ArrayList<>(orgUnitPublicIds);
+    }
+
+    public List<String> getAssignmentPublicIds() {
+        return new ArrayList<>(assignmentPublicIds);
+    }
+
+    public List<String> getPersonPublicIds() {
+        return new ArrayList<>(personPublicIds);
     }
 
     public static DataPermissionSqlSpec allowAll(Long tenantId) {

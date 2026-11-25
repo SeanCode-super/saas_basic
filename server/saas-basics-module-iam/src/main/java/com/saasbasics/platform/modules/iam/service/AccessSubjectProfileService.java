@@ -12,12 +12,18 @@ import com.saasbasics.platform.modules.iam.mapper.EmployeeMapper;
 import com.saasbasics.platform.modules.iam.mapper.UserMapper;
 import com.saasbasics.platform.modules.iam.mapper.UserRoleMapper;
 import com.saasbasics.platform.cache.SystemCacheService;
+import com.saasbasics.platform.modules.iam.api.UserPersonDirectory;
+import com.saasbasics.platform.modules.organization.api.OrganizationDirectory;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -28,17 +34,43 @@ public class AccessSubjectProfileService implements CurrentDepartmentResolver {
     private final ObjectProvider<DepartmentMapper> departmentMapperProvider;
     private final ObjectProvider<UserRoleMapper> userRoleMapperProvider;
     private final ObjectProvider<SystemCacheService> cacheServiceProvider;
+    private final ObjectProvider<UserPersonDirectory> userPersonDirectoryProvider;
+    private final ObjectProvider<OrganizationDirectory> organizationDirectoryProvider;
+    private volatile boolean legacyEmployeeFallbackEnabled = true;
 
     public AccessSubjectProfileService(ObjectProvider<UserMapper> userMapperProvider,
                                        ObjectProvider<EmployeeMapper> employeeMapperProvider,
                                        ObjectProvider<DepartmentMapper> departmentMapperProvider,
                                        ObjectProvider<UserRoleMapper> userRoleMapperProvider,
                                        ObjectProvider<SystemCacheService> cacheServiceProvider) {
+        this(userMapperProvider, employeeMapperProvider, departmentMapperProvider, userRoleMapperProvider,
+                cacheServiceProvider, null, null);
+    }
+
+    @Autowired
+    public AccessSubjectProfileService(ObjectProvider<UserMapper> userMapperProvider,
+                                       ObjectProvider<EmployeeMapper> employeeMapperProvider,
+                                       ObjectProvider<DepartmentMapper> departmentMapperProvider,
+                                       ObjectProvider<UserRoleMapper> userRoleMapperProvider,
+                                       ObjectProvider<SystemCacheService> cacheServiceProvider,
+                                       ObjectProvider<UserPersonDirectory> userPersonDirectoryProvider,
+                                       ObjectProvider<OrganizationDirectory> organizationDirectoryProvider) {
         this.userMapperProvider = userMapperProvider;
         this.employeeMapperProvider = employeeMapperProvider;
         this.departmentMapperProvider = departmentMapperProvider;
         this.userRoleMapperProvider = userRoleMapperProvider;
         this.cacheServiceProvider = cacheServiceProvider;
+        this.userPersonDirectoryProvider = userPersonDirectoryProvider;
+        this.organizationDirectoryProvider = organizationDirectoryProvider;
+    }
+
+    @Value("${saas-basics.iam.legacy-employee-fallback-enabled:true}")
+    public void setLegacyEmployeeFallbackEnabled(boolean legacyEmployeeFallbackEnabled) {
+        this.legacyEmployeeFallbackEnabled = legacyEmployeeFallbackEnabled;
+    }
+
+    public boolean isLegacyEmployeeFallbackEnabled() {
+        return legacyEmployeeFallbackEnabled;
     }
 
     public AccessSubjectProfile load(Long tenantId, Long userId) {
@@ -47,21 +79,56 @@ public class AccessSubjectProfileService implements CurrentDepartmentResolver {
             throw new BizException("AUTH_SUBJECT_NOT_FOUND", "当前登录主体不存在");
         }
 
-        Long employeeId = normalizeId(user.getEmployeeId());
+        UUID personPublicId = null;
+        UUID organizationPublicId = null;
+        UUID orgUnitPublicId = null;
+        UUID assignmentPublicId = null;
+        UserPersonDirectory userPersonDir = userPersonDirectoryProvider != null
+                ? userPersonDirectoryProvider.getIfAvailable() : null;
+        OrganizationDirectory orgDir = organizationDirectoryProvider != null
+                ? organizationDirectoryProvider.getIfAvailable() : null;
+        if (userPersonDir != null && user.getPublicId() != null && !user.getPublicId().isBlank()) {
+            try {
+                var binding = userPersonDir.findEffectiveByUser(UUID.fromString(user.getPublicId()), Instant.now());
+                if (binding.isPresent()) {
+                    personPublicId = binding.get().personPublicId();
+                    if (orgDir != null) {
+                        var assignments = orgDir.findEffectiveAssignments(personPublicId, Instant.now());
+                        if (!assignments.isEmpty()) {
+                            var primary = assignments.get(0);
+                            assignmentPublicId = primary.publicId();
+                            organizationPublicId = primary.organizationPublicId();
+                            orgUnitPublicId = primary.orgUnitPublicId();
+                        }
+                    }
+                }
+            } catch (Exception ignored) {
+                // Standard binding unavailable in current context; fall through when legacy fallback enabled
+            }
+        }
+
+        Long employeeId = null;
         Long departmentId = null;
         Long positionId = null;
         Long companyDepartmentId = null;
-        if (employeeId != null) {
-            EmployeeEntity employee = requiredEmployeeMapper().selectById(employeeId);
-            if (employee != null && tenantId.equals(employee.getTenantId())) {
-                departmentId = normalizeId(employee.getDeptId());
-                positionId = normalizeId(employee.getPositionId());
-                companyDepartmentId = resolveCompanyDepartmentId(departmentId);
+        boolean usedLegacyFallback = false;
+        if (legacyEmployeeFallbackEnabled) {
+            employeeId = normalizeId(user.getEmployeeId());
+            if (employeeId != null) {
+                EmployeeEntity employee = requiredEmployeeMapper().selectById(employeeId);
+                if (employee != null && tenantId.equals(employee.getTenantId())) {
+                    departmentId = normalizeId(employee.getDeptId());
+                    positionId = normalizeId(employee.getPositionId());
+                    companyDepartmentId = resolveCompanyDepartmentId(departmentId);
+                    usedLegacyFallback = (personPublicId == null);
+                }
             }
         }
 
         List<Long> roleIds = requiredUserRoleMapper().selectRoleIdsByUserId(tenantId, userId, LocalDateTime.now());
-        return new AccessSubjectProfile(tenantId, userId, employeeId, departmentId, positionId, companyDepartmentId, roleIds);
+        return new AccessSubjectProfile(tenantId, userId, employeeId, departmentId, positionId,
+                companyDepartmentId, roleIds, personPublicId, organizationPublicId, orgUnitPublicId,
+                assignmentPublicId, usedLegacyFallback);
     }
 
     private Long resolveCompanyDepartmentId(Long departmentId) {

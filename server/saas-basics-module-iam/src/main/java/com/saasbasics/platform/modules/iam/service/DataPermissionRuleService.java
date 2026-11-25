@@ -22,11 +22,13 @@ import com.saasbasics.platform.modules.iam.entity.RoleEntity;
 import com.saasbasics.platform.modules.iam.entity.UserEntity;
 import com.saasbasics.platform.modules.iam.mapper.DataPermissionRuleMapper;
 import com.saasbasics.platform.modules.iam.mapper.RoleMapper;
+import com.saasbasics.platform.modules.organization.api.OrganizationDirectory;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.UUID;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.LongValue;
 import net.sf.jsqlparser.expression.Parenthesis;
@@ -54,6 +56,7 @@ public class DataPermissionRuleService implements DataPermissionProvider {
     private final AuditTrailService auditTrailService;
     private final ObjectMapper objectMapper;
     private final ObjectProvider<RoleMapper> roleMapperProvider;
+    private final ObjectProvider<OrganizationDirectory> organizationDirectoryProvider;
 
     public DataPermissionRuleService(ObjectProvider<DataPermissionRuleMapper> dataPermissionRuleMapperProvider,
                                      AccessSubjectProfileService accessSubjectProfileService,
@@ -64,8 +67,18 @@ public class DataPermissionRuleService implements DataPermissionProvider {
                 accessSubjectProfileService,
                 auditTrailService,
                 objectMapper,
-                new StaticListableBeanFactory().getBeanProvider(RoleMapper.class)
+                new StaticListableBeanFactory().getBeanProvider(RoleMapper.class),
+                null
         );
+    }
+
+    public DataPermissionRuleService(ObjectProvider<DataPermissionRuleMapper> dataPermissionRuleMapperProvider,
+                                     AccessSubjectProfileService accessSubjectProfileService,
+                                     AuditTrailService auditTrailService,
+                                     ObjectMapper objectMapper,
+                                     ObjectProvider<RoleMapper> roleMapperProvider) {
+        this(dataPermissionRuleMapperProvider, accessSubjectProfileService, auditTrailService,
+                objectMapper, roleMapperProvider, null);
     }
 
     @Autowired
@@ -73,12 +86,14 @@ public class DataPermissionRuleService implements DataPermissionProvider {
                                      AccessSubjectProfileService accessSubjectProfileService,
                                      AuditTrailService auditTrailService,
                                      ObjectMapper objectMapper,
-                                     ObjectProvider<RoleMapper> roleMapperProvider) {
+                                     ObjectProvider<RoleMapper> roleMapperProvider,
+                                     ObjectProvider<OrganizationDirectory> organizationDirectoryProvider) {
         this.dataPermissionRuleMapperProvider = dataPermissionRuleMapperProvider;
         this.accessSubjectProfileService = accessSubjectProfileService;
         this.auditTrailService = auditTrailService;
         this.objectMapper = objectMapper;
         this.roleMapperProvider = roleMapperProvider;
+        this.organizationDirectoryProvider = organizationDirectoryProvider;
     }
 
     public List<DataPermissionRuleResponse> listRules() {
@@ -510,6 +525,57 @@ public class DataPermissionRuleService implements DataPermissionProvider {
                                     List.of(subjectProfile.positionId())
                             )
                     );
+                }
+                clause.markScopeConfigured();
+            }
+            case "ORGANIZATION" -> {
+                if (subjectProfile.organizationPublicId() != null) {
+                    clause.addOrganizationPublicId(subjectProfile.organizationPublicId().toString());
+                }
+                if (subjectProfile.companyDepartmentId() != null) {
+                    clause.addOrganizationId(subjectProfile.companyDepartmentId());
+                }
+                clause.markScopeConfigured();
+            }
+            case "ORG_UNIT" -> {
+                if (subjectProfile.orgUnitPublicId() != null) {
+                    clause.addOrgUnitPublicId(subjectProfile.orgUnitPublicId().toString());
+                }
+                if (subjectProfile.departmentId() != null) {
+                    clause.addDepartmentId(subjectProfile.departmentId());
+                    clause.addOrgUnitId(subjectProfile.departmentId());
+                }
+                clause.markScopeConfigured();
+            }
+            case "ORG_UNIT_AND_SUB" -> {
+                if (subjectProfile.orgUnitPublicId() != null) {
+                    OrganizationDirectory orgDir = organizationDirectoryProvider != null
+                            ? organizationDirectoryProvider.getIfAvailable() : null;
+                    if (orgDir != null) {
+                        for (UUID unitUuid : orgDir.expandOrgUnitSubtree(subjectProfile.orgUnitPublicId())) {
+                            clause.addOrgUnitPublicId(unitUuid.toString());
+                        }
+                    } else {
+                        clause.addOrgUnitPublicId(subjectProfile.orgUnitPublicId().toString());
+                    }
+                }
+                if (subjectProfile.departmentId() != null) {
+                    List<Long> deptIds = accessSubjectProfileService.expandDepartmentTree(
+                            subjectProfile.tenantId(),
+                            List.of(subjectProfile.departmentId())
+                    );
+                    clause.addDepartmentIds(deptIds);
+                    clause.addOrgUnitIds(deptIds);
+                }
+                clause.markScopeConfigured();
+            }
+            case "ORG_SELF", "ASSIGNMENT" -> {
+                clause.addUserId(subjectProfile.userId());
+                if (subjectProfile.personPublicId() != null) {
+                    clause.addPersonPublicId(subjectProfile.personPublicId().toString());
+                }
+                if (subjectProfile.assignmentPublicId() != null) {
+                    clause.addAssignmentPublicId(subjectProfile.assignmentPublicId().toString());
                 }
                 clause.markScopeConfigured();
             }

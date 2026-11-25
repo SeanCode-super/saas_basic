@@ -25,6 +25,10 @@ public interface OrganizationDirectory {
             Instant effectiveAt
     );
 
+    default List<UUID> expandOrgUnitSubtree(UUID orgUnitPublicId) {
+        return orgUnitPublicId == null ? List.of() : List.of(orgUnitPublicId);
+    }
+
     record OrganizationSummary(UUID publicId, String code, String displayName) {
     }
 
