@@ -42,8 +42,9 @@
 
 ## 当前验证
 
-- `mvn -q verify` 在无 Docker 环境通过；容器测试按 Testcontainers 配置明确跳过。
-- GitHub Actions 必须实际运行 MySQL 8.3 Flyway、租户隔离和组织标准集成测试，且 `Skipped: 0`。
+- 2026-11-25 在本机 Colima Docker (`MySQL 8.3.0` Testcontainers) 环境下运行全量 17 个 Maven 模块 `mvn verify`：共 `223` 项测试，`0` 失败、`0` 错误、`Skipped: 0`（含 `FlywayMigrationTest`、`TenantIsolationTest`、`OrganizationStandardIntegrationTest`、`UserPersonBindingIntegrationTest`、`ErpReceivingIntegrationTest`、`DynamicModelCatalogIntegrationTest`、`TenantApplicationIntegrationTest`、`TrashServiceMapperTest`、`OrganizationArchitectureTest`）。
+- 运行时动态多数据源路由（`DynamicDataSourceConfig` + `DynamicRoutingDataSource` + `TenantDataSourceRegistry`）已装配为主 `DataSource`，并通过真实多 H2 库 JDBC 路由与热注册测试；仅当租户在 `TenantDataSourceRegistry` 中实际注册独立库时才允许切换隔离模式，否则保持 fail-closed 拦截。
+- Web 端 `npm run check`（`vue-tsc` + `vite build` + `eslint` + `stylelint` + `vitest` 8 suites / 19 tests）与 Playwright E2E（`npm run test:e2e`，3 项核心回归）全部通过；Mobile 端 `npm test`（5/5）与 `build:h5` / `build:mp-weixin` 通过。
 - `git diff --check` 通过。
 
 本批代码是 M1 的标准核心实现，不是 M1 完成声明，也不是可替代发布阻断项的最小版本。

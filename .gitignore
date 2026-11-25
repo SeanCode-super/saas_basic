@@ -49,3 +49,7 @@ data/
 .*.pid
 
 mobile/tests/.compiled/
+
+/generated-apps/
+
+__pycache__/

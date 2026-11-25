@@ -1,0 +1,15 @@
+#!/bin/sh
+# Select the project's JDK without changing the user's global Java installation.
+set -eu
+if [ "$(uname -s)" = Darwin ] && [ -x /usr/libexec/java_home ]; then
+    JAVA_HOME=$(/usr/libexec/java_home -F -v 27)
+fi
+if [ -n "${JAVA_HOME:-}" ]; then
+    PATH="$JAVA_HOME/bin:$PATH"
+    export JAVA_HOME PATH
+fi
+if ! java -XshowSettings:properties -version 2>&1 | grep -Eq 'java.specification.version = 27$'; then
+    echo "Tianshu requires JDK 27. Set JAVA_HOME to a JDK 27 installation." >&2
+    exit 1
+fi
+exec "$@"

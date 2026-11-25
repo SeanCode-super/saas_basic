@@ -39,4 +39,4 @@ body:
     id: environment
     attributes:
       label: Runtime Environment
-      placeholder: "JDK 17, Node 20, MySQL 8.3, Redis 7.2, OS..."
+      placeholder: "JDK 27, Node 20, MySQL 8.3, Redis 7.2, OS..."

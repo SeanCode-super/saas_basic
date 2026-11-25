@@ -8,7 +8,7 @@ Status: complete.
 
 - Apache-2.0 license, NOTICE, contribution terms, and package metadata.
 - Reproducible backend and frontend quality gates in GitHub Actions.
-- Java 17, Spring Boot, Vue 3, TypeScript, MySQL 8.3, Flyway, and local development instructions.
+- Java 27, Spring Boot 4.1, Vue 3, TypeScript, MySQL 8.3, Flyway, and local development instructions.
 - Tenant context propagation and fail-closed persistence isolation.
 - Modular-monolith boundaries, architecture tests, migration conventions, and security reporting process.
 
@@ -49,7 +49,9 @@ Remaining work includes live GPU/external fine-tune trainer runners, automated o
 
 ## M4: Developer platform and extensions
 
-Make the foundation straightforward to extend and maintain:
+The first build-time extension path ships a Spring Boot application SPI, a standalone Maven scaffold, PC menu and API registration, and tenant-specific transactional revisions. See the [course example](DEVELOPING_INDUSTRY_APPS.md). Independently deployed services can also publish a versioned manifest for PC and mobile, with per-tenant subscriptions and action permissions. The hazard work example implements this runtime contract. Remaining work includes dependency resolution, compatibility across host releases and additional industry workflows.
+
+The developer platform roadmap covers:
 
 - module SDK and extension package contracts;
 - metadata-driven scaffolding, AI App Builder (with tenant-prefixed isolated dynamic tables), and code generation;

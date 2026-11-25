@@ -11,7 +11,7 @@ set "JAR_FILE=%PROJECT_ROOT%\server\saas-basics-app\target\saas-basics-app-0.1.0
 set "LOG_DIR=%PROJECT_ROOT%\logs"
 
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
-if "%DB_PASSWORD%"=="" set "DB_PASSWORD=19990518suo"
+
 
 echo ==============================================================================
 echo [DAEMON] 天枢云基服务自愈守护进程已启动
@@ -24,7 +24,7 @@ set /a RESTART_COUNT=0
 :loop
 if not exist "%JAR_FILE%" (
     echo [DAEMON ERROR] 未找到可执行 Jar 文件: %JAR_FILE%
-    echo [DAEMON] 请先执行: mvn clean package -DskipTests
+    echo [DAEMON] 请先执行: mvn -f server/pom.xml clean package -DskipTests
     timeout /t 5 >nul
     goto loop
 )
@@ -32,7 +32,7 @@ if not exist "%JAR_FILE%" (
 set /a RESTART_COUNT+=1
 echo [%date% %time%] [DAEMON] 正在启动天枢云基主服务 (第 %RESTART_COUNT% 次启动)...
 
-java -Dfile.encoding=UTF-8 -Dserver.port=8080 -DDB_PASSWORD="%DB_PASSWORD%" -jar "%JAR_FILE%"
+"%JAVA_HOME%\bin\java.exe" -Dfile.encoding=UTF-8 -Dserver.port=8080 "-Dspring.config.additional-location=optional:file:%PROJECT_ROOT%/.env[.properties]" -jar "%JAR_FILE%"
 
 set EXIT_CODE=%ERRORLEVEL%
 echo [%date% %time%] [DAEMON] 服务进程已退出 (退出码: %EXIT_CODE%)

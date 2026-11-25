@@ -6,11 +6,11 @@ After=network.target mysql.service
 Type=simple
 User=root
 WorkingDirectory=/opt/saas_basics
-ExecStart=/usr/bin/java -Dfile.encoding=UTF-8 -Dserver.port=8080 -jar /opt/saas_basics/server/saas-basics-app/target/saas-basics-app-0.1.0-SNAPSHOT.jar
+ExecStart=/opt/saas_basics/bin/with-jdk java -Dfile.encoding=UTF-8 -Dserver.port=8080 -jar /opt/saas_basics/server/saas-basics-app/target/saas-basics-app-0.1.0-SNAPSHOT.jar
 Restart=always
 RestartSec=3s
 LimitNOFILE=65536
-# Environment="DB_PASSWORD=YOUR_DB_PASSWORD"
+EnvironmentFile=-/opt/saas_basics/.env
 
 [Install]
 WantedBy=multi-user.target

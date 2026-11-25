@@ -31,7 +31,7 @@
                                     |                       |
                                     v                       v
           +-----------------------------------+   +------------------------------------+
-          |  PC 端 (Vue 3 + TS + Vite 5/6)    |   |  天枢业务主服务 (Spring Boot 3.3.5)|
+          |  PC 端 (Vue 3 + TS + Vite 5/6)    |   |  天枢业务主服务 (Spring Boot 4.1.2)|
           |  - 默认端口: 9527                 |   |  - 默认端口: 8080 (saas-basics-app)|
           |  - iOS 27 Liquid Glass UI 视觉    |   |  - Spring Security + JWT 令牌中枢  |
           |  - 多租户 URL 隔离路由体系        |   |  - TenantContextHolder 租户上下文 |
@@ -63,7 +63,7 @@
 | **应用接入层** | Nginx / OpenResty | 1.27+ Alpine | 泛域名 SSL 解析、动静分离、跨域兜底、子域名提取注入 `X-Tenant-Code` |
 | **前端 PC 端** | Vue 3 + TypeScript + Vite | Vue 3.4+ / Vite 5+ | PC 端中后台管理系统，搭载 iOS 27 / visionOS 流光毛玻璃设计语言 |
 | **移动端** | uni-app + Vue 3 + Pinia | uni-app 4.29+ | 跨端工作台 (H5、微信小程序、App)，搭载悬浮灵动岛毛玻璃 TabBar |
-| **核心后端** | Spring Boot + Java | 3.3.x / JDK 17 LTS | 企业级 SaaS 核心应用，模块化架构与自动装配 |
+| **核心后端** | Spring Boot + Java | 4.1.2 / JDK 27 | 企业级 SaaS 核心应用，模块化架构与自动装配 |
 | **工作流引擎** | Flowable BPMN | 7.x 工业级 | 审批流、转办、驳回、加签、会签与流程拓扑图渲染 |
 | **持久层 & 隔离** | MyBatis-Plus + Flyway | MP 3.5.7+ / Flyway 10+ | 行级租户自动拦截器注入 (`tenant_id`)、版本化平滑数据库迁移 |
 | **数据与缓存** | MySQL + Redis | 8.3+ / 7.2+ Alpine | 事务 ACID 保障、租户元数据分片、分布式高并发会话控制 |
@@ -164,17 +164,17 @@ services:
       - --default-time-zone=+08:00
       - --max_connections=1000
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-Tianshu@Prod2026!}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Set an independent MySQL administration password}
       MYSQL_DATABASE: saas_basics
       MYSQL_USER: saas_app
-      MYSQL_PASSWORD: ${DB_PASSWORD:-SaaS@SecureApp2026!}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Set the application database password}
     ports:
       - "127.0.0.1:3306:3306" # 仅内网/本机监听，禁止公网裸露
     volumes:
       - saas-mysql-data:/var/lib/mysql
       - /etc/localtime:/etc/localtime:ro
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p$${MYSQL_ROOT_PASSWORD}"]
+      test: ["CMD-SHELL", 'MYSQL_PWD="$${MYSQL_PASSWORD}" mysql -h 127.0.0.1 -u "$${MYSQL_USER}" -D "$${MYSQL_DATABASE}" -e "SELECT 1"']
       interval: 10s
       timeout: 5s
       retries: 10
@@ -207,8 +207,8 @@ services:
   # ==========================================
   saas-backend:
     build:
-      context: ./server
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: server/Dockerfile
     container_name: saas-backend
     restart: always
     depends_on:
@@ -222,7 +222,7 @@ services:
       DB_PORT: 3306
       DB_NAME: saas_basics
       DB_USERNAME: saas_app
-      DB_PASSWORD: ${DB_PASSWORD:-SaaS@SecureApp2026!}
+      DB_PASSWORD: ${DB_PASSWORD:?Set the application database password}
       REDIS_HOST: saas-redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-Redis@Tianshu2026!}
@@ -274,8 +274,9 @@ volumes:
 在部署根目录下创建 `.env` 文件，避免明文硬编码：
 ```ini
 # MySQL 数据库配置
-DB_ROOT_PASSWORD=Tianshu@RootStrongPassword_2026!
-DB_PASSWORD=Tianshu@AppSafePassword_2026!
+# 分别填入独立生成的管理密码和应用密码，保存此文件后执行 chmod 600 .env。
+DB_ROOT_PASSWORD=
+DB_PASSWORD=
 
 # Redis 配置
 REDIS_PASSWORD=Redis@TianshuCluster_2026!

@@ -7,16 +7,16 @@
 <p align="center">
   <a href="https://github.com/SeanCode-super/saas_basic/actions/workflows/ci.yml"><img src="https://github.com/SeanCode-super/saas_basic/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/SeanCode-super/saas_basic/releases"><img src="https://img.shields.io/github/v/release/SeanCode-super/saas_basic?include_prereleases&label=Release" alt="Release"></a>
-  <img src="https://img.shields.io/badge/Spring%20Boot-3.3.x-brightgreen.svg" alt="Spring Boot">
-  <img src="https://img.shields.io/badge/Java-17%2B-blue.svg" alt="Java 17+">
+  <img src="https://img.shields.io/badge/Spring%20Boot-4.1.2-brightgreen.svg" alt="Spring Boot">
+  <img src="https://img.shields.io/badge/Java-27-blue.svg" alt="Java 27">
   <img src="https://img.shields.io/badge/Vue-3.5-green.svg" alt="Vue 3.5">
   <img src="https://img.shields.io/badge/uni--app-Vue%203-blueviolet.svg" alt="uni-app">
   <img src="https://img.shields.io/badge/Flowable-7.x%20BPMN-orange.svg" alt="Flowable">
-  <img src="https://img.shields.io/badge/Flyway-V1--V75-teal.svg" alt="Flyway V1-V75">
+  <img src="https://img.shields.io/badge/Flyway-V1--V81-teal.svg" alt="Flyway V1-V81">
   <img src="https://img.shields.io/badge/License-Apache%202.0-orange.svg" alt="Apache-2.0">
 </p>
 
-**Tianshu Cloud (`saas_basics`)** is an open-source, industry-neutral, **AI-native multi-tenant SaaS development foundation** built as a clean modular monolith (`Java 17 + Spring Boot 3.3 + Vue 3.5 + TypeScript + uni-app`).
+**Tianshu Cloud (`saas_basics`)** is an open-source, industry-neutral, **AI-native multi-tenant SaaS development foundation** built as a clean modular monolith (`Java 27 + Spring Boot 4.1 + Vue 3.5 + TypeScript + uni-app`).
 
 Unlike typical CRUD admin templates, it focuses on strict multi-tenant data isolation, RFC 9562 UUIDv7 organization/identity modeling, controllable end-to-end API payload encryption, native AI Copilot/RAG/Agent capabilities, and cross-platform PC + Mobile workspace parity under the **Apache-2.0** license.
 
@@ -32,7 +32,7 @@ Unlike typical CRUD admin templates, it focuses on strict multi-tenant data isol
 - **🔔 CloudEvents 1.0 Webhooks & Persistent Messaging Ledger (`V75`)**: SSRF-protected outbound webhook subscriptions signed with `X-Webhook-Signature-256` HMAC-SHA256, DLQ replay UI (`IntegrationCallbackSection`), SMTP/SSL mail dispatch & SQL delivery ledger (`int_message_delivery_log`), and deterministic local SVG payment QR rendering.
 - **🎨 Spatial 3-Zone Topbar, Dark Mode & Digital Identity (`V74`–`V75`)**: Decluttered Apple Control-Center-style `QuickLaunchpadPopover`, true Light/Dark/System theme synchronization, XSS-safe Markdown AI streaming drawer with Abort support, real dashboard RTT/metering telemetry, and PC/Mobile workspace sync.
 - **🗂 AWS SigV4 Object Storage & Per-Business File Routing (`V74`–`V75`)**: Real **AWS Signature Version 4 (`AWS4-HMAC-SHA256`)** S3/MinIO/OSS/COS/OBS signing with presigned PUT/GET URLs, fail-closed upload propagation, per-`bizType` upload mode routing, and explicit missing-storage-source blocking.
-- **📤 Global Async Export Queue, Print Center & Flowable BPMN 2.0**: Sync/async exports with watermarks, data masking & scheduled reports (`DownloadCenterView`), VAT/purchase/reimbursement print previews (`PrintCenterView`), and a standalone Flowable 7.x workflow service (`saas-basics-workflow-app`).
+- **📤 Global Async Export Queue, Print Center & Flowable BPMN 2.0**: Sync/async exports with watermarks, data masking & scheduled reports (`DownloadCenterView`), VAT/purchase/reimbursement print previews (`PrintCenterView`), and a standalone Flowable 8.x workflow service (`saas-basics-workflow-app`).
 
 ---
 
@@ -52,11 +52,11 @@ Unlike typical CRUD admin templates, it focuses on strict multi-tenant data isol
 
 ```text
 saas_basics/
-├── server/                            # Spring Boot 3.3 modular monolith + Flowable service (JDK 17)
+├── server/                            # Spring Boot 4.1 modular monolith + Flowable service (JDK 27)
 │   ├── saas-basics-common/            # Shared contracts, exceptions, storage gateway SPI
 │   ├── saas-basics-framework/         # Vault crypto, X25519+GCM filter, Lua rate limit, OTel, tenant interceptor
-│   ├── saas-basics-app/               # Main API host (:8080) & Flyway migrations (V1 ~ V75)
-│   ├── saas-basics-workflow-app/      # Standalone Flowable 7.x BPMN runtime (:8085)
+│   ├── saas-basics-app/               # Main API host (:8080) & Flyway migrations (V1 ~ V81)
+│   ├── saas-basics-workflow-app/      # Standalone Flowable 8.x BPMN runtime (:8085)
 │   └── saas-basics-module-*/          # ai, audit, codegen, dashboard, file, iam, integration, organization, scheduler, system, tenant, workflow
 ├── web/                               # Vue 3.5 + TypeScript + Vite 6 + Element Plus PC Console (:9527)
 ├── mobile/                            # uni-app + Vue 3 + TypeScript cross-platform client (:5173, H5 / WeChat MP / App)
@@ -72,7 +72,7 @@ saas_basics/
    ```bash
    docker compose up -d
    ```
-2. **Start Backend (`server/`, runs Flyway `V1`–`V75` automatically)**
+2. **Start Backend (`server/`, runs Flyway `V1`–`V81` automatically)**
    ```bash
    cd server
    mvn -pl saas-basics-app -am spring-boot:run

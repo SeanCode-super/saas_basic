@@ -21,6 +21,9 @@ spec:
         - name: web
           image: "{{ .Values.image.web.repository }}:{{ .Values.image.web.tag }}"
           imagePullPolicy: {{ .Values.image.web.pullPolicy }}
+          env:
+            - name: TIANSHU_BACKEND
+              value: "{{ include "saas-basics.fullname" . }}-server:{{ .Values.service.serverPort }}"
           ports:
             - containerPort: 80
               name: http

@@ -8,14 +8,14 @@
   <a href="https://github.com/SeanCode-super/saas_basic/actions/workflows/ci.yml"><img src="https://github.com/SeanCode-super/saas_basic/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/SeanCode-super/saas_basic/releases"><img src="https://img.shields.io/github/v/release/SeanCode-super/saas_basic?include_prereleases&label=Release" alt="Release"></a>
   <a href="https://github.com/SeanCode-super/saas_basic/stargazers"><img src="https://img.shields.io/github/stars/SeanCode-super/saas_basic?style=flat" alt="Stars"></a>
-  <img src="https://img.shields.io/badge/Spring%20Boot-3.3.5-brightgreen.svg" alt="Spring Boot">
-  <img src="https://img.shields.io/badge/Java-17%2B-blue.svg" alt="Java">
-  <img src="https://img.shields.io/badge/Flowable%20BPMN-7.x-orange.svg" alt="Flowable BPMN">
+  <img src="https://img.shields.io/badge/Spring%20Boot-4.1.2-brightgreen.svg" alt="Spring Boot">
+  <img src="https://img.shields.io/badge/Java-27-blue.svg" alt="Java">
+  <img src="https://img.shields.io/badge/Flowable%20BPMN-8.x-orange.svg" alt="Flowable BPMN">
   <img src="https://img.shields.io/badge/Vue-3.5-green.svg" alt="Vue">
   <img src="https://img.shields.io/badge/uni--app-Vue%203-blueviolet.svg" alt="uni-app">
   <img src="https://img.shields.io/badge/TypeScript-5.x-blue.svg" alt="TypeScript">
   <img src="https://img.shields.io/badge/Vite-6.x-purple.svg" alt="Vite">
-  <img src="https://img.shields.io/badge/Flyway-V1--V75-teal.svg" alt="Flyway V1-V75">
+  <img src="https://img.shields.io/badge/Flyway-V1--V81-teal.svg" alt="Flyway V1-V81">
   <img src="https://img.shields.io/badge/MySQL-8.3%2B-blue.svg" alt="MySQL">
   <img src="https://img.shields.io/badge/Redis-7.2%2B-red.svg" alt="Redis">
   <img src="https://img.shields.io/badge/License-Apache%202.0-orange.svg" alt="License">
@@ -24,6 +24,8 @@
 **天枢云基 (Tianshu Cloud)** 是一套面向大中型企业、集团控股公司及 SaaS 服务商的现代化**云原生企业级多租户数字化 PaaS 底座与业务协同中枢**。
 
 本项目不是单纯的后台管理模板或单一业务系统，而是致力于为 **CRM 客户管理、ERP 进销存、WMS 仓储、MES 制造、OA 智能协同、政企服务、供应链枢纽** 等千行百业的数字化系统，提供开箱即用、权威标准、高内聚低耦合的**平台级公共基础设施与全端协同能力**。
+
+开发自己的行业应用，可从[独立课程应用的生成、安装和升级示例](docs/DEVELOPING_INDUSTRY_APPS.md)开始。
 
 ---
 
@@ -40,7 +42,7 @@
 │   └─ 开放互联中枢                     : Open API 签名网关 (HMAC/重放防护) · OIDC PKCE · SCIM 2.0│
 ├────────────────────────────────────────────────────────────────────────────────────────┤
 │ 【业务中台套件】                                                                        │
-│   ├─ 流程审批中心 (Flowable 7.x)      : BPMN 2.0 工业级流程引擎 · 串并行会签 · 驳回转办 │
+│   ├─ 流程审批中心 (Flowable 8.x)      : BPMN 2.0 工业级流程引擎 · 串并行会签 · 驳回转办 │
 │   ├─ 客户中心 (CRM)                   : 线索跟进 · 商机漏斗 · 客户公海 · 合同回款       │
 │   ├─ 进销存 (ERP)                     : 商品物料 · 采购订单 · 出入库流水 · 动态库存预警 │
 │   ├─ 统一支付结算 (Pay Center)        : 微信/支付宝网关 · 聚合收银 · 本地 SVG 二维码   │
@@ -61,7 +63,7 @@
 │   ├─ 服务编排与发布中台 (DevOps Center): 进程树/Docker双模纳管 · 本地CI构建 · 制品回滚   │
 │   │                                   : SSE 实时流式终端 · 智能滚屏吸底 · 端口冲突探针  │
 │   ├─ 安全治理与会话强退               : 全局 Access/Refresh Token · RFC 9457 错误响应   │
-│   ├─ 数据库版本自动化演进             : Flyway 10.x 增量迁移规范 (V1 ~ V75 持续受控)    │
+│   ├─ 数据库版本自动化演进             : Flyway 12.x 增量迁移规范 (V1 ~ V81 持续受控)    │
 │   ├─ 全链路安全与数字身份             : X25519+AES-GCM 传输加密 · TOTP MFA · 空间快捷中枢│
 │   ├─ AI 智能中枢与可观测              : 双向 MCP Server · OTel GenAI Span · NL2SQL/RAG  │
 │   └─ 基础设施运行时监控               : Actuator 探活 · 慢 SQL 智能诊断 · Redis 键空间  │
@@ -113,7 +115,7 @@
 - **移动端悬浮灵动岛 TabBar**：移动端放弃传统生硬贴底的 TabBar，采用悬浮胶囊灵动岛设计，支持平滑缩放动效（Scale 1.15）、呼吸光晕指示器与全端安全区完美避让。
 
 ### 3. ⚙️ Flowable BPMN 2.0 工业级流程引擎 (Workflow Engine)
-- **工业级流程编排**：由自研轻量状态机全面升级为业界标准的 **Flowable 7.x 流程引擎**（Flyway V57 自动化集成），支持标准 BPMN 2.0 XML 规范。
+- **工业级流程编排**：由自研轻量状态机全面升级为业界标准的 **Flowable 8.x 流程引擎**（Flyway V57 自动化集成），支持标准 BPMN 2.0 XML 规范。
 - **高级审批业务语义**：开箱支持发起审批、待办追踪、串并行会签、驳回上一步、退回发起人、节点加签协办与委托转办。
 - **流程状态可视化与全生命周期审计**：提供直观的流程流转拓扑图、节点耗时统计、办理人留痕与审批历史追踪。
 
@@ -144,8 +146,8 @@
 - **全链路传输加密、TOTP MFA 与个人数字身份中心**：内置可热更新的 `X25519 + HKDF-SHA256 + AES-256-GCM` 接口传输加密策略与防重放密钥环、TOTP 多因子认证、Vault 密钥托管、变更前后审计快照 (`before_json`/`after_json`)，以及 PC + 移动端对齐的企业级个人中心（头像上传、组织任职切换、云端工作台偏好同步与多端会话自管理）。
 - **AI 智能中枢、全局导出队列与单据套打**：内置模型网关、⌘K 自然语言指令 & NL2SQL 副驾驶、企业知识库（Mixed/Hybrid RAG 切片与引用溯源）、可视化 Agent 智能体工坊、微调数据集与 LoRA 评测中心，以及支持水印/脱敏/计划任务定时投递的全局异步导出下载中心与单据套打中心。
 
-### 9. 🚀 数据库自动化迁移 (Flyway V1 ~ V74)
-- **数据库版本强受控**：引入 Flyway 10.x 作为生产数据库迁移的唯一准绳，严禁运维手工执行 DDL。
+### 9. 🚀 数据库自动化迁移 (Flyway V1 ~ V81)
+- **数据库版本强受控**：引入 Flyway 12.x 作为生产数据库迁移的唯一准绳，严禁运维手工执行 DDL。
 - **平滑增量升级**：涵盖从基础架构（V1）到组织架构（V25）、工作流（V35）、ERP/CRM（V48-V50）、Flowable BPMN（V57）、统一支付（V58-V59）、企业预置种子（V60）、库存加固（V61）、服务编排中台（V62）、AI 智能模型网关（V63）以及 M3 AI 治理、凭据引用、MCP 白名单与 Token 配额中枢（V64）的全量迁移脚本，应用容器启动自动自愈演进。
 
 ### 10. 🛠️ 服务编排与发布中台 (DevOps Service Center & Local CI/CD)
@@ -166,12 +168,12 @@
 
 ```text
 saas_basics/
-├── server/                               # 后端 Spring Boot 模块化微服务与单体工程 (Java 17)
+├── server/                               # 后端 Spring Boot 模块化微服务与单体工程 (Java 27)
 │   ├── saas-basics-common/               # 公共常量、上下文、异常处理、统一响应模型与工具类
 │   ├── saas-basics-framework/            # Vault加密、X25519+GCM传输加密、Lua限流、OTel追踪、多租户拦截器
 │   ├── saas-basics-app/                  # 核心业务主服务启动入口 (端口 8080)、Web MVC、安全拦截
-│   │   └── src/main/resources/db/migration # Flyway V1 ~ V74 数据库版本化自愈脚本
-│   ├── saas-basics-workflow-app/         # Flowable 7.x 流程引擎独立微服务应用 (端口 8085)
+│   │   └── src/main/resources/db/migration # Flyway V1 ~ V81 数据库版本化自愈脚本
+│   ├── saas-basics-workflow-app/         # Flowable 8.x 流程引擎独立微服务应用 (端口 8085)
 │   ├── saas-basics-module-dashboard/     # 经营驾驶舱与平台监控聚合指标
 │   ├── saas-basics-module-organization/  # 五级标准化组织域核心 (UUIDv7、组织单元、人员、岗位与任职)
 │   ├── saas-basics-module-ai/            # M3 AI 模块 (网关、NL2SQL、知识库 RAG、Agent、LoRA 微调)
@@ -224,16 +226,16 @@ saas_basics/
 ### 后端技术栈 (Backend)
 | 组件 / 框架 | 版本基线 | 说明 |
 | :--- | :--- | :--- |
-| **Java** | 17 LTS | 开发语言基础 |
-| **Spring Boot** | 3.3.5 | 核心微服务 / 单体底座应用框架 |
-| **Flowable** | 7.0.x | 工业级 BPMN 2.0 流程引擎 |
-| **MyBatis-Plus** | 3.5.7 | ORM 持久层框架，提供多租户拦截与分页扩展 |
+| **Java** | 27（非 LTS） | 开发语言基础 |
+| **Spring Boot** | 4.1.2 | 核心微服务 / 单体底座应用框架 |
+| **Flowable** | 8.0.0 | 工业级 BPMN 2.0 流程引擎 |
+| **MyBatis-Plus** | 3.5.18 | ORM 持久层框架，提供多租户拦截与分页扩展 |
 | **Dynamic-Datasource**| 4.3.0 | 动态多数据源切换与读写分离 |
 | **Quartz** | 2.3.2 | 分布式高可用任务调度引擎 |
 | **Redis & Lettuce** | 7.2+ | 分布式会话缓存、字典缓存与分布式锁 |
 | **Caffeine** | 3.1.8 | 高性能本地一级缓存，构成二级混合缓存 |
-| **Flyway** | 10.x | 数据库版本控制与结构迁移自动化 (V1~V74) |
-| **HikariCP** | 5.1.0 | 极致性能数据库连接池 |
+| **Flyway** | 12.x | 数据库版本控制与结构迁移自动化 (V1~V81) |
+| **HikariCP** | 7.0.2 | 极致性能数据库连接池 |
 | **Spring Security** | 6.x | 企业级细粒度安全与鉴权中心 |
 
 ### 前端与移动端技术栈 (Frontend & Mobile)
@@ -254,14 +256,14 @@ saas_basics/
 ## 🚀 快速启动指南
 
 ### 1. 本机开发环境要求
-- **JDK 17+**
+- **JDK 27**（本项目验证版本 27.0.1.1）。macOS 从项目根目录运行 `make backend-test` 会自动选择已安装的 JDK 27。
 - **Node.js 20+** 及 **npm 10+**
 - **MySQL 8.0+**
 - **Redis 6.2+ / 7.x**
 
 ### 2. 数据库配置
 1. 创建数据库 `saas_basics`，字符集推荐使用 `utf8mb4`，排序规则 `utf8mb4_unicode_ci`。
-2. 后端集成 **Flyway** 自动版本迁移，启动时会自动按序扫描并执行 `V1` 至 `V75` 全量脚本，无需手动导入 SQL。
+2. 后端集成 **Flyway** 自动版本迁移，启动时会自动按序扫描并执行 `V1` 至 `V81` 全量脚本，无需手动导入 SQL。
 
 ### 3. 后端服务启动 (Backend)
 ```bash
@@ -342,11 +344,11 @@ docker compose -f docker-compose.prod.yml up -d
 | **卷 02. 核心生产端实机视觉呈现** | [`docs/manuals/02_核心生产端实机视觉呈现_UI_Showcase.md`](./docs/manuals/02_核心生产端实机视觉呈现_UI_Showcase.md) | PC 流光毛玻璃驾驶舱与移动端悬浮灵动岛实机高清图解 |
 | **卷 03. Docker Compose 一键生产编排部署** | [`docs/manuals/03_Docker_Compose_一键生产编排部署.md`](./docs/manuals/03_Docker_Compose_一键生产编排部署.md) | 包含生产 compose 文件详解、健康检查、日志轮转与备份 |
 | **卷 04. 生产级 Nginx 泛域名网关与 SSL 配置** | [`docs/manuals/04_生产级_Nginx_泛域名网关与_SSL_配置.md`](./docs/manuals/04_生产级_Nginx_泛域名网关与_SSL_配置.md) | 泛域名 SSL 通配符终结、子域名提取注入 `X-Tenant-Code`、跨域防刷 |
-| **卷 05. 数据库生命周期与 Flyway 自动化迁移** | [`docs/manuals/05_数据库生命周期与_Flyway_自动化迁移.md`](./docs/manuals/05_数据库生命周期与_Flyway_自动化迁移.md) | Flyway 10.x 迁移准绳、V1~V75 全量核心版本线与防篡改策略 |
+| **卷 05. 数据库生命周期与 Flyway 自动化迁移** | [`docs/manuals/05_数据库生命周期与_Flyway_自动化迁移.md`](./docs/manuals/05_数据库生命周期与_Flyway_自动化迁移.md) | Flyway 12.x 迁移准绳、V1~V75 全量核心版本线与防篡改策略 |
 | **卷 06. 跨端工作台生产构建 (PC/H5/小程序)** | [`docs/manuals/06_跨端工作台生产构建_PC_H5_微信小程序.md`](./docs/manuals/06_跨端工作台生产构建_PC_H5_微信小程序.md) | Vue 3 PC 控制台与 uni-app 跨端工作台全平台打包与发布规范 |
 | **卷 07. 生产安全基线 SecOps 与高可用运维保障**| [`docs/manuals/07_生产安全基线_SecOps_与高可用运维保障.md`](./docs/manuals/07_生产安全基线_SecOps_与高可用运维保障.md) | 凭证隔离、网络安全域、数据库冷备份脚本与异常应急预案 |
 | **卷 08. 组织架构与企业级 IAM 权限配置指南** | [`docs/manuals/08_组织架构与企业级_IAM_权限配置指南.md`](./docs/manuals/08_组织架构与企业级_IAM_权限配置指南.md) | 集团-企业-部门-岗位-员工五级实体架构，菜单/按钮/行级数据范围 |
-| **卷 09. Flowable BPMN 2.0 工业级工作流实战** | [`docs/manuals/09_Flowable_BPMN_2_0_工业级工作流实战.md`](./docs/manuals/09_Flowable_BPMN_2_0_工业级工作流实战.md) | Flowable 7.x 审批流、串并行会签、驳回加签与移动端快捷签批 |
+| **卷 09. Flowable BPMN 2.0 工业级工作流实战** | [`docs/manuals/09_Flowable_BPMN_2_0_工业级工作流实战.md`](./docs/manuals/09_Flowable_BPMN_2_0_工业级工作流实战.md) | Flowable 8.x 审批流、串并行会签、驳回加签与移动端快捷签批 |
 | **卷 10. CRM 客户全生命周期与商机管理实战** | [`docs/manuals/10_CRM_客户全生命周期与商机管理实战.md`](./docs/manuals/10_CRM_客户全生命周期与商机管理实战.md) | 线索跟进、商机阶段漏斗、客户公海池流转与合同回款流水管理 |
 | **卷 11. ERP 进销存与云仓物料管理实战** | [`docs/manuals/11_ERP_进销存与云仓物料管理实战.md`](./docs/manuals/11_ERP_进销存与云仓物料管理实战.md) | 物料多规格档案、采购订单、出入库流水核算与高低库存预警 |
 | **卷 12. 开放平台 Open API 与企业 SSO 对接指南** | [`docs/manuals/12_开放平台_Open_API_与企业_SSO_对接指南.md`](./docs/manuals/12_开放平台_Open_API_与企业_SSO_对接指南.md) | Open API 签名网关、AppKey/HMAC 鉴权与 SAML/OIDC/企微免登 |

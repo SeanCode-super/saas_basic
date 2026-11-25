@@ -41,17 +41,17 @@ services:
       - --default-time-zone=+08:00
       - --max_connections=1000
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-Tianshu@Prod2026!}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Set an independent MySQL administration password}
       MYSQL_DATABASE: saas_basics
       MYSQL_USER: saas_app
-      MYSQL_PASSWORD: ${DB_PASSWORD:-SaaS@SecureApp2026!}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Set the application database password}
     ports:
       - "127.0.0.1:3306:3306" # 仅内网/本机监听，严禁公网暴露
     volumes:
       - saas-mysql-data:/var/lib/mysql
       - /etc/localtime:/etc/localtime:ro
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
+      test: ["CMD-SHELL", 'MYSQL_PWD="$${MYSQL_PASSWORD}" mysql -h 127.0.0.1 -u "$${MYSQL_USER}" -D "$${MYSQL_DATABASE}" -e "SELECT 1"']
       interval: 10s
       timeout: 5s
       retries: 10
@@ -84,8 +84,8 @@ services:
   # ==========================================
   saas-backend:
     build:
-      context: ./server
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: server/Dockerfile
     container_name: saas-backend
     restart: always
     depends_on:
@@ -99,7 +99,7 @@ services:
       DB_PORT: 3306
       DB_NAME: saas_basics
       DB_USERNAME: saas_app
-      DB_PASSWORD: ${DB_PASSWORD:-SaaS@SecureApp2026!}
+      DB_PASSWORD: ${DB_PASSWORD:?Set the application database password}
       REDIS_HOST: saas-redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-Redis@Tianshu2026!}
@@ -155,8 +155,9 @@ volumes:
 
 ```ini
 # 数据库配置
-DB_ROOT_PASSWORD=Tianshu@RootStrongPassword_2026!
-DB_PASSWORD=Tianshu@AppSafePassword_2026!
+# 分别填入独立生成的管理密码和应用密码，保存此文件后执行 chmod 600 .env。
+DB_ROOT_PASSWORD=
+DB_PASSWORD=
 
 # Redis 配置
 REDIS_PASSWORD=Redis@TianshuCluster_2026!

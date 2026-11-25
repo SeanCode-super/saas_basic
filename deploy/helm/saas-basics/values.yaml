@@ -47,7 +47,7 @@ resources:
       memory: 256Mi
 
 env:
-  springProfilesActive: prod
+  springProfilesActive: "prod,db"
   dbHost: mysql.saas-infra.svc.cluster.local
   dbPort: "3306"
   dbName: saas_basics

@@ -3,13 +3,13 @@ services:
     image: mysql:8.3.0
     environment:
       MYSQL_DATABASE: saas_basics
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_USER: saas
-      MYSQL_PASSWORD: saas
+      MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+      MYSQL_USER: ${DB_USERNAME:?Set DB_USERNAME in .env}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
     ports:
       - "${SAAS_MYSQL_PORT:-3307}:3306"
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot"]
+      test: ["CMD-SHELL", 'MYSQL_PWD="$$MYSQL_PASSWORD" mysql -h 127.0.0.1 -u "$$MYSQL_USER" -D "$$MYSQL_DATABASE" -Nse "SELECT 1"']
       interval: 5s
       timeout: 3s
       retries: 20

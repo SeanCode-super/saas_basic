@@ -1,16 +1,13 @@
 SHELL := /bin/sh
 
 export PATH := $(PATH):/opt/homebrew/bin
-JAVA_HOME ?= $(shell /usr/libexec/java_home -v 17 2>/dev/null || echo "$$JAVA_HOME")
-export JAVA_HOME
-
 .PHONY: backend-build backend-test frontend-install frontend-build frontend-lint frontend-test verify dev-db-up dev-db-down dev-backend dev-frontend
 
 backend-build:
-	cd server && mvn clean package -DskipTests
+	cd server && ../bin/with-jdk mvn clean package -DskipTests
 
 backend-test:
-	cd server && mvn test
+	cd server && ../bin/with-jdk mvn test
 
 frontend-install:
 	cd web && npm ci
@@ -25,7 +22,7 @@ frontend-test:
 	cd web && npm run test:run
 
 verify:
-	cd server && mvn verify
+	cd server && ../bin/with-jdk mvn verify
 	cd web && npm run check
 
 dev-db-up:
@@ -35,7 +32,7 @@ dev-db-down:
 	docker compose down
 
 dev-backend:
-	cd server && DB_HOST=127.0.0.1 DB_PORT=$${DB_PORT:-3307} DB_NAME=saas_basics DB_USERNAME=root DB_PASSWORD=root mvn -pl saas-basics-app spring-boot:run
+	cd server && SPRING_CONFIG_ADDITIONAL_LOCATION="optional:file:$(CURDIR)/.env[.properties]" ../bin/with-jdk mvn -pl saas-basics-app spring-boot:run
 
 dev-frontend:
 	cd web && npm run dev

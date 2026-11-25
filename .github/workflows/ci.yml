@@ -26,9 +26,12 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "27"
           cache: maven
           cache-dependency-path: server/pom.xml
+
+      - name: Verify industry service
+        run: python3 -m unittest discover -s examples/hazard-work
 
       - name: Verify backend
         working-directory: server

@@ -4,7 +4,7 @@ services:
     container_name: saas-mysql
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-${DB_PASSWORD:?DB_PASSWORD environment variable is required}}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Set an independent MySQL administration password}
       MYSQL_DATABASE: ${DB_NAME:-saas_basics}
       MYSQL_USER: ${DB_USERNAME:-saas_app}
       MYSQL_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD environment variable is required}
@@ -13,7 +13,7 @@ services:
     volumes:
       - saas-mysql-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$$MYSQL_USER -p$$MYSQL_PASSWORD --silent"]
+      test: ["CMD-SHELL", 'MYSQL_PWD="$$MYSQL_PASSWORD" mysql -h 127.0.0.1 -u "$$MYSQL_USER" -D "$$MYSQL_DATABASE" -Nse "SELECT 1"']
       interval: 5s
       timeout: 3s
       retries: 20
@@ -39,8 +39,8 @@ services:
 
   saas-backend:
     build:
-      context: ./server
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: server/Dockerfile
     container_name: saas-backend
     restart: always
     depends_on:
@@ -49,7 +49,8 @@ services:
       saas-redis:
         condition: service_healthy
     environment:
-      SPRING_PROFILES_ACTIVE: prod
+      SPRING_PROFILES_ACTIVE: "prod,db"
+      SAAS_INDUSTRY_GATEWAY: ${SAAS_INDUSTRY_GATEWAY:-http://industry-gateway:8080}
       DB_HOST: saas-mysql
       DB_PORT: 3306
       DB_NAME: saas_basics

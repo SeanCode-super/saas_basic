@@ -106,3 +106,19 @@ V1-V24 是不可修改的历史迁移，其中的地域默认值、演示账号�
 - 是否新增默认凭证、演示依赖或不可迁移数据？
 
 无法明确回答时，PR 保持草稿状态。
+
+## 代码审查依据与执行方式
+
+| 依据 | 天枢用它回答的问题 | 仓库中的验收方式 |
+| --- | --- | --- |
+| [ISO/IEC 5055 · 自动化源码质量度量](https://www.iso.org/standard/80623.html) | 哪些代码或架构缺陷会损害安全性、可靠性、性能效率和可维护性？ | 除代码风格外，检查跨模块依赖、重复持久化实现、资源泄漏、事务边界和并发写入。缺陷记录包含业务影响、代码位置和验证证据。 |
+| [ISO/IEC 25010 · 产品质量模型](https://www.iso.org/standard/78176.html) | 实现是否在规定条件下完成用户需要的功能？ | 从正常业务入口核对订单金额、库存流水、容量和恢复结果。把构建、模拟测试、真实数据库测试和用户验收分别记录。 |
+| [SEI CERT Java 安全编码](https://www.sei.cmu.edu/library/the-cert-oracle-secure-coding-standard-for-java/) · [OWASP ASVS](https://owasp.org/www-project-application-security-verification-standard/) · [NIST SSDF](https://csrc.nist.gov/pubs/sp/800/218/final) | 身份、权限、敏感配置和失败路径能否得到验证？ | 代码评审检查跨租户访问、密钥来源、错误处理与事务回滚。权限变更和密钥暴露必须能追溯到处理记录。 |
+| [Java 语言规范](https://docs.oracle.com/javase/specs/) · [ECMAScript](https://tc39.es/ecma262/) · [Google Java Style](https://google.github.io/styleguide/javaguide.html) | 语言语义和团队排版分别遵循什么？ | 编译、Vue 类型检查和前端 lint 属于合并检查。Java 显式导入等风格可参考 Google，缩进等本仓库已明确的事项执行根目录 EditorConfig。 |
+| [MyBatis-Plus 数据接口](https://baomidou.com/en/guides/data-interface/) · [MyBatis XML](https://mybatis.org/mybatis-3/sqlmap-xml.html) · [Spring 事务](https://docs.spring.io/spring-framework/reference/data-access/transaction/declarative/rolling-back.html) | 持久化怎样统一，失败后怎样保持一致？ | 基础 CRUD 使用通用 Mapper 和类型化 Wrapper。多表、聚合、批量复制、动态权限、锁定读进 Mapper XML。事务由业务入口编排。迁移、运维及测试夹具按各自生命周期管理。 |
+| [InnoDB 锁定读](https://dev.mysql.com/doc/refman/8.4/en/innodb-locking-reads.html) · [Flyway 已执行迁移](https://documentation.red-gate.com/flyway/flyway-concepts/migrations/versioned-migrations) · [HTTP 语义](https://www.rfc-editor.org/rfc/rfc9110.html) | 并发冲突、历史数据和接口语义怎样保持一致？ | 测试重复提交、两笔竞争同一资源、失败回滚、旧数据升级与重复启动；对冲突校验 HTTP 状态和已经写入的业务数据。 |
+
+前两项为 ISO/IEC 国际标准，本项目引用其公开范围和质量模型。CERT、OWASP 和 NIST 提供安全编码或验证依据。Google Style 与框架文档帮助确定具体写法。将复杂 SQL 统一放到 XML 是天枢的工程决策。审查报告只对实测范围给出结论；正式的标准符合性或认证评估需要单独开展。
+
+
+仓库的 [Mapper 注册测试](../server/saas-basics-app/src/test/java/com/saasbasics/platform/config/DbMapperScanConfigTest.java) 核对每个自定义方法的 SQL 映射。[持久化架构测试](../server/saas-basics-app/src/test/java/com/saasbasics/platform/architecture/PersistenceBoundaryTest.java) 检查业务模块的 SQL 注解和 Spring JDBC 依赖。保留动态模型物理表、受控查询执行和灾备流式处理的专用实现。新增同类例外须写明标识符来源、参数绑定、租户边界和对应测试。

@@ -1,5 +1,7 @@
 # SaaS Basics 文档入口
 
+开发独立行业包可从[课程示例与开发指南](DEVELOPING_INDUSTRY_APPS.md)开始。
+
 ## 当前执行基线
 
 - [`DEPLOYMENT_AND_ARCHITECTURE_GUIDE.md`](./DEPLOYMENT_AND_ARCHITECTURE_GUIDE.md)：天枢云基 PaaS 生产部署与系统架构全景白皮书（Nginx 泛域名、Docker Compose 编排、Flyway V1~V74 迁移、传输加密与 MFA、AI 智能中枢、DevOps 服务编排中台、小程序发布）。
