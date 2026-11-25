@@ -145,7 +145,7 @@ const contactTypes = [
   { key: "PHONE", label: "电话沟通", icon: "📞" },
   { key: "WECHAT", label: "企微协同", icon: "💬" },
   { key: "MAIL", label: "商务邮件", icon: "✉️" }
-];
+] as const;
 
 const defaultPhrases = [
   "完成现场产品功能演示，信息化负责人对多部门协同流程评价良好",
@@ -168,7 +168,7 @@ async function loadQuickPhrases() {
 }
 
 const form = reactive({
-  contactType: "VISIT" as "VISIT" | "PHONE" | "WECHAT" | "MAIL",
+  contactType: "VISIT" as (typeof contactTypes)[number]["key"],
   content: ""
 });
 
@@ -212,23 +212,7 @@ async function loadRecords(silent = false) {
       createdAt: r.createdAt ? String(r.createdAt).replace("T", " ").substring(0, 16) : "刚刚"
     }));
   } catch {
-    records.value = [
-      {
-        id: 1,
-        contactType: "VISIT",
-        content: "前往客户办公园区与信息化负责人深入交流，明确了多部门审批流转与物资领用需求，客户意向良好，进入商务合同阶段。",
-        createdAt: "2026-10-26 15:30",
-        creatorName: "平台管理员",
-        nextFollowTime: "2026-10-30"
-      },
-      {
-        id: 2,
-        contactType: "PHONE",
-        content: "电话沟通项目二期设备采购清单及售后维保条款，已同步详细明细表。",
-        createdAt: "2026-10-24 10:15",
-        creatorName: "商务专员"
-      }
-    ];
+    // Keep the last confirmed records.
   } finally {
     loading.value = false;
     refreshing.value = false;
@@ -259,12 +243,16 @@ async function handleSubmit() {
     return;
   }
 
+  if (!customerId.value) {
+    uni.showToast({ title: "请先选择要跟进的客户", icon: "none" });
+    uni.switchTab({ url: "/pages/crm/customers" });
+    return;
+  }
   submitting.value = true;
   try {
     const payload = {
-      customerId: customerId.value || 1,
-      bizType: "CUSTOMER",
-      bizId: customerId.value || 1,
+      bizType: "CUSTOMER" as const,
+      bizId: customerId.value,
       contactType: form.contactType,
       content: form.content.trim()
     };
@@ -272,17 +260,8 @@ async function handleSubmit() {
     uni.showToast({ title: "跟进记录已留痕", icon: "success" });
     form.content = "";
     loadRecords(true);
-  } catch (err: any) {
-    // 高可用优雅降级
-    records.value.unshift({
-      id: Date.now(),
-      contactType: form.contactType,
-      content: form.content.trim(),
-      createdAt: "刚刚",
-      creatorName: "当前登录员工"
-    });
-    form.content = "";
-    uni.showToast({ title: "跟进记录已提交保存", icon: "success" });
+  } catch {
+    // Keep the draft so the user can retry.
   } finally {
     submitting.value = false;
   }

@@ -25,7 +25,7 @@ export function apiGetPortalEntry(params?: { tenantCode?: string; clientId?: str
   });
 }
 
-export function apiLogin(payload: { tenantCode?: string; clientId?: string; terminalCode?: string; username: string; password: string }) {
+export function apiLogin(payload: { tenantCode?: string; clientId?: string; terminalCode?: string; username: string; password: string; totpCode?: string }) {
   return request<{ accessToken: string; refreshToken: string; currentUser?: any; user?: any }>({
     url: "/api/auth/login",
     method: "POST",
@@ -38,5 +38,9 @@ export function apiGetUserInfo() {
     url: "/api/auth/me",
     method: "GET"
   });
+}
+
+export function apiLogout() {
+  return request<void>({ url: "/api/auth/logout", method: "POST", silent: true });
 }
 

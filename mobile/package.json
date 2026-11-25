@@ -10,7 +10,7 @@
     "build:mp-weixin": "uni build -p mp-weixin",
     "dev:app": "uni -p app",
     "build:app": "uni build -p app",
-    "test": "node tests/run-crypto-tests.mjs"
+    "test": "node --test tests/run-crypto-tests.mjs tests/business-state.test.mjs"
   },
   "dependencies": {
     "@dcloudio/uni-app": "3.0.0-4020920240930001",

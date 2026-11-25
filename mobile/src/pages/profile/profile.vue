@@ -3,7 +3,14 @@
     <!-- 1. 用户个人名片卡 (精简高雅·iOS 27 晶透质感) -->
     <view class="profile-card">
       <view class="avatar-lg" @click="handleAvatarTap">
-        <image v-if="avatarDisplayUrl" :src="avatarDisplayUrl" mode="aspectFill" class="avatar-img" />
+        <image
+          v-if="avatarDisplayUrl && avatarDisplayUrl !== failedAvatarUrl"
+          :key="avatarDisplayUrl"
+          :src="avatarDisplayUrl"
+          mode="aspectFill"
+          class="avatar-img"
+          @error="failedAvatarUrl = avatarDisplayUrl"
+        />
         <text v-else>{{ (userName || "管").slice(0, 1).toUpperCase() }}</text>
         <view class="avatar-badge">
           <AppIcon name="camera" :size="11" color="#ffffff" />
@@ -48,23 +55,23 @@
         </view>
         <view class="info-cell-row">
           <text class="info-cell-k">任职部门</text>
-          <text class="info-cell-v">{{ profileData?.employeeInfo?.deptFullPath || profileData?.employeeInfo?.deptName || '技术架构中心 · 平台研发部' }}</text>
+          <text class="info-cell-v">{{ profileData?.employeeInfo?.deptFullPath || profileData?.employeeInfo?.deptName || '未分配部门' }}</text>
         </view>
         <view class="info-cell-row">
           <text class="info-cell-k">担任岗位</text>
-          <text class="info-cell-v font-semibold">{{ profileData?.employeeInfo?.positionName || '系统架构师 / 研发总监' }}</text>
+          <text class="info-cell-v font-semibold">{{ profileData?.employeeInfo?.positionName || '未分配岗位' }}</text>
         </view>
         <view class="info-cell-row">
           <text class="info-cell-k">办公地点</text>
-          <text class="info-cell-v">{{ profileData?.workLocation || '杭州研发中心 T3-1808' }}</text>
+          <text class="info-cell-v">{{ profileData?.workLocation || '未设置' }}</text>
         </view>
         <view class="info-cell-row">
           <text class="info-cell-k">联系电话</text>
-          <text class="info-cell-v">{{ profileData?.mobile || '13800000000' }}</text>
+          <text class="info-cell-v">{{ profileData?.mobile || '未绑定' }}</text>
         </view>
         <view class="info-cell-row">
           <text class="info-cell-k">工作邮箱</text>
-          <text class="info-cell-v">{{ profileData?.email || 'admin@saasbasics.local' }}</text>
+          <text class="info-cell-v">{{ profileData?.email || '未绑定' }}</text>
         </view>
       </view>
     </view>
@@ -113,7 +120,13 @@
 
     <!-- 4. 退出登录按钮 (轻雅微红毛玻璃胶囊) -->
     <view class="logout-box">
-      <button class="logout-btn" @click="handleLogout">退出当前登录</button>
+      <button class="logout-btn" :disabled="loggingOut" :loading="loggingOut" @click="handleLogout">退出当前登录</button>
+    </view>
+
+    <!-- 5. 平台品牌与版本徽标 (呼应 PC 端天枢官方视觉) -->
+    <view class="profile-brand-footer">
+      <TianshuLogo :size="18" />
+      <text class="brand-footer-text">天枢协同云平台 Mobile v1.0.0</text>
     </view>
   </view>
 </template>
@@ -122,6 +135,8 @@
 import { computed, onMounted, ref } from "vue";
 import { onPullDownRefresh, onShow } from "@dcloudio/uni-app";
 import AppIcon from "../../components/ui/AppIcon.vue";
+import TianshuLogo from "../../components/brand/TianshuLogo.vue";
+import { apiLogout } from "../../api/auth";
 import {
   apiGetProfile,
   apiGetStorageStatus,
@@ -131,7 +146,10 @@ import {
 } from "../../api/profile";
 import { resolveMobileFileUrl } from "../../utils/request";
 import {
+  clearBusinessCache,
+  clearMobileSession,
   getCachedUserProfile,
+  sessionGeneration,
   setCachedUserProfile,
   type WarmUserProfileModel
 } from "../../utils/warm-cache";
@@ -139,15 +157,17 @@ import {
 const warmProfile = getCachedUserProfile();
 const profileData = ref<MobileProfileData | WarmUserProfileModel>(warmProfile);
 const storageStatus = ref<MobileStorageStatus | null>(null);
+const loggingOut = ref(false);
 
-const userName = ref(warmProfile.nickname || warmProfile.username || "平台管理员");
-const userAccount = ref(warmProfile.username || "admin");
-const userCodeLabel = ref(warmProfile.userCode || "#1");
+const userName = ref(warmProfile.nickname || warmProfile.username || "—");
+const userAccount = ref(warmProfile.username || "—");
+const userCodeLabel = ref(warmProfile.userCode || "—");
 const userRole = ref(resolveUserTypeLabel(warmProfile.userType));
-const tenantCode = ref(warmProfile.tenantCode || uni.getStorageSync("sb_tenant_code") || "platform");
-const currentTenantName = ref(warmProfile.tenantName || uni.getStorageSync("sb_tenant_name") || "平台空间");
+const tenantCode = ref(warmProfile.tenantCode || uni.getStorageSync("sb_tenant_code") || "—");
+const currentTenantName = ref(warmProfile.tenantName || uni.getStorageSync("sb_tenant_name") || "—");
 
 const avatarDisplayUrl = computed(() => resolveMobileFileUrl(profileData.value?.avatarUrl));
+const failedAvatarUrl = ref("");
 
 const passwordSafeText = computed(() => {
   const days = profileData.value?.passwordDaysRemaining;
@@ -165,8 +185,8 @@ function resolveUserTypeLabel(userType?: string): string {
 }
 
 function hydrateLocalUserCache(data: MobileProfileData) {
-  userName.value = data.nickname || data.username || "平台管理员";
-  userAccount.value = data.username || "admin";
+  userName.value = data.nickname || data.username || "—";
+  userAccount.value = data.username || "—";
   userCodeLabel.value = data.userCode || `#${data.id}`;
   userRole.value = resolveUserTypeLabel(data.userType);
   tenantCode.value = data.tenantCode || tenantCode.value;
@@ -236,6 +256,7 @@ function goToSessions() {
 }
 
 function handleClearCache() {
+  clearBusinessCache();
   uni.showToast({ title: "本地非核心缓存已清理", icon: "success" });
 }
 
@@ -244,12 +265,27 @@ function handleLogout() {
     title: "退出确认",
     content: "确定要退出当前企业账号吗？",
     confirmColor: "#ef4444",
-    success: (res) => {
-      if (res.confirm) {
-        uni.removeStorageSync("sb_access_token");
-        uni.removeStorageSync("sb_refresh_token");
-        uni.removeStorageSync("sb_current_user");
-        uni.reLaunch({ url: "/pages/login/login" });
+    success: async (res) => {
+      if (!res.confirm || loggingOut.value) return;
+      loggingOut.value = true;
+      const generation = sessionGeneration();
+      let serverConfirmed = false;
+      try {
+        await apiLogout();
+        serverConfirmed = true;
+      } catch {
+        // A device must still be able to sign out while offline.
+      } finally {
+        loggingOut.value = false;
+      }
+      if (generation === sessionGeneration()) {
+        clearMobileSession();
+        uni.reLaunch({
+          url: "/pages/login/login",
+          success: () => {
+            if (!serverConfirmed) uni.showToast({ title: "本机已退出，服务端未确认", icon: "none" });
+          }
+        });
       }
     }
   });
@@ -578,5 +614,22 @@ onShow(() => {
 
 .logout-btn:active {
   transform: scale(0.98);
+}
+
+.profile-brand-footer {
+  margin-top: 24px;
+  margin-bottom: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  opacity: 0.65;
+}
+
+.brand-footer-text {
+  font-size: 11px;
+  font-weight: 500;
+  color: #64748b;
+  letter-spacing: 0.2px;
 }
 </style>

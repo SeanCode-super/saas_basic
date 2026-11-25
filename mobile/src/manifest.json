@@ -14,6 +14,19 @@
       "waiting": true,
       "autoclose": true,
       "delay": 0
+    },
+    "distribute": {
+      "icons": {
+        "android": {
+          "hdpi": "static/tianshu-logo.png",
+          "xhdpi": "static/tianshu-logo.png",
+          "xxhdpi": "static/tianshu-logo.png",
+          "xxxhdpi": "static/tianshu-logo.png"
+        },
+        "ios": {
+          "appstore": "static/tianshu-logo.png"
+        }
+      }
     }
   },
   "quickapp": {},

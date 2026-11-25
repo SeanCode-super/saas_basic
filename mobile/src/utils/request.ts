@@ -6,6 +6,7 @@
  * 3. 多租户上下文 Header (X-Tenant-Id) 自动注入
  * 4. 可控传输加密（X25519 + HKDF-SHA256 + AES-256-GCM 双向加密与动态策略自动同步）
  */
+import { clearMobileSession, sessionGeneration } from "./warm-cache";
 import {
   normalizeApiPathname,
   prepareEncryptedTransmission,
@@ -18,7 +19,7 @@ import {
 const BASE_URL = "";
 // #endif
 // #ifndef H5
-const BASE_URL = "http://localhost:8080";
+const BASE_URL = (import.meta.env.VITE_MOBILE_API_ORIGIN || "http://localhost:8080").replace(/\/+$/, "");
 // #endif
 
 export interface ApiResponse<T = any> {
@@ -29,8 +30,7 @@ export interface ApiResponse<T = any> {
 }
 
 // 刷新锁与重放队列
-let isRefreshing = false;
-let refreshSubscribers: Array<(token: string) => void> = [];
+let refresh: { generation: number; result: Promise<string> } | null = null;
 
 let cachedPolicy: PublicTransportPolicy | null = null;
 let policyLoadedAt = 0;
@@ -89,19 +89,8 @@ function syncPolicyVersion(headers: Record<string, any> | undefined): void {
   }
 }
 
-function subscribeTokenRefresh(cb: (token: string) => void) {
-  refreshSubscribers.push(cb);
-}
-
-function onRefreshed(token: string) {
-  refreshSubscribers.forEach((cb) => cb(token));
-  refreshSubscribers = [];
-}
-
 function clearSessionAndRedirect() {
-  uni.removeStorageSync("sb_access_token");
-  uni.removeStorageSync("sb_refresh_token");
-  uni.removeStorageSync("sb_current_user");
+  clearMobileSession();
   const pages = getCurrentPages();
   const currentRoute = pages.length ? pages[pages.length - 1].route : "";
   if (!currentRoute?.includes("pages/login/login")) {
@@ -109,7 +98,7 @@ function clearSessionAndRedirect() {
   }
 }
 
-async function doRefreshToken(): Promise<string> {
+async function doRefreshToken(generation: number): Promise<string> {
   const refreshToken = uni.getStorageSync("sb_refresh_token");
   if (!refreshToken) {
     throw new Error("NO_REFRESH_TOKEN");
@@ -121,6 +110,7 @@ async function doRefreshToken(): Promise<string> {
     silent: true,
     _skipAuthRetry: true
   });
+  if (generation !== sessionGeneration()) throw new Error("SESSION_CHANGED");
   if (!data?.accessToken) {
     throw new Error("REFRESH_FAILED");
   }
@@ -164,7 +154,9 @@ export async function request<T = any>(options: {
   _cryptoRetry?: boolean;
   _skipAuthRetry?: boolean;
 }): Promise<T> {
+  const generation = sessionGeneration();
   const policy = await getMobileTransportPolicy();
+  if (generation !== sessionGeneration()) throw new Error("SESSION_CHANGED");
   const rawFullUrl = options.url.startsWith("http") ? options.url : BASE_URL + options.url;
   const { cleanUrl, queryStr } = splitUrlAndQuery(rawFullUrl, options.params);
   const fullPath = normalizeApiPathname(BASE_URL, cleanUrl);
@@ -211,6 +203,7 @@ export async function request<T = any>(options: {
         ...extraHeaders
       },
       success: async (res) => {
+        if (generation !== sessionGeneration()) return reject(new Error("SESSION_CHANGED"));
         syncPolicyVersion(res.header as Record<string, any>);
         let rawBody = res.data as any;
         const encHeader = readHeaderIgnoreCase(res.header as Record<string, any>, "x-transport-encrypted");
@@ -239,8 +232,13 @@ export async function request<T = any>(options: {
         ) {
           invalidateMobileTransportPolicy();
           await getMobileTransportPolicy(true);
+          if (generation !== sessionGeneration()) return reject(new Error("SESSION_CHANGED"));
           request<T>({ ...options, _cryptoRetry: true }).then(resolve).catch(reject);
           return;
+        }
+
+        if (options.url === "/api/auth/login" && (res.statusCode >= 400 || !body?.success)) {
+          return reject(Object.assign(new Error(body?.message || "登录失败"), { code }));
         }
 
         if (res.statusCode === 200) {
@@ -269,27 +267,19 @@ export async function request<T = any>(options: {
             return;
           }
 
-          if (isRefreshing) {
-            subscribeTokenRefresh(() => {
-              request<T>(options).then(resolve).catch(reject);
-            });
-            return;
+          if (refresh?.generation !== generation) {
+            refresh = { generation, result: doRefreshToken(generation) };
           }
-
-          isRefreshing = true;
+          const pending = refresh;
           try {
-            const newToken = await doRefreshToken();
-            isRefreshing = false;
-            onRefreshed(newToken);
-            request<T>(options).then(resolve).catch(reject);
-          } catch (refreshErr) {
-            isRefreshing = false;
-            refreshSubscribers = [];
-            clearSessionAndRedirect();
-            if (!options.silent) {
-              uni.showToast({ title: "会话已过期，请重新登录", icon: "none" });
-            }
-            reject(refreshErr);
+            await pending.result;
+            if (generation !== sessionGeneration()) return reject(new Error("SESSION_CHANGED"));
+            request<T>({ ...options, _skipAuthRetry: true }).then(resolve, reject);
+          } catch (err) {
+            if (generation === sessionGeneration()) clearSessionAndRedirect();
+            reject(err);
+          } finally {
+            if (refresh === pending) refresh = null;
           }
         } else if (res.statusCode === 403) {
           if (!options.silent) {
@@ -331,6 +321,7 @@ export function uploadFile<T = any>(options: {
   name?: string;
   formData?: Record<string, string>;
 }): Promise<T> {
+  const generation = sessionGeneration();
   return new Promise((resolve, reject) => {
     const token = uni.getStorageSync("sb_access_token") || "";
     const tenantId = uni.getStorageSync("sb_tenant_id") || "1";
@@ -348,6 +339,7 @@ export function uploadFile<T = any>(options: {
         ...(token ? { Authorization: `Bearer ${token}` } : {})
       },
       success: (res) => {
+        if (generation !== sessionGeneration()) return reject(new Error("SESSION_CHANGED"));
         let parsed: ApiResponse<T> | null = null;
         try {
           parsed = typeof res.data === "string" ? JSON.parse(res.data) : (res.data as ApiResponse<T>);

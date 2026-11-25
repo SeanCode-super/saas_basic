@@ -153,7 +153,7 @@ const nl2sqlRes = ref<MobileNl2SqlResponse | null>(null);
 const ragRes = ref<MobileRagResponse | null>(null);
 
 // 核心优化：温热任务数首帧直出，杜绝由 (0) 突跳至 (38) 的视觉断层
-const cachedTaskCount = getCachedData("AI_EXPORT_COUNT", 38);
+const cachedTaskCount = getCachedData("AI_EXPORT_COUNT", 0);
 const tasks = ref<MobileExportTask[]>(getCachedData("AI_EXPORT_TASKS", []));
 const exportCount = computed(() => {
   return tasks.value.length > 0 ? tasks.value.length : cachedTaskCount;

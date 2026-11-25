@@ -22,3 +22,7 @@ export function apiMarkNotificationRead(id: number) {
     method: "PUT"
   });
 }
+
+export function apiMarkAllNotificationsRead() {
+  return request<void>({ url: "/api/system/notify/read-all", method: "PUT" });
+}

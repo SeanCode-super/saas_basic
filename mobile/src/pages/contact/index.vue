@@ -135,14 +135,14 @@ import AppSkeleton from "../../components/ui/AppSkeleton.vue";
 import AppEmpty from "../../components/ui/AppEmpty.vue";
 import AppModal from "../../components/ui/AppModal.vue";
 import { apiGetContactUsers, type ContactUser } from "../../api/contact";
-import { getCachedData, setCachedData, WARM_CONTACTS } from "../../utils/warm-cache";
+import { getCachedData, setCachedData } from "../../utils/warm-cache";
 import { onShow } from "@dcloudio/uni-app";
 
 const keyword = ref("");
 const activeDept = ref("全部");
 const loading = ref(false);
 // 核心优化：温热数据首帧挂载，点击 Tab 瞬间呈现，杜绝骨架屏闪烁
-const users = ref<any[]>(getCachedData("CONTACTS", WARM_CONTACTS));
+const users = ref<any[]>(getCachedData("CONTACTS", []));
 
 // 名片抽屉
 const cardModalVisible = ref(false);
@@ -181,10 +181,10 @@ async function loadUsers(isRefresh = false) {
   }
   try {
     const list = await apiGetContactUsers();
-    if (Array.isArray(list) && list.length > 0) {
+    if (Array.isArray(list)) {
       const mapped = list.map((u) => ({
         ...u,
-        phone: u.phone || u.mobile || "13800138000",
+        phone: u.phone || u.mobile || "",
         nickname: u.nickname || (u.username === "user" ? "体验员工" : (u.username === "admin" ? "平台管理员" : u.username)),
         positionName: (u.positionName || "业务工程师").replace("CTO", "研发总监").replace("SRE", "高级运维").replace("高级系统工程师", "高级工程师"),
         deptName: u.deptName || "综合管理部"

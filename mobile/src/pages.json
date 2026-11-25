@@ -8,6 +8,14 @@
       }
     },
     {
+      "path": "pages/dynamic/records",
+      "style": { "navigationStyle": "default", "navigationBarTitleText": "业务台账", "enablePullDownRefresh": true }
+    },
+    {
+      "path": "pages/industry/app",
+      "style": { "navigationBarTitleText": "行业应用" }
+    },
+    {
       "path": "pages/workflow/list",
       "style": {
         "navigationStyle": "custom",

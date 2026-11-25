@@ -28,3 +28,21 @@ export function apiAdjustStock(data: {
     data
   });
 }
+
+export interface ErpMovement {
+  id: number;
+  recordType: string;
+  beforeQuantity: number;
+  afterQuantity: number;
+  changeQuantity: number;
+  operatorName: string;
+  createdAt: string;
+}
+
+export function apiInventoryMovements(productId: number | string, warehouseId: number | string) {
+  return request<ErpMovement[]>({
+    url: "/api/erp/inventory/records",
+    method: "GET",
+    data: { productId, warehouseId }
+  });
+}

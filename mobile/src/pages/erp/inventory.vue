@@ -28,7 +28,7 @@
           <text class="summary-label">在库物资总件数</text>
         </view>
         <view class="summary-item">
-          <text class="summary-val text-cyan">¥{{ (totalStockValue / 10000).toFixed(1) }}万</text>
+          <text class="summary-val text-cyan">{{ totalStockValue == null ? "—" : "¥" + (totalStockValue / 10000).toFixed(1) + "万" }}</text>
           <text class="summary-label">在库预估总价值</text>
         </view>
         <view class="summary-item">
@@ -73,19 +73,22 @@
       <AppSkeleton type="card" :count="4" />
     </view>
 
+    <view v-if="loadError" class="content-body">
+      <AppEmpty type="network" title="库存刷新失败" :desc="loadError" action-text="重新加载" @action="handleManualRefresh" />
+    </view>
     <!-- 空状态 -->
-    <view v-else-if="filteredInventory.length === 0" class="content-body">
+    <view v-else-if="!loading && filteredInventory.length === 0" class="content-body">
       <AppEmpty
         type="search"
         title="暂无匹配物料或库存记录"
-        description="请尝试调整搜索关键字或切换类别标签"
+        desc="请尝试调整搜索关键字或切换类别标签"
         action-text="清空筛选条件"
         @action="resetFilters"
       />
     </view>
 
     <!-- 实体物料卡片流 -->
-    <view v-else class="content-body">
+    <view v-if="!loading && filteredInventory.length" class="content-body">
       <view
         v-for="item in filteredInventory"
         :key="item.id"
@@ -95,9 +98,9 @@
         <view class="card-top-row">
           <view class="sku-box">
             <text class="sku-tag">{{ item.productCode }}</text>
-            <text class="wh-badge">{{ item.warehouseName || '主仓保税库' }}</text>
+            <text class="wh-badge">{{ item.warehouseName || '—' }}</text>
           </view>
-          <view v-if="item.isLowStock || item.stockQuantity <= (item.minStock || 5)" class="alert-pill">
+          <view v-if="item.isLowStock || item.stockQuantity <= (item.minStock ?? 5)" class="alert-pill">
             <text class="alert-dot" />
             <text>警戒缺货</text>
           </view>
@@ -108,7 +111,7 @@
         </view>
 
         <text class="product-name">{{ item.productName }}</text>
-        <text class="product-spec">规格：{{ item.specification || '标准工业规格 / 标配' }}</text>
+        <text v-if="item.specification" class="product-spec">规格：{{ item.specification }}</text>
 
         <view class="stock-metrics-bar">
           <view class="metric-cell">
@@ -120,14 +123,14 @@
             <text class="metric-lbl">当前可用余量</text>
           </view>
           <view class="metric-cell">
-            <text class="metric-val font-mono text-cyan">¥{{ Number(item.totalValue || 0).toLocaleString() }}</text>
+            <text class="metric-val font-mono text-cyan">{{ item.totalValue == null ? "—" : "¥" + Number(item.totalValue).toLocaleString() }}</text>
             <text class="metric-lbl">估算库存货值</text>
           </view>
         </view>
 
         <view class="card-footer-action">
           <text class="action-hint">轻触查看详情与出入库流转记录</text>
-          <text class="action-btn-text">快捷调拔 &gt;</text>
+          <text class="action-btn-text">快捷调拨 &gt;</text>
         </view>
       </view>
     </view>
@@ -138,7 +141,7 @@
       mode="sheet"
       :title="selectedItem?.productName || '物资详情与在库调拨'"
       subtitle="实时更新企业物资在库台账"
-      confirm-text="确认调拔出入库"
+      confirm-text="确认登记"
       :confirm-loading="adjusting"
       @confirm="submitStockAdjustment"
     >
@@ -150,15 +153,11 @@
           </view>
           <view class="info-row">
             <text class="info-k">存储库位</text>
-            <text class="info-v">{{ selectedItem.warehouseName || '办公用品总仓 A-01 货架' }}</text>
+            <text class="info-v">{{ selectedItem.warehouseName || '—' }}</text>
           </view>
           <view class="info-row">
             <text class="info-k">预警底线</text>
-            <text class="info-v">{{ selectedItem.minStock || 5 }} {{ selectedItem.unit || '件' }}</text>
-          </view>
-          <view class="info-row">
-            <text class="info-k">采购单价</text>
-            <text class="info-v">¥{{ selectedItem.unitPrice || '120.00' }} / {{ selectedItem.unit || '件' }}</text>
+            <text class="info-v">{{ selectedItem.minStock ?? 5 }} {{ selectedItem.unit || '件' }}</text>
           </view>
         </view>
 
@@ -177,7 +176,7 @@
           </view>
 
           <view class="adjust-input-row">
-            <text class="input-lbl">变动数量 ({{ selectedItem.unit || '件' }})</text>
+            <text class="input-lbl">{{ adjustForm.type === "AUDIT" ? "实盘数量" : "变动数量" }} ({{ selectedItem.unit || '件' }})</text>
             <input
               v-model="adjustForm.delta"
               type="number"
@@ -195,6 +194,16 @@
             />
           </view>
         </view>
+        <view class="sheet-info-grid">
+          <text class="adjust-title">最近库存流水</text>
+          <text v-if="movementState === 'loading'">正在读取…</text>
+          <text v-else-if="movementState === 'error'" @click="loadMovements">读取失败，点此重试</text>
+          <text v-else-if="!movements.length">暂无流水</text>
+          <view v-for="row in movements" :key="row.id" class="info-row">
+            <text class="info-k">{{ movementLabels[row.recordType] ?? row.recordType }} · {{ row.createdAt?.replace("T", " ") }}</text>
+            <text class="info-v">{{ row.beforeQuantity }} → {{ row.afterQuantity }}</text>
+          </view>
+        </view>
       </view>
     </AppModal>
   </view>
@@ -207,36 +216,61 @@ import AppIcon from "../../components/ui/AppIcon.vue";
 import AppSkeleton from "../../components/ui/AppSkeleton.vue";
 import AppEmpty from "../../components/ui/AppEmpty.vue";
 import AppModal from "../../components/ui/AppModal.vue";
-import { apiGetInventory, apiAdjustStock } from "../../api/erp";
-import { getCachedData, setCachedData, WARM_INVENTORY } from "../../utils/warm-cache";
+import { apiGetInventory, apiAdjustStock, apiInventoryMovements, type ErpMovement } from "../../api/erp";
+import { getCachedData, setCachedData } from "../../utils/warm-cache";
 
 const loading = ref(false);
 const refreshing = ref(false);
+const loadError = ref("");
+let latestLoad = 0;
 const searchKeyword = ref("");
 const activeCategory = ref("ALL");
 // 核心优化：温热数据首帧挂载，进入仓储中心瞬间呈现，杜绝骨架屏闪烁
-const inventoryList = ref<any[]>(getCachedData("INVENTORY", WARM_INVENTORY));
+const inventoryList = ref<any[]>(getCachedData("INVENTORY", []));
 
 const detailVisible = ref(false);
 const selectedItem = ref<any | null>(null);
 const adjusting = ref(false);
+const movements = ref<ErpMovement[]>([]);
+const movementState = ref<"loading" | "ready" | "error">("ready");
+const movementLabels: Record<string, string> = {
+  PURCHASE_IN: "采购入库", SALE_OUT: "销售出库", MANUAL_IN: "手工入库", MANUAL_OUT: "手工出库",
+  STOCK_CHECK: "盘点", TRANSFER: "调拨", ADJUST: "调整"
+};
+let movementRequest = 0;
+async function loadMovements() {
+  const item = selectedItem.value;
+  if (!item) return;
+  const current = ++movementRequest;
+  movements.value = [];
+  movementState.value = "loading";
+  try {
+    const rows = await apiInventoryMovements(item.productId, item.warehouseId);
+    if (current === movementRequest) {
+      movements.value = rows;
+      movementState.value = "ready";
+    }
+  } catch {
+    if (current === movementRequest) movementState.value = "error";
+  }
+}
 
 const opTypes = [
-  { key: "IN", label: "采购入库 (+)" },
-  { key: "OUT", label: "部门领用 (-)" },
+  { key: "IN", label: "手工入库 (+)" },
+  { key: "OUT", label: "手工出库 (-)" },
   { key: "AUDIT", label: "盘点修正 (=)" }
 ];
 
 const adjustForm = reactive({
   type: "IN",
-  delta: "10",
-  remark: "日常业务办公领用"
+  delta: "",
+  remark: ""
 });
 
 const categoryFilters = computed(() => {
   const total = inventoryList.value.length;
   const warnings = inventoryList.value.filter(
-    (i) => i.isLowStock || i.stockQuantity <= (i.minStock || 5)
+    (i) => i.isLowStock || i.stockQuantity <= (i.minStock ?? 5)
   ).length;
   return [
     { key: "ALL", label: "全部物料", count: total },
@@ -250,20 +284,21 @@ const totalStockCount = computed(() => {
 });
 
 const totalStockValue = computed(() => {
-  return inventoryList.value.reduce((acc, curr) => acc + (Number(curr.totalValue) || 0), 0);
+  if (inventoryList.value.some(item => item.totalValue == null)) return null;
+  return inventoryList.value.reduce((acc, curr) => acc + Number(curr.totalValue), 0);
 });
 
 const warningCount = computed(() => {
-  return inventoryList.value.filter((i) => i.isLowStock || i.stockQuantity <= (i.minStock || 5)).length;
+  return inventoryList.value.filter((i) => i.isLowStock || i.stockQuantity <= (i.minStock ?? 5)).length;
 });
 
 const filteredInventory = computed(() => {
   let list = inventoryList.value;
 
   if (activeCategory.value === "WARNING") {
-    list = list.filter((i) => i.isLowStock || i.stockQuantity <= (i.minStock || 5));
+    list = list.filter((i) => i.isLowStock || i.stockQuantity <= (i.minStock ?? 5));
   } else if (activeCategory.value === "SAFE") {
-    list = list.filter((i) => !(i.isLowStock || i.stockQuantity <= (i.minStock || 5)));
+    list = list.filter((i) => !(i.isLowStock || i.stockQuantity <= (i.minStock ?? 5)));
   }
 
   if (searchKeyword.value.trim()) {
@@ -280,18 +315,21 @@ const filteredInventory = computed(() => {
 });
 
 async function loadData(silent = false) {
-  // 如果当前已有物料数据，直接静默后台对齐，绝不闪现骨架屏
+  const sequence = ++latestLoad;
   if (!silent && inventoryList.value.length === 0) {
     loading.value = true;
   }
   try {
-    const res = await apiGetInventory();
-    if (Array.isArray(res) && res.length > 0) {
-      inventoryList.value = res;
-      setCachedData("INVENTORY", res);
-    }
+    const res = await apiGetInventory(true);
+    if (sequence !== latestLoad) return;
+    if (!Array.isArray(res)) throw new Error("库存数据格式异常");
+    inventoryList.value = res;
+    setCachedData("INVENTORY", res);
+    loadError.value = "";
   } catch (err) {
+    if (sequence === latestLoad) loadError.value = inventoryList.value.length ? "当前显示上次读取的库存，请刷新后再登记。" : "请重新加载后再试。";
   } finally {
+    if (sequence !== latestLoad) return;
     loading.value = false;
     refreshing.value = false;
     uni.stopPullDownRefresh();
@@ -321,47 +359,37 @@ function resetFilters() {
 }
 
 function openDetailSheet(item: any) {
+  if (loadError.value) return;
   selectedItem.value = item;
   adjustForm.type = "IN";
-  adjustForm.delta = "10";
-  adjustForm.remark = "仓储例行领料 / 调配入库";
+  adjustForm.delta = "";
+  adjustForm.remark = "";
   detailVisible.value = true;
+  void loadMovements();
 }
 
 async function submitStockAdjustment() {
-  if (!adjustForm.delta || Number(adjustForm.delta) <= 0) {
+  if (adjusting.value || !selectedItem.value) return;
+  const delta = Number(adjustForm.delta);
+  if (!String(adjustForm.delta).trim() || !Number.isSafeInteger(delta) || delta > 2147483647 || delta < (adjustForm.type === "AUDIT" ? 0 : 1)) {
     uni.showToast({ title: "请输入有效的变动数量", icon: "none" });
     return;
   }
 
   adjusting.value = true;
   try {
-    const delta = Number(adjustForm.delta);
-    const prodId = selectedItem.value.productId || selectedItem.value.id;
-    try {
-      await apiAdjustStock({
-        productId: prodId,
-        warehouseId: selectedItem.value.warehouseId || 1,
-        type: adjustForm.type,
-        delta,
-        remark: adjustForm.remark
-      });
-      await loadData(true);
-      uni.showToast({ title: "库存调拨登记成功", icon: "success" });
-    } catch (e: any) {
-      // 容错降级
-      if (selectedItem.value) {
-        if (adjustForm.type === "IN") {
-          selectedItem.value.stockQuantity += delta;
-        } else if (adjustForm.type === "OUT") {
-          selectedItem.value.stockQuantity = Math.max(0, selectedItem.value.stockQuantity - delta);
-        } else {
-          selectedItem.value.stockQuantity = delta;
-        }
-      }
-      uni.showToast({ title: "库存调拨登记完成", icon: "success" });
-    }
+    await apiAdjustStock({
+      productId: selectedItem.value.productId,
+      warehouseId: selectedItem.value.warehouseId,
+      type: adjustForm.type,
+      delta,
+      remark: adjustForm.remark
+    });
     detailVisible.value = false;
+    uni.showToast({ title: "库存调拨登记成功", icon: "success" });
+    await loadData(true);
+  } catch {
+    // The request reports the failure. Keep the form and the confirmed quantity.
   } finally {
     adjusting.value = false;
   }

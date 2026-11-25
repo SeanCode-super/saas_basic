@@ -83,20 +83,11 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from "vue";
-import { onShow } from "@dcloudio/uni-app";
+import { reactive, ref } from "vue";
 import AppIcon from "../../components/ui/AppIcon.vue";
 import { apiUpdatePassword } from "../../api/profile";
 
 const saving = ref(false);
-
-onMounted(() => {
-  uni.hideTabBar({ animation: false });
-});
-
-onShow(() => {
-  uni.hideTabBar({ animation: false });
-});
 
 const pwdForm = reactive({
   oldPassword: "",

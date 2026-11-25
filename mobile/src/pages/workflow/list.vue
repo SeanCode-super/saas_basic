@@ -221,21 +221,15 @@ import {
   apiHandleTask
 } from "../../api/workflow";
 import { formatUserDisplayName } from "../../utils/dict";
-import {
-  getCachedData,
-  setCachedData,
-  WARM_WORKFLOW_PENDING,
-  WARM_WORKFLOW_MY,
-  WARM_WORKFLOW_COMPLETED
-} from "../../utils/warm-cache";
+import { getCachedData, sessionGeneration, setCachedData } from "../../utils/warm-cache";
 
 const activeTab = ref<"pending" | "my" | "completed">("pending");
 const loading = ref(false);
 
 // 核心优化：温热数据首帧挂载，点击 Tab 瞬间呈现，杜绝骨架屏闪烁
-const pendingTasks = ref<any[]>(getCachedData("WF_PENDING", WARM_WORKFLOW_PENDING));
-const myInstances = ref<any[]>(getCachedData("WF_MY", WARM_WORKFLOW_MY));
-const completedTasks = ref<any[]>(getCachedData("WF_COMPLETED", WARM_WORKFLOW_COMPLETED));
+const pendingTasks = ref<any[]>(getCachedData("WF_PENDING", []));
+const myInstances = ref<any[]>(getCachedData("WF_MY", []));
+const completedTasks = ref<any[]>(getCachedData("WF_COMPLETED", []));
 
 // 操作弹窗状态
 const actionModalVisible = ref(false);
@@ -266,12 +260,14 @@ async function loadData(isRefresh = false) {
     loading.value = true;
   }
   try {
+    const generation = sessionGeneration();
     const [pList, mList, cList] = await Promise.all([
-      apiGetPendingTasks().catch(() => []),
-      apiGetMyInstances().catch(() => []),
-      apiGetCompletedTasks().catch(() => [])
+      apiGetPendingTasks().catch(() => null),
+      apiGetMyInstances().catch(() => null),
+      apiGetCompletedTasks().catch(() => null)
     ]);
 
+    if (generation !== sessionGeneration()) return;
     const formatTask = (t: any) => ({
       ...t,
       instanceNo: (t.instanceNo || "SP-2026102601").replace("WF", "SP-"),
@@ -280,17 +276,17 @@ async function loadData(isRefresh = false) {
       createdAt: t.createdAt ? String(t.createdAt).replace("T", " ").substring(0, 16) : "刚刚"
     });
 
-    if (Array.isArray(pList) && pList.length > 0) {
+    if (Array.isArray(pList)) {
       const formatted = pList.map(formatTask);
       pendingTasks.value = formatted;
       setCachedData("WF_PENDING", formatted);
     }
-    if (Array.isArray(mList) && mList.length > 0) {
+    if (Array.isArray(mList)) {
       const formatted = mList.map(formatTask);
       myInstances.value = formatted;
       setCachedData("WF_MY", formatted);
     }
-    if (Array.isArray(cList) && cList.length > 0) {
+    if (Array.isArray(cList)) {
       const formatted = cList.map(formatTask);
       completedTasks.value = formatted;
       setCachedData("WF_COMPLETED", formatted);

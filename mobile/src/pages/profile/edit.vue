@@ -129,7 +129,6 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
-import { onShow } from "@dcloudio/uni-app";
 import AppIcon from "../../components/ui/AppIcon.vue";
 import {
   apiGetProfile,
@@ -152,13 +151,13 @@ const profileData = ref<MobileProfileData | WarmUserProfileModel>(warmProfile);
 const storageStatus = ref<MobileStorageStatus | null>(null);
 
 const editForm = reactive({
-  nickname: warmProfile.nickname || warmProfile.username || "平台管理员",
-  mobile: warmProfile.mobile || "13800000000",
-  email: warmProfile.email || "admin@saasbasics.local",
+  nickname: warmProfile.nickname || warmProfile.username || "",
+  mobile: warmProfile.mobile || "",
+  email: warmProfile.email || "",
   confirmPassword: "",
-  workLocation: warmProfile.workLocation || "杭州研发中心 T3-1808",
-  extContact: warmProfile.extContact || "企业微信 (分机 8001)",
-  bio: warmProfile.bio || "全栈架构师 · 个人资料完整度测试"
+  workLocation: warmProfile.workLocation || "",
+  extContact: warmProfile.extContact || "",
+  bio: warmProfile.bio || ""
 });
 
 const originalMobile = ref(editForm.mobile);
@@ -193,12 +192,12 @@ async function loadProfile() {
       const d = res.value;
       profileData.value = d;
       setCachedUserProfile(d);
-      if (d.nickname !== undefined && d.nickname !== null) editForm.nickname = d.nickname;
-      if (d.mobile !== undefined && d.mobile !== null) editForm.mobile = d.mobile;
-      if (d.email !== undefined && d.email !== null) editForm.email = d.email;
-      if (d.workLocation !== undefined && d.workLocation !== null) editForm.workLocation = d.workLocation;
-      if (d.extContact !== undefined && d.extContact !== null) editForm.extContact = d.extContact;
-      if (d.bio !== undefined && d.bio !== null) editForm.bio = d.bio;
+      if (d.nickname !== undefined && d.nickname !== null) editForm.nickname = d.nickname || "";
+      if (d.mobile !== undefined && d.mobile !== null) editForm.mobile = d.mobile || "";
+      if (d.email !== undefined && d.email !== null) editForm.email = d.email || "";
+      if (d.workLocation !== undefined && d.workLocation !== null) editForm.workLocation = d.workLocation || "";
+      if (d.extContact !== undefined && d.extContact !== null) editForm.extContact = d.extContact || "";
+      if (d.bio !== undefined && d.bio !== null) editForm.bio = d.bio || "";
       originalMobile.value = (editForm.mobile || "").trim();
       originalEmail.value = (editForm.email || "").trim();
     }
@@ -281,13 +280,9 @@ async function submitEditProfile() {
 }
 
 onMounted(() => {
-  uni.hideTabBar({ animation: false });
   void loadProfile();
 });
 
-onShow(() => {
-  uni.hideTabBar({ animation: false });
-});
 </script>
 
 <style scoped>

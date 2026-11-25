@@ -131,13 +131,13 @@ import AppIcon from "../../components/ui/AppIcon.vue";
 import AppSkeleton from "../../components/ui/AppSkeleton.vue";
 import AppEmpty from "../../components/ui/AppEmpty.vue";
 import AppModal from "../../components/ui/AppModal.vue";
-import { apiGetMyNotifications, apiMarkNotificationRead } from "../../api/notify";
-import { getCachedData, setCachedData, WARM_NOTIFY } from "../../utils/warm-cache";
+import { apiMarkAllNotificationsRead, apiGetMyNotifications, apiMarkNotificationRead } from "../../api/notify";
+import { getCachedData, setCachedData } from "../../utils/warm-cache";
 
 const activeCategory = ref("ALL");
 const loading = ref(false);
 // 核心优化：温热数据首帧挂载，进入通知中心瞬间呈现，杜绝骨架屏闪烁
-const messages = ref<any[]>(getCachedData("NOTIFY", WARM_NOTIFY));
+const messages = ref<any[]>(getCachedData("NOTIFY", []));
 
 const detailVisible = ref(false);
 const selectedMsg = ref<any | null>(null);
@@ -193,7 +193,7 @@ async function loadData(silent = false) {
   }
   try {
     const list = await apiGetMyNotifications();
-    if (Array.isArray(list) && list.length > 0) {
+    if (Array.isArray(list)) {
       const mapped = list.map((m: any) => ({
         ...m,
         read: m.read ?? (m.readStatus === 1),
@@ -217,20 +217,27 @@ function handleManualRefresh() {
   loadData(true);
 }
 
-function handleOpenMessage(msg: any) {
+async function handleOpenMessage(msg: any) {
   selectedMsg.value = msg;
   detailVisible.value = true;
   if (!msg.read) {
-    msg.read = true;
     try {
-      apiMarkNotificationRead(msg.id);
+      await apiMarkNotificationRead(msg.id);
+      msg.read = true;
+      setCachedData("NOTIFY", messages.value);
     } catch {}
   }
 }
 
-function handleMarkAllRead() {
-  messages.value.forEach((m) => (m.read = true));
-  uni.showToast({ title: "已全部标为已读", icon: "success" });
+async function handleMarkAllRead() {
+  try {
+    await apiMarkAllNotificationsRead();
+    messages.value.forEach((m) => (m.read = true));
+    setCachedData("NOTIFY", messages.value);
+    uni.showToast({ title: "已全部标为已读", icon: "success" });
+  } catch {
+    // Leave unread messages available for retry.
+  }
 }
 
 function handleModalAction() {

@@ -169,16 +169,12 @@
       </svg>
     </view>
 
-    <!-- 3. 悬浮微晶玻璃登录卡片 (纯账号密码登录、免除验证、无第三方干扰) -->
     <view class="login-card">
       <view class="brand-header">
         <view class="logo-wrap">
           <TianshuLogo :size="38" />
         </view>
-        <view class="brand-text-col">
-          <text class="brand-name">{{ isTenantPortal ? (portal?.clientName || currentTenantTitle) : '天枢协同云平台' }}</text>
-          <text class="brand-slogan">{{ isTenantPortal ? '企业专属多端协同空间' : '新一代全场景企业协同云' }}</text>
-        </view>
+        <text class="brand-name">{{ isTenantPortal ? currentTenantTitle : '天枢协同云平台' }}</text>
         <view v-if="isTenantPortal" class="platform-switch-pill" @click="switchToPlatform">
           <text class="platform-switch-text">平台入口 →</text>
         </view>
@@ -193,7 +189,8 @@
           <input
             v-model="form.username"
             class="cell-input"
-            placeholder="请输入用户名 / 账号"
+            aria-label="账号"
+            placeholder="账号"
             placeholder-class="input-placeholder"
             @focus="focusField = 'username'"
             @blur="focusField = null"
@@ -209,40 +206,41 @@
             v-model="form.password"
             :password="!showPassword"
             class="cell-input"
-            placeholder="请输入登录密码"
+            aria-label="密码"
+            placeholder="密码"
             placeholder-class="input-placeholder"
             confirm-type="go"
             @focus="focusField = 'password'"
             @blur="focusField = null"
             @confirm="handleLogin"
           />
-          <view class="eye-toggle-btn" @click="showPassword = !showPassword">
-            <AppIcon :name="showPassword ? 'eye-off' : 'eye'" :size="17" color="#94a3b8" />
-          </view>
+          <button class="eye-toggle-btn" :aria-label="showPassword ? '隐藏密码' : '显示密码'" @click="showPassword = !showPassword">
+            <AppIcon :name="showPassword ? 'eye-off' : 'eye'" :size="17" color="#52647e" />
+          </button>
         </view>
 
+        <view v-if="mfaRequired" class="input-cell">
+          <input v-model="totpCode" class="uni-input" placeholder="动态验证码或恢复码" aria-label="动态验证码或恢复码" @confirm="handleLogin" />
+        </view>
         <!-- 辅助操作 -->
         <view class="sub-actions-row">
-          <text class="forgot-btn" @click="handleForgotPassword">忘记密码？</text>
+          <button class="forgot-btn" @click="handleForgotPassword">忘记密码？</button>
         </view>
 
         <!-- 浅色珠光轻玻登录按钮 (与 PC 端统一质感) -->
         <button class="login-submit-btn" :loading="loading" :disabled="loading" @click="handleLogin">
-          <text class="submit-text">登 录</text>
+          <text class="submit-text">登录</text>
           <text class="submit-arrow">→</text>
         </button>
       </view>
     </view>
 
-    <!-- 4. 底部安全背书 -->
-    <view class="login-footer-security">
-      <text class="footer-tip-text">端到端链路加密传输 · 账号安全策略已防护</text>
-    </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from "vue";
+import { clearMobileSession } from "../../utils/warm-cache";
+import { computed, reactive, ref, watch } from "vue";
 import { onLoad, onUnload } from "@dcloudio/uni-app";
 import { apiLogin, apiGetPortalEntry, type PortalEntry } from "../../api/auth";
 import AppIcon from "../../components/ui/AppIcon.vue";
@@ -250,6 +248,8 @@ import TianshuLogo from "../../components/brand/TianshuLogo.vue";
 
 const loading = ref(false);
 const showPassword = ref(false);
+const mfaRequired = ref(false);
+const totpCode = ref("");
 const focusField = ref<"username" | "password" | null>(null);
 const portal = ref<PortalEntry | null>(null);
 const svgUid = "ts-mobile";
@@ -289,6 +289,11 @@ const form = reactive({
   clientId: "",
   username: "admin",
   password: "Admin@123456"
+});
+
+watch(() => [form.tenantCode, form.username], () => {
+  mfaRequired.value = false;
+  totpCode.value = "";
 });
 
 const isTenantPortal = computed(() => {
@@ -394,16 +399,22 @@ async function handleLogin() {
     uni.showToast({ title: "请输入用户名与密码", icon: "none" });
     return;
   }
+  if (mfaRequired.value && !totpCode.value.trim()) {
+    uni.showToast({ title: "请输入动态验证码或恢复码", icon: "none" });
+    return;
+  }
   loading.value = true;
   try {
     const payload = {
       username: form.username.trim(),
-      password: form.password.trim(),
+      password: form.password,
+      totpCode: mfaRequired.value ? totpCode.value.trim() : undefined,
       clientId: form.clientId || undefined,
       terminalCode: "h5",
       ...(form.tenantCode.trim() ? { tenantCode: form.tenantCode.trim() } : {})
     };
     const res = await apiLogin(payload);
+    clearMobileSession();
     uni.setStorageSync("sb_access_token", res.accessToken);
     uni.setStorageSync("sb_refresh_token", res.refreshToken);
     if (res.currentUser?.tenantId) {
@@ -417,9 +428,10 @@ async function handleLogin() {
     }
     uni.showToast({ title: "登录成功", icon: "success" });
     setTimeout(() => {
-      uni.switchTab({ url: "/pages/index/index" });
+      uni.reLaunch({ url: "/pages/index/index" });
     }, 400);
   } catch (err: any) {
+    if (err?.code === "AUTH_MFA_REQUIRED" || err?.code === "AUTH_MFA_INVALID") mfaRequired.value = true;
     uni.showToast({ title: err?.message || "登录失败，请检查账号密码", icon: "none" });
   } finally {
     loading.value = false;
@@ -430,7 +442,9 @@ async function handleLogin() {
 <style scoped>
 .mobile-login-shell {
   position: relative;
+  --orbit-size: min(84vw, 320px, max(64px, calc(100vh - 322px)));
   min-height: 100vh;
+  min-height: 100dvh;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -524,8 +538,8 @@ async function handleLogin() {
   top: calc(24px + max(var(--status-bar-height, 0px), env(safe-area-inset-top, 0px)));
   left: 50%;
   transform: translateX(-50%);
-  width: min(84vw, 320px);
-  height: min(84vw, 320px);
+  width: var(--orbit-size);
+  height: var(--orbit-size);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -605,28 +619,23 @@ async function handleLogin() {
   100% { opacity: 0; transform: scale(1.65); }
 }
 
-/* =============================================================================
-   3. 悬浮微晶玻璃登录舱 (仅保留账号密码登录与辅助重置)
-   ============================================================================= */
 .login-card {
   position: relative;
   z-index: 2;
   width: 100%;
   max-width: 380px;
-  /* 优雅纵向下沉：天体仪与星芒充分舒展呼吸，卡片下沉至黄金触控操作区，消除底部空荡 */
-  margin-top: calc(min(84vw, 320px) * 0.95 + max(var(--status-bar-height, 0px), env(safe-area-inset-top, 0px)) + 24px);
+  margin-top: calc(var(--orbit-size) * 0.95 + max(var(--status-bar-height, 0px), env(safe-area-inset-top, 0px)) + 24px);
   margin-bottom: auto;
-  background: rgba(255, 255, 255, 0.86);
-  backdrop-filter: blur(32px) saturate(200%);
-  -webkit-backdrop-filter: blur(32px) saturate(200%);
-  border: 1px solid rgba(255, 255, 255, 0.98);
-  border-radius: 24px;
-  padding: 26px 20px 22px;
+  padding: 26px 20px 12px;
   box-sizing: border-box;
-  box-shadow:
-    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.99),
-    0 20px 48px -12px rgba(15, 23, 42, 0.09),
-    0 4px 14px rgba(15, 23, 42, 0.04);
+}
+.login-card::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -16px -10px;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 46%, rgba(241, 246, 255, .80), rgba(241, 246, 255, .46) 52%, transparent 76%);
 }
 
 /* 品牌头部 */
@@ -644,28 +653,14 @@ async function handleLogin() {
   flex-shrink: 0;
 }
 
-.brand-text-col {
+.brand-name {
   flex: 1;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.brand-name {
-  font-size: 18.5px;
-  font-weight: 750;
-  color: #0f172a;
-  letter-spacing: -0.3px;
-  line-height: 1.3;
-}
-
-.brand-slogan {
-  font-size: 11.5px;
-  color: #64748b;
-  font-weight: 500;
-  margin-top: 2px;
-  letter-spacing: 0.2px;
+  font-size: 19px;
+  font-weight: 650;
+  line-height: 1.4;
+  color: #172440;
+  overflow-wrap: anywhere;
 }
 
 .platform-switch-pill {
@@ -695,24 +690,19 @@ async function handleLogin() {
 }
 
 .input-cell {
-  position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
-  height: 48px;
-  padding: 0 14px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.65);
-  border: 1px solid rgba(226, 232, 240, 0.85);
+  gap: 12px;
+  min-height: 50px;
+  padding: 0 4px;
   box-sizing: border-box;
-  margin-bottom: 12px;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  border-bottom: 1px solid rgba(70, 96, 143, .34);
+  transition: border-color .16s ease;
 }
 
 .input-cell.is-focused {
-  background: #ffffff;
-  border-color: rgba(37, 99, 235, 0.65);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  border-color: #4857a8;
+  box-shadow: 0 1px #4857a8;
 }
 
 .cell-icon {
@@ -725,87 +715,71 @@ async function handleLogin() {
 .cell-input {
   flex: 1;
   min-width: 0;
-  height: 100%;
-  font-size: 14.5px;
+  height: 48px;
+  font-size: 16px;
   color: #0f172a;
   font-weight: 500;
   background: transparent;
 }
 
 .input-placeholder {
-  color: #94a3b8;
-  font-size: 14px;
+  color: #596982;
+  font-size: 15px;
   font-weight: 400;
 }
 
+.eye-toggle-btn, .forgot-btn {
+  margin: 0;
+  padding: 0;
+  min-height: 44px;
+  line-height: 44px;
+  border: 0;
+  background: transparent;
+}
 .eye-toggle-btn {
-  padding: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
+  width: 44px;
+  margin-right: -8px;
 }
-
-/* 忘记密码 */
 .sub-actions-row {
   display: flex;
-  align-items: center;
   justify-content: flex-end;
-  margin-bottom: 16px;
-  padding: 0 2px;
+  margin: 2px 0 4px;
 }
-
 .forgot-btn {
-  font-size: 12px;
-  font-weight: 550;
-  color: #6366f1;
-  cursor: pointer;
+  padding: 0 4px;
+  font-size: 13px;
+  color: #475877;
 }
+.forgot-btn:active { color: #373e84; }
 
-.forgot-btn:active {
-  color: #4338ca;
-}
-
-/* 浅色高质感微玻登录提交按钮 (PC 端同款高对比度明亮质感) */
 .login-submit-btn {
-  position: relative;
-  width: 100%;
-  height: 48px;
-  line-height: 48px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(241, 245, 249, 0.92) 100%);
-  color: #0f172a;
-  border: 1px solid rgba(255, 255, 255, 0.98);
-  box-shadow:
-    inset 0 1.5px 1.5px 0 #ffffff,
-    inset 0 -1.5px 2px 0 rgba(203, 213, 225, 0.35),
-    0 8px 22px -4px rgba(15, 23, 42, 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
   box-sizing: border-box;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid rgba(114, 138, 186, .38);
+  border-radius: 12px;
+  background: linear-gradient(120deg, rgba(255, 255, 255, .80), rgba(224, 235, 253, .78));
+  color: #182842;
+  box-shadow: inset 0 1px rgba(255, 255, 255, .75), 0 3px 9px rgba(67, 90, 138, .07);
 }
-
-.login-submit-btn::after {
-  display: none !important;
-  border: none !important;
+.login-submit-btn:active { background: #dce7fa; }
+.login-submit-btn[disabled] { color: #52627c; }
+.eye-toggle-btn:focus-visible, .forgot-btn:focus-visible, .login-submit-btn:focus-visible {
+  outline: 2px solid #4857a8;
+  outline-offset: 2px;
 }
-
-.login-submit-btn:active {
-  transform: scale(0.985);
-  background: linear-gradient(135deg, rgba(248, 250, 252, 0.98) 0%, rgba(226, 232, 240, 0.92) 100%);
-  box-shadow:
-    inset 0 1px 2px 0 rgba(15, 23, 42, 0.08),
-    0 4px 10px -2px rgba(15, 23, 42, 0.06);
-}
-
 .submit-text {
   font-size: 15.5px;
   font-weight: 700;
   color: #0f172a;
-  letter-spacing: 2px;
+  letter-spacing: .05em;
 }
 
 .submit-arrow {
@@ -819,20 +793,8 @@ async function handleLogin() {
   transform: translateX(3px);
 }
 
-/* =============================================================================
-   4. 底部安全背书
-   ============================================================================= */
-.login-footer-security {
-  position: relative;
-  z-index: 2;
-  text-align: center;
-  padding-top: 14px;
-}
-
-.footer-tip-text {
-  font-size: 11.5px;
-  color: #94a3b8;
-  font-weight: 500;
-  letter-spacing: 0.1px;
+@media (max-height: 500px) {
+  .login-card { padding-top: 8px; }
+  .brand-header { margin-bottom: 10px; }
 }
 </style>

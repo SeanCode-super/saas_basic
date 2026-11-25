@@ -9,7 +9,7 @@
           <text v-if="currentTenantCode" class="tenant-code-badge">#{{ currentTenantCode }}</text>
         </view>
         <text class="greeting-text">{{ greetingPrefix }}，{{ userName }}</text>
-        <text class="greeting-sub">{{ currentDateStr }} · 今日事项已同步更新</text>
+        <text class="greeting-sub">{{ currentDateStr }}</text>
       </view>
       <view class="header-right" @click="navTo('/pages/notify/index')">
         <view class="bell-btn">
@@ -66,7 +66,7 @@
       <scroll-view scroll-x class="ios27-chip-scroll" :show-scrollbar="false">
         <view class="ios27-chip-group">
           <view
-            v-for="cat in appCategories"
+            v-for="cat in installed.length || modelMenus.length || directoryError ? [...appCategories, {key: 'industry', label: '行业应用'}] : appCategories"
             :key="cat.key"
             class="ios27-chip"
             :class="{ 'is-active': activeAppCategory === cat.key }"
@@ -77,6 +77,7 @@
         </view>
       </scroll-view>
 
+      <button v-if="directoryError" @click="refreshDirectory">{{ directoryError }}</button>
       <view class="grid-box">
         <view
           v-for="app in filteredHubApps"
@@ -149,7 +150,10 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import { onPullDownRefresh } from "@dcloudio/uni-app";
+import { request } from "../../utils/request";
+import { apiGetUserInfo } from "../../api/auth";
+import { listIndustryApps, type Entry } from "../../api/industry";
+import { onPullDownRefresh, onShow } from "@dcloudio/uni-app";
 import AppIcon from "../../components/ui/AppIcon.vue";
 import AppSkeleton from "../../components/ui/AppSkeleton.vue";
 import AppModal from "../../components/ui/AppModal.vue";
@@ -158,28 +162,28 @@ import { apiGetInventory } from "../../api/erp";
 import { apiGetCustomers } from "../../api/crm";
 import { apiGetContactUsers } from "../../api/contact";
 import { apiGetUnreadNotificationCount } from "../../api/notify";
-import { getCachedData, setCachedData, WARM_WORKFLOW_PENDING } from "../../utils/warm-cache";
+import { getCachedData, sessionGeneration, setCachedData } from "../../utils/warm-cache";
 import { formatUserDisplayName } from "../../utils/dict";
 
-const currentTenantName = ref("平台管理总部");
-const currentTenantCode = ref("platform");
-const userName = ref("平台管理员");
+const currentTenantName = ref("");
+const currentTenantCode = ref("");
+const userName = ref("");
 const loading = ref(false);
 
 // 核心优化：高保真温热状态直出，进入工作台即刻呈现实时指标，杜绝闪烁跳变
 const cachedKpi = getCachedData("INDEX_KPIS", {
-  pendingCount: 3,
-  poolCustomerCount: 1,
-  lowStockCount: 1,
-  memberCount: 5,
-  unreadCount: 2
+  pendingCount: 0,
+  poolCustomerCount: 0,
+  lowStockCount: 0,
+  memberCount: 0,
+  unreadCount: 0
 });
 const pendingCount = ref(cachedKpi.pendingCount);
 const poolCustomerCount = ref(cachedKpi.poolCustomerCount);
 const lowStockCount = ref(cachedKpi.lowStockCount);
 const memberCount = ref(cachedKpi.memberCount);
 const unreadCount = ref(cachedKpi.unreadCount);
-const tasks = ref<any[]>(getCachedData("INDEX_TASKS", WARM_WORKFLOW_PENDING.slice(0, 2)));
+const tasks = ref<any[]>(getCachedData("INDEX_TASKS", []));
 
 // 快捷审批弹窗
 const quickModalVisible = ref(false);
@@ -203,15 +207,22 @@ const currentDateStr = computed(() => {
   return `${d.getMonth() + 1}月${d.getDate()}日 ${weeks[d.getDay()]}`;
 });
 
+const enabledFeatures = ref<string[]>();
+function hasFeature(feature: string) {
+  const flags = enabledFeatures.value;
+  return Boolean(flags?.some(flag => flag === "*" || flag === feature || flag === "saas." + feature || flag.startsWith("saas." + feature + ".")));
+}
+
 function syncUserProfile() {
   const rawUser = uni.getStorageSync("sb_current_user");
   if (rawUser) {
     try {
       const u = typeof rawUser === "string" ? JSON.parse(rawUser) : rawUser;
-      userName.value = u.nickname || u.username || "管理员";
+      enabledFeatures.value = Number(u.tenantId) === 1 ? ["*"] : u.featureFlags;
+      userName.value = u.nickname || u.username || "用户";
       if (u.tenantCode) {
         currentTenantCode.value = u.tenantCode;
-        if (u.tenantCode === "platform" || u.username === "admin") {
+        if (u.tenantCode === "platform") {
           currentTenantName.value = "平台管理中心";
         } else {
           currentTenantName.value = u.tenantName || `${u.tenantCode.toUpperCase()} 企业空间`;
@@ -222,13 +233,24 @@ function syncUserProfile() {
 }
 
 async function loadData(isRefresh = false) {
+  if (!uni.getStorageSync("sb_access_token")) {
+    uni.stopPullDownRefresh();
+    return;
+  }
   if (!isRefresh && tasks.value.length === 0) {
     loading.value = true;
   }
   syncUserProfile();
   try {
-    const taskList = await apiGetPendingTasks().catch(() => []);
-    if (Array.isArray(taskList) && taskList.length > 0) {
+    const generation = sessionGeneration();
+    const [taskList, customers, invList, members, unread] = await Promise.all([
+      hasFeature("workflow") ? apiGetPendingTasks() : Promise.resolve(null),
+      hasFeature("crm") ? apiGetCustomers() : Promise.resolve(null),
+      hasFeature("erp") ? apiGetInventory() : Promise.resolve(null),
+      apiGetContactUsers(), apiGetUnreadNotificationCount()
+    ].map(request => request.catch(() => null)));
+    if (generation !== sessionGeneration()) return;
+    if (Array.isArray(taskList)) {
       const formatted = taskList.map((t: any) => ({
         ...t,
         initiatorName: formatUserDisplayName(t.initiatorName, "平台管理员")
@@ -238,23 +260,19 @@ async function loadData(isRefresh = false) {
       setCachedData("INDEX_TASKS", formatted);
     }
 
-    const customers = await apiGetCustomers().catch(() => []);
-    if (Array.isArray(customers) && customers.length > 0) {
+    if (Array.isArray(customers)) {
       poolCustomerCount.value = customers.filter((c: any) => c.inPool || c.isPool === 1).length;
     }
 
-    const invList = await apiGetInventory().catch(() => []);
-    if (Array.isArray(invList) && invList.length > 0) {
+    if (Array.isArray(invList)) {
       lowStockCount.value = invList.filter((i: any) => i.isLowStock || (i.stockQuantity <= (i.minStock || 5))).length;
     }
 
-    const members = await apiGetContactUsers().catch(() => []);
-    if (Array.isArray(members) && members.length > 0) {
+    if (Array.isArray(members)) {
       memberCount.value = members.length;
     }
 
-    const unread = await apiGetUnreadNotificationCount().catch(() => ({ count: 0, unreadCount: 0 }));
-    unreadCount.value = Number((unread as any)?.unreadCount ?? (unread as any)?.count ?? 0);
+    if (unread) unreadCount.value = Number((unread as any)?.unreadCount ?? (unread as any)?.count ?? 0);
 
     setCachedData("INDEX_KPIS", {
       pendingCount: pendingCount.value,
@@ -270,7 +288,8 @@ async function loadData(isRefresh = false) {
 }
 
 onPullDownRefresh(() => {
-  loadData(true);
+  void refreshDirectory();
+  void loadData(true);
 });
 
 const activeAppCategory = ref("all");
@@ -296,9 +315,61 @@ const allHubApps = [
   { id: "team-tenant", category: "team", label: "企业空间", icon: "settings", iconColor: "#475569", iconClass: "icon-slate", url: "/pages/profile/profile" }
 ];
 
+interface AppMenu {
+  menuName: string;
+  routePath?: string;
+  visible: boolean;
+  status: string;
+}
+const installed = ref<Entry[]>([]);
+const modelMenus = ref<AppMenu[]>([]);
+const directoryError = ref("");
+let directorySession = -1;
+let directoryRequest = 0;
+async function refreshDirectory() {
+  const session = sessionGeneration();
+  const current = ++directoryRequest;
+  if (directorySession !== session || !uni.getStorageSync("sb_access_token")) {
+    installed.value = [];
+    modelMenus.value = [];
+    directoryError.value = "";
+    directorySession = session;
+  }
+  if (!uni.getStorageSync("sb_access_token")) return;
+  const isCurrent = () => session === sessionGeneration() && current === directoryRequest;
+  const changes = await Promise.allSettled([
+    listIndustryApps().then(entries => { if (isCurrent()) installed.value = entries; }),
+    request<AppMenu[]>({ url: "/api/iam/menus/current", silent: true }).then(menus => {
+      if (isCurrent()) modelMenus.value = menus.filter(menu =>
+        menu.visible && menu.status === "ENABLED" && /^\/dynamic\/[a-z0-9_]+$/.test(menu.routePath || ""));
+    }),
+    apiGetUserInfo().then(user => {
+      if (!isCurrent()) return;
+      uni.setStorageSync("sb_current_user", JSON.stringify(user));
+      syncUserProfile();
+    })
+  ]);
+  if (isCurrent()) directoryError.value = changes.some(change => change.status === "rejected")
+    ? "应用目录未完全更新，点此重试" : "";
+}
+onShow(refreshDirectory);
+
 const filteredHubApps = computed(() => {
-  if (activeAppCategory.value === "all") return allHubApps;
-  return allHubApps.filter(app => app.category === activeAppCategory.value);
+  const moduleFor: Record<string, string> = {
+    "ai-copilot": "integration", "export-center": "file", flow: "workflow", "crm-pool": "crm", "crm-visit": "crm",
+    "erp-stock": "erp", "erp-scan": "erp", "team-users": "iam", "team-notify": "system"
+  };
+  const apps = [...allHubApps.filter(app => !moduleFor[app.id] || hasFeature(moduleFor[app.id])),
+    ...installed.value.map(app => ({
+      id: "industry-" + app.code, category: "industry", label: app.name, icon: "box",
+      iconColor: "#2563eb", iconClass: "icon-blue", url: "/pages/industry/app?code=" + encodeURIComponent(app.code)
+    })),
+    ...modelMenus.value.map(menu => ({
+      id: menu.routePath, category: "industry", label: menu.menuName, icon: "box",
+      iconColor: "#2563eb", iconClass: "icon-blue", url: "/pages/dynamic/records?code=" + encodeURIComponent(menu.routePath!.slice(9))
+    }))];
+  if (activeAppCategory.value === "all") return apps;
+  return apps.filter(app => app.category === activeAppCategory.value);
 });
 
 function handleAppItemClick(app: any) {
@@ -336,7 +407,7 @@ function handleScanCode() {
       });
     },
     fail: () => {
-      uni.showToast({ title: "已开启模拟扫码识别", icon: "none" });
+      uni.showToast({ title: "未能读取条码", icon: "none" });
     }
   });
 }

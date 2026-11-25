@@ -240,17 +240,13 @@ import {
   formatCustomerLevel,
   formatOwnerName
 } from "../../utils/dict";
-import {
-  getCachedData,
-  setCachedData,
-  WARM_CUSTOMERS
-} from "../../utils/warm-cache";
+import { getCachedData, setCachedData } from "../../utils/warm-cache";
 
 const activeTab = ref<"all" | "mine" | "pool">("all");
 const keyword = ref("");
 const loading = ref(false);
 // 核心优化：温热缓存初始挂载，实现 0 毫秒首帧直出，绝不让用户看到骨架屏跳闪
-const customers = ref<any[]>(getCachedData("CUSTOMERS", WARM_CUSTOMERS));
+const customers = ref<any[]>(getCachedData("CUSTOMERS", []));
 
 // 详情抽屉
 const detailModalVisible = ref(false);
@@ -297,17 +293,15 @@ async function loadData(isRefresh = false) {
     const mapped = (Array.isArray(list) ? list : []).map((c: any) => ({
       ...c,
       inPool: c.inPool ?? (c.isPool === 1),
-      phone: c.phone || c.mobile || c.telephone || "13800138000",
-      contactName: c.contactName || c.contactUserName || "商务负责人",
+      phone: c.phone || c.mobile || c.telephone || "",
+      contactName: c.contactName || c.contactUserName || "",
       ownerName: formatOwnerName(c.ownerName || c.ownerUserName, c.isPool === 1 || c.inPool),
       industry: formatIndustry(c.industry),
       level: formatCustomerLevel(c.level),
-      customerCode: (c.customerCode || "KH-2026-088").replace("CUST-", "KH-")
+      customerCode: (c.customerCode || "").replace("CUST-", "KH-")
     }));
-    if (mapped.length > 0) {
-      customers.value = mapped;
-      setCachedData("CUSTOMERS", mapped);
-    }
+    customers.value = mapped;
+    setCachedData("CUSTOMERS", mapped);
   } catch {
     // 接口异常时保持当前界面稳定，不弹错误白屏
   } finally {
@@ -379,9 +373,7 @@ function handleClaim(item: any) {
           uni.showToast({ title: "抢单认领成功！", icon: "success" });
           loadData(true);
         } catch {
-          item.inPool = false;
-          item.ownerName = "admin";
-          uni.showToast({ title: "认领成功 (本地已同步)", icon: "success" });
+          // The request layer reports the rejection; preserve server state.
         }
       }
     }
@@ -399,9 +391,7 @@ function handleReturn(item: any) {
           uni.showToast({ title: "已退回公海", icon: "none" });
           loadData(true);
         } catch {
-          item.inPool = true;
-          item.ownerName = null;
-          uni.showToast({ title: "已退回公海", icon: "none" });
+          // The request layer reports the rejection; preserve server state.
         }
       }
     }
