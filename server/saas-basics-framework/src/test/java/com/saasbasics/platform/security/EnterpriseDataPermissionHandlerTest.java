@@ -164,6 +164,40 @@ class EnterpriseDataPermissionHandlerTest {
         assertThat(joinExpr).isNull();
     }
 
+    @Test
+    @DisplayName("权限解析期间嵌套查询 IAM 表时自动重入保护，防止 StackOverflowError")
+    void preventsInfiniteRecursionWhenDataPermissionProviderQueriesDatabase() {
+        var handlerRef = new java.util.concurrent.atomic.AtomicReference<EnterpriseDataPermissionHandler>();
+        DataPermissionProvider recursiveProvider = new DataPermissionProvider() {
+            @Override
+            public DataPermissionSqlSpec resolveDataPermission(String resourceCode) {
+                // 模拟 DataPermissionRuleService -> AccessSubjectProfileService.load 查询 iam_user 时再次触发拦截器
+                Expression nestedExpr = handlerRef.get().getSqlSegment(
+                        new Table("iam_user"), null, "test.mapper.UserMapper.selectById");
+                assertThat(nestedExpr).isNull();
+                DataPermissionSqlSpec spec = new DataPermissionSqlSpec();
+                spec.setTenantId(1001L);
+                spec.addUserId(77L);
+                return spec;
+            }
+
+            @Override
+            public DataPermissionSqlSpec resolveDataPermissionForUser(Long tenantId, Long userId, String resourceCode) {
+                return resolveDataPermission(resourceCode);
+            }
+        };
+        StaticListableBeanFactory localFactory = new StaticListableBeanFactory();
+        localFactory.addBean("dataPermissionProvider", recursiveProvider);
+        EnterpriseDataPermissionHandler guardedHandler =
+                new EnterpriseDataPermissionHandler(localFactory.getBeanProvider(DataPermissionProvider.class));
+        handlerRef.set(guardedHandler);
+
+        DataPermissionContext.setResourceCode("crm:customer");
+        Expression expr = guardedHandler.getSqlSegment(new Table("crm_customer"), null, "test.mapper.CustomerMapper.selectList");
+        assertThat(expr).isNotNull();
+        assertThat(expr.toString()).isEqualTo("crm_customer.created_by = 77");
+    }
+
     private DataScope createDataScope(
             String resource,
             String tableAlias,

@@ -39,6 +39,7 @@ public class EnterpriseDataPermissionHandler implements MultiDataPermissionHandl
 
     private final ObjectProvider<DataPermissionProvider> dataPermissionProvider;
     private final Map<String, Optional<DataScope>> dataScopeCache = new ConcurrentHashMap<>();
+    private static final ThreadLocal<Boolean> RESOLVING_PERMISSION = new ThreadLocal<>();
 
     public EnterpriseDataPermissionHandler(ObjectProvider<DataPermissionProvider> dataPermissionProvider) {
         this.dataPermissionProvider = dataPermissionProvider;
@@ -51,6 +52,9 @@ public class EnterpriseDataPermissionHandler implements MultiDataPermissionHandl
 
     @Override
     public Expression getSqlSegment(Table table, Expression where, String mappedStatementId) {
+        if (Boolean.TRUE.equals(RESOLVING_PERMISSION.get())) {
+            return null;
+        }
         // 1. 检查租户上下文是否旁路隔离（如平台级特权或异步系统迁移）
         TenantAccessContext context = TenantAccessContextHolder.current();
         if (context != null && context.bypassesTenantIsolation()) {
@@ -103,12 +107,17 @@ public class EnterpriseDataPermissionHandler implements MultiDataPermissionHandl
             return null;
         }
 
-        // 6. 解析并求解数据权限规约
+        // 6. 解析并求解数据权限规约（重入保护防止解析期间查询 iam_user/rules 触发 StackOverflowError）
         DataPermissionSqlSpec spec = DataPermissionContext.getSqlSpec();
         if (spec == null && resourceCode != null) {
             DataPermissionProvider provider = dataPermissionProvider.getIfAvailable();
             if (provider != null) {
-                spec = provider.resolveDataPermission(resourceCode);
+                RESOLVING_PERMISSION.set(Boolean.TRUE);
+                try {
+                    spec = provider.resolveDataPermission(resourceCode);
+                } finally {
+                    RESOLVING_PERMISSION.remove();
+                }
             }
         }
 

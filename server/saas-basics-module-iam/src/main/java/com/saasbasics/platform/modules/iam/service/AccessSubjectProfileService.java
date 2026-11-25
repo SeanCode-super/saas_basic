@@ -157,7 +157,14 @@ public class AccessSubjectProfileService implements CurrentDepartmentResolver {
         SystemCacheService cache = cacheServiceProvider.getIfAvailable();
         if (cache != null && rootIds.size() == 1) {
             String cacheKey = String.format(SystemCacheService.KEY_DEPT_TREE, tenantId, rootIds.get(0));
-            return cache.getOrCompute(cacheKey, 7200, () -> computeDepartmentTree(tenantId, rootIds));
+            List<?> cached = cache.getOrCompute(cacheKey, 7200, () -> computeDepartmentTree(tenantId, rootIds));
+            if (cached == null || cached.isEmpty()) {
+                return List.of();
+            }
+            return cached.stream()
+                    .filter(item -> item != null)
+                    .map(item -> item instanceof Number num ? num.longValue() : Long.valueOf(String.valueOf(item)))
+                    .toList();
         }
         return computeDepartmentTree(tenantId, rootIds);
     }

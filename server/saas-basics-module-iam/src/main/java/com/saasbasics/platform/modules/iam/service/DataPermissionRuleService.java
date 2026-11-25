@@ -227,10 +227,12 @@ public class DataPermissionRuleService implements DataPermissionProvider {
         if (tenantId == null || userId == null) {
             return DataPermissionSqlSpec.denyAll(tenantId);
         }
-        UserEntity user = accessSubjectProfileService.findActiveUser(tenantId, userId);
-        boolean isSuperAdmin = user != null && AuthPrincipal.hasPlatformAdminRole(tenantId,
-                accessSubjectProfileService.load(tenantId, userId).roleIds());
-        return resolveSpecForSubject(tenantId, userId, isSuperAdmin, resourceCode);
+        return runWithoutDataPermissionContext(() -> {
+            UserEntity user = accessSubjectProfileService.findActiveUser(tenantId, userId);
+            boolean isSuperAdmin = user != null && AuthPrincipal.hasPlatformAdminRole(tenantId,
+                    accessSubjectProfileService.load(tenantId, userId).roleIds());
+            return resolveSpecForSubject(tenantId, userId, isSuperAdmin, resourceCode);
+        });
     }
 
     public DataPermissionSqlSpec resolveCurrentSpec() {
@@ -262,49 +264,71 @@ public class DataPermissionRuleService implements DataPermissionProvider {
             return DataPermissionSqlSpec.allowAll(tenantId);
         }
 
-        AccessSubjectProfile subjectProfile = accessSubjectProfileService.load(tenantId, userId);
-        List<String> candidateCodes = buildResourceCandidates(resourceCode);
-        List<DataPermissionRuleEntity> allCandidateRules = requiredMapper().selectList(
-                new LambdaQueryWrapper<DataPermissionRuleEntity>()
-                        .eq(DataPermissionRuleEntity::getTenantId, tenantId)
-                        .in(DataPermissionRuleEntity::getResourceCode, candidateCodes)
-                        .eq(DataPermissionRuleEntity::getDeleted, 0)
-                        .eq(DataPermissionRuleEntity::getStatus, "ENABLED")
-        );
+        return runWithoutDataPermissionContext(() -> {
+            AccessSubjectProfile subjectProfile = accessSubjectProfileService.load(tenantId, userId);
+            List<String> candidateCodes = buildResourceCandidates(resourceCode);
+            List<DataPermissionRuleEntity> allCandidateRules = requiredMapper().selectList(
+                    new LambdaQueryWrapper<DataPermissionRuleEntity>()
+                            .eq(DataPermissionRuleEntity::getTenantId, tenantId)
+                            .in(DataPermissionRuleEntity::getResourceCode, candidateCodes)
+                            .eq(DataPermissionRuleEntity::getDeleted, 0)
+                            .eq(DataPermissionRuleEntity::getStatus, "ENABLED")
+            );
 
-        List<DataPermissionRuleEntity> prioritizedRules = selectHighestPriorityTier(allCandidateRules, candidateCodes);
-        if (prioritizedRules.isEmpty()) {
-            return resolveRoleFallbackSpec(tenantId, subjectProfile);
-        }
+            List<DataPermissionRuleEntity> prioritizedRules = selectHighestPriorityTier(allCandidateRules, candidateCodes);
+            if (prioritizedRules.isEmpty()) {
+                return resolveRoleFallbackSpec(tenantId, subjectProfile);
+            }
 
-        List<DataPermissionRuleEntity> matchedRules = prioritizedRules.stream()
-                .filter(rule -> subjectProfile.matches(rule.getSubjectType(), rule.getSubjectValue()))
-                .toList();
+            List<DataPermissionRuleEntity> matchedRules = prioritizedRules.stream()
+                    .filter(rule -> subjectProfile.matches(rule.getSubjectType(), rule.getSubjectValue()))
+                    .toList();
 
-        if (matchedRules.isEmpty()) {
-            return DataPermissionSqlSpec.denyAll(tenantId);
-        }
+            if (matchedRules.isEmpty()) {
+                return DataPermissionSqlSpec.denyAll(tenantId);
+            }
 
-        DataPermissionSqlSpec spec = new DataPermissionSqlSpec();
-        spec.setTenantId(tenantId);
-        for (DataPermissionRuleEntity rule : matchedRules) {
-            if (isAllScopeRule(rule)) {
-                if (isDenyRule(rule)) {
-                    return DataPermissionSqlSpec.denyAll(tenantId);
+            DataPermissionSqlSpec spec = new DataPermissionSqlSpec();
+            spec.setTenantId(tenantId);
+            for (DataPermissionRuleEntity rule : matchedRules) {
+                if (isAllScopeRule(rule)) {
+                    if (isDenyRule(rule)) {
+                        return DataPermissionSqlSpec.denyAll(tenantId);
+                    }
+                    return DataPermissionSqlSpec.allowAll(tenantId);
                 }
-                return DataPermissionSqlSpec.allowAll(tenantId);
+                DataPermissionSqlSpec.RuleClause clause = buildRuleClause(subjectProfile, rule);
+                if (isDenyRule(rule)) {
+                    spec.addDenyClause(clause);
+                } else {
+                    spec.addAllowClause(clause);
+                }
             }
-            DataPermissionSqlSpec.RuleClause clause = buildRuleClause(subjectProfile, rule);
-            if (isDenyRule(rule)) {
-                spec.addDenyClause(clause);
-            } else {
-                spec.addAllowClause(clause);
+            if (spec.getAllowClauses().isEmpty() || !spec.hasConstraints()) {
+                spec.setDenyAll(true);
+            }
+            return spec;
+        });
+    }
+
+    private static DataPermissionSqlSpec runWithoutDataPermissionContext(java.util.function.Supplier<DataPermissionSqlSpec> action) {
+        var previousScope = DataPermissionContext.getDataScope();
+        var previousResource = DataPermissionContext.getResourceCode();
+        var previousSpec = DataPermissionContext.getSqlSpec();
+        DataPermissionContext.clear();
+        try {
+            return action.get();
+        } finally {
+            if (previousScope != null) {
+                DataPermissionContext.setDataScope(previousScope);
+            }
+            if (previousResource != null) {
+                DataPermissionContext.setResourceCode(previousResource);
+            }
+            if (previousSpec != null) {
+                DataPermissionContext.setSqlSpec(previousSpec);
             }
         }
-        if (spec.getAllowClauses().isEmpty() || !spec.hasConstraints()) {
-            spec.setDenyAll(true);
-        }
-        return spec;
     }
 
     private DataPermissionSqlSpec resolveRoleFallbackSpec(Long tenantId, AccessSubjectProfile subjectProfile) {

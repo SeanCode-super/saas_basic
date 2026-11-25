@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.saasbasics.platform.SaasBasicsApplication;
 import com.saasbasics.platform.common.auth.AuthContext;
 import com.saasbasics.platform.common.auth.AuthPrincipal;
+import com.saasbasics.platform.common.auth.DataPermissionContext;
 import com.saasbasics.platform.common.auth.DataPermissionSqlSpec;
 import com.saasbasics.platform.common.id.UuidV7Generator;
 import com.saasbasics.platform.common.tenant.TenantAccessContextHolder;
@@ -23,7 +24,9 @@ import com.saasbasics.platform.modules.iam.mapper.UserMapper;
 import com.saasbasics.platform.modules.iam.mapper.UserRoleMapper;
 import com.saasbasics.platform.modules.iam.service.AccessSubjectProfileService;
 import com.saasbasics.platform.modules.iam.service.DataPermissionRuleService;
+import com.saasbasics.platform.modules.iam.service.IamService;
 import com.saasbasics.platform.modules.iam.service.OrganizationLegacyMigrationService;
+import com.saasbasics.platform.modules.iam.service.UserService;
 import com.saasbasics.platform.modules.organization.api.OrganizationDirectory;
 import com.saasbasics.platform.modules.organization.api.OrganizationMigrationFacade.MigrationMode;
 import java.time.Instant;
@@ -74,9 +77,12 @@ class OrganizationLegacyMigrationIntegrationTest {
     @Autowired private AccessSubjectProfileService subjectProfileService;
     @Autowired private OrganizationDirectory organizationDirectory;
     @Autowired private DataPermissionRuleService dataPermissionRuleService;
+    @Autowired private UserService userService;
+    @Autowired private IamService iamService;
 
     @AfterEach
     void cleanup() {
+        DataPermissionContext.clear();
         AuthContext.clear();
         TenantAccessContextHolder.clear();
         subjectProfileService.setLegacyEmployeeFallbackEnabled(true);
@@ -190,6 +196,26 @@ class OrganizationLegacyMigrationIntegrationTest {
             DataPermissionSqlSpec spec = dataPermissionRuleService.resolveDataPermission("crm:customer:query");
             assertThat(spec.getOrgUnitPublicIds()).hasSize(2);
             assertThat(organizationDirectory.findEffectiveAssignments(profile.personPublicId(), Instant.now())).hasSize(1);
+
+            // 6. Re-entrancy & SQL safety check for non-super-admin @RequireDataPermission endpoints
+            DataPermissionContext.setResourceCode("iam:user:list");
+            try {
+                assertThat(userService.listUsers()).isNotEmpty();
+                DataPermissionContext.setResourceCode("iam:department:list");
+                assertThat(iamService.departments()).isEmpty();
+                DataPermissionContext.setResourceCode("iam:position:list");
+                assertThat(iamService.positions()).isEmpty();
+                DataPermissionContext.setResourceCode("iam:employee:list");
+                assertThat(iamService.employees()).isNotEmpty();
+
+                subjectProfileService.setLegacyEmployeeFallbackEnabled(true);
+                DataPermissionContext.setResourceCode("iam:department:list");
+                assertThat(iamService.departments()).hasSize(2);
+                DataPermissionContext.setResourceCode("iam:user:list");
+                assertThat(userService.listUsers()).isNotEmpty();
+            } finally {
+                DataPermissionContext.clear();
+            }
         }
     }
 }
