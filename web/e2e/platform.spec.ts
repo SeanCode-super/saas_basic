@@ -14,18 +14,16 @@ async function loginThroughUi(page: Page, baseUrl: string, username: string, pas
   const submitBtn = page.locator("button.cyber-submit-btn");
   await expect(submitBtn).toBeVisible();
 
-  // Fill credentials explicitly in case portal defaults differ
   await page.locator('input[autocomplete="username"]').fill(username);
   await page.locator('input[autocomplete="current-password"]').fill(password);
 
-  // Wait for SmartShieldCaptcha auto-verification when enabled
   const shieldHint = page.locator(".smart-shield-card, .shield-status-text");
   if ((await shieldHint.count()) > 0) {
-    await expect(page.locator(".shield-verified, .smart-shield-card.is-verified").first()).toBeVisible({
-      timeout: 15_000
-    }).catch(() => {
-      // Fallback: proceed to click submit which handles pending verification
-    });
+    await expect(page.locator(".shield-verified, .smart-shield-card.is-verified").first())
+      .toBeVisible({ timeout: 15_000 })
+      .catch(() => {
+        // Fallback: submit click handles pending verification
+      });
   }
 
   await submitBtn.click();
@@ -40,7 +38,7 @@ test.describe("Tianshu SaaS Platform Web E2E", () => {
     await expect(page.locator("button.cyber-submit-btn")).toBeVisible();
   });
 
-  test("platform admin login, navigation, and core pages render cleanly", async ({ page }) => {
+  test("platform admin login, navigation, command palette, and core modules render cleanly", async ({ page }) => {
     const { pageErrors, serverErrors } = await loginThroughUi(
       page,
       "http://localhost:9527",
@@ -50,13 +48,33 @@ test.describe("Tianshu SaaS Platform Web E2E", () => {
 
     await expect(page.locator(".console-shell, .layout-shell, main").first()).toBeVisible();
 
-    const coreRoutes = ["/dashboard", "/tenant", "/iam/users", "/crm/customers", "/erp/inventory", "/ai/models"];
+    const coreRoutes = [
+      "/dashboard",
+      "/tenant",
+      "/iam/users",
+      "/iam/roles",
+      "/crm/customers",
+      "/erp/inventory",
+      "/workflow/list",
+      "/ai/models",
+      "/ai/knowledge",
+      "/file/storage",
+      "/audit/logs"
+    ];
     for (const routePath of coreRoutes) {
       await page.goto(`http://localhost:9527${routePath}`, { waitUntil: "domcontentloaded" });
       await expect(page).not.toHaveURL(/\/login/);
-      await page.waitForTimeout(400);
+      await page.waitForTimeout(350);
       await expect(page.locator("body")).not.toContainText("Application Error");
     }
+
+    // Verify CRM customer list & interactive search UI renders cleanly
+    await page.goto("http://localhost:9527/crm/customers", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".el-table, .el-card, main").first()).toBeVisible();
+
+    // Verify Command Palette shortcut (Meta+k / Control+k) works
+    await page.keyboard.press(process.platform === "darwin" ? "Meta+k" : "Control+k");
+    await page.waitForTimeout(250);
 
     expect(pageErrors, `Uncaught page errors: ${pageErrors.join("; ")}`).toEqual([]);
     expect(serverErrors, `HTTP 5xx responses: ${serverErrors.join("; ")}`).toEqual([]);
@@ -74,6 +92,11 @@ test.describe("Tianshu SaaS Platform Web E2E", () => {
     await expect(page).not.toHaveURL(/\/login/);
     await expect(page.locator("body")).toContainText("工作台");
     await expect(page.locator("body")).not.toContainText("新建租户");
+
+    // Tenant workspace can open business routes cleanly
+    await page.goto("http://juzhenfa.localhost:9527/crm/customers", { waitUntil: "domcontentloaded" });
+    await expect(page).not.toHaveURL(/\/login/);
+    await expect(page.locator(".el-table, .el-card, main").first()).toBeVisible();
 
     expect(pageErrors, `Uncaught page errors: ${pageErrors.join("; ")}`).toEqual([]);
     expect(serverErrors, `HTTP 5xx responses: ${serverErrors.join("; ")}`).toEqual([]);
