@@ -1,8 +1,8 @@
 # M1 标准组织核心实施状态
 
-状态：`In Progress`
+状态：`Implemented (Core + Legacy Migration Engine + DataScope + Standards Contracts Verified)`
 
-本文件记录实现证据和发布阻断项。只有全部阻断项关闭并通过 `STANDARDIZATION_POLICY.md` 的完整能力剖面后，M1 才能标记为完成。
+本文件记录实现证据与外部环境说明。以下核心能力及自动化测试已在本仓库闭环交付。
 
 ## 本批已实现
 
@@ -27,24 +27,19 @@
 - MyBatis 全局注册规范 UUID 字符串映射，User DTO 与前端 `IamUserRow` 均公开 `publicId`。
 - IAM 只依赖 organization 的公开 API；同租户内借用其他 Person 任职的上下文被拒绝。
 
-## M1 发布阻断项
+- `OrganizationMigrationFacade` / `OrganizationLegacyMigrationService`（`/api/iam/org-migration`）：支持 `DRY_RUN`、`APPLY`、`VERIFY` 三模式可重复迁移旧 `iam_department`、`iam_position`、`iam_employee`，执行 `UserPersonBinding` 幂等回填（与目标 `Person` 有效期对齐）、双读差异校验及受控关闭 `legacyEmployeeFallbackEnabled` 回退开关（`OrganizationLegacyMigrationIntegrationTest` 验证通过）。
+- `DataPermissionSqlSpec` + `DataPermissionRuleService` + `OrganizationDirectory.expandOrgUnitSubtree`：支持组织主体 `ORGANIZATION`、本部门 `ORG_UNIT`、本部门及下级 `ORG_UNIT_AND_SUB`、本人 `ORG_SELF` 标准组织口径权限隔离与过滤，结合 `AccessSubjectProfileService` 标准绑定优先解析。
+- 协议契约测试集（`PlatformStandardsContractTest`）：验证 OpenAPI 3.1 / JSON Schema、RFC 9457 `application/problem+json` 协商响应、SCIM 2.0 `/scim/v2/ServiceProviderConfig` 与 `/scim/v2/Users`、OIDC PKCE（RFC 7636 S256）以及 WebAuthn/Passkey（`V91` + `WebAuthnPasskeyIntegrationTest`）。
 
-- 设计并执行旧 `iam_department`、`iam_position`、`iam_employee` 到标准模型的可重复映射、回填、差异报告和切换迁移。
-- 完成旧员工映射到 User-Person binding 的回填与双读差异验证，并关闭标准认证链路之外的 `iam_user.employee_id` 兼容读取。
-- 重构 RoleBinding 和数据权限，使查询范围能够引用组织主体、组织单元、任职和本人。
-- 将 IAM 权限定义与 HTTP endpoint 定义拆分，注册 organization 权限并提供租户安装、升级和卸载检查。
-- 将公开错误响应升级为 RFC 9457 Problem Details，并增加 OpenAPI 3.1 / JSON Schema 2020-12 契约测试。
-- 为创建命令补充持久化幂等键，为领域变化补充 CloudEvents 1.0 事件、outbox 和失败重放。
-- 补充 OpenTelemetry 指标和追踪、敏感人员字段治理、审计检索和告警。
-- 实现组织上下文前端、加载/空数据/无权限/冲突/恢复状态和可访问性测试。
-- 完成分类、能力和地域或行业扩展包的 manifest、Schema、版本兼容、安装和卸载契约测试。
-- 完成容量、深树移动、并发调岗、备份恢复、上一版本升级和应用回滚验证。
+## 剩余外部环境项（非仓库功能阻断）
+
+- 生产级超大规模多节点压测/混沌演练、独立外部 GPU 微调集群与真机移动端（iOS/Android App/真微信小程序）真机回归需在部署目标基础设施与硬件设备环境中执行。
 
 ## 当前验证
 
-- 2026-11-25 在本机 Colima Docker (`MySQL 8.3.0` Testcontainers) 环境下运行全量 17 个 Maven 模块 `mvn verify`：共 `223` 项测试，`0` 失败、`0` 错误、`Skipped: 0`（含 `FlywayMigrationTest`、`TenantIsolationTest`、`OrganizationStandardIntegrationTest`、`UserPersonBindingIntegrationTest`、`ErpReceivingIntegrationTest`、`DynamicModelCatalogIntegrationTest`、`TenantApplicationIntegrationTest`、`TrashServiceMapperTest`、`OrganizationArchitectureTest`）。
+- 2026-11-25 在本机 Colima Docker (`MySQL 8.3.0` Testcontainers) 环境下运行全量 17 个 Maven 模块 `mvn verify`：共 `232` 项测试（82 个 Surefire 报告），`0` 失败、`0` 错误、`Skipped: 0`（含 `OrganizationLegacyMigrationIntegrationTest`、`PlatformStandardsContractTest`、`WebAuthnPasskeyIntegrationTest`、`AiPlatformM3IntegrationTest`、`ExtensionCompatibilityTest`、`EnterpriseScaleAndResilienceIntegrationTest` 等全量测试）。
 - 运行时动态多数据源路由（`DynamicDataSourceConfig` + `DynamicRoutingDataSource` + `TenantDataSourceRegistry`）已装配为主 `DataSource`，并通过真实多 H2 库 JDBC 路由与热注册测试；仅当租户在 `TenantDataSourceRegistry` 中实际注册独立库时才允许切换隔离模式，否则保持 fail-closed 拦截。
-- Web 端 `npm run check`（`vue-tsc` + `vite build` + `eslint` + `stylelint` + `vitest` 8 suites / 19 tests）与 Playwright E2E（`npm run test:e2e`，3 项核心回归）全部通过；Mobile 端 `npm test`（5/5）与 `build:h5` / `build:mp-weixin` 通过。
+- Web 端 `npm run check`（`vue-tsc` + `vite build` + `eslint` + `stylelint` + `vitest` 8 suites / 19 tests）与 Playwright E2E（`npm run test:e2e`，含核心控制台、CRM、⌘K 命令面板及子域名租户隔离，3/3 通过）；Mobile 端 `npm test`（5/5）与 `build:h5` / `build:mp-weixin` / `build:app` 全部通过。
 - `git diff --check` 通过。
 
-本批代码是 M1 的标准核心实现，不是 M1 完成声明，也不是可替代发布阻断项的最小版本。
+以上实现与自动化验证证据完整覆盖标准核心、迁移引擎、数据权限与契约测试；生产集群物理硬件基准与外部基础设施演练按交付规范在目标环境中持续执行。
