@@ -16,6 +16,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,12 +27,22 @@ public class ExtensionInstallations implements TenantAppAccess {
     private final IndustryRegistry registry;
     private final TenantAppMapper tenantAppMapper;
     private final TenantMapper tenantMapper;
+    private final ExtensionCompatibilityResolver compatibilityResolver;
 
     public ExtensionInstallations(List<TenantApplication> modules, IndustryRegistry registry,
                                   TenantAppMapper tenantAppMapper, TenantMapper tenantMapper) {
+        this(modules, registry, tenantAppMapper, tenantMapper, new ExtensionCompatibilityResolver("0.1.0"));
+    }
+
+    @Autowired
+    public ExtensionInstallations(List<TenantApplication> modules, IndustryRegistry registry,
+                                  TenantAppMapper tenantAppMapper, TenantMapper tenantMapper,
+                                  ExtensionCompatibilityResolver compatibilityResolver) {
         this.registry = registry;
         this.tenantAppMapper = tenantAppMapper;
         this.tenantMapper = tenantMapper;
+        this.compatibilityResolver = compatibilityResolver != null
+                ? compatibilityResolver : new ExtensionCompatibilityResolver("0.1.0");
         for (TenantApplication app : modules) {
             if (!app.code().matches("[a-z][a-z0-9_]{0,39}") || app.latestRevision() < 1
                     || app.name().isBlank() || app.name().length() > 128
@@ -121,6 +132,11 @@ public class ExtensionInstallations implements TenantAppAccess {
         if (target < 1 || target > app.latestRevision() || target < previous) {
             throw new BizException("APP_REVISION_INVALID", "目标版本无效或低于已安装版本");
         }
+        Map<String, TenantApplication> byCode = new LinkedHashMap<>(applications);
+        for (TenantApplication ext : registry.catalog()) {
+            byCode.putIfAbsent(ext.code(), ext);
+        }
+        compatibilityResolver.verifyCompatibleAndDependencies(tenantId, app, byCode, tenantAppMapper);
         if (target == previous) return;
 
         try (var ignored = TenantAccessContextHolder.openTenant(tenantId, tenantCode, principal.userId())) {
@@ -144,6 +160,9 @@ public class ExtensionInstallations implements TenantAppAccess {
     }
 
     void syncMenu(long tenantId, TenantApplication app, boolean enabled) {
+        if (!enabled) {
+            compatibilityResolver.assertNoActiveDependents(tenantId, app.code(), catalog(), tenantAppMapper);
+        }
         var principal = installationActor(tenantId);
         // IAM menus and resources use the target tenant's routed data source and tenant interceptor.
         try (var ignored = TenantAccessContextHolder.openTenant(tenantId, lockTenant(tenantId), principal.userId())) {

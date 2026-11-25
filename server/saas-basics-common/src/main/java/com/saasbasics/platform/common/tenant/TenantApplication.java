@@ -16,6 +16,15 @@ public interface TenantApplication {
     String componentPath();
     int latestRevision();
 
+    /** Minimum host platform SemVer (inclusive), or null if unconstrained. */
+    default String minHostVersion() { return null; }
+
+    /** Maximum host platform SemVer (inclusive), or null if unconstrained. */
+    default String maxHostVersion() { return null; }
+
+    /** Required extension dependencies mapped as appCode -> minimum installed revision. */
+    default java.util.Map<String, Integer> dependencies() { return java.util.Map.of(); }
+
     /**
      * Apply one consecutive revision in the install transaction. Only use tenant-scoped DML
      * here. Shared schema migrations belong to the application's deployment.
