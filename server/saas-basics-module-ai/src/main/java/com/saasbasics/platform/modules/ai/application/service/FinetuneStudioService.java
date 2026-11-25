@@ -5,6 +5,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.saasbasics.platform.common.auth.AuthContext;
 import com.saasbasics.platform.common.auth.AuthPrincipal;
+import com.saasbasics.platform.common.exception.BizException;
+import com.saasbasics.platform.common.security.SsrfProtectionValidator;
 import com.saasbasics.platform.modules.ai.application.dto.AiPlatformDtos.FinetuneDatasetDTO;
 import com.saasbasics.platform.modules.ai.application.dto.AiPlatformDtos.FinetuneDatasetSaveRequest;
 import com.saasbasics.platform.modules.ai.application.dto.AiPlatformDtos.FinetuneJobCreateRequest;
@@ -21,7 +23,12 @@ import com.saasbasics.platform.modules.ai.infrastructure.persistence.mapper.AiFi
 import com.saasbasics.platform.modules.ai.infrastructure.persistence.mapper.AiFinetuneSampleMapper;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -30,6 +37,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,6 +57,25 @@ public class FinetuneStudioService {
     private final ObjectProvider<AiFinetuneJobMapper> jobMapperProvider;
     private final ObjectProvider<AiCommandHistoryMapper> historyMapperProvider;
     private final ObjectMapper objectMapper;
+    private volatile String trainingEndpoint = "";
+    private volatile String trainingApiKey = "";
+    private volatile boolean allowPrivateTrainingEndpoint = false;
+    private final HttpClient httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+
+    @Value("${saas-basics.ai.training.endpoint:}")
+    public void setTrainingEndpoint(String trainingEndpoint) {
+        this.trainingEndpoint = trainingEndpoint == null ? "" : trainingEndpoint.trim();
+    }
+
+    @Value("${saas-basics.ai.training.api-key:}")
+    public void setTrainingApiKey(String trainingApiKey) {
+        this.trainingApiKey = trainingApiKey == null ? "" : trainingApiKey.trim();
+    }
+
+    @Value("${saas-basics.ai.training.allow-private-for-dev:false}")
+    public void setAllowPrivateTrainingEndpoint(boolean allowPrivateTrainingEndpoint) {
+        this.allowPrivateTrainingEndpoint = allowPrivateTrainingEndpoint;
+    }
 
     public FinetuneStudioService(
             ObjectProvider<AiFinetuneDatasetMapper> datasetMapperProvider,
@@ -278,8 +305,150 @@ public class FinetuneStudioService {
 
     @Transactional
     public FinetuneJobDTO startTrainingJob(FinetuneJobCreateRequest req) {
-        throw new com.saasbasics.platform.common.exception.BizException(
-                "AI_TRAINING_PROVIDER_UNAVAILABLE", "当前没有可执行训练任务的服务，请导出已审核数据集");
+        if (trainingEndpoint == null || trainingEndpoint.isBlank()) {
+            throw new BizException(
+                    "AI_TRAINING_PROVIDER_UNAVAILABLE", "当前没有可执行训练任务的服务，请配置外部训练服务或导出已审核数据集");
+        }
+        URI endpointUri = SsrfProtectionValidator.validateOutboundUri(trainingEndpoint, allowPrivateTrainingEndpoint);
+        AiFinetuneJobMapper jobMapper = jobMapperProvider.getIfAvailable();
+        if (jobMapper == null) {
+            throw new BizException("DB_PROFILE_REQUIRED", "Fine-tuning job persistence requires the db profile");
+        }
+        if (req == null || req.datasetId() == null) {
+            throw new BizException("INVALID_PARAM", "Dataset id is required");
+        }
+
+        byte[] jsonlBytes = exportJsonl(req.datasetId(), "ALPACA");
+        if (jsonlBytes.length == 0) {
+            throw new BizException("AI_DATASET_EMPTY", "Selected dataset has no approved samples to train on");
+        }
+
+        Long tenantId = currentTenantId();
+        Long userId = currentUserId();
+        String baseModel = (req.baseModel() != null && !req.baseModel().isBlank())
+                ? req.baseModel().trim() : "Qwen2.5-7B-Instruct";
+        int epochs = req.epochs() != null && req.epochs() > 0 ? req.epochs() : 3;
+        String learningRate = (req.learningRate() != null && !req.learningRate().isBlank())
+                ? req.learningRate().trim() : "2e-4";
+        int loraRank = req.loraRank() != null && req.loraRank() > 0 ? req.loraRank() : 16;
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("tenantId", tenantId);
+        payload.put("datasetId", req.datasetId());
+        payload.put("baseModel", baseModel);
+        payload.put("tuningMethod", "LORA");
+        payload.put("epochs", epochs);
+        payload.put("learningRate", learningRate);
+        payload.put("loraRank", loraRank);
+        payload.put("trainingJsonl", new String(jsonlBytes, StandardCharsets.UTF_8));
+
+        Map<String, Object> remoteResp = invokeTrainerApi(endpointUri, "POST", payload);
+        String remoteJobId = String.valueOf(remoteResp.getOrDefault("jobId",
+                "ft-" + UUID.randomUUID().toString().substring(0, 10)));
+        String status = String.valueOf(remoteResp.getOrDefault("status", "RUNNING")).toUpperCase(Locale.ROOT);
+
+        AiFinetuneJobEntity job = new AiFinetuneJobEntity();
+        job.setTenantId(tenantId);
+        job.setJobCode(remoteJobId);
+        job.setJobName((req.jobName() != null && !req.jobName().isBlank())
+                ? req.jobName().trim() : "LoRA-" + baseModel + "-" + remoteJobId);
+        job.setDatasetId(req.datasetId());
+        job.setBaseModel(baseModel);
+        job.setTuningMethod("LORA");
+        job.setEpochs(epochs);
+        job.setLearningRate(learningRate);
+        job.setLoraRank(loraRank);
+        job.setStatus(status);
+        job.setProgressPercent(parseInt(remoteResp.get("progressPercent"), 5));
+        job.setTrainLoss(BigDecimal.ZERO);
+        job.setEvalAccuracy(BigDecimal.ZERO);
+        job.setBaselineAccuracy(BigDecimal.ZERO);
+        job.setMetricsJson(toJsonSafe(remoteResp));
+        job.setCreatedBy(userId);
+        job.setUpdatedBy(userId);
+        job.setCreatedAt(LocalDateTime.now());
+        job.setUpdatedAt(LocalDateTime.now());
+        job.setDeleted(0);
+        jobMapper.insert(job);
+        return toJobDto(job);
+    }
+
+    @Transactional
+    public FinetuneJobDTO syncTrainingJobStatus(Long jobId) {
+        if (trainingEndpoint == null || trainingEndpoint.isBlank()) {
+            throw new BizException("AI_TRAINING_PROVIDER_UNAVAILABLE", "未配置外部训练服务端点");
+        }
+        AiFinetuneJobMapper jobMapper = jobMapperProvider.getIfAvailable();
+        if (jobMapper == null) {
+            throw new BizException("DB_PROFILE_REQUIRED", "Fine-tuning job persistence requires the db profile");
+        }
+        AiFinetuneJobEntity job = jobMapper.selectOne(new LambdaQueryWrapper<AiFinetuneJobEntity>()
+                .eq(AiFinetuneJobEntity::getId, jobId)
+                .eq(AiFinetuneJobEntity::getTenantId, currentTenantId())
+                .eq(AiFinetuneJobEntity::getDeleted, 0)
+                .last("LIMIT 1"));
+        if (job == null) {
+            throw new BizException("AI_TRAINING_JOB_NOT_FOUND", "微调训练任务不存在");
+        }
+        String base = trainingEndpoint.endsWith("/") ? trainingEndpoint.substring(0, trainingEndpoint.length() - 1) : trainingEndpoint;
+        URI statusUri = SsrfProtectionValidator.validateOutboundUri(base + "/" + job.getJobCode(), allowPrivateTrainingEndpoint);
+        Map<String, Object> remoteResp = invokeTrainerApi(statusUri, "GET", null);
+
+        job.setStatus(String.valueOf(remoteResp.getOrDefault("status", job.getStatus())).toUpperCase(Locale.ROOT));
+        job.setProgressPercent(parseInt(remoteResp.get("progressPercent"),
+                job.getProgressPercent() != null ? job.getProgressPercent() : 0));
+        if (remoteResp.containsKey("trainLoss")) {
+            job.setTrainLoss(new BigDecimal(String.valueOf(remoteResp.get("trainLoss"))).setScale(4, RoundingMode.HALF_UP));
+        }
+        if (remoteResp.containsKey("evalAccuracy")) {
+            job.setEvalAccuracy(new BigDecimal(String.valueOf(remoteResp.get("evalAccuracy"))).setScale(4, RoundingMode.HALF_UP));
+        }
+        if (remoteResp.containsKey("outputModelId")) {
+            job.setOutputModelId(String.valueOf(remoteResp.get("outputModelId")));
+        }
+        job.setMetricsJson(toJsonSafe(remoteResp));
+        job.setUpdatedAt(LocalDateTime.now());
+        jobMapper.updateById(job);
+        return toJobDto(job);
+    }
+
+    private Map<String, Object> invokeTrainerApi(URI uri, String method, Map<String, Object> body) {
+        try {
+            HttpRequest.Builder reqBuilder = HttpRequest.newBuilder(uri)
+                    .timeout(Duration.ofSeconds(15))
+                    .header("Accept", "application/json");
+            if (trainingApiKey != null && !trainingApiKey.isBlank()) {
+                reqBuilder.header("Authorization", "Bearer " + trainingApiKey);
+            }
+            if ("POST".equals(method)) {
+                reqBuilder.header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)));
+            } else {
+                reqBuilder.GET();
+            }
+            HttpResponse<String> response = httpClient.send(reqBuilder.build(), HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new BizException("AI_TRAINING_REMOTE_ERROR",
+                        "外部训练服务返回异常状态: " + response.statusCode());
+            }
+            if (response.body() == null || response.body().isBlank()) {
+                return Map.of();
+            }
+            return objectMapper.readValue(response.body(), new TypeReference<>() {});
+        } catch (BizException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new BizException("AI_TRAINING_REMOTE_ERROR", "调用外部训练服务失败: " + ex.getMessage());
+        }
+    }
+
+    private static int parseInt(Object val, int fallback) {
+        if (val == null) return fallback;
+        try {
+            return Integer.parseInt(String.valueOf(val));
+        } catch (Exception ignored) {
+            return fallback;
+        }
     }
 
     private void recalcDatasetCounts(Long tenantId, Long datasetId) {

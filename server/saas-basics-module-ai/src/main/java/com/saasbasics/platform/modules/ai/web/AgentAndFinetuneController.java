@@ -144,4 +144,10 @@ public class AgentAndFinetuneController {
     public ApiResponse<FinetuneJobDTO> startJob(@RequestBody FinetuneJobCreateRequest request) {
         return ApiResponse.success(finetuneStudioService.startTrainingJob(request));
     }
+
+    @PostMapping("/finetune/jobs/{jobId}/sync")
+    @RequirePermission("system:config:write")
+    public ApiResponse<FinetuneJobDTO> syncJob(@PathVariable("jobId") Long jobId) {
+        return ApiResponse.success(finetuneStudioService.syncTrainingJobStatus(jobId));
+    }
 }

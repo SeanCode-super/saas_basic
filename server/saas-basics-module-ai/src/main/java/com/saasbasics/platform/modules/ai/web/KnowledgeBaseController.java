@@ -13,6 +13,9 @@ import com.saasbasics.platform.modules.ai.application.dto.AiPlatformDtos.Knowled
 import com.saasbasics.platform.modules.ai.application.dto.AiPlatformDtos.KnowledgeQueryRequest;
 import com.saasbasics.platform.modules.ai.application.dto.AiPlatformDtos.KnowledgeTextIngestRequest;
 import com.saasbasics.platform.modules.ai.application.service.KnowledgeRagService;
+import com.saasbasics.platform.modules.ai.application.service.RagEvaluationService;
+import com.saasbasics.platform.modules.ai.application.service.RagEvaluationService.EvalReport;
+import com.saasbasics.platform.modules.ai.application.service.RagEvaluationService.EvalRequest;
 import java.io.IOException;
 import java.util.List;
 import org.springframework.http.MediaType;
@@ -32,9 +35,12 @@ import org.springframework.web.multipart.MultipartFile;
 public class KnowledgeBaseController {
 
     private final KnowledgeRagService knowledgeRagService;
+    private final RagEvaluationService ragEvaluationService;
 
-    public KnowledgeBaseController(KnowledgeRagService knowledgeRagService) {
+    public KnowledgeBaseController(KnowledgeRagService knowledgeRagService,
+                                   RagEvaluationService ragEvaluationService) {
         this.knowledgeRagService = knowledgeRagService;
+        this.ragEvaluationService = ragEvaluationService;
     }
 
     @GetMapping("/bases")
@@ -94,5 +100,15 @@ public class KnowledgeBaseController {
     @PostMapping("/review-document")
     public ApiResponse<DocumentReviewResponse> reviewDocument(@RequestBody DocumentReviewRequest request) {
         return ApiResponse.success(knowledgeRagService.reviewDocument(request));
+    }
+
+    @PostMapping("/eval")
+    public ApiResponse<EvalReport> evaluateRag(@RequestBody EvalRequest request) {
+        return ApiResponse.success(ragEvaluationService.evaluate(request));
+    }
+
+    @GetMapping("/eval/runs")
+    public ApiResponse<List<EvalReport>> listEvalRuns(@RequestParam(name = "kbId", required = false) Long kbId) {
+        return ApiResponse.success(ragEvaluationService.listRuns(kbId));
     }
 }

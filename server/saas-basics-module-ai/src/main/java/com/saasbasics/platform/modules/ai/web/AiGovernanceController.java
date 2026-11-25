@@ -16,6 +16,8 @@ import com.saasbasics.platform.modules.ai.application.dto.AiToolApprovalRequest;
 import com.saasbasics.platform.modules.ai.application.dto.AiToolCallDTO;
 import com.saasbasics.platform.modules.ai.application.dto.AiToolDTO;
 import com.saasbasics.platform.modules.ai.application.dto.AiToolWhitelistRequest;
+import com.saasbasics.platform.modules.ai.application.service.AiBillingReconciliationService;
+import com.saasbasics.platform.modules.ai.application.service.AiBillingReconciliationService.ReconciliationReport;
 import com.saasbasics.platform.modules.ai.application.service.AiMcpGovernanceService;
 import com.saasbasics.platform.modules.ai.application.service.AiMeteringQuotaService;
 import com.saasbasics.platform.modules.ai.application.service.AiPromptService;
@@ -30,6 +32,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -44,17 +47,20 @@ public class AiGovernanceController {
     private final AiMcpGovernanceService mcpGovernanceService;
     private final AiMeteringQuotaService meteringQuotaService;
     private final AiRunOrchestratorService runOrchestratorService;
+    private final AiBillingReconciliationService billingReconciliationService;
 
     public AiGovernanceController(
             AiPromptService promptService,
             AiMcpGovernanceService mcpGovernanceService,
             AiMeteringQuotaService meteringQuotaService,
-            AiRunOrchestratorService runOrchestratorService
+            AiRunOrchestratorService runOrchestratorService,
+            AiBillingReconciliationService billingReconciliationService
     ) {
         this.promptService = promptService;
         this.mcpGovernanceService = mcpGovernanceService;
         this.meteringQuotaService = meteringQuotaService;
         this.runOrchestratorService = runOrchestratorService;
+        this.billingReconciliationService = billingReconciliationService;
     }
 
     // ---------- Prompts & Versioning ----------
@@ -167,5 +173,18 @@ public class AiGovernanceController {
             @RequestBody(required = false) AiToolApprovalRequest request) {
         return ApiResponse.success(runOrchestratorService.rejectToolCall(
                 callId, request != null ? request.reason() : null));
+    }
+
+    // ---------- Token & Cost Billing Reconciliation ----------
+    @PostMapping("/billing/reconcile")
+    public ApiResponse<ReconciliationReport> reconcileBilling(
+            @RequestParam(name = "period", required = false) String period,
+            @RequestParam(name = "autoRepair", defaultValue = "false") boolean autoRepair) {
+        return ApiResponse.success(billingReconciliationService.reconcile(period, autoRepair));
+    }
+
+    @GetMapping("/billing/reconciliations")
+    public ApiResponse<List<ReconciliationReport>> listBillingReconciliations() {
+        return ApiResponse.success(billingReconciliationService.listReconciliations());
     }
 }
