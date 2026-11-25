@@ -12,6 +12,7 @@ import com.saasbasics.platform.modules.ai.domain.ChatModelProvider;
 import com.saasbasics.platform.modules.ai.domain.ChatProviderCommand;
 import com.saasbasics.platform.modules.ai.domain.ChatProviderResult;
 import com.saasbasics.platform.modules.ai.domain.CredentialResolver;
+import com.saasbasics.platform.modules.ai.infrastructure.adapter.AiVendorPresetRegistry;
 import com.saasbasics.platform.modules.ai.infrastructure.persistence.entity.AiModelConfigEntity;
 import com.saasbasics.platform.modules.ai.infrastructure.persistence.entity.AiPromptVersionEntity;
 import com.saasbasics.platform.modules.ai.infrastructure.persistence.entity.AiProviderEntity;
@@ -109,12 +110,14 @@ public class AiChatGatewayService implements AiGatewayFacade {
                 for (AiModelConfigEntity cfg : configs) {
                     AiProviderEntity prov = providerMap.get(cfg.getProviderId());
                     String vendorName = prov != null ? prov.getProviderName() : "AI Provider";
-                    boolean hasKey = prov != null && prov.getApiKey() != null && !prov.getApiKey().isBlank();
+                    boolean hasKey = prov != null && ((prov.getApiKey() != null && !prov.getApiKey().isBlank())
+                            || !AiVendorPresetRegistry.requiresApiKey(prov.getProviderType()));
 
                     Map<String, Object> item = new HashMap<>();
                     item.put("id", cfg.getModelId());
                     item.put("name", cfg.getModelName());
                     item.put("vendor", vendorName);
+                    item.put("providerType", prov != null ? prov.getProviderType() : "OPENAI_COMPATIBLE");
                     item.put("contextWindow", cfg.getContextWindow() != null ? cfg.getContextWindow() : "64k");
                     item.put("status", "CONFIGURED");
                     item.put("isDefault", cfg.getIsDefault() != null && cfg.getIsDefault() == 1);
@@ -164,7 +167,7 @@ public class AiChatGatewayService implements AiGatewayFacade {
         List<ChatMessageData> chatMessages = buildMessages(request);
         String lastPrompt = extractLastUserMessage(request);
 
-        if (endpoint != null && endpoint.apiKey != null && !endpoint.apiKey.isBlank()) {
+        if (isEndpointUsable(endpoint)) {
             try {
                 ChatModelProvider adapter = selectProvider(endpoint.providerType);
                 ChatProviderResult remoteResp = adapter.chat(new ChatProviderCommand(
@@ -198,10 +201,53 @@ public class AiChatGatewayService implements AiGatewayFacade {
                         remoteResp.latencyMs()
                 );
             } catch (Exception e) {
-                throw new BizException("AI_PROVIDER_UNAVAILABLE", "模型服务调用失败，请检查供应商连接");
+                throw new BizException("AI_PROVIDER_UNAVAILABLE", "模型服务调用失败: " + e.getMessage());
             }
         }
         throw new BizException("AI_PROVIDER_NOT_CONFIGURED", "未配置此模型的可用服务凭据");
+    }
+
+    public record FallbackCompletionResult(
+            ChatCompletionOutput output,
+            String usedModelId,
+            String providerCode,
+            boolean fallbackUsed,
+            int attempts
+    ) {}
+
+    /**
+     * Executes chat completion across an ordered chain of candidate model IDs, automatically falling back on failure.
+     */
+    public FallbackCompletionResult completeWithFallback(
+            List<String> modelChain,
+            String promptCode,
+            List<ChatMessage> messages,
+            Double temperature
+    ) {
+        List<String> candidates = (modelChain == null ? List.<String>of() : modelChain).stream()
+                .filter(id -> id != null && !id.isBlank())
+                .map(String::trim)
+                .distinct()
+                .toList();
+        if (candidates.isEmpty()) {
+            candidates = List.of("deepseek-chat");
+        }
+        Exception lastError = null;
+        for (int i = 0; i < candidates.size(); i++) {
+            String candidateModel = candidates.get(i);
+            try {
+                ResolvedEndpoint ep = resolveEndpoint(candidateModel);
+                ChatCompletionOutput out = complete(new ChatCompletionCommand(candidateModel, promptCode, messages, temperature));
+                String provCode = ep != null ? ep.providerCode : "unknown";
+                return new FallbackCompletionResult(out, candidateModel, provCode, i > 0, i + 1);
+            } catch (Exception ex) {
+                lastError = ex;
+                log.warn("[AI Gateway Fallback] Model [{}] attempt #{} failed: {}", candidateModel, i + 1, ex.getMessage());
+            }
+        }
+        throw new BizException("AI_FALLBACK_EXHAUSTED",
+                "全部候选模型均调用失败 (" + String.join(" -> ", candidates) + "): "
+                        + (lastError != null ? lastError.getMessage() : "unknown"));
     }
 
     public SseEmitter chatStream(AiChatRequest request) {
@@ -221,7 +267,7 @@ public class AiChatGatewayService implements AiGatewayFacade {
         executor.submit(() -> {
             long start = System.currentTimeMillis();
             try {
-                if (endpoint != null && endpoint.apiKey != null && !endpoint.apiKey.isBlank()) {
+                if (isEndpointUsable(endpoint)) {
                     ChatModelProvider adapter = selectProvider(endpoint.providerType);
                     StringBuilder fullBuffer = new StringBuilder();
                     AtomicInteger promptTokens = new AtomicInteger(Math.max(8, lastPrompt.length() / 2));
@@ -333,6 +379,16 @@ public class AiChatGatewayService implements AiGatewayFacade {
                 .orElseThrow(() -> new IllegalStateException("未找到适配模型协议提供者: " + providerType));
     }
 
+    private boolean isEndpointUsable(ResolvedEndpoint endpoint) {
+        if (endpoint == null) {
+            return false;
+        }
+        if (endpoint.apiKey != null && !endpoint.apiKey.isBlank()) {
+            return true;
+        }
+        return !AiVendorPresetRegistry.requiresApiKey(endpoint.providerType);
+    }
+
     private ResolvedEndpoint resolveEndpoint(String modelId) {
         try {
             List<AiModelConfigEntity> configs = modelConfigMapper.selectList(
@@ -344,13 +400,14 @@ public class AiChatGatewayService implements AiGatewayFacade {
                 if (prov != null) {
                     String base = prov.getBaseUrl() != null ? prov.getBaseUrl().trim() : "";
                     while (base.endsWith("/")) base = base.substring(0, base.length() - 1);
-                    String url = base.endsWith("/chat/completions") ? base : (base + "/chat/completions");
                     String rawKey = credentialResolver.resolvePlainSecret(prov.getTenantId(), prov.getId(), prov.getApiKey());
-                    if ((rawKey == null || rawKey.isBlank()) && fallbackApiKey != null && !fallbackApiKey.isBlank()) {
+                    if ((rawKey == null || rawKey.isBlank()) && fallbackApiKey != null && !fallbackApiKey.isBlank()
+                            && AiVendorPresetRegistry.requiresApiKey(prov.getProviderType())) {
                         rawKey = credentialResolver.resolvePlainSecret(1L, null, fallbackApiKey);
                     }
-                    return new ResolvedEndpoint(url, rawKey, modelCfg.getModelId(),
-                            prov.getProviderCode(), prov.getProviderType(), modelCfg.getMaxTokens());
+                    String resolvedType = resolveEffectiveProviderType(prov.getProviderType(), base);
+                    return new ResolvedEndpoint(base, rawKey, modelCfg.getModelId(),
+                            prov.getProviderCode(), resolvedType, modelCfg.getMaxTokens());
                 }
             }
         } catch (Exception e) {
@@ -360,11 +417,17 @@ public class AiChatGatewayService implements AiGatewayFacade {
         if (fallbackApiKey != null && !fallbackApiKey.isBlank()) {
             String base = fallbackBaseUrl != null ? fallbackBaseUrl.trim() : "https://api.deepseek.com";
             while (base.endsWith("/")) base = base.substring(0, base.length() - 1);
-            String url = base.endsWith("/chat/completions") ? base : (base + "/chat/completions");
-            return new ResolvedEndpoint(url, credentialResolver.resolvePlainSecret(1L, null, fallbackApiKey),
+            return new ResolvedEndpoint(base, credentialResolver.resolvePlainSecret(1L, null, fallbackApiKey),
                     modelId, "fallback", "OPENAI_COMPATIBLE", 4096);
         }
         return null;
+    }
+
+    private String resolveEffectiveProviderType(String configuredType, String baseUrl) {
+        if ("OLLAMA".equalsIgnoreCase(configuredType) && baseUrl != null && !baseUrl.endsWith("/v1")) {
+            return "OLLAMA_NATIVE";
+        }
+        return configuredType != null ? configuredType : "OPENAI_COMPATIBLE";
     }
 
     private record ResolvedEndpoint(

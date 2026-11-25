@@ -56,10 +56,23 @@ public class OpenAiCompatibleChatProvider implements ChatModelProvider {
 
     @Override
     public boolean supports(String providerType) {
-        return providerType == null
-                || "OPENAI_COMPATIBLE".equalsIgnoreCase(providerType)
-                || "OLLAMA".equalsIgnoreCase(providerType)
-                || "CUSTOM".equalsIgnoreCase(providerType);
+        if (providerType == null) {
+            return true;
+        }
+        return switch (providerType.trim().toUpperCase()) {
+            case "OPENAI_COMPATIBLE", "OPENAI", "DEEPSEEK", "QWEN", "ZHIPU",
+                 "MOONSHOT", "VOLCENGINE", "OPENROUTER", "GROQ", "XAI",
+                 "OLLAMA", "VLLM", "LOCAL", "CUSTOM" -> true;
+            default -> false;
+        };
+    }
+
+    public static String buildCompletionsUrl(String baseUrl) {
+        String clean = (baseUrl == null || baseUrl.isBlank()) ? "https://api.openai.com/v1" : baseUrl.trim();
+        while (clean.endsWith("/")) {
+            clean = clean.substring(0, clean.length() - 1);
+        }
+        return clean.endsWith("/chat/completions") ? clean : (clean + "/chat/completions");
     }
 
     @Override
@@ -67,7 +80,7 @@ public class OpenAiCompatibleChatProvider implements ChatModelProvider {
         long start = System.currentTimeMillis();
         try {
             boolean allowPrivate = environment == null || !environment.matchesProfiles("prod");
-            URI endpointUri = SsrfProtectionValidator.validateOutboundUri(command.endpointUrl(), allowPrivate);
+            URI endpointUri = SsrfProtectionValidator.validateOutboundUri(buildCompletionsUrl(command.endpointUrl()), allowPrivate);
 
             Map<String, Object> reqBody = buildPayload(command, false);
             String jsonPayload = objectMapper.writeValueAsString(reqBody);
@@ -115,7 +128,7 @@ public class OpenAiCompatibleChatProvider implements ChatModelProvider {
     ) {
         try {
             boolean allowPrivate = environment == null || !environment.matchesProfiles("prod");
-            URI endpointUri = SsrfProtectionValidator.validateOutboundUri(command.endpointUrl(), allowPrivate);
+            URI endpointUri = SsrfProtectionValidator.validateOutboundUri(buildCompletionsUrl(command.endpointUrl()), allowPrivate);
 
             Map<String, Object> reqBody = buildPayload(command, true);
             String jsonPayload = objectMapper.writeValueAsString(reqBody);

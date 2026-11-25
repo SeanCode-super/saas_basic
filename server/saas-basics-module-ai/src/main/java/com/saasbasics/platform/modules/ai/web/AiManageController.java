@@ -11,6 +11,8 @@ import com.saasbasics.platform.modules.ai.application.dto.AiTestConnectionReques
 import com.saasbasics.platform.modules.ai.application.dto.AiTestConnectionResult;
 import com.saasbasics.platform.modules.ai.application.dto.VaultRotateResultDTO;
 import com.saasbasics.platform.modules.ai.application.service.AiModelManageService;
+import com.saasbasics.platform.modules.ai.application.service.AiModelManageService.DiscoveredModelDTO;
+import com.saasbasics.platform.modules.ai.infrastructure.adapter.AiVendorPresetRegistry.VendorPreset;
 import java.util.List;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,6 +32,16 @@ public class AiManageController {
 
     public AiManageController(AiModelManageService aiModelManageService) {
         this.aiModelManageService = aiModelManageService;
+    }
+
+    @GetMapping("/providers/presets")
+    public ApiResponse<List<VendorPreset>> listProviderPresets() {
+        return ApiResponse.success(aiModelManageService.listVendorPresets());
+    }
+
+    @PostMapping("/providers/{id}/discover-models")
+    public ApiResponse<List<DiscoveredModelDTO>> discoverProviderModels(@PathVariable Long id) {
+        return ApiResponse.success(aiModelManageService.discoverModels(id));
     }
 
     @GetMapping("/providers")

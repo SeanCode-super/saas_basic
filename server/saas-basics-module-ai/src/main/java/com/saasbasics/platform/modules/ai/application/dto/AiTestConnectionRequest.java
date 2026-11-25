@@ -3,12 +3,15 @@ package com.saasbasics.platform.modules.ai.application.dto;
 public class AiTestConnectionRequest {
 
     private Long providerId;
+    private String providerType;
     private String baseUrl;
     private String apiKey;
     private String testModel;
 
     public Long getProviderId() { return providerId; }
     public void setProviderId(Long providerId) { this.providerId = providerId; }
+    public String getProviderType() { return providerType; }
+    public void setProviderType(String providerType) { this.providerType = providerType; }
     public String getBaseUrl() { return baseUrl; }
     public void setBaseUrl(String baseUrl) { this.baseUrl = baseUrl; }
     public String getApiKey() { return apiKey; }

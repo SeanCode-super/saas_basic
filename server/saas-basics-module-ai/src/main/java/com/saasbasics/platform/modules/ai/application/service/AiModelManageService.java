@@ -14,6 +14,14 @@ import com.saasbasics.platform.modules.ai.application.dto.AiTestConnectionReques
 import com.saasbasics.platform.modules.ai.application.dto.AiTestConnectionResult;
 import com.saasbasics.platform.modules.ai.application.dto.VaultRotateResultDTO;
 import com.saasbasics.platform.modules.ai.domain.CredentialResolver;
+import com.saasbasics.platform.modules.ai.infrastructure.adapter.AiVendorPresetRegistry;
+import com.saasbasics.platform.modules.ai.infrastructure.adapter.AiVendorPresetRegistry.VendorPreset;
+import com.saasbasics.platform.modules.ai.infrastructure.adapter.AnthropicChatProvider;
+import com.saasbasics.platform.modules.ai.infrastructure.adapter.AzureOpenAiChatProvider;
+import com.saasbasics.platform.modules.ai.infrastructure.adapter.GeminiChatProvider;
+import com.saasbasics.platform.modules.ai.infrastructure.adapter.OllamaNativeChatProvider;
+import com.saasbasics.platform.modules.ai.infrastructure.adapter.OpenAiCompatibleChatProvider;
+import com.saasbasics.platform.modules.ai.infrastructure.adapter.ProviderHttpSupport;
 import com.saasbasics.platform.modules.ai.infrastructure.persistence.entity.AiCredentialRefEntity;
 import com.saasbasics.platform.modules.ai.infrastructure.persistence.entity.AiMcpServerEntity;
 import com.saasbasics.platform.modules.ai.infrastructure.persistence.entity.AiModelConfigEntity;
@@ -255,6 +263,9 @@ public class AiModelManageService {
             if (prov != null) {
                 dto.setProviderName(prov.getProviderName());
                 dto.setProviderCode(prov.getProviderCode());
+                dto.setProviderType(prov.getProviderType());
+                dto.setHasApiKey((prov.getApiKey() != null && !prov.getApiKey().isBlank())
+                        || !AiVendorPresetRegistry.requiresApiKey(prov.getProviderType()));
             }
             return dto;
         }).collect(Collectors.toList());
@@ -310,17 +321,141 @@ public class AiModelManageService {
         modelConfigMapper.deleteById(id);
     }
 
+    public record DiscoveredModelDTO(
+            String modelId,
+            String modelName,
+            String category,
+            String contextWindow,
+            boolean alreadyConfigured
+    ) {}
+
+    public List<VendorPreset> listVendorPresets() {
+        return AiVendorPresetRegistry.all();
+    }
+
+    public List<DiscoveredModelDTO> discoverModels(Long providerId) {
+        AiProviderEntity prov = providerMapper.selectById(providerId);
+        if (prov == null) {
+            throw new IllegalArgumentException("未找到服务商: " + providerId);
+        }
+        String rawKey = credentialResolver.resolvePlainSecret(prov.getTenantId(), prov.getId(), prov.getApiKey());
+        String baseUrl = trimTrailingSlashes(prov.getBaseUrl());
+        String pType = prov.getProviderType() != null ? prov.getProviderType().toUpperCase() : "OPENAI_COMPATIBLE";
+
+        var existingIds = modelConfigMapper.selectList(
+                        new LambdaQueryWrapper<AiModelConfigEntity>().eq(AiModelConfigEntity::getProviderId, providerId))
+                .stream()
+                .map(AiModelConfigEntity::getModelId)
+                .collect(Collectors.toSet());
+
+        List<DiscoveredModelDTO> discovered = new java.util.ArrayList<>();
+        try {
+            if ("OLLAMA".equals(pType) || "OLLAMA_NATIVE".equals(pType)) {
+                String ollamaBase = baseUrl.endsWith("/v1") ? baseUrl.substring(0, baseUrl.length() - 3) : baseUrl;
+                URI uri = ProviderHttpSupport.validateEndpoint(ollamaBase + "/api/tags", null);
+                HttpRequest req = HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(8)).GET().build();
+                HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
+                if (resp.statusCode() == 200) {
+                    JsonNode models = objectMapper.readTree(resp.body()).path("models");
+                    if (models.isArray()) {
+                        for (JsonNode m : models) {
+                            String id = m.path("name").asText();
+                            if (!id.isBlank()) {
+                                discovered.add(new DiscoveredModelDTO(id, id, guessCategory(id), "32k", existingIds.contains(id)));
+                            }
+                        }
+                    }
+                }
+            } else if ("GEMINI".equals(pType)) {
+                String prefix = baseUrl.endsWith("/models") ? baseUrl : (baseUrl + "/models");
+                URI uri = ProviderHttpSupport.validateEndpoint(prefix, null);
+                HttpRequest.Builder reqB = HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(8)).GET();
+                if (rawKey != null && !rawKey.isBlank()) reqB.header("x-goog-api-key", rawKey.trim());
+                HttpResponse<String> resp = httpClient.send(reqB.build(), HttpResponse.BodyHandlers.ofString());
+                if (resp.statusCode() == 200) {
+                    JsonNode models = objectMapper.readTree(resp.body()).path("models");
+                    if (models.isArray()) {
+                        for (JsonNode m : models) {
+                            String rawName = m.path("name").asText("");
+                            String id = rawName.startsWith("models/") ? rawName.substring(7) : rawName;
+                            String display = m.path("displayName").asText(id);
+                            if (!id.isBlank()) {
+                                discovered.add(new DiscoveredModelDTO(id, display, guessCategory(id), "1M", existingIds.contains(id)));
+                            }
+                        }
+                    }
+                }
+            } else if ("ANTHROPIC".equals(pType)) {
+                String modelsUrl = baseUrl.endsWith("/v1") ? (baseUrl + "/models") : (baseUrl + "/v1/models");
+                URI uri = ProviderHttpSupport.validateEndpoint(modelsUrl, null);
+                HttpRequest.Builder reqB = HttpRequest.newBuilder(uri)
+                        .timeout(Duration.ofSeconds(8))
+                        .header("anthropic-version", "2023-06-01")
+                        .GET();
+                if (rawKey != null && !rawKey.isBlank()) reqB.header("x-api-key", rawKey.trim());
+                HttpResponse<String> resp = httpClient.send(reqB.build(), HttpResponse.BodyHandlers.ofString());
+                if (resp.statusCode() == 200) {
+                    JsonNode data = objectMapper.readTree(resp.body()).path("data");
+                    if (data.isArray()) {
+                        for (JsonNode m : data) {
+                            String id = m.path("id").asText();
+                            String display = m.path("display_name").asText(id);
+                            if (!id.isBlank()) {
+                                discovered.add(new DiscoveredModelDTO(id, display, guessCategory(id), "200k", existingIds.contains(id)));
+                            }
+                        }
+                    }
+                }
+            } else {
+                String modelsUrl = baseUrl.endsWith("/models") ? baseUrl : (baseUrl + "/models");
+                URI uri = ProviderHttpSupport.validateEndpoint(modelsUrl, null);
+                HttpRequest.Builder reqB = HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(8)).GET();
+                if (rawKey != null && !rawKey.isBlank()) reqB.header("Authorization", "Bearer " + rawKey.trim());
+                HttpResponse<String> resp = httpClient.send(reqB.build(), HttpResponse.BodyHandlers.ofString());
+                if (resp.statusCode() == 200) {
+                    JsonNode data = objectMapper.readTree(resp.body()).path("data");
+                    if (data.isArray()) {
+                        for (JsonNode m : data) {
+                            String id = m.path("id").asText();
+                            if (!id.isBlank()) {
+                                discovered.add(new DiscoveredModelDTO(id, id, guessCategory(id), "128k", existingIds.contains(id)));
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("[AI Discover Models] {}: {}", prov.getProviderCode(), ex.getMessage());
+        }
+
+        if (discovered.isEmpty()) {
+            AiVendorPresetRegistry.all().stream()
+                    .filter(p -> p.vendorCode().equalsIgnoreCase(prov.getProviderCode())
+                            || p.providerType().equalsIgnoreCase(pType))
+                    .findFirst()
+                    .ifPresent(preset -> preset.suggestedModels().forEach(t ->
+                            discovered.add(new DiscoveredModelDTO(
+                                    t.modelId(), t.modelName(), t.category(), t.contextWindow(),
+                                    existingIds.contains(t.modelId())))));
+        }
+        return discovered;
+    }
+
     public AiTestConnectionResult testConnection(AiTestConnectionRequest req) {
         long start = System.currentTimeMillis();
         String targetBaseUrl = req.getBaseUrl();
         String targetApiKey = req.getApiKey();
         String testModel = req.getTestModel();
+        String providerType = req.getProviderType();
 
         if (req.getProviderId() != null) {
             AiProviderEntity prov = providerMapper.selectById(req.getProviderId());
             if (prov != null) {
                 if (targetBaseUrl == null || targetBaseUrl.isBlank()) {
                     targetBaseUrl = prov.getBaseUrl();
+                }
+                if (providerType == null || providerType.isBlank()) {
+                    providerType = prov.getProviderType();
                 }
                 if (targetApiKey == null || targetApiKey.isBlank() || targetApiKey.contains("****")) {
                     targetApiKey = credentialResolver.resolvePlainSecret(prov.getTenantId(), prov.getId(), prov.getApiKey());
@@ -332,30 +467,92 @@ public class AiModelManageService {
             return new AiTestConnectionResult(false, 0, "Base URL 为空，无法发起测试", null);
         }
 
-        String normalizedUrl = targetBaseUrl.trim();
-        while (normalizedUrl.endsWith("/")) {
-            normalizedUrl = normalizedUrl.substring(0, normalizedUrl.length() - 1);
-        }
-        String endpoint = normalizedUrl.endsWith("/chat/completions") ? normalizedUrl : (normalizedUrl + "/chat/completions");
+        String pType = providerType != null ? providerType.trim().toUpperCase() : "OPENAI_COMPATIBLE";
+        String normalizedUrl = trimTrailingSlashes(targetBaseUrl);
         if (testModel == null || testModel.isBlank()) {
-            testModel = "deepseek-chat";
+            testModel = switch (pType) {
+                case "ANTHROPIC" -> "claude-sonnet-4-20250514";
+                case "GEMINI" -> "gemini-2.5-flash";
+                case "AZURE_OPENAI" -> "gpt-4o";
+                case "OLLAMA", "OLLAMA_NATIVE" -> "llama3.1:8b";
+                default -> "deepseek-chat";
+            };
         }
 
         try {
-            Map<String, Object> bodyMap = new HashMap<>();
-            bodyMap.put("model", testModel);
-            bodyMap.put("messages", List.of(Map.of("role", "user", "content", "hi")));
-            bodyMap.put("max_tokens", 8);
-            bodyMap.put("stream", false);
-
-            HttpRequest.Builder httpReqBuilder = HttpRequest.newBuilder()
-                    .uri(URI.create(endpoint))
-                    .timeout(Duration.ofSeconds(8))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(bodyMap)));
-
-            if (targetApiKey != null && !targetApiKey.isBlank()) {
-                httpReqBuilder.header("Authorization", "Bearer " + targetApiKey.trim());
+            String endpoint;
+            HttpRequest.Builder httpReqBuilder;
+            if ("ANTHROPIC".equals(pType)) {
+                endpoint = AnthropicChatProvider.buildMessagesUrl(normalizedUrl);
+                URI uri = ProviderHttpSupport.validateEndpoint(endpoint, null);
+                Map<String, Object> bodyMap = Map.of(
+                        "model", testModel,
+                        "max_tokens", 8,
+                        "messages", List.of(Map.of("role", "user", "content", "hi"))
+                );
+                httpReqBuilder = HttpRequest.newBuilder(uri)
+                        .timeout(Duration.ofSeconds(8))
+                        .header("Content-Type", "application/json")
+                        .header("anthropic-version", "2023-06-01")
+                        .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(bodyMap)));
+                if (targetApiKey != null && !targetApiKey.isBlank()) {
+                    httpReqBuilder.header("x-api-key", targetApiKey.trim());
+                }
+            } else if ("GEMINI".equals(pType)) {
+                endpoint = GeminiChatProvider.buildGenerateUrl(normalizedUrl, testModel, false);
+                URI uri = ProviderHttpSupport.validateEndpoint(endpoint, null);
+                Map<String, Object> bodyMap = Map.of(
+                        "contents", List.of(Map.of("role", "user", "parts", List.of(Map.of("text", "hi")))),
+                        "generationConfig", Map.of("maxOutputTokens", 8)
+                );
+                httpReqBuilder = HttpRequest.newBuilder(uri)
+                        .timeout(Duration.ofSeconds(8))
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(bodyMap)));
+                if (targetApiKey != null && !targetApiKey.isBlank()) {
+                    httpReqBuilder.header("x-goog-api-key", targetApiKey.trim());
+                }
+            } else if ("AZURE_OPENAI".equals(pType)) {
+                endpoint = AzureOpenAiChatProvider.buildDeploymentUrl(normalizedUrl, testModel);
+                URI uri = ProviderHttpSupport.validateEndpoint(endpoint, null);
+                Map<String, Object> bodyMap = Map.of(
+                        "messages", List.of(Map.of("role", "user", "content", "hi")),
+                        "max_tokens", 8
+                );
+                httpReqBuilder = HttpRequest.newBuilder(uri)
+                        .timeout(Duration.ofSeconds(8))
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(bodyMap)));
+                if (targetApiKey != null && !targetApiKey.isBlank()) {
+                    httpReqBuilder.header("api-key", targetApiKey.trim());
+                }
+            } else if ("OLLAMA_NATIVE".equals(pType) || ("OLLAMA".equals(pType) && !normalizedUrl.endsWith("/v1"))) {
+                endpoint = OllamaNativeChatProvider.buildChatUrl(normalizedUrl);
+                URI uri = ProviderHttpSupport.validateEndpoint(endpoint, null);
+                Map<String, Object> bodyMap = Map.of(
+                        "model", testModel,
+                        "stream", false,
+                        "messages", List.of(Map.of("role", "user", "content", "hi"))
+                );
+                httpReqBuilder = HttpRequest.newBuilder(uri)
+                        .timeout(Duration.ofSeconds(8))
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(bodyMap)));
+            } else {
+                endpoint = OpenAiCompatibleChatProvider.buildCompletionsUrl(normalizedUrl);
+                URI uri = ProviderHttpSupport.validateEndpoint(endpoint, null);
+                Map<String, Object> bodyMap = new HashMap<>();
+                bodyMap.put("model", testModel);
+                bodyMap.put("messages", List.of(Map.of("role", "user", "content", "hi")));
+                bodyMap.put("max_tokens", 8);
+                bodyMap.put("stream", false);
+                httpReqBuilder = HttpRequest.newBuilder(uri)
+                        .timeout(Duration.ofSeconds(8))
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(bodyMap)));
+                if (targetApiKey != null && !targetApiKey.isBlank()) {
+                    httpReqBuilder.header("Authorization", "Bearer " + targetApiKey.trim());
+                }
             }
 
             HttpResponse<String> response = httpClient.send(httpReqBuilder.build(), HttpResponse.BodyHandlers.ofString());
@@ -364,18 +561,11 @@ public class AiModelManageService {
             String responseBody = response.body();
 
             if (statusCode == 200) {
-                String replySample = "握手成功";
-                try {
-                    JsonNode root = objectMapper.readTree(responseBody);
-                    JsonNode contentNode = root.at("/choices/0/message/content");
-                    if (!contentNode.isMissingNode() && !contentNode.asText().isBlank()) {
-                        replySample = contentNode.asText().trim();
-                    }
-                } catch (Exception ignored) {
-                }
-                return new AiTestConnectionResult(true, latency, String.format("握手成功 (HTTP 200)，时延: %d ms", latency), replySample);
-            } else if (statusCode == 401) {
-                return new AiTestConnectionResult(false, latency, "认证失败 (HTTP 401)：API Key 无效或未提供", responseBody);
+                String replySample = extractProbeSnippet(responseBody, pType);
+                return new AiTestConnectionResult(true, latency,
+                        String.format("握手成功 [%s] (HTTP 200)，时延: %d ms", pType, latency), replySample);
+            } else if (statusCode == 401 || statusCode == 403) {
+                return new AiTestConnectionResult(false, latency, "认证失败 (HTTP " + statusCode + ")：API Key 无效或权限不足", responseBody);
             } else if (statusCode == 404) {
                 return new AiTestConnectionResult(false, latency, String.format("端点未找到 (HTTP 404)：请检查 Base URL [%s]", endpoint), responseBody);
             } else if (statusCode == 429) {
@@ -388,6 +578,46 @@ public class AiModelManageService {
             log.warn("[AI Connection Test Failed]: {}", ex.getMessage());
             return new AiTestConnectionResult(false, latency, "连接失败: " + ex.getMessage(), null);
         }
+    }
+
+    private String extractProbeSnippet(String responseBody, String pType) {
+        try {
+            JsonNode root = objectMapper.readTree(responseBody);
+            JsonNode contentNode = switch (pType) {
+                case "ANTHROPIC" -> root.at("/content/0/text");
+                case "GEMINI" -> root.at("/candidates/0/content/parts/0/text");
+                case "OLLAMA_NATIVE", "OLLAMA" -> {
+                    JsonNode n = root.at("/message/content");
+                    yield n.isMissingNode() ? root.at("/choices/0/message/content") : n;
+                }
+                default -> root.at("/choices/0/message/content");
+            };
+            if (!contentNode.isMissingNode() && !contentNode.asText().isBlank()) {
+                return contentNode.asText().trim();
+            }
+        } catch (Exception ignored) {
+        }
+        return "握手成功";
+    }
+
+    private static String trimTrailingSlashes(String url) {
+        String clean = url == null ? "" : url.trim();
+        while (clean.endsWith("/")) {
+            clean = clean.substring(0, clean.length() - 1);
+        }
+        return clean;
+    }
+
+    private static String guessCategory(String modelId) {
+        String low = modelId.toLowerCase();
+        if (low.contains("reason") || low.contains("-r1") || low.startsWith("o1") || low.startsWith("o3")
+                || low.contains("thinking") || low.contains("pro")) {
+            return "REASONING";
+        }
+        if (low.contains("code")) {
+            return "CODER";
+        }
+        return "CHAT";
     }
 
     private void upsertCredentialRef(AiProviderEntity provider, boolean keyRotatedOrUpdated) {

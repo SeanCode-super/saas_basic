@@ -10,6 +10,8 @@ public class AiModelConfigDTO {
     private Long providerId;
     private String providerName;
     private String providerCode;
+    private String providerType;
+    private Boolean hasApiKey;
     private String modelId;
     private String modelName;
     private String category;
@@ -32,6 +34,10 @@ public class AiModelConfigDTO {
     public void setProviderName(String providerName) { this.providerName = providerName; }
     public String getProviderCode() { return providerCode; }
     public void setProviderCode(String providerCode) { this.providerCode = providerCode; }
+    public String getProviderType() { return providerType; }
+    public void setProviderType(String providerType) { this.providerType = providerType; }
+    public Boolean getHasApiKey() { return hasApiKey; }
+    public void setHasApiKey(Boolean hasApiKey) { this.hasApiKey = hasApiKey; }
     public String getModelId() { return modelId; }
     public void setModelId(String modelId) { this.modelId = modelId; }
     public String getModelName() { return modelName; }
