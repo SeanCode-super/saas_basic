@@ -1,0 +1,43 @@
+groups:
+  - name: tianshu-platform-alerts
+    rules:
+      - alert: TianshuServerDown
+        expr: up{job="tianshu-saas-server"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Tianshu SaaS backend instance is down"
+          description: "Prometheus cannot scrape {{ $labels.instance }} for more than 1 minute."
+
+      - alert: TianshuHighHttp5xxRate
+        expr: sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m])) / clamp_min(sum(rate(http_server_requests_seconds_count[5m])), 1) > 0.02
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "HTTP 5xx error rate exceeds 2%"
+
+      - alert: TianshuHighP99Latency
+        expr: histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket[5m])) by (le)) > 1.0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API P99 latency exceeds 1s"
+
+      - alert: TianshuJvmHeapPressure
+        expr: sum(jvm_memory_used_bytes{area="heap"}) / clamp_min(sum(jvm_memory_max_bytes{area="heap"}), 1) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "JVM heap usage exceeds 85%"
+
+      - alert: TianshuHikariPoolSaturation
+        expr: hikaricp_connections_pending > 5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "HikariCP database connection pool has pending threads"
