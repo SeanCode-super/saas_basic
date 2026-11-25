@@ -27,6 +27,7 @@ public class AuthContextFilter extends OncePerRequestFilter {
             "/api/auth/captcha",
             "/api/auth/refresh-token",
             "/api/auth/sso",
+            "/api/auth/passkey/",
             "/api/auth/password-reset/",
             "/api/auth/invites/",
             "/api/portal/entry",

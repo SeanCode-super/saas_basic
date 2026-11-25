@@ -669,6 +669,61 @@ public class AuthService {
         }
     }
 
+    @Transactional
+    public AuthLoginResponse issueSessionForVerifiedUser(Long tenantId,
+                                                         Long userId,
+                                                         String loginType,
+                                                         String loginIp,
+                                                         String userAgent) {
+        if (tenantId == null || userId == null) {
+            throw new BizException("AUTH_SUBJECT_NOT_FOUND", "Invalid tenant or user identity");
+        }
+        TenantEntity tenant = requiredTenantMapper().selectOne(new LambdaQueryWrapper<TenantEntity>()
+                .eq(TenantEntity::getId, tenantId)
+                .eq(TenantEntity::getDeleted, 0)
+                .last("LIMIT 1"));
+        if (tenant == null) {
+            throw new BizException("TENANT_NOT_FOUND", "Tenant not found: " + tenantId);
+        }
+        try (TenantAccessContextHolder.Scope ignored = TenantAccessContextHolder.openTenant(
+                tenant.getId(), tenant.getTenantCode(), userId)) {
+            UserEntity user = requiredUserMapper().selectById(userId);
+            if (user == null || !tenantId.equals(user.getTenantId()) || !"ENABLED".equalsIgnoreCase(user.getStatus())) {
+                throw new BizException("USER_NOT_FOUND", "Passkey user is unavailable or disabled");
+            }
+            String accessToken = generateAccessToken();
+            String tokenHash = tokenHash(accessToken);
+            LocalDateTime expireAt = LocalDateTime.now().plusHours(2);
+            String refreshToken = "RT-" + generateAccessToken();
+            String refreshTokenHash = tokenHash(refreshToken);
+            LocalDateTime refreshExpireAt = LocalDateTime.now().plusDays(7);
+
+            AuthSessionEntity session = new AuthSessionEntity();
+            session.setPublicId(uuidGenerator.generate().toString());
+            session.setTenantId(tenant.getId());
+            session.setTenantCode(tenant.getTenantCode());
+            session.setSessionNo("SESS-" + UUID.randomUUID().toString().replace("-", "").substring(0, 20).toUpperCase());
+            session.setUserId(user.getId());
+            session.setUsername(user.getUsername());
+            session.setNickname(user.getNickname());
+            session.setUserType(user.getUserType());
+            session.setLoginType(loginType == null || loginType.isBlank() ? "PASSKEY" : loginType);
+            session.setAccessTokenHash(tokenHash);
+            session.setRefreshTokenHash(refreshTokenHash);
+            session.setLoginIp(loginIp);
+            session.setUserAgent(userAgent);
+            session.setExpireAt(expireAt);
+            session.setRefreshExpireAt(refreshExpireAt);
+            session.setLastAccessAt(LocalDateTime.now());
+            session.setStatus("ONLINE");
+            requiredSessionMapper().insert(session);
+
+            AuthPrincipal principal = toPrincipal(session, user);
+            logLogin(tenant.getId(), user.getId(), user.getUsername(), loginIp, userAgent, true, null);
+            return new AuthLoginResponse(accessToken, refreshToken, "Bearer", expireAt, toCurrentUserResponse(principal));
+        }
+    }
+
     private void verifyUserMfaIfEnabled(UserEntity user, String totpCode) {
         if (user == null || !Boolean.TRUE.equals(user.getMfaEnabled())) {
             return;

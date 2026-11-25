@@ -1,0 +1,28 @@
+CREATE TABLE IF NOT EXISTS `iam_webauthn_credential` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `tenant_id` bigint unsigned NOT NULL,
+  `public_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  `user_id` bigint unsigned NOT NULL,
+  `credential_id` varchar(512) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  `public_key_spki` text CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  `algorithm` int NOT NULL DEFAULT -7,
+  `sign_count` bigint unsigned NOT NULL DEFAULT 0,
+  `aaguid` varchar(64) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL,
+  `transports` varchar(255) DEFAULT NULL,
+  `device_name` varchar(128) NOT NULL DEFAULT 'Passkey',
+  `last_used_at` datetime(3) DEFAULT NULL,
+  `status` varchar(32) NOT NULL DEFAULT 'ENABLED',
+  `created_by` bigint unsigned NOT NULL DEFAULT 0,
+  `created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updated_by` bigint unsigned NOT NULL DEFAULT 0,
+  `updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  `deleted` tinyint(1) NOT NULL DEFAULT 0,
+  `deleted_at` datetime(3) DEFAULT NULL,
+  `version` int unsigned NOT NULL DEFAULT 0,
+  `remark` varchar(500) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_iam_webauthn_public_id` (`tenant_id`, `public_id`, `deleted`),
+  UNIQUE KEY `uk_iam_webauthn_cred_id` (`tenant_id`, `credential_id`, `deleted`),
+  KEY `idx_iam_webauthn_user` (`tenant_id`, `user_id`, `status`, `deleted`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+  COMMENT='WebAuthn / FIDO2 passkey credentials';
