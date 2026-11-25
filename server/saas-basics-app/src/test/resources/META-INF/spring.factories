@@ -1,0 +1,2 @@
+org.springframework.test.context.TestExecutionListener=\
+com.saasbasics.platform.support.TestcontainersContextCleanupListener
