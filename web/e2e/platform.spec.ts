@@ -57,6 +57,7 @@ test.describe("Tianshu SaaS Platform Web E2E", () => {
       "/erp/inventory",
       "/workflow/list",
       "/ai/models",
+      "/ai/agents",
       "/ai/knowledge",
       "/file/storage",
       "/audit/logs"
@@ -71,6 +72,10 @@ test.describe("Tianshu SaaS Platform Web E2E", () => {
     // Verify CRM customer list & interactive search UI renders cleanly
     await page.goto("http://localhost:9527/crm/customers", { waitUntil: "domcontentloaded" });
     await expect(page.locator(".el-table, .el-card, main").first()).toBeVisible();
+
+    // Verify AI Visual Agent DAG Studio renders canvas and palette cleanly
+    await page.goto("http://localhost:9527/ai/agents", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".dag-studio-shell, .dag-main-grid").first()).toBeVisible({ timeout: 10_000 });
 
     // Verify Command Palette shortcut (Meta+k / Control+k) works
     await page.keyboard.press(process.platform === "darwin" ? "Meta+k" : "Control+k");

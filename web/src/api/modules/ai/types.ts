@@ -41,6 +41,8 @@ export interface AiModelConfigRow {
   providerId: number;
   providerName?: string;
   providerCode?: string;
+  providerType?: string;
+  hasApiKey?: boolean;
   modelId: string;
   modelName: string;
   category: "CHAT" | "REASONING" | "CODER" | string;
@@ -71,9 +73,38 @@ export interface AiModelConfigSavePayload {
 
 export interface AiTestConnectionPayload {
   providerId?: number;
+  providerType?: string;
   baseUrl?: string;
   apiKey?: string;
   testModel?: string;
+}
+
+export interface AiVendorModelTemplate {
+  modelId: string;
+  modelName: string;
+  category: string;
+  contextWindow: string;
+  maxTokens: number;
+  defaultTemperature: number;
+}
+
+export interface AiVendorPreset {
+  vendorCode: string;
+  vendorName: string;
+  providerType: string;
+  defaultBaseUrl: string;
+  apiKeyRequired: boolean;
+  authGuide: string;
+  badgeColor: string;
+  suggestedModels: AiVendorModelTemplate[];
+}
+
+export interface AiDiscoveredModel {
+  modelId: string;
+  modelName: string;
+  category: string;
+  contextWindow: string;
+  alreadyConfigured: boolean;
 }
 
 export interface AiTestConnectionResult {
@@ -531,4 +562,116 @@ export interface FinetuneJobRow {
     avgLatencyDeltaMs?: number;
   };
   createdAt?: string;
+}
+
+// --- Visual Agent DAG Orchestration ---
+export type AgentWorkflowNodeType =
+  | "START"
+  | "LLM"
+  | "CONDITION"
+  | "KNOWLEDGE_RAG"
+  | "TOOL_MCP"
+  | "SUB_AGENT"
+  | "HTTP_REQUEST"
+  | "LOOP"
+  | "PARALLEL"
+  | "CODE_TEMPLATE"
+  | "END";
+
+export interface AgentWorkflowNode {
+  id: string;
+  type: AgentWorkflowNodeType | string;
+  label: string;
+  x: number;
+  y: number;
+  config: Record<string, any>;
+}
+
+export interface AgentWorkflowEdge {
+  id: string;
+  source: string;
+  target: string;
+  sourceHandle?: string;
+  label?: string;
+}
+
+export interface AgentWorkflowGraph {
+  nodes: AgentWorkflowNode[];
+  edges: AgentWorkflowEdge[];
+}
+
+export interface AgentWorkflowVariableSpec {
+  name: string;
+  type: string;
+  required: boolean;
+  defaultValue?: string;
+}
+
+export interface AgentWorkflowRow {
+  id: number;
+  publicId: string;
+  workflowCode: string;
+  workflowName: string;
+  agentId?: number;
+  triggerMode: string;
+  graph: AgentWorkflowGraph;
+  variablesSchema: AgentWorkflowVariableSpec[];
+  defaultModelId?: string;
+  fallbackModelIds: string[];
+  status: "DRAFT" | "PUBLISHED" | string;
+  publishedVersion: number;
+  runCount: number;
+  remark?: string;
+  updatedAt?: string;
+}
+
+export interface AgentWorkflowSavePayload {
+  id?: number;
+  workflowCode?: string;
+  workflowName: string;
+  agentId?: number;
+  triggerMode?: string;
+  graph: AgentWorkflowGraph;
+  variablesSchema?: AgentWorkflowVariableSpec[];
+  defaultModelId?: string;
+  fallbackModelIds?: string[];
+  status?: string;
+  remark?: string;
+}
+
+export interface AgentWorkflowNodeTrace {
+  nodeId: string;
+  nodeType: string;
+  nodeLabel: string;
+  modelId?: string;
+  providerCode?: string;
+  attemptNo: number;
+  fallbackUsed: boolean;
+  inputSnapshot: Record<string, any>;
+  outputSnapshot: Record<string, any>;
+  status: "SUCCEEDED" | "FAILED" | string;
+  promptTokens: number;
+  completionTokens: number;
+  latencyMs: number;
+  errorMessage?: string;
+  startedAt?: string;
+  finishedAt?: string;
+}
+
+export interface AgentWorkflowRunRow {
+  id: number;
+  runNo: string;
+  workflowId: number;
+  workflowCode: string;
+  triggerSource: string;
+  inputs: Record<string, any>;
+  outputs: Record<string, any>;
+  status: "RUNNING" | "SUCCEEDED" | "FAILED" | string;
+  totalTokens: number;
+  totalLatencyMs: number;
+  executedNodes: number;
+  errorMessage?: string;
+  startedAt?: string;
+  finishedAt?: string;
+  nodeTraces: AgentWorkflowNodeTrace[];
 }

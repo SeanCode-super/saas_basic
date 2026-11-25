@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
+import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
   Check,
@@ -7,19 +8,23 @@ import {
   Plus,
   Promotion,
   RefreshRight,
-  Service
+  Service,
+  Setting
 } from "@element-plus/icons-vue";
 import BaseCard from "@/components/base/BaseCard.vue";
 import ControlSurface from "@/components/platform/ControlSurface.vue";
+import AgentWorkflowDesigner from "./components/AgentWorkflowDesigner.vue";
 import {
   chatWithAgent,
   deleteAgent,
   fetchAgents,
   fetchAgentTools,
+  fetchAiModels,
   fetchKnowledgeBases,
   fetchPublicAiModels,
   saveAgent,
   type AiAgentRow,
+  type AiModelConfigRow,
   type AiToolOption,
   type KnowledgeBaseRow,
   type KnowledgeCitation
@@ -34,12 +39,15 @@ interface ChatBubble {
   citations?: KnowledgeCitation[];
 }
 
+const router = useRouter();
+const studioMode = ref<"workflow" | "sandbox">("workflow");
 const loading = ref(false);
 const saving = ref(false);
 const sending = ref(false);
 const agents = ref<AiAgentRow[]>([]);
 const tools = ref<AiToolOption[]>([]);
 const kbs = ref<KnowledgeBaseRow[]>([]);
+const fullModels = ref<AiModelConfigRow[]>([]);
 const modelOptions = ref<Array<{ id: string; name: string }>>([]);
 
 const selectedAgentId = ref<number | undefined>(undefined);
@@ -111,15 +119,17 @@ function resetNewAgent() {
 async function loadAll() {
   loading.value = true;
   try {
-    const [agentRows, toolRows, kbRows, models] = await Promise.all([
+    const [agentRows, toolRows, kbRows, models, manageModels] = await Promise.all([
       fetchAgents(),
       fetchAgentTools(),
       fetchKnowledgeBases(),
-      fetchPublicAiModels().catch(() => [])
+      fetchPublicAiModels().catch(() => []),
+      fetchAiModels().catch(() => [])
     ]);
     agents.value = agentRows;
     tools.value = toolRows;
     kbs.value = kbRows;
+    fullModels.value = manageModels;
     modelOptions.value = models.map((m) => ({ id: m.id, name: `${m.name} (${m.vendor})` }));
 
     if (agentRows.length > 0 && !selectedAgentId.value) {
@@ -207,11 +217,24 @@ onMounted(() => {
     badge="Agent Studio"
   >
     <template #actions>
+      <el-radio-group v-model="studioMode" size="small">
+        <el-radio-button value="workflow">可视化 DAG 编排画布</el-radio-button>
+        <el-radio-button value="sandbox">单智能体沙盒</el-radio-button>
+      </el-radio-group>
+      <el-button :icon="Setting" @click="router.push('/system/ai-models')">全模型网关配置</el-button>
       <el-button :icon="RefreshRight" :loading="loading" @click="loadAll">刷新</el-button>
-      <el-button type="primary" :icon="Plus" @click="resetNewAgent">新建智能体</el-button>
+      <el-button v-if="studioMode === 'sandbox'" type="primary" :icon="Plus" @click="resetNewAgent">新建智能体</el-button>
     </template>
 
-    <div class="agent-studio-grid">
+    <AgentWorkflowDesigner
+      v-if="studioMode === 'workflow'"
+      :models="fullModels"
+      :agents="agents"
+      :kbs="kbs"
+      :tools="tools"
+    />
+
+    <div v-else class="agent-studio-grid">
       <!-- Column 1: Agent Roster -->
       <BaseCard class="roster-card">
         <div class="card-head">

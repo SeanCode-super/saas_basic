@@ -37,10 +37,28 @@ import type {
   AgentChatResponse,
   FinetuneDatasetRow,
   FinetuneSampleRow,
-  FinetuneJobRow
+  FinetuneJobRow,
+  AiVendorPreset,
+  AiDiscoveredModel,
+  AgentWorkflowRow,
+  AgentWorkflowSavePayload,
+  AgentWorkflowGraph,
+  AgentWorkflowRunRow
 } from "./types";
 
 export * from "./types";
+
+/** 获取全部主流大模型厂商接入预置模板 */
+export async function fetchAiProviderPresets(): Promise<AiVendorPreset[]> {
+  const response = await http.get<ApiResponse<AiVendorPreset[]>>("/ai/manage/providers/presets");
+  return response.data.data;
+}
+
+/** 从已配置服务商实时发现或推荐可用模型目录 */
+export async function discoverAiProviderModels(providerId: number): Promise<AiDiscoveredModel[]> {
+  const response = await http.post<ApiResponse<AiDiscoveredModel[]>>(`/ai/manage/providers/${providerId}/discover-models`);
+  return response.data.data;
+}
 
 /** 获取所有 AI 服务商列表 */
 export async function fetchAiProviders(): Promise<AiProviderRow[]> {
@@ -441,5 +459,55 @@ export async function startFinetuneJob(payload: {
   loraRank: number;
 }): Promise<FinetuneJobRow> {
   const res = await http.post<ApiResponse<FinetuneJobRow>>("/ai/finetune/jobs", payload);
+  return res.data.data;
+}
+
+// --- Visual Agent DAG Orchestration Workflows ---
+export async function fetchAgentWorkflows(): Promise<AgentWorkflowRow[]> {
+  const res = await http.get<ApiResponse<AgentWorkflowRow[]>>("/ai/workflows");
+  return res.data.data;
+}
+
+export async function fetchAgentWorkflow(id: number): Promise<AgentWorkflowRow> {
+  const res = await http.get<ApiResponse<AgentWorkflowRow>>(`/ai/workflows/${id}`);
+  return res.data.data;
+}
+
+export async function saveAgentWorkflow(payload: AgentWorkflowSavePayload): Promise<AgentWorkflowRow> {
+  const res = await http.post<ApiResponse<AgentWorkflowRow>>("/ai/workflows", payload);
+  return res.data.data;
+}
+
+export async function publishAgentWorkflow(id: number): Promise<AgentWorkflowRow> {
+  const res = await http.post<ApiResponse<AgentWorkflowRow>>(`/ai/workflows/${id}/publish`);
+  return res.data.data;
+}
+
+export async function deleteAgentWorkflow(id: number): Promise<void> {
+  await http.delete(`/ai/workflows/${id}`);
+}
+
+export async function executeAgentWorkflow(
+  id: number,
+  payload: {
+    inputs?: Record<string, any>;
+    overrideGraph?: AgentWorkflowGraph;
+    triggerSource?: string;
+    dryRun?: boolean;
+  }
+): Promise<AgentWorkflowRunRow> {
+  const res = await http.post<ApiResponse<AgentWorkflowRunRow>>(`/ai/workflows/${id}/execute`, payload);
+  return res.data.data;
+}
+
+export async function fetchAgentWorkflowRuns(workflowId?: number): Promise<AgentWorkflowRunRow[]> {
+  const res = await http.get<ApiResponse<AgentWorkflowRunRow[]>>("/ai/workflows/runs", {
+    params: workflowId ? { workflowId } : undefined
+  });
+  return res.data.data;
+}
+
+export async function fetchAgentWorkflowRunDetail(runNo: string): Promise<AgentWorkflowRunRow> {
+  const res = await http.get<ApiResponse<AgentWorkflowRunRow>>(`/ai/workflows/runs/${runNo}`);
   return res.data.data;
 }

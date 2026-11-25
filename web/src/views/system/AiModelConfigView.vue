@@ -26,6 +26,8 @@ import {
 import WorkspacePanel from "@/components/platform/WorkspacePanel.vue";
 import {
   fetchAiProviders,
+  fetchAiProviderPresets,
+  discoverAiProviderModels,
   saveAiProvider,
   deleteAiProvider,
   fetchAiModels,
@@ -52,6 +54,8 @@ import {
   rejectAiToolCall,
   type AiProviderRow,
   type AiProviderSavePayload,
+  type AiVendorPreset,
+  type AiDiscoveredModel,
   type AiModelConfigRow,
   type AiModelConfigSavePayload,
   type AiTestConnectionResult,
@@ -72,7 +76,13 @@ const activeTab = ref<"providers" | "models" | "mcp" | "runs" | "prompts">("prov
 
 // Core Data State
 const providers = ref<AiProviderRow[]>([]);
+const vendorPresets = ref<AiVendorPreset[]>([]);
 const models = ref<AiModelConfigRow[]>([]);
+const discoverDialogVisible = ref(false);
+const discoveringProvider = ref<AiProviderRow | null>(null);
+const discoveringLoading = ref(false);
+const discoveredModels = ref<AiDiscoveredModel[]>([]);
+const importingModelId = ref<string | null>(null);
 const mcpServers = ref<AiMcpServerRow[]>([]);
 const aiTools = ref<AiToolRow[]>([]);
 const prompts = ref<AiPromptRow[]>([]);
@@ -172,42 +182,31 @@ const defaultModel = computed(() => models.value.find((m) => m.isDefault === 1) 
 const totalKeyConfigured = computed(() => providers.value.filter((p) => p.hasApiKey).length);
 const encryptedProvidersCount = computed(() => providers.value.filter((p) => p.encryptedAtRest).length);
 
-const providerPresets = [
-  {
-    name: "DeepSeek 官方",
-    code: "deepseek",
-    type: "OPENAI_COMPATIBLE",
-    baseUrl: "https://api.deepseek.com",
-    remark: "高性价比通用与深度推理模型 (DeepSeek-V3 / R1)"
-  },
-  {
-    name: "OpenAI 官方",
-    code: "openai",
-    type: "OPENAI_COMPATIBLE",
-    baseUrl: "https://api.openai.com/v1",
-    remark: "全球标杆模型 (GPT-4o / GPT-4o Mini)"
-  },
-  {
-    name: "阿里通义千问",
-    code: "qwen",
-    type: "OPENAI_COMPATIBLE",
-    baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
-    remark: "阿里云百炼兼容模式 (Qwen-Plus / Qwen-Max)"
-  },
-  {
-    name: "本地私有化 Ollama",
-    code: "ollama",
-    type: "OLLAMA",
-    baseUrl: "http://localhost:11434/v1",
-    remark: "内网 GPU 私有化部署，零数据外流风险"
-  }
+const fallbackPresets: AiVendorPreset[] = [
+  { vendorCode: "deepseek", vendorName: "DeepSeek 开放平台", providerType: "OPENAI_COMPATIBLE", defaultBaseUrl: "https://api.deepseek.com", apiKeyRequired: true, authGuide: "Bearer API Key", badgeColor: "#2563eb", suggestedModels: [] },
+  { vendorCode: "openai", vendorName: "OpenAI 官方", providerType: "OPENAI_COMPATIBLE", defaultBaseUrl: "https://api.openai.com/v1", apiKeyRequired: true, authGuide: "Bearer API Key", badgeColor: "#10a37f", suggestedModels: [] },
+  { vendorCode: "anthropic", vendorName: "Anthropic Claude", providerType: "ANTHROPIC", defaultBaseUrl: "https://api.anthropic.com/v1", apiKeyRequired: true, authGuide: "x-api-key", badgeColor: "#d97706", suggestedModels: [] },
+  { vendorCode: "gemini", vendorName: "Google Gemini", providerType: "GEMINI", defaultBaseUrl: "https://generativelanguage.googleapis.com/v1beta", apiKeyRequired: true, authGuide: "x-goog-api-key", badgeColor: "#4285f4", suggestedModels: [] },
+  { vendorCode: "azure_openai", vendorName: "Azure OpenAI", providerType: "AZURE_OPENAI", defaultBaseUrl: "https://<resource>.openai.azure.com", apiKeyRequired: true, authGuide: "api-key Header", badgeColor: "#0078d4", suggestedModels: [] },
+  { vendorCode: "qwen", vendorName: "阿里云百炼 Qwen", providerType: "OPENAI_COMPATIBLE", defaultBaseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1", apiKeyRequired: true, authGuide: "DashScope Key", badgeColor: "#6366f1", suggestedModels: [] },
+  { vendorCode: "zhipu", vendorName: "智谱 GLM", providerType: "OPENAI_COMPATIBLE", defaultBaseUrl: "https://open.bigmodel.cn/api/paas/v4", apiKeyRequired: true, authGuide: "BigModel Key", badgeColor: "#0ea5e9", suggestedModels: [] },
+  { vendorCode: "moonshot", vendorName: "月之暗面 Kimi", providerType: "OPENAI_COMPATIBLE", defaultBaseUrl: "https://api.moonshot.cn/v1", apiKeyRequired: true, authGuide: "Moonshot Key", badgeColor: "#0f172a", suggestedModels: [] },
+  { vendorCode: "volcengine", vendorName: "火山方舟豆包", providerType: "OPENAI_COMPATIBLE", defaultBaseUrl: "https://ark.cn-beijing.volces.com/api/v3", apiKeyRequired: true, authGuide: "Ark Key", badgeColor: "#ef4444", suggestedModels: [] },
+  { vendorCode: "openrouter", vendorName: "OpenRouter 聚合", providerType: "OPENAI_COMPATIBLE", defaultBaseUrl: "https://openrouter.ai/api/v1", apiKeyRequired: true, authGuide: "OpenRouter Key", badgeColor: "#7c3aed", suggestedModels: [] },
+  { vendorCode: "groq", vendorName: "Groq 极速云", providerType: "OPENAI_COMPATIBLE", defaultBaseUrl: "https://api.groq.com/openai/v1", apiKeyRequired: true, authGuide: "Groq Key", badgeColor: "#f97316", suggestedModels: [] },
+  { vendorCode: "xai", vendorName: "xAI Grok", providerType: "OPENAI_COMPATIBLE", defaultBaseUrl: "https://api.x.ai/v1", apiKeyRequired: true, authGuide: "xAI Key", badgeColor: "#111827", suggestedModels: [] },
+  { vendorCode: "ollama", vendorName: "Ollama 本地部署", providerType: "OLLAMA_NATIVE", defaultBaseUrl: "http://localhost:11434", apiKeyRequired: false, authGuide: "本地免密", badgeColor: "#16a34a", suggestedModels: [] },
+  { vendorCode: "vllm", vendorName: "vLLM 自建GPU", providerType: "OPENAI_COMPATIBLE", defaultBaseUrl: "http://localhost:8000/v1", apiKeyRequired: false, authGuide: "私有集群", badgeColor: "#475569", suggestedModels: [] }
 ];
+
+const activePresets = computed(() => (vendorPresets.value.length > 0 ? vendorPresets.value : fallbackPresets));
 
 async function loadData() {
   loading.value = true;
   try {
-    const [pList, mList, sList, tList, prList, qData, rList, appList] = await Promise.all([
+    const [pList, presetList, mList, sList, tList, prList, qData, rList, appList] = await Promise.all([
       fetchAiProviders(),
+      fetchAiProviderPresets().catch(() => []),
       fetchAiModels(),
       fetchMcpServers(),
       fetchAiTools(),
@@ -217,6 +216,7 @@ async function loadData() {
       fetchPendingToolApprovals()
     ]);
     providers.value = pList || [];
+    vendorPresets.value = presetList || [];
     models.value = mList || [];
     mcpServers.value = sList || [];
     aiTools.value = tList || [];
@@ -237,12 +237,52 @@ function copyText(val: string) {
   ElMessage.success("已复制到剪贴板");
 }
 
-function applyPreset(preset: (typeof providerPresets)[0]) {
-  providerForm.value.providerName = preset.name;
-  providerForm.value.providerCode = preset.code;
-  providerForm.value.providerType = preset.type;
-  providerForm.value.baseUrl = preset.baseUrl;
-  providerForm.value.remark = preset.remark;
+function applyPreset(preset: AiVendorPreset) {
+  providerForm.value.providerName = preset.vendorName;
+  providerForm.value.providerCode = preset.vendorCode;
+  providerForm.value.providerType = preset.providerType;
+  providerForm.value.baseUrl = preset.defaultBaseUrl;
+  providerForm.value.remark = `${preset.authGuide}${preset.apiKeyRequired ? "" : " · 免密可用"}`;
+}
+
+async function handleDiscoverModels(row: AiProviderRow) {
+  discoveringProvider.value = row;
+  discoveredModels.value = [];
+  discoverDialogVisible.value = true;
+  discoveringLoading.value = true;
+  try {
+    discoveredModels.value = await discoverAiProviderModels(row.id);
+  } catch (err: any) {
+    ElMessage.error(err?.message || "拉取远端模型清单失败");
+  } finally {
+    discoveringLoading.value = false;
+  }
+}
+
+async function handleImportDiscoveredModel(m: AiDiscoveredModel) {
+  if (!discoveringProvider.value) return;
+  importingModelId.value = m.modelId;
+  try {
+    await saveAiModel({
+      providerId: discoveringProvider.value.id,
+      modelId: m.modelId,
+      modelName: m.modelName || m.modelId,
+      category: m.category || "CHAT",
+      contextWindow: m.contextWindow || "128k",
+      maxTokens: 4096,
+      temperature: 0.5,
+      isDefault: models.value.length === 0 ? 1 : 0,
+      status: "ENABLED",
+      sortNo: (models.value.length + 1) * 10
+    });
+    m.alreadyConfigured = true;
+    ElMessage.success(`已导入模型 ${m.modelId}`);
+    await loadData();
+  } catch (err: any) {
+    ElMessage.error(err?.message || "导入模型失败");
+  } finally {
+    importingModelId.value = null;
+  }
 }
 
 // ----------------- Vault Key Rotation -----------------
@@ -822,9 +862,17 @@ onMounted(() => {
             </template>
           </el-table-column>
 
-          <el-table-column label="管理操作" width="245" fixed="right" align="center">
+          <el-table-column label="管理操作" width="295" fixed="right" align="center">
             <template #default="{ row }">
               <div class="action-btn-group">
+                <el-button
+                  size="small"
+                  type="primary"
+                  plain
+                  @click="handleDiscoverModels(row)"
+                >
+                  发现模型
+                </el-button>
                 <el-button
                   size="small"
                   type="warning"
@@ -832,7 +880,7 @@ onMounted(() => {
                   :loading="testingMap[`${row.id}_default`]"
                   @click="runTestConnection(row.id)"
                 >
-                  连通性测试
+                  测试
                 </el-button>
                 <el-button size="small" :icon="Edit" link type="primary" @click="handleEditProvider(row)">编辑</el-button>
                 <el-button size="small" :icon="Delete" link type="danger" @click="handleDeleteProvider(row)">删除</el-button>
@@ -1073,9 +1121,9 @@ onMounted(() => {
     <!-- Provider Edit/Create Workspace Panel -->
     <WorkspacePanel v-model="providerDialogVisible" :title="providerDialogTitle" width="680px" destroy-on-close>
       <div class="preset-pill-row">
-        <span class="preset-label">快捷预填模版：</span>
-        <button v-for="p in providerPresets" :key="p.code" type="button" class="preset-pill-btn" @click="applyPreset(p)">
-          {{ p.name }}
+        <span class="preset-label">全生态一键预填：</span>
+        <button v-for="p in activePresets" :key="p.vendorCode" type="button" class="preset-pill-btn" @click="applyPreset(p)">
+          {{ p.vendorName }}
         </button>
       </div>
       <el-form label-position="top">
@@ -1087,7 +1135,7 @@ onMounted(() => {
           </el-col>
           <el-col :span="12">
             <el-form-item label="服务商代码 (唯一标识)" required>
-              <el-input v-model="providerForm.providerCode" placeholder="例如：deepseek, openai" />
+              <el-input v-model="providerForm.providerCode" placeholder="例如：deepseek, anthropic, gemini" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -1095,8 +1143,13 @@ onMounted(() => {
           <el-col :span="12">
             <el-form-item label="网关协议标准" required>
               <el-select v-model="providerForm.providerType" style="width: 100%">
-                <el-option label="OpenAI 兼容协议 (OPENAI_COMPATIBLE)" value="OPENAI_COMPATIBLE" />
-                <el-option label="本地 Ollama 私有化协议 (OLLAMA)" value="OLLAMA" />
+                <el-option label="OpenAI 兼容协议 (OpenAI/DeepSeek/Qwen/GLM/Kimi/豆包/Groq)" value="OPENAI_COMPATIBLE" />
+                <el-option label="Anthropic Claude 原生协议 (ANTHROPIC)" value="ANTHROPIC" />
+                <el-option label="Google Gemini 原生协议 (GEMINI)" value="GEMINI" />
+                <el-option label="Microsoft Azure OpenAI (AZURE_OPENAI)" value="AZURE_OPENAI" />
+                <el-option label="Ollama 原生 /api/chat (OLLAMA_NATIVE)" value="OLLAMA_NATIVE" />
+                <el-option label="Ollama OpenAI 兼容 (/v1) (OLLAMA)" value="OLLAMA" />
+                <el-option label="vLLM / 自建 GPU 推理 (VLLM)" value="VLLM" />
                 <el-option label="自定义协议 (CUSTOM)" value="CUSTOM" />
               </el-select>
             </el-form-item>
@@ -1356,6 +1409,44 @@ onMounted(() => {
       </div>
       <template #footer>
         <el-button type="primary" @click="testResultDialog = false">我知道了</el-button>
+      </template>
+    </WorkspacePanel>
+
+    <!-- Model Discovery & Import Panel -->
+    <WorkspacePanel
+      v-model="discoverDialogVisible"
+      :title="`模型自动发现与导入 · ${discoveringProvider?.providerName || ''}`"
+      width="700px"
+    >
+      <div v-loading="discoveringLoading">
+        <el-table :data="discoveredModels" border size="small" max-height="420">
+          <el-table-column prop="modelId" label="Model ID" min-width="200">
+            <template #default="{ row }">
+              <code>{{ row.modelId }}</code>
+            </template>
+          </el-table-column>
+          <el-table-column prop="modelName" label="推荐名称" min-width="170" />
+          <el-table-column prop="category" label="类型" width="105" align="center" />
+          <el-table-column prop="contextWindow" label="上下文" width="85" align="center" />
+          <el-table-column label="操作" width="110" align="center">
+            <template #default="{ row }">
+              <el-tag v-if="row.alreadyConfigured" size="small" type="success">已导入</el-tag>
+              <el-button
+                v-else
+                size="small"
+                type="primary"
+                link
+                :loading="importingModelId === row.modelId"
+                @click="handleImportDiscoveredModel(row)"
+              >
+                + 一键导入
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+      <template #footer>
+        <el-button @click="discoverDialogVisible = false">关闭</el-button>
       </template>
     </WorkspacePanel>
   </div>
