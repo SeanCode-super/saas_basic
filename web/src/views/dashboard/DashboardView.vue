@@ -374,6 +374,14 @@ async function runHealthProbe() {
   if (probing.value) return;
   probing.value = true;
   probeProgress.value = 0;
+  probeSteps[1].name = isPlatformScope.value ? "多租户计量配额与 AST 隔离引擎" : "企业资源配额与数据隔离引擎";
+  probeSteps[1].desc = isPlatformScope.value
+    ? "探测 /api/tenant/metering/summary 行级租户上下文"
+    : "检测当前企业空间配额用量与行级数据隔离策略";
+  probeSteps[2].name = isPlatformScope.value ? "租户控制面目录服务" : "企业空间配置与配额服务";
+  probeSteps[2].desc = isPlatformScope.value
+    ? "检验租户清单与套餐配额边界数据读取延迟"
+    : "检验当前企业工作空间容量与配额明细读取延迟";
   probeSteps.forEach((s) => {
     s.status = "PENDING";
     s.latency = "-";
@@ -382,7 +390,7 @@ async function runHealthProbe() {
   const probes: Array<() => Promise<unknown>> = [
     () => http.get("/health/ready").catch(() => http.get("/auth/me")),
     () => fetchTenantMeteringSummary(),
-    () => fetchTenantPage(),
+    () => (isPlatformScope.value ? fetchTenantPage() : fetchTenantQuotas(tenantStore.currentTenant?.id ?? 1)),
     () => fetchIamUsers(),
     () => fetchOperationLogs()
   ];

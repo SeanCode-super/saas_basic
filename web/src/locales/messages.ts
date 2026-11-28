@@ -63,7 +63,7 @@ export const messages: Record<AppLocale, Record<string, string>> = {
     "launchpad.apiDocs": "接口文档",
     "launchpad.preferences": "界面偏好",
     "auth.forgotPassword": "忘记密码？自助重置",
-    "auth.inviteJoin": "受邀加入企业租户",
+    "auth.inviteJoin": "受邀加入企业空间",
     "webhook.centerTitle": "实时事件投递与死信补偿队列",
     "webhook.createSubscription": "新建 CloudEvents 订阅",
     "webhook.replay": "重投补偿"
@@ -130,7 +130,7 @@ export const messages: Record<AppLocale, Record<string, string>> = {
     "launchpad.apiDocs": "API Docs",
     "launchpad.preferences": "Preferences",
     "auth.forgotPassword": "Forgot Password?",
-    "auth.inviteJoin": "Accept Tenant Invitation",
+    "auth.inviteJoin": "Accept Organization Invitation",
     "webhook.centerTitle": "Live Webhook Delivery & DLQ Replay",
     "webhook.createSubscription": "New CloudEvents Subscription",
     "webhook.replay": "Replay"

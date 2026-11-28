@@ -172,6 +172,19 @@ router.beforeEach(async (to) => {
     return toDefaultRoute(menuStore);
   }
 
+  const isPlatformTenant =
+    (authStore.currentUser?.tenantId ?? 1) <= 1 &&
+    (authStore.currentUser?.tenantCode || "platform").toLowerCase() === "platform";
+
+  if (
+    authStore.isAuthenticated &&
+    !isPlatformTenant &&
+    (to.path === "/tenant" || to.path.startsWith("/tenant/"))
+  ) {
+    ElMessage.warning("当前企业空间无权访问平台运营中心");
+    return toDefaultRoute(menuStore);
+  }
+
   if (authStore.isAuthenticated && to.meta?.permissionCode && !authStore.hasPermission(String(to.meta.permissionCode))) {
     ElMessage.warning("当前账号没有访问该页面的权限");
     return toDefaultRoute(menuStore);

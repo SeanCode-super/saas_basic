@@ -883,7 +883,7 @@ function resolveSubjectLabel(subjectType: string, subjectValue: string) {
     case "COMPANY":
       return props.departments.find((item) => String(item.id) === subjectValue)?.deptName ?? subjectValue;
     case "TENANT":
-      return "当前租户";
+      return "全企业";
     default:
       return subjectValue;
   }
@@ -1563,7 +1563,7 @@ function resolveMenuTypeTag(type: string) {
             <el-option label="指定部门" value="DEPARTMENT" />
             <el-option label="指定岗位" value="POSITION" />
             <el-option label="指定公司" value="COMPANY" />
-            <el-option label="全租户" value="TENANT" />
+            <el-option label="全企业" value="TENANT" />
           </el-select>
         </el-form-item>
         <el-form-item label="可访问页面">

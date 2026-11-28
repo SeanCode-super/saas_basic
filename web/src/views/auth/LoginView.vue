@@ -843,8 +843,8 @@ onMounted(() => {
       </template>
     </el-dialog>
 
-    <!-- 租户成员邀请链接入驻对话框 -->
-    <el-dialog v-model="inviteDialogVisible" title="受邀加入企业租户" width="460px" append-to-body>
+    <!-- 企业成员邀请链接入驻对话框 -->
+    <el-dialog v-model="inviteDialogVisible" title="受邀加入企业空间" width="460px" append-to-body>
       <el-alert
         v-if="invitePreview"
         type="success"

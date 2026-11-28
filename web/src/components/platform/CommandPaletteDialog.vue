@@ -29,6 +29,8 @@ import {
 } from "@element-plus/icons-vue";
 import { interpretAiCommand, type AiCommandResponse } from "@/api/modules/ai";
 import { executeSyncExport } from "@/api/modules/export";
+import { useAuthStore } from "@/stores/modules/auth";
+import { useTenantStore } from "@/stores/modules/tenant";
 
 const props = defineProps<{
   visible: boolean;
@@ -41,6 +43,13 @@ const emit = defineEmits<{
 
 const router = useRouter();
 const route = useRoute();
+const authStore = useAuthStore();
+const tenantStore = useTenantStore();
+const isPlatformScope = computed(() => {
+  const id = authStore.currentUser?.tenantId ?? tenantStore.currentTenant?.id ?? 1;
+  const code = (authStore.currentUser?.tenantCode || tenantStore.currentTenant?.code || "platform").toLowerCase();
+  return id <= 1 && code === "platform";
+});
 const searchKeyword = ref("");
 const selectedIndex = ref(0);
 const inputRef = ref<HTMLInputElement | null>(null);
@@ -239,9 +248,12 @@ const allCommands: CommandItem[] = [
 ];
 
 const filteredCommands = computed(() => {
+  const visibleCommands = isPlatformScope.value
+    ? allCommands
+    : allCommands.filter((c) => c.id !== "plat-tenant");
   const kw = searchKeyword.value.trim().toLowerCase();
-  if (!kw) return allCommands;
-  return allCommands.filter(
+  if (!kw) return visibleCommands;
+  return visibleCommands.filter(
     (c) =>
       c.title.toLowerCase().includes(kw) ||
       c.subtitle.toLowerCase().includes(kw) ||

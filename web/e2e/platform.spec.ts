@@ -97,6 +97,17 @@ test.describe("Tianshu SaaS Platform Web E2E", () => {
     await expect(page).not.toHaveURL(/\/login/);
     await expect(page.locator("body")).toContainText("工作台");
     await expect(page.locator("body")).not.toContainText("新建租户");
+    await expect(page.locator("body")).not.toContainText("租户管理员");
+
+    // Command Palette should not expose platform-only tenant center to customer workspace
+    await page.keyboard.press(process.platform === "darwin" ? "Meta+k" : "Control+k");
+    await page.waitForTimeout(200);
+    await expect(page.locator("body")).not.toContainText("多租户管控与灾备中心");
+    await page.keyboard.press("Escape");
+
+    // Direct URL visit to /tenant should redirect back to customer workspace
+    await page.goto("http://juzhenfa.localhost:9527/tenant", { waitUntil: "domcontentloaded" });
+    await page.waitForURL((url) => !url.pathname.startsWith("/tenant"), { timeout: 15_000 });
 
     // Tenant workspace can open business routes cleanly
     await page.goto("http://juzhenfa.localhost:9527/crm/customers", { waitUntil: "domcontentloaded" });

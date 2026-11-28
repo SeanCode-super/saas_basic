@@ -1323,7 +1323,7 @@ onMounted(() => {
           <span
             class="console-shell__scope-badge"
             :class="isPlatformScope ? 'is-platform' : 'is-tenant'"
-            :title="isPlatformScope ? '平台级运营与资源统筹视角' : '当前企业租户独立工作空间'"
+            :title="isPlatformScope ? '平台级运营与资源统筹视角' : '当前企业独立工作空间'"
           >
             {{ isPlatformScope ? "平台运营总控" : "企业空间管理" }}
           </span>
@@ -1351,7 +1351,7 @@ onMounted(() => {
                     authStore.isSuperAdmin
                       ? '超级管理员'
                       : authStore.currentUser?.userType === 'TENANT_ADMIN'
-                      ? '租户管理员'
+                      ? '企业管理员'
                       : authStore.currentUser?.userType === 'TENANT_USER'
                       ? '企业普通员工'
                       : '普通用户'
@@ -1602,7 +1602,13 @@ onMounted(() => {
             <div class="layout-toggle-row">
               <div class="toggle-meta">
                 <span class="toggle-title">全局防截屏安全水印</span>
-                <span class="toggle-desc">在系统全屏工作区浮现操作人与租户名称的半透明防泄密水印</span>
+                <span class="toggle-desc">
+                  {{
+                    isPlatformScope
+                      ? "在系统全屏工作区浮现操作人与租户名称的半透明防泄密水印"
+                      : "在系统全屏工作区浮现操作人与企业名称的半透明防泄密水印"
+                  }}
+                </span>
               </div>
               <el-switch
                 :model-value="enableWatermark"

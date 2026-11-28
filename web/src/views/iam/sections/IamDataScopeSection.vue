@@ -294,7 +294,7 @@ const subjectTypeOptions: Array<{ label: string; value: SubjectType }> = [
   { label: "岗位", value: "POSITION" },
   { label: "个人", value: "USER" },
   { label: "公司", value: "COMPANY" },
-  { label: "全租户", value: "TENANT" }
+  { label: "全企业", value: "TENANT" }
 ];
 
 const scopeTypeOptions: Array<{ label: string; value: ScopeType; desc: string }> = [
@@ -318,7 +318,7 @@ const subjectValueOptions = computed(() => {
     case "COMPANY":
       return companyDepartments.value.map((item) => ({ label: item.deptName, value: String(item.id) }));
     case "TENANT":
-      return [{ label: `当前租户 (${props.currentTenantId})`, value: String(props.currentTenantId) }];
+      return [{ label: "当前企业空间", value: String(props.currentTenantId) }];
     case "ROLE":
     default:
       return props.roles.map((item) => ({ label: item.roleName, value: String(item.id) }));
@@ -411,7 +411,7 @@ function resolveSubjectLabel(subjectType: string, subjectValue: string) {
     case "COMPANY":
       return companyDepartments.value.find((item) => String(item.id) === subjectValue)?.deptName ?? subjectValue;
     case "TENANT":
-      return `租户 ${subjectValue}`;
+      return "全企业";
     case "ROLE":
       return props.roles.find((item) => String(item.id) === subjectValue)?.roleName ?? subjectValue;
     default:
@@ -546,7 +546,7 @@ function getScopeHintTitle(scopeType: string) {
 function getScopeHintDesc(scopeType: string) {
   switch (scopeType) {
     case "ALL":
-      return "授权对象可以查看整个企业（租户）内所有部门、员工的所有业务数据，适用于平台审计员、企业总裁等顶级角色。";
+      return "授权对象可以查看整个企业内所有部门、员工的所有业务数据，适用于平台审计员、企业总裁等顶级角色。";
     case "DEPT_AND_CHILDREN":
       return "授权对象登录后，系统会自动根据其所属部门，动态穿透授权其部门及所有下级子部门的数据，适用于部门总监、区域经理。";
     case "DEPT_ONLY":

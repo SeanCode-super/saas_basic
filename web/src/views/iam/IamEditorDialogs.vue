@@ -422,7 +422,7 @@ function getDataScopeTemplateDesc(type: string) {
           <el-select v-model="userForm.userType" style="width: 100%">
             <el-option v-if="allowPlatformAccount" label="平台账号" value="PLATFORM" />
             <el-option label="员工账号" value="EMPLOYEE" />
-            <el-option label="租户账号" value="TENANT" />
+            <el-option label="企业账号" value="TENANT" />
             <el-option label="外部账号" value="EXTERNAL" />
           </el-select>
         </el-form-item>
@@ -469,8 +469,8 @@ function getDataScopeTemplateDesc(type: string) {
         </el-form-item>
         <el-form-item label="角色类型">
           <el-select v-model="roleForm.roleType" style="width: 100%">
-            <el-option label="平台角色" value="PLATFORM" />
-            <el-option label="租户角色" value="TENANT" />
+            <el-option v-if="allowPlatformAccount" label="平台角色" value="PLATFORM" />
+            <el-option label="企业角色" value="TENANT" />
             <el-option label="系统角色" value="SYSTEM" />
             <el-option label="自定义角色" value="CUSTOM" />
           </el-select>
